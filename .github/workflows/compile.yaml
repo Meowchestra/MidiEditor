@@ -6,7 +6,7 @@ jobs:
     runs-on: windows-latest
     env:
       MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
-      MIDIEDITOR_RELEASE_DATE: "%DATE%"
+      MIDIEDITOR_RELEASE_DATE: ""
     if: always()
     strategy:
       matrix:
@@ -29,22 +29,19 @@ jobs:
         with:
           qtifw-version: '4.x'
       
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v2
         with:
           fetch-depth: 1
           submodules: true
 
-      - name: Setup Visual Studio environment
-        shell: cmd
-        run: |
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
-
-      - name: Build with qmake and nmake
+      - name: msvc-build
+        id: build
         shell: cmd
         run: |
           set MIDIEDITOR_RELEASE_DATE="%DATE%"
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
           qmake
-          cmake
+          nmake
 
       - name: Copy Files 
         shell: pwsh
@@ -55,4 +52,24 @@ jobs:
           mkdir ./packaging/org.midieditor.midieditor/data/metronome
           cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
           mkdir ./packaging/org.midieditor.manual/data/
-          cp -Recurse -Path ./...
+          cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
+
+      - name: packaging
+        shell: cmd
+        run: |
+          binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
+
+      - name: Upload 
+        uses: actions/upload-artifact@v2
+        with:
+          name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
+          path: |
+            Install.exe
+
+      - name: Report 
+        shell: cmd
+        run: |
+          echo winSdkDir=%WindowsSdkDir% >> %GITHUB_ENV%
+          echo winSdkVer=%WindowsSdkVersion% >> %GITHUB_ENV%
+          echo vcToolsInstallDir=%VCToolsInstallDir% >> %GITHUB_ENV%
+          echo vcToolsRedistDir=%VCToolsRedistDir% >> %GITHUB_ENV%
