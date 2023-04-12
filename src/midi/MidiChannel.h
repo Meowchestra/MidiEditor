@@ -101,7 +101,7 @@ public:
     /**
 		 * \brief inserts event into the channels map.
 		 */
-    void insertEvent(MidiEvent* event, int tick, bool toProtocol = true);
+    void insertEvent(MidiEvent* event, int tick);
 
     /**
 		 * \brief removes event from the eventMap.
