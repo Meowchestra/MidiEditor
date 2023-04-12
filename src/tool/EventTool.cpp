@@ -34,7 +34,6 @@
 #include "Selection.h"
 
 #include <QtCore/qmath.h>
-#include <QClipboard>
 
 #include <set>
 #include <vector>
@@ -167,7 +166,7 @@ void EventTool::copyAction()
 {
     if (Selection::instance()->selectedEvents().size() > 0) {
         // clear old copied Events
-        copiedEvents->clear();
+        //copiedEvents->clear();
         MidiFile copyFile = MidiFile();
         copyFile.setTicksPerQuarter(Selection::instance()->selectedEvents().first()->file()->ticksPerQuarter());
         MidiTrack* copyTrack = copyFile.track(1);
@@ -180,11 +179,11 @@ void EventTool::copyAction()
                 // do not append off event here
                 OffEvent* off = dynamic_cast<OffEvent*>(ev);
                 if (!off) {
-                    copiedEvents->append(ev);
-                    //ev->setTrack(copyTrack, false);
-                    //ev->setChannel(0, false);
-                    //ev->setFile(&copyFile);
-                    //copyFile.channelEvents(0)->insert(ev->midiTime(), ev);
+                    //copiedEvents->append(ev);
+                    ev->setTrack(copyTrack, false);
+                    ev->setChannel(0, false);
+                    ev->setFile(&copyFile);
+                    copyFile.channelEvents(0)->insert(ev->midiTime(), ev);
                 }
             }
 
@@ -194,50 +193,38 @@ void EventTool::copyAction()
                 OffEvent* offEv = dynamic_cast<OffEvent*>(onEv->offEvent()->copy());
                 if (offEv) {
                     offEv->setOnEvent(onEv);
-                    copiedEvents->append(offEv);
-                    //offEv->setTrack(copyTrack, false);
-                    //offEv->setChannel(0, false);
-                    //offEv->setFile(&copyFile);
-                    //copyFile.channelEvents(0)->insert(offEv->midiTime(), offEv);
+                    //copiedEvents->append(offEv);
+                    offEv->setTrack(copyTrack, false);
+                    offEv->setChannel(0, false);
+                    offEv->setFile(&copyFile);
+                    copyFile.channelEvents(0)->insert(offEv->midiTime(), offEv);
                 }
             }
         }
-        //MidiFile copyFile = MidiFile();
-        //MidiTrack* copyTrack = copyFile.track(1);
-
-        for (auto event: *copiedEvents){
-            MidiEvent* copy = dynamic_cast<MidiEvent*>(event->copy());
-            copy->setTrack(copyTrack, false);
-            copy->setChannel(0, false);
-            copy->setFile(&copyFile);
-            copyFile.channelEvents(0)->insert(event->midiTime(), copy);
-
-        //QByteArray copyFileBytes = copyFile.toByteArray();
-        //int MAX_COPY_SIZE = 1073741824; //1GB
-        //if (copyFileBytes.size() > MAX_COPY_SIZE){
-        //    QMessageBox msgBox;
-        //    msgBox.setText("Copied data too large...");
-        //    msgBox.exec();
-        //    return;
+        
+        QByteArray copyFileBytes = copyFile.toByteArray();
+        int MAX_COPY_SIZE = 1073741824; //1GB
+        if (copyFileBytes.size() > MAX_COPY_SIZE){
+            QMessageBox msgBox;
+            msgBox.setText("Copied data too large...");
+            msgBox.exec();
+            return;
         }
 
-        QClipboard *clipboard = QGuiApplication::clipboard();
-        clipboard->setText(copyFile.toByteArray().toBase64());
+        if (!sharedMemory.isAttached()){
+            if (!sharedMemory.create(MAX_COPY_SIZE)){
+                QMessageBox msgBox;
+                msgBox.setText("Failed to copy items...");
+                msgBox.exec();
+                return;
+            }
+        }
 
-        //if (!sharedMemory.isAttached()){
-        //    if (!sharedMemory.create(MAX_COPY_SIZE)){
-        //        QMessageBox msgBox;
-        //        msgBox.setText("Failed to copy items...");
-        //        msgBox.exec();
-        //        return;
-        //    }
-        //}
-
-        //sharedMemory.lock();
-        //char* to = (char*) sharedMemory.data();
-        //char* from = copyFileBytes.data();
-        //memcpy(to, from, qMin(sharedMemory.size(), copyFileBytes.size()));
-        //sharedMemory.unlock();
+        sharedMemory.lock();
+        char* to = (char*) sharedMemory.data();
+        char* from = copyFileBytes.data();
+        memcpy(to, from, qMin(sharedMemory.size(), copyFileBytes.size()));
+        sharedMemory.unlock();
 
         //_mainWindow->copiedEventsChanged();
     }
@@ -245,50 +232,29 @@ void EventTool::copyAction()
 
 void EventTool::pasteAction()
 {
-
-    QClipboard *clipboard = QGuiApplication::clipboard();
-
-    QString pasted_midiFile_b64_str = clipboard->text();
-
-    if(pasted_midiFile_b64_str.size() == 0) return;
-
-    QByteArray pasted_midiFile_raw = QByteArray::fromBase64(pasted_midiFile_b64_str.toUtf8(), QByteArray::AbortOnBase64DecodingErrors);
-
-    if (pasted_midiFile_raw.size() == 0){
-        QMessageBox msgBox;
-        msgBox.setText("The pasted input cannot be interpreted as base64 encoded midi data...");
-        msgBox.exec();
-        return;
-
-    //if (!sharedMemory.isAttached() && !sharedMemory.attach()){
-    //    return; //No data copied
+    if (!sharedMemory.isAttached() && !sharedMemory.attach()){
+        return; //No data copied
     }
-    //sharedMemory.lock();
-    //QByteArray pasted_file_raw = QByteArray();
-    //pasted_file_raw.setRawData((char*)sharedMemory.constData(), sharedMemory.size());
-    //
-    //if(pasted_file_raw.size() == 0) {
-    //    sharedMemory.unlock();
-    //    return;
-    //};
+    sharedMemory.lock();
+    QByteArray pasted_file_raw = QByteArray();
+    pasted_file_raw.setRawData((char*)sharedMemory.constData(), sharedMemory.size());
+    
+    if(pasted_file_raw.size() == 0) {
+        sharedMemory.unlock();
+        return;
+    };
     bool ok = true;
-    MidiFile pasted_file(pasted_midiFile_raw, &ok, nullptr);
-    //MidiFile pasted_file(pasted_file_raw, &ok, nullptr);
+    MidiFile pasted_file(pasted_file_raw, &ok, nullptr);
 
-    //sharedMemory.unlock();
+    sharedMemory.unlock();
 
     if(!ok){
         QMessageBox msgBox;
         msgBox.setText("The pasted input cannot be interpreted as midi data...");
         msgBox.exec();
     }
-    copiedEvents->clear();
-    for (MidiEvent* e: *pasted_file.channelEvents(0)){
-        copiedEvents->append(e);
-    }
 
-    if (copiedEvents->size() == 0) {
-    //if (pasted_file.channelEvents(0)->size() == 0) {
+    if (pasted_file.channelEvents(0)->size() == 0) {
         return;
     }
 
@@ -296,8 +262,7 @@ void EventTool::pasteAction()
 
     // copy copied events to insert unique events
     QList<MidiEvent*> copiedCopiedEvents;
-	foreach (MidiEvent* event, *copiedEvents) {
-    //foreach (MidiEvent* event, *pasted_file.channelEvents(0)) {
+    foreach (MidiEvent* event, *pasted_file.channelEvents(0)) {
 
         // add the current Event
         MidiEvent* ev = dynamic_cast<MidiEvent*>(event->copy());
@@ -328,10 +293,8 @@ void EventTool::pasteAction()
         currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(copiedCopiedEvents.count()) + QObject::tr(" events"));
 
         double tickscale = 1;
-        if (currentFile() != copiedEvents->first()->file()) {
-            tickscale = ((double)(currentFile()->ticksPerQuarter())) / ((double)copiedEvents->first()->file()->ticksPerQuarter());
-        //if (currentFile() != copiedEventsFile) {
-        //    tickscale = ((double)(currentFile()->ticksPerQuarter())) / ((double)copiedEventsFile->ticksPerQuarter());
+        if (currentFile() != copiedEventsFile) {
+            tickscale = ((double)(currentFile()->ticksPerQuarter())) / ((double)copiedEventsFile->ticksPerQuarter());
         }
 
         // get first Tick of the copied events
