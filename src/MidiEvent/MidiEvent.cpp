@@ -399,7 +399,12 @@ void MidiEvent::setMidiTime(int t, bool toProtocol)
         }
     }
 
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry* toCopy = nullptr;
+    if (toProtocol)
+    {
+        toCopy = copy();
+    }
+
     file()->channelEvents(numChannel)->remove(timePos, this);
     timePos = t;
     if (timePos > file()->endTick()) {
@@ -407,8 +412,6 @@ void MidiEvent::setMidiTime(int t, bool toProtocol)
     }
     if (toProtocol) {
         protocol(toCopy, this);
-    } else {
-        delete toCopy;
     }
 
     file()->channelEvents(numChannel)->insert(timePos, this);
