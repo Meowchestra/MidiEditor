@@ -42,13 +42,13 @@
 
 
 
-//QList<MidiEvent*>* EventTool::copiedEvents = new QList<MidiEvent*>;
+QList<MidiEvent*>* EventTool::copiedEvents = new QList<MidiEvent*>;
 
 int EventTool::_pasteChannel = -1;
 int EventTool::_pasteTrack = -2;
 
 bool EventTool::_magnet = false;
-QSharedMemory EventTool::sharedMemory = QSharedMemory("midieditor_copy_paste_memory");
+//QSharedMemory EventTool::sharedMemory = QSharedMemory("midieditor_copy_paste_memory");
 
 EventTool::EventTool()
     : EditorTool() {

@@ -1,7 +1,7 @@
 @echo off
 
-rem Make sure that we build in 32-bit.
-set OVERRIDE_ARCH=32
+rem Make sure that we build in 64-bit.
+set OVERRIDE_ARCH=64
 
 set MIDIEDITOR_RELEASE_DATE=%date:~4%
 
