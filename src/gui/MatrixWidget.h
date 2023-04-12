@@ -115,7 +115,7 @@ class MatrixWidget : public PaintWidget {
     void paintPianoKey(QPainter* painter, int number, int x, int y,
                        int width, int height);
 
-    bool _isPianoEmulationEnabled = true;
+    bool _isPianoEmulationEnabled = false;
 
     int startTick, endTick, startTimeX, endTimeX, startLineY, endLineY,
         lineNameWidth, timeHeight, msOfFirstEventInList;
