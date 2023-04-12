@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# Make sure that we build in 64-bit.
-export OVERRIDE_ARCH=64
+# Make sure that we build in 32-bit.
+export OVERRIDE_ARCH=32
 
 mkdir windows32_build
 cd windows32_build
