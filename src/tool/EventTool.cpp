@@ -168,9 +168,9 @@ void EventTool::copyAction()
     if (Selection::instance()->selectedEvents().size() > 0) {
         // clear old copied Events
         copiedEvents->clear();
-        MidiFile copyFile = MidiFile();
+        //MidiFile copyFile = MidiFile();
         copyFile.setTicksPerQuarter(Selection::instance()->selectedEvents().first()->file()->ticksPerQuarter());
-        MidiTrack* copyTrack = copyFile.track(1);
+        //MidiTrack* copyTrack = copyFile.track(1);
 
         foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
 
@@ -202,8 +202,8 @@ void EventTool::copyAction()
                 }
             }
         }
-        //MidiFile copyFile = MidiFile();
-        //MidiTrack* copyTrack = copyFile.track(1);
+        MidiFile copyFile = MidiFile();
+        MidiTrack* copyTrack = copyFile.track(1);
 
         for (auto event: *copiedEvents){
             MidiEvent* copy = dynamic_cast<MidiEvent*>(event->copy());
