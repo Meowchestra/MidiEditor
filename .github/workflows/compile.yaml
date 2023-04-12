@@ -2,7 +2,7 @@ name: build windows
 on: push
 
 jobs:
-  job1:
+  build:
     runs-on: windows-latest
     env:
       MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
@@ -23,7 +23,7 @@ jobs:
           arch: ${{ matrix.qt_arch }}
           host: 'windows'
           target: 'desktop'
-          cached: 'false'
+          cache: 'false'
 
       - uses: jmarrec/setup-qtifw@v1
         with:
@@ -44,7 +44,7 @@ jobs:
         run: |
           set MIDIEDITOR_RELEASE_DATE="%DATE%"
           qmake
-          nmake
+          cmake
 
       - name: Copy Files 
         shell: pwsh
