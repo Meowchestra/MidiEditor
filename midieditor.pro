@@ -16,10 +16,9 @@ HEADERS += src/midi/rtmidi/RtMidi.h
 SOURCES += $$files(**.cpp, true)
 SOURCES -= $$files(src/midi/rtmidi/**.cpp, true)
 SOURCES += src/midi/rtmidi/RtMidi.cpp
+CONFIG += static
 FORMS += 
 RESOURCES += resources.qrc
-message(get arch)
-message($$(OVERRIDE_ARCH))
 ARCH_FORCE = $$(OVERRIDE_ARCH)
 contains(ARCH_FORCE, 64){
     DEFINES += __ARCH64__
@@ -55,16 +54,18 @@ DEFINES += MIDIEDITOR_RELEASE_VERSION_STRING_DEF=$$MIDIEDITOR_RELEASE_VERSION_ST
 message(MIDIEDITOR_RELEASE_VERSION_ID=$$(MIDIEDITOR_RELEASE_VERSION_ID))
 MIDIEDITOR_RELEASE_VERSION_ID_QMAKE=$$(MIDIEDITOR_RELEASE_VERSION_ID)
 isEmpty(MIDIEDITOR_RELEASE_VERSION_ID_QMAKE) {
-    MIDIEDITOR_RELEASE_VERSION_ID_QMAKE=-1
+    MIDIEDITOR_RELEASE_VERSION_ID_QMAKE=4
 }
 message(Release version id is set to $$MIDIEDITOR_RELEASE_VERSION_ID_QMAKE)
 DEFINES += MIDIEDITOR_RELEASE_VERSION_ID_DEF=$$MIDIEDITOR_RELEASE_VERSION_ID_QMAKE
 
 MIDIEDITOR_RELEASE_DATE_QMAKE=$$(MIDIEDITOR_RELEASE_DATE)
 isEmpty(MIDIEDITOR_RELEASE_DATE_QMAKE) {
-    unix: {
-        # Read current date
-        MIDIEDITOR_RELEASE_DATE_QMAKE=\"$$quote($$system("date"))\"
+    win32 {
+        MIDIEDITOR_RELEASE_DATE_QMAKE=\"$$quote($$system("echo %date:~4,10%"))\"
+    }
+    else {
+        MIDIEDITOR_RELEASE_DATE_QMAKE=\"$$quote($$system(date))\"
     }
 }
 DEFINES += MIDIEDITOR_RELEASE_DATE_DEF=$$MIDIEDITOR_RELEASE_DATE_QMAKE
@@ -82,7 +83,7 @@ unix:!macx {
 win32: {
     DEFINES += __WINDOWS_MM__
     LIBS += -lwinmm
-    CONFIG += release
+    CONFIG += static release
     RC_FILE = midieditor.rc
     OBJECTS_DIR = .tmp
     MOC_DIR = .tmp

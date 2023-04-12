@@ -121,6 +121,8 @@ MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
         return;
     }
 
+    delete f;
+
     *ok = true;
     playerMap = new QMultiMap<int, MidiEvent*>;
     calcMaxTime();

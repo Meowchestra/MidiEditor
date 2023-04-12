@@ -1520,6 +1520,10 @@ void MainWindow::updateTrackMenu() {
         QVariant variant(i);
         QAction* moveToTrackAction = new QAction(QString::number(i) + " " + file->tracks()->at(i)->name(), this);
         moveToTrackAction->setData(variant);
+		
+        QString formattedKeySequence = QString("Alt+%1").arg(i);
+        moveToTrackAction->setShortcut(QKeySequence::fromString(formattedKeySequence));
+
         _moveSelectedEventsToTrackMenu->addAction(moveToTrackAction);
     }
 
@@ -2303,12 +2307,12 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     tweakMenu->addAction(tweakSmallIncreaseAction);
 
     QAction* tweakMediumDecreaseAction = new QAction(tr("Medium decrease"), tweakMenu);
-    tweakMediumDecreaseAction->setShortcut(Qt::Key_9 + Qt::ALT);
+    tweakMediumDecreaseAction->setShortcut(Qt::Key_9 + Qt::CTRL + Qt::ALT);
     connect(tweakMediumDecreaseAction, SIGNAL(triggered()), this, SLOT(tweakMediumDecrease()));
     tweakMenu->addAction(tweakMediumDecreaseAction);
 
     QAction* tweakMediumIncreaseAction = new QAction(tr("Medium increase"), tweakMenu);
-    tweakMediumIncreaseAction->setShortcut(Qt::Key_0 + Qt::ALT);
+    tweakMediumIncreaseAction->setShortcut(Qt::Key_0 + Qt::CTRL + Qt::ALT);
     connect(tweakMediumIncreaseAction, SIGNAL(triggered()), this, SLOT(tweakMediumIncrease()));
     tweakMenu->addAction(tweakMediumIncreaseAction);
 

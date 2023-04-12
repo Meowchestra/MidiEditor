@@ -81,7 +81,7 @@ InstallPassword
 {}
 
 InstallVersion
-{3.0.0.0}
+{4.0.0.0}
 
 Language,ca
 {Yes}
@@ -189,7 +189,7 @@ UpgradeApplicationID
 {}
 
 Version
-{3.0.0}
+{4.0.0}
 
 ViewReadme
 {Yes}

@@ -37,7 +37,7 @@ UpdateManager::UpdateManager()
 }
 
 void UpdateManager::init() {
-    _mirrors.append("https://midieditor.org/update");
+    //_mirrors.append("https://midieditor.org/update");
 }
 
 QString UpdateManager::versionString() {
