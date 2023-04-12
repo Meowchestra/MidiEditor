@@ -1,5 +1,7 @@
 name: build windows
-on: push
+on:
+  push:
+    branches: [ main ]
 
 jobs:
   build:
@@ -29,7 +31,7 @@ jobs:
         with:
           qtifw-version: '4.x'
       
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
           submodules: true
@@ -60,7 +62,7 @@ jobs:
           binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
       - name: Upload 
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
           path: |
