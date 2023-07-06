@@ -45,7 +45,7 @@ public:
     MidiFile(int maxTime, Protocol* p);
     bool save(QString path);
     QByteArray toByteArray();
-    static QByteArray writeDeltaTime(int time);
+    QByteArray writeDeltaTime(int time);
     int maxTime();
     int endTick();
     int timeMS(int midiTime);
