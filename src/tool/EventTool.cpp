@@ -42,10 +42,17 @@ int EventTool::_pasteChannel = -1;
 int EventTool::_pasteTrack = -2;
 
 bool EventTool::_magnet = false;
-QSharedMemory EventTool::sharedMemory("midieditor_copy_paste_memory");
+QSharedMemory* EventTool::sharedMemory = nullptr;
 
 EventTool::EventTool()
     : EditorTool() {
+    if (!sharedMemory) {
+        sharedMemory = new QSharedMemory("midieditor_copy_paste_memory");
+    }
+}
+
+EventTool::~EventTool() {
+    delete sharedMemory;
 }
 
 EventTool::EventTool(EventTool& other)
