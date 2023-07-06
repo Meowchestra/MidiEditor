@@ -184,20 +184,12 @@ bool MidiChannel::removeEvent(MidiEvent* event)
     return true;
 }
 
-void MidiChannel::insertEvent(MidiEvent* event, int tick, bool toProtocol)
+void MidiChannel::insertEvent(MidiEvent* event, int tick)
 {
-    ProtocolEntry* toCopy = nullptr;
-    if (toProtocol)
-    {
-        toCopy = copy();
-    }
+    ProtocolEntry* toCopy = copy();
     event->setFile(file());
     event->setMidiTime(tick, false);
-
-    if (toProtocol)
-    {
-        protocol(toCopy, this);
-    }
+    protocol(toCopy, this);
 }
 
 void MidiChannel::deleteAllEvents()
