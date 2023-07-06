@@ -26,6 +26,7 @@
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
+#include "../protocol/Protocol.h"
 #include "../tool/EventTool.h"
 #include "../tool/Selection.h"
 
@@ -86,7 +87,10 @@ void SelectionNavigator::navigate(qreal searchAngle)
     }
 
     if (!newSelectedEvent) return;
+    Protocol* protocol = file->protocol();
+    protocol->startNewAction("Tweak selection");
     EventTool::selectEvent(newSelectedEvent, true);
+    protocol->endAction();
     mainWindow->updateAll();
 }
 

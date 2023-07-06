@@ -25,6 +25,7 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../gui/MatrixWidget.h"
 #include "../midi/MidiFile.h"
+#include "../protocol/Protocol.h"
 #include "Selection.h"
 
 #define NO_ACTION 0
@@ -140,16 +141,20 @@ bool StandardTool::press(bool leftClick) {
 
             case SIZE_CHANGE_ACTION: {
                 if (!onSelectedEvent) {
+                    file()->protocol()->startNewAction("Selection changed", image());
                     ProtocolEntry* toCopy = copy();
                     EventTool::selectEvent(event, !Selection::instance()->selectedEvents().contains(event));
                     protocol(toCopy, this);
+                    file()->protocol()->endAction();
                 }
             }
             case MOVE_ACTION: {
                 if (!onSelectedEvent) {
+                    file()->protocol()->startNewAction("Selection changed", image());
                     ProtocolEntry* toCopy = copy();
                     EventTool::selectEvent(event, !Selection::instance()->selectedEvents().contains(event));
                     protocol(toCopy, this);
+                    file()->protocol()->endAction();
                 }
                 /* TODO reenable
                     if(altGrPressed){
