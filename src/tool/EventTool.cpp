@@ -48,9 +48,6 @@ EventTool::EventTool()
     : EditorTool() {
 }
 
-EventTool::~EventTool() {
-}
-
 EventTool::EventTool(EventTool& other)
     : EditorTool(other) {
 }
