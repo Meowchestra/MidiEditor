@@ -85,6 +85,19 @@ MidiFile::MidiFile() {
     calcMaxTime();
 }
 
+MidiFile::MidiFile(const MidiFile& other)
+{
+    Q_UNUSED(other);
+    // No implementation needed, the function is declared to make it private
+}
+
+MidiFile& MidiFile::operator=(const MidiFile& other)
+{
+    Q_UNUSED(other);
+    // No implementation needed, the function is declared to make it private
+    return *this;
+}
+
 MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
 
     if (!log) {

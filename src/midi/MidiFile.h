@@ -113,6 +113,8 @@ signals:
     void trackChanged();
 
 private:
+    MidiFile(const MidiFile& other);
+    MidiFile& operator=(const MidiFile& other);
     bool readMidiFile(QDataStream* content, QStringList* log);
     bool readTrack(QDataStream* content, int num, QStringList* log);
     int deltaTime(QDataStream* content);
