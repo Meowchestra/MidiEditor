@@ -19,10 +19,8 @@
 #ifndef SENDERTHREAD_H_
 #define SENDERTHREAD_H_
 
-#include <QMutex>
 #include <QQueue>
 #include <QThread>
-#include <QWaitCondition>
 
 #include "MidiOutput.h"
 
@@ -36,8 +34,6 @@ public:
 private:
     QQueue<MidiEvent*>* _eventQueue;
     QQueue<MidiEvent*>* _noteQueue;
-    QMutex* _mutex;
-    QWaitCondition* _waitCondition;
 };
 
 #endif
