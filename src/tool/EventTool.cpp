@@ -42,17 +42,13 @@ int EventTool::_pasteChannel = -1;
 int EventTool::_pasteTrack = -2;
 
 bool EventTool::_magnet = false;
-QSharedMemory* EventTool::sharedMemory = nullptr;
+QSharedMemory EventTool::sharedMemory("midieditor_copy_paste_memory");
 
 EventTool::EventTool()
     : EditorTool() {
-    if (!sharedMemory) {
-        sharedMemory = new QSharedMemory("midieditor_copy_paste_memory");
-    }
 }
 
 EventTool::~EventTool() {
-    delete sharedMemory;
 }
 
 EventTool::EventTool(EventTool& other)
@@ -166,18 +162,18 @@ void EventTool::changeTick(MidiEvent* event, int shiftX) {
 
 void EventTool::copyAction() {
     if (Selection::instance()->selectedEvents().size() > 0) {
-        // clear old copied Events
+        // Clear old copied Events
         //copiedEvents->clear();
-        MidiFile copyFile = MidiFile();
+        MidiFile copyFile;
         copyFile.setTicksPerQuarter(Selection::instance()->selectedEvents().first()->file()->ticksPerQuarter());
         MidiTrack* copyTrack = copyFile.track(1);
 
         foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
 
-            // add the current Event
+            // Add the current Event
             MidiEvent* ev = dynamic_cast<MidiEvent*>(event->copy());
             if (ev) {
-                // do not append off event here
+                // Do not append off event here
                 OffEvent* off = dynamic_cast<OffEvent*>(ev);
                 if (!off) {
                     //copiedEvents->append(ev);
@@ -188,7 +184,7 @@ void EventTool::copyAction() {
                 }
             }
 
-            // if its onEvent, add a copy of the OffEvent
+            // If it's an onEvent, add a copy of the OffEvent
             OnEvent* onEv = dynamic_cast<OnEvent*>(ev);
             if (onEv) {
                 OffEvent* offEv = dynamic_cast<OffEvent*>(onEv->offEvent()->copy());
@@ -222,8 +218,8 @@ void EventTool::copyAction() {
         }
 
         sharedMemory.lock();
-        char* to = (char*) sharedMemory.data();
-        char* from = copyFileBytes.data();
+        char* to = static_cast<char*>(sharedMemory.data());
+        const char* from = copyFileBytes.constData();
         memcpy(to, from, qMin(sharedMemory.size(), copyFileBytes.size()));
         sharedMemory.unlock();
 
