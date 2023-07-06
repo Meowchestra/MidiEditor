@@ -38,8 +38,6 @@ class MidiFile : public QObject, public ProtocolEntry {
     Q_OBJECT
 
 public:
-    MidiFile(const MidiFile& other)
-        : QObject(other), ProtocolEntry(other) {
     MidiFile(QByteArray& raw_midi, bool* ok, QStringList* log);
     MidiFile(QString path, bool* ok, QStringList* log = 0);
     MidiFile();
@@ -115,6 +113,8 @@ signals:
     void trackChanged();
 
 private:
+    MidiFile(const MidiFile& other);
+    MidiFile& operator=(const MidiFile& other);
     bool readMidiFile(QDataStream* content, QStringList* log);
     bool readTrack(QDataStream* content, int num, QStringList* log);
     int deltaTime(QDataStream* content);
