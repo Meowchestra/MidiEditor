@@ -128,39 +128,6 @@ MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
     printLog(log);
 }
 
-MidiFile::MidiFile(QByteArray& raw_midi, bool* ok, QStringList* log) {
-
-    if (!log) {
-        log = new QStringList();
-    }
-
-    _pauseTick = -1;
-    _saved = false;
-    midiTicks = 0;
-    _cursorTick = 0;
-    prot = new Protocol(this);
-    prot->addEmptyAction("File opened");
-    _tracks = new QList<MidiTrack*>();
-
-
-    for (int i = 0; i < 19; i++) {
-        channels[i] = new MidiChannel(this, i);
-    }
-
-    QDataStream* stream = new QDataStream(raw_midi);
-    stream->setByteOrder(QDataStream::BigEndian);
-    if (!readMidiFile(stream, log)) {
-        *ok = false;
-        printLog(log);
-        return;
-    }
-
-    *ok = true;
-    playerMap = new QMultiMap<int, MidiEvent*>;
-    calcMaxTime();
-    printLog(log);
-}
-
 MidiFile::MidiFile(int ticks, Protocol* p) {
     midiTicks = ticks;
     prot = p;
@@ -682,10 +649,6 @@ int MidiFile::measure(int startTick, int* startTickOfMeasure ,int* endTickOfMeas
 
 int MidiFile::ticksPerQuarter() {
     return timePerQuarter;
-}
-
-void MidiFile::setTicksPerQuarter(int timePerQuarter) {
-    this->timePerQuarter = timePerQuarter;
 }
 
 QMultiMap<int, MidiEvent*>* MidiFile::channelEvents(int channel) {
@@ -1431,7 +1394,17 @@ void MidiFile::setPauseTick(int tick) {
     _pauseTick = tick;
 }
 
-QByteArray MidiFile::toByteArray() {
+bool MidiFile::save(QString path) {
+
+    QFile* f = new QFile(path);
+
+    if (!f->open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    QDataStream* stream = new QDataStream(f);
+    stream->setByteOrder(QDataStream::BigEndian);
+
     // All Events are stored in allEvents. This is because the data has to be
     // saved by tracks and not by channels
     QMultiMap<int, MidiEvent*> allEvents = QMultiMap<int, MidiEvent*>();
@@ -1523,21 +1496,6 @@ QByteArray MidiFile::toByteArray() {
             data[trackLengthPos + 3 - i] = ((qint8)((numBytes & (0xFF << 8 * i)) >> 8 * i));
         }
     }
-    return data;
-}
-
-bool MidiFile::save(QString path) {
-
-    QFile* f = new QFile(path);
-
-    if (!f->open(QIODevice::WriteOnly)) {
-        return false;
-    }
-
-    QDataStream* stream = new QDataStream(f);
-    stream->setByteOrder(QDataStream::BigEndian);
-
-    QByteArray data = toByteArray();
 
     // write data to the filestream
     for (int i = 0; i < data.count(); i++) {
