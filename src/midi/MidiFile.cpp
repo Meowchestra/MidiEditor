@@ -37,6 +37,7 @@
 #include "math.h"
 
 #include <QtCore/qmath.h>
+#include <iostream>
 
 int MidiFile::defaultTimePerQuarter = 192;
 
