@@ -73,6 +73,7 @@ bool EraserTool::release() {
             }
         }
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
     currentProtocol()->endAction();
     return true;
 }

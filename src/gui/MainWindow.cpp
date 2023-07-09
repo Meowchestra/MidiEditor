@@ -1366,6 +1366,7 @@ void MainWindow::deleteChannel(QAction* action) {
             EventTool::deselectEvent(event);
         }
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 
     file->channel(num)->deleteAllEvents();
     file->protocol()->endAction();
@@ -1664,6 +1665,7 @@ void MainWindow::removeTrack(int tracknumber) {
             EventTool::deselectEvent(event);
         }
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
     if (!file->removeTrack(track)) {
         QMessageBox::warning(this, tr("Error"), QString(tr("The selected track can\'t be removed!\n It\'s the last track of the file.")));
     }
@@ -1770,8 +1772,9 @@ void MainWindow::selectAllFromChannel(QAction* action) {
         if (e->track()->hidden()) {
             e->track()->setHidden(false);
         }
-        EventTool::selectEvent(e, false);
+        EventTool::selectEvent(e, false, false, false);
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 
     file->protocol()->endAction();
 }
@@ -1790,10 +1793,11 @@ void MainWindow::selectAllFromTrack(QAction* action) {
         foreach (MidiEvent* e, file->channel(channel)->eventMap()->values()) {
             if (e->track()->number() == track) {
                 file->channel(e->channel())->setVisible(true);
-                EventTool::selectEvent(e, false);
+                EventTool::selectEvent(e, false, false, false);
             }
         }
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
     file->protocol()->endAction();
 }
 
@@ -1807,9 +1811,10 @@ void MainWindow::selectAll() {
 
     for (int i = 0; i < 16; i++) {
         foreach (MidiEvent* event, file->channel(i)->eventMap()->values()) {
-            EventTool::selectEvent(event, false, true);
+            EventTool::selectEvent(event, false, true, false);
         }
     }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 
     file->protocol()->endAction();
 }

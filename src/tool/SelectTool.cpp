@@ -17,6 +17,7 @@
  */
 
 #include "SelectTool.h"
+#include "Selection.h"
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../gui/MatrixWidget.h"
@@ -126,9 +127,10 @@ bool SelectTool::release() {
         }
         foreach (MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
-                selectEvent(event, false);
+                selectEvent(event, false, false, false);
             }
         }
+        Selection::instance()->setSelection(Selection::instance()->selectedEvents());
     } else if (stool_type == SELECTION_TYPE_RIGHT || stool_type == SELECTION_TYPE_LEFT) {
         int tick = file()->tick(matrixWidget->msOfXPos(mouseX));
         int start, end;
@@ -140,8 +142,9 @@ bool SelectTool::release() {
             start = tick;
         }
         foreach (MidiEvent* event, *(file()->eventsBetween(start, end))) {
-            selectEvent(event, false);
+            selectEvent(event, false, false, false);
         }
+        Selection::instance()->setSelection(Selection::instance()->selectedEvents());
     }
 
     x_rect = 0;
