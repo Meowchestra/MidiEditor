@@ -52,7 +52,7 @@ EventTool::EventTool(EventTool& other)
     : EditorTool(other) {
 }
 
-void EventTool::selectEvent(MidiEvent* event, bool single, bool ignoreStr, bool setSelection)
+void EventTool::selectEvent(MidiEvent* event, bool single, bool ignoreStr, bool setSelection) {
 
     if (!event->file()->channel(event->channel())->visible()) {
         return;
