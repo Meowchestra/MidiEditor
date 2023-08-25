@@ -246,15 +246,15 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
 
                 }
                 if (isHighlighted){
-                    c = QColor(194, 230, 255);
-                }else{
                     c = QColor(234, 246, 255);
+                }else{
+                    c = QColor(194, 230, 255);
                 }
             }else{
                 if (i % 2 == 1) {
-                    c = QColor(234, 246, 255);
-                }else{
                     c = QColor(194, 194, 194);
+                }else{
+                    c = QColor(234, 246, 255);
                 }
             }
             pixpainter->fillRect(lineNameWidth, startLine, width(),
