@@ -94,7 +94,6 @@
 #include "../midi/MidiTrack.h"
 #include "../midi/PlayerThread.h"
 
-#include "../UpdateManager.h"
 #include "CompleteMidiSetupDialog.h"
 #include <QtCore/qmath.h>
 
@@ -511,9 +510,6 @@ void MainWindow::setFile(MidiFile* file) {
     protocolWidget->setFile(file);
     channelWidget->setFile(file);
     _trackWidget->setFile(file);
-#ifdef ENABLE_REMOTE
-    _remoteServer->setFile(file);
-#endif
     eventWidget()->setFile(file);
 
     Tool::setFile(file);
@@ -583,9 +579,6 @@ void MainWindow::play() {
         connect(MidiPlayer::playerThread(),
                 SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
 #endif
-#ifdef ENABLE_REMOTE
-        _remoteServer->play();
-#endif
     }
 }
 
@@ -619,9 +612,6 @@ void MainWindow::record() {
             mw_matrixWidget->setEnabled(false);
             _trackWidget->setEnabled(false);
             eventWidget()->setEnabled(false);
-#ifdef ENABLE_REMOTE
-            _remoteServer->record();
-#endif
             MidiPlayer::play(file);
             MidiInput::startInput();
             connect(MidiPlayer::playerThread(),
@@ -666,9 +656,6 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
         eventWidget()->setEnabled(true);
         mw_matrixWidget->timeMsChanged(MidiPlayer::timeMs(), true);
         _trackWidget->setEnabled(true);
-#ifdef ENABLE_REMOTE
-        _remoteServer->stop();
-#endif
         panic();
     }
 
@@ -686,9 +673,6 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
         mw_matrixWidget->setEnabled(true);
         _trackWidget->setEnabled(true);
         eventWidget()->setEnabled(true);
-#ifdef ENABLE_REMOTE
-        _remoteServer->stop();
-#endif
         QMultiMap<int, MidiEvent*> events = MidiInput::endInput(track);
 
         if (events.isEmpty() && !autoConfirmRecord) {
@@ -1069,15 +1053,6 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     if (MidiInput::inputPort() != "") {
         _settings->setValue("in_port", MidiInput::inputPort());
     }
-#ifdef ENABLE_REMOTE
-    if (_remoteServer->clientIp() != "") {
-        _settings->setValue("udp_client_ip", _remoteServer->clientIp());
-    }
-    if (_remoteServer->clientPort() > 0) {
-        _settings->setValue("udp_client_port", _remoteServer->clientPort());
-    }
-    _remoteServer->stopServer();
-#endif
 
     bool ok;
     int numStart = _settings->value("numStart_v3.5", -1).toInt(&ok);
@@ -1097,9 +1072,6 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     _settings->setValue("metronome_loudness", Metronome::loudness());
     _settings->setValue("thru", MidiInput::thru());
     _settings->setValue("quantization", _quantizationGrid);
-
-    _settings->setValue("auto_update_after_prompt", UpdateManager::autoCheckForUpdates());
-    _settings->setValue("has_prompted_for_updates", true); // Happens on first start
 
     Appearance::writeSettings(_settings);
 }
@@ -2798,11 +2770,6 @@ void MainWindow::enableMagnet(bool enable) {
 }
 
 void MainWindow::openConfig() {
-#ifdef ENABLE_REMOTE
-    SettingsDialog* d = new SettingsDialog(tr("Settings"), _settings, _remoteServer, this);
-#else
-    SettingsDialog* d = new SettingsDialog(tr("Settings"), _settings, 0, this);
-#endif
     connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
     d->show();
 }

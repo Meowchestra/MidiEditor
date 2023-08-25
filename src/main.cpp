@@ -63,13 +63,6 @@ int main(int argc, char* argv[]) {
         ok = QResource::registerResource("ressources.rcc");
     }
 
-    QString locale = QLocale::system().name();
-    locale.truncate(locale.lastIndexOf('_'));
-
-    QTranslator *translator = new QTranslator();
-    translator->load(":locale/locale_" + locale);
-    a.installTranslator(translator);
-
     a.setApplicationName("ProMidEdit");
     a.setQuitOnLastWindowClosed(true);
 

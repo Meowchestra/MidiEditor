@@ -98,7 +98,3 @@ macx: {
     MOC_DIR = .tmp
     ICON = midieditor.icns
 }
-
-DISTFILES += \
-    locale/locale_zh.ts
-    locale/locale_ru.ts

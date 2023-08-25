@@ -30,7 +30,7 @@
 #include "AppearanceSettingsWidget.h"
 #include "SettingsWidget.h"
 
-SettingsDialog::SettingsDialog(QString title, QSettings* settings, RemoteServer* server, QWidget* parent)
+SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* parent)
     : QDialog(parent) {
 
     setWindowTitle(title);
