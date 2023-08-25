@@ -47,7 +47,7 @@ AboutDialog::AboutDialog(QWidget* parent)
     layout->addWidget(title, 0, 1, 1, 2);
     title->setStyleSheet("color: black");
 
-    QLabel* version = new QLabel("Version: " + QApplication::applicationVersion() + " (" + QApplication::instance()->property("arch").toString() + "-Bit, " + QApplication::instance()->property("date_published").toString() + ")", this);
+    QLabel* version = new QLabel("Version: " + QApplication::applicationVersion() + " (" + QApplication::instance()->property("arch").toString() + "-Bit" + ")", this);
     layout->addWidget(version, 1, 1, 1, 2);
     version->setStyleSheet("color: black");
 

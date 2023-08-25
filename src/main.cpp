@@ -62,6 +62,7 @@ int main(int argc, char* argv[]) {
         ok = QResource::registerResource("ressources.rcc");
     }
 
+    a.setApplicationVersion("3.8.0");
     a.setApplicationName("ProMidEdit");
     a.setQuitOnLastWindowClosed(true);
 
