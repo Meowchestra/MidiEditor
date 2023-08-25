@@ -23,7 +23,7 @@ Metronome::Metronome(QObject *parent) :	QObject(parent) {
     _player = new QSoundEffect(this);
 #endif
     _player->setVolume(1.0);
-    _player->setSource(QUrl("qrc:/run_environment/metronome/metronome-01.wav"));
+    _player->setSource(QUrl("qrc:/metronome/metronome-01.wav"));
 }
 
 void Metronome::setFile(MidiFile *file){
