@@ -45,7 +45,6 @@
 #include <QDesktopServices>
 
 #include "Appearance.h"
-#include "AboutDialog.h"
 #include "ChannelListWidget.h"
 #include "ClickButton.h"
 #include "EventWidget.h"
@@ -1074,12 +1073,6 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     _settings->setValue("quantization", _quantizationGrid);
 
     Appearance::writeSettings(_settings);
-}
-
-void MainWindow::about() {
-    AboutDialog* d = new AboutDialog(this);
-    d->setModal(true);
-    d->show();
 }
 
 void MainWindow::setFileLengthMs() {
@@ -2652,10 +2645,6 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QAction* manualAction = new QAction(tr("Manual"), this);
     connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
     helpMB->addAction(manualAction);
-
-    QAction* aboutAction = new QAction(tr("About ProMidEdit"), this);
-    connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
-    helpMB->addAction(aboutAction);
 
     // Button bar
 

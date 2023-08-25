@@ -90,7 +90,6 @@ class MainWindow : public QMainWindow {
     void unmuteAllTracks();
     void allTracksVisible();
     void allTracksInvisible();
-    void about();
     void setFileLengthMs();
     void scrollPositionsChanged(int startMs, int maxMs, int startLine,
                                 int maxLine);
