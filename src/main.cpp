@@ -24,7 +24,6 @@
 
 #include <QFile>
 #include <QTextStream>
-#include <QTranslator>
 
 #include <QMultiMap>
 #include <QResource>

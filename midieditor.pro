@@ -6,7 +6,6 @@ QT += core \
     network \
     xml \
     multimedia
-#DEFINES += ENABLE_REMOTE
 HEADERS += $$files(**.h, true)
 HEADERS -= $$files(src/midi/rtmidi/**.h, true)
 HEADERS += src/midi/rtmidi/RtMidi.h
