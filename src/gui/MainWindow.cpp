@@ -48,7 +48,6 @@
 #include "AboutDialog.h"
 #include "ChannelListWidget.h"
 #include "ClickButton.h"
-#include "DonateDialog.h"
 #include "EventWidget.h"
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
@@ -80,10 +79,6 @@
 #include "../Terminal.h"
 #include "../protocol/Protocol.h"
 
-#ifdef ENABLE_REMOTE
-#include "../remote/RemoteServer.h"
-#endif
-
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
@@ -101,8 +96,6 @@
 
 #include "../UpdateManager.h"
 #include "CompleteMidiSetupDialog.h"
-#include "UpdateDialog.h"
-#include "AutomaticUpdateDialog.h"
 #include <QtCore/qmath.h>
 
 MainWindow::MainWindow(QString initFile)
@@ -116,11 +109,6 @@ MainWindow::MainWindow(QString initFile)
 
     Appearance::init(_settings);
 
-#ifdef ENABLE_REMOTE
-    bool ok;
-    int port = _settings->value("udp_client_port", -1).toInt(&ok);
-    QString ip = _settings->value("udp_client_ip", "").toString();
-#endif
     bool alternativeStop = _settings->value("alt_stop", false).toBool();
     MidiOutput::isAlternativePlayer = alternativeStop;
     bool ticksOK;
@@ -134,32 +122,6 @@ MainWindow::MainWindow(QString initFile)
     bool loudnessOk;
     Metronome::setLoudness(_settings->value("metronome_loudness", 100).toInt(&loudnessOk));
 
-#ifdef ENABLE_REMOTE
-    _remoteServer = new RemoteServer();
-    _remoteServer->setIp(ip);
-    _remoteServer->setPort(port);
-    _remoteServer->tryConnect();
-
-    connect(_remoteServer, SIGNAL(playRequest()), this, SLOT(play()));
-    connect(_remoteServer, SIGNAL(stopRequest(bool, bool)), this, SLOT(stop(bool, bool)));
-    connect(_remoteServer, SIGNAL(recordRequest()), this, SLOT(record()));
-    connect(_remoteServer, SIGNAL(backRequest()), this, SLOT(back()));
-    connect(_remoteServer, SIGNAL(forwardRequest()), this, SLOT(forward()));
-    connect(_remoteServer, SIGNAL(pauseRequest()), this, SLOT(pause()));
-
-    connect(MidiPlayer::playerThread(),
-            SIGNAL(timeMsChanged(int)), _remoteServer, SLOT(setTime(int)));
-    connect(MidiPlayer::playerThread(),
-            SIGNAL(meterChanged(int, int)), _remoteServer, SLOT(setMeter(int, int)));
-    connect(MidiPlayer::playerThread(),
-            SIGNAL(tonalityChanged(int)), _remoteServer, SLOT(setTonality(int)));
-    connect(MidiPlayer::playerThread(),
-            SIGNAL(measureChanged(int, int)), _remoteServer, SLOT(setMeasure(int)));
-
-#endif
-
-    UpdateManager::setAutoCheckUpdatesEnabled(_settings->value("auto_update_after_prompt", false).toBool());
-    connect(UpdateManager::instance(), SIGNAL(updateDetected(Update*)), this, SLOT(updateDetected(Update*)));
     _quantizationGrid = _settings->value("quantization", 3).toInt();
 
     // metronome
@@ -509,19 +471,6 @@ MainWindow::MainWindow(QString initFile)
     selectionNavigator = new SelectionNavigator(this);
 
     QTimer::singleShot(200, this, SLOT(loadInitFile()));
-    if (UpdateManager::autoCheckForUpdates()) {
-        QTimer::singleShot(500, UpdateManager::instance(), SLOT(checkForUpdates()));
-    }
-
-    // display dialogs, depending on number of starts of the software
-    bool ok;
-    int numStart = _settings->value("numStart_v3.5", -1).toInt(&ok);
-    if (numStart == 15) {
-        QTimer::singleShot(300, this, SLOT(donate()));
-    }
-    if (numStart == 10 && !UpdateManager::autoCheckForUpdates()) {
-        QTimer::singleShot(300, this, SLOT(promtUpdatesDeactivatedDialog()));
-    }
 }
 
 void MainWindow::loadInitFile() {
@@ -1153,12 +1102,6 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     _settings->setValue("has_prompted_for_updates", true); // Happens on first start
 
     Appearance::writeSettings(_settings);
-}
-
-void MainWindow::donate() {
-    DonateDialog* d = new DonateDialog(this);
-    d->setModal(true);
-    d->show();
 }
 
 void MainWindow::about() {
@@ -2742,10 +2685,6 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     helpMB->addAction(aboutAction);
 
-    QAction* donateAction = new QAction(tr("Donate"), this);
-    connect(donateAction, SIGNAL(triggered()), this, SLOT(donate()));
-    helpMB->addAction(donateAction);
-
     // Button bar
 
     QWidget* buttonBar = new QWidget(parent);
@@ -3043,18 +2982,6 @@ void MainWindow::copiedEventsChanged() {
     bool enable = EventTool::copiedEvents->size() > 0;
     _pasteAction->setEnabled(enable);
     pasteActionTB->setEnabled(enable);
-}
-
-void MainWindow::updateDetected(Update* update) {
-    UpdateDialog* d = new UpdateDialog(update, this);
-    d->setModal(true);
-    d->exec();
-}
-
-void MainWindow::promtUpdatesDeactivatedDialog() {
-    AutomaticUpdateDialog* d = new AutomaticUpdateDialog(this);
-    d->setModal(true);
-    d->exec();
 }
 
 void MainWindow::updateAll() {

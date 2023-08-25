@@ -91,7 +91,6 @@ class MainWindow : public QMainWindow {
     void unmuteAllTracks();
     void allTracksVisible();
     void allTracksInvisible();
-    void donate();
     void about();
     void setFileLengthMs();
     void scrollPositionsChanged(int startMs, int maxMs, int startLine,
@@ -178,9 +177,6 @@ class MainWindow : public QMainWindow {
     void checkEnableActionsForSelection();
     void toolChanged();
     void copiedEventsChanged();
-
-    void updateDetected(Update* update);
-    void promtUpdatesDeactivatedDialog();
 
     void tweakTime();
     void tweakStartTime();

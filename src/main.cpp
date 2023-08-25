@@ -26,7 +26,6 @@
 #include <QTextStream>
 #include <QTranslator>
 
-#include "UpdateManager.h"
 #include <QMultiMap>
 #include <QResource>
 
@@ -71,11 +70,8 @@ int main(int argc, char* argv[]) {
     translator->load(":locale/locale_" + locale);
     a.installTranslator(translator);
 
-    UpdateManager::instance()->init();
-    a.setApplicationVersion(UpdateManager::instance()->versionString());
     a.setApplicationName("ProMidEdit");
     a.setQuitOnLastWindowClosed(true);
-    a.setProperty("date_published", UpdateManager::instance()->date());
 
 #ifdef __ARCH64__
     a.setProperty("arch", "64");
