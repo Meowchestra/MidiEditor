@@ -3,7 +3,7 @@
 
 #include <QObject>
 
-#include <QSoundEffect>
+#include <QMediaPlayer>
 
 class MidiFile;
 
@@ -35,7 +35,7 @@ private:
     void click();
     static bool _enable;
 
-    QSoundEffect* _player;
+    QMediaPlayer* _player;
 };
 
 #endif
