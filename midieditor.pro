@@ -1,8 +1,5 @@
 TEMPLATE = app
 TARGET = ProMidEdit
-TRANSLATIONS += \
-        locale/locale_ru.ts \
-        locale/locale_zh.ts
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += core \
     gui \
