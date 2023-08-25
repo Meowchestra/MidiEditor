@@ -6,9 +6,6 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
-      MIDIEDITOR_RELEASE_DATE: ""
     if: always()
     strategy:
       matrix:
@@ -40,7 +37,6 @@ jobs:
         id: build
         shell: cmd
         run: |
-          set MIDIEDITOR_RELEASE_DATE="%DATE%"
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
           qmake
           nmake
