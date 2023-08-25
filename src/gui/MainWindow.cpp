@@ -2759,7 +2759,7 @@ void MainWindow::enableMagnet(bool enable) {
 }
 
 void MainWindow::openConfig() {
-    SettingsDialog* d = new SettingsDialog(tr("Settings"), _settings, 0, this);
+    SettingsDialog* d = new SettingsDialog(tr("Settings"), _settings, this);
     connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
     d->show();
 }
