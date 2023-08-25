@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Installer>
     <Name>ProMidEdit</Name>
-    <Version>3.5.0</Version>
+    <Version>3.8.0</Version>
     <Title>ProMidEdit Setup</Title>
     <Publisher>jingkaimori</Publisher>
     <ProductUrl>https://github.com/jingkaimori/midieditor</ProductUrl>
