@@ -45,6 +45,21 @@ jobs:
           ls -R packaging
         shell: bash
 
+      - name: List contents of build directory
+        run: |
+          ls -R build
+        shell: bash
+
+      - name: List contents of build directory
+        run: |
+          ls -R scripts
+        shell: bash
+
+      - name: List contents of build directory
+        run: |
+          ls -R
+        shell: bash
+
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
