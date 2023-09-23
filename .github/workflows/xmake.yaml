@@ -40,13 +40,13 @@ jobs:
         run: |
           xmake build --jobs=2
           
-      - name: Get path to executable
-        id: get-exe-path
+      - name: Get build output directory
         run: |
-          echo "::set-output name=exe_path::$(realpath ${{github.workspace}}/$<targetfile>)"
-        
+          BUILD_OUTPUT_DIR=$(xmake f -k)
+          echo "Build output directory: $BUILD_OUTPUT_DIR"
+          
       - name: Upload ProMidEdit.exe
         uses: actions/upload-artifact@v3
         with:
           name: ProMidEdit
-          path: ${{ steps.get-exe-path.outputs.exe_path }}
+          path: $BUILD_OUTPUT_DIR/ProMidEdit.exe
