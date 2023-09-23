@@ -5,7 +5,30 @@ set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 includes("scripts/xmake/packages.lua")
 add_all_requires()
 
+target("translation") do
+    set_kind("phony")
+    add_packages("qt5widgets")
+    on_build(function (target)
+        print("compiling translation file")
+        import("core.project.config")
+        import("lib.detect.find_tool")
+
+        -- get lrelease
+        local lrelease_tool = assert(
+            find_tool("lrelease", {check = "-help"}),
+            "lrelease.exe not found!")
+        local lrelease = lrelease_tool.program
+
+        local translation_declare = {}
+        for _, filepath in ipairs(os.files("locale/*.ts")) do
+            table.insert(translation_declare, filepath)
+        end
+        os.iorunv(lrelease, translation_declare)
+    end)
+end
+
 target("ProMidEdit") do
+    add_deps("translation")
     add_packages({
         "rtmidi",
         "qt5widgets"
@@ -95,12 +118,9 @@ end
 
 target("installer") do
     set_kind("phony")
-
-    -- Specify the build directory to be in a "build" folder
-    set_targetdir("build")
-
-    local installdir = "packaging/org.midieditor.manual/data/manual"
-    set_installdir(installdir)
+    
+    local installdir = 
+    set_installdir("packaging/org.midieditor.manual/data/manual")
     add_installfiles("manual/(**)")
     add_packages("qtifw")
     add_deps("ProMidEdit")
@@ -112,18 +132,13 @@ target("installer") do
             import("lib.detect.find_tool")
             local qtifw_dir = target:pkg("qtifw"):installdir()
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
-            
-            -- Specify the build directory for the package
-            local buildir = path.join(config.buildir(), "installer_build")
-            
+            -- generate windows package
+            local buildir = config.buildir()
             local package_argv = {
                 "--config", "scripts/packaging/windows/config.xml",
                 "--packages", "packaging",
                 "packaging/Install.exe"
             }
-            
-            -- Set the build directory before running binarycreator
-            os.cd(buildir)
             os.iorunv(binarycreator_path, package_argv)
         end
     end)

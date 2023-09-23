@@ -69,5 +69,7 @@
         <file>run_environment/graphics/tool/meter.png</file>
         <file>run_environment/graphics/tool/tempo.png</file>
         <file>run_environment/graphics/tool/measure.png</file>
+        <file>locale/locale_ru.qm</file>
+        <file>locale/locale_zh.qm</file>
     </qresource>
 </RCC>
