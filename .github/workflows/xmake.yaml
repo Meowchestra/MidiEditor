@@ -44,4 +44,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ProMidEdit
-          path: packaging/Install.exe
+          path: packaging/org.midieditor.manual/data/manual/Install.exe
