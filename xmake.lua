@@ -1,34 +1,11 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "3.4.1"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "3.8.1"
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 
 includes("scripts/xmake/packages.lua")
 add_all_requires()
 
-target("translation") do
-    set_kind("phony")
-    add_packages("qt5widgets")
-    on_build(function (target)
-        print("compiling translation file")
-        import("core.project.config")
-        import("lib.detect.find_tool")
-
-        -- get lrelease
-        local lrelease_tool = assert(
-            find_tool("lrelease", {check = "-help"}),
-            "lrelease.exe not found!")
-        local lrelease = lrelease_tool.program
-
-        local translation_declare = {}
-        for _, filepath in ipairs(os.files("locale/*.ts")) do
-            table.insert(translation_declare, filepath)
-        end
-        os.iorunv(lrelease, translation_declare)
-    end)
-end
-
 target("ProMidEdit") do
-    add_deps("translation")
     add_packages({
         "rtmidi",
         "qt5widgets"

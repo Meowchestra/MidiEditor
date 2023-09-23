@@ -12,7 +12,7 @@ jobs:
       - name: update repo
         run: |
           xrepo update-repo
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: cache packages from xrepo
@@ -39,3 +39,10 @@ jobs:
       - name: build by xmake
         run: |
           xmake build --jobs=2
+          
+      - name: Upload 
+        uses: actions/upload-artifact@v3
+        with:
+          name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
+          path: |
+            Install.exe
