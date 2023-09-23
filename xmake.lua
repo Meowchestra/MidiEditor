@@ -97,7 +97,7 @@ target("installer") do
     set_kind("phony")
 
     -- Specify the build directory to be in a "build" folder
-    set_builddir("build")
+    set_targetdir("build")
 
     local installdir = "packaging/org.midieditor.manual/data/manual"
     set_installdir(installdir)
