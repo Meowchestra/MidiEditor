@@ -42,7 +42,7 @@ jobs:
 
       - name: List contents of build directory
         run: |
-          ls -R /
+          ls -R ${{ github.workspace }}
         shell: bash
 
       - name: Upload
