@@ -44,4 +44,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: ProMidEdit
-          path: ${{ github.workspace }}/$<targetfile>
+          path: ${{ github.workspace }}/build/ProMidEdit.exe
