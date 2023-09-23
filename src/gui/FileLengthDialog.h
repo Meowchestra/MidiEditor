@@ -26,6 +26,8 @@ class QSpinBox;
 
 class FileLengthDialog : public QDialog {
 
+    Q_OBJECT
+
 public:
     FileLengthDialog(MidiFile* f, QWidget* parent = 0);
 

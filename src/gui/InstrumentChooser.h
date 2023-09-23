@@ -27,6 +27,8 @@ class QCheckBox;
 
 class InstrumentChooser : public QDialog {
 
+    Q_OBJECT
+
 public:
     InstrumentChooser(MidiFile* f, int channel, QWidget* parent = 0);
 

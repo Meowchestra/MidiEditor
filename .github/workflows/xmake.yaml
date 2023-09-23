@@ -1,0 +1,41 @@
+name: build with xmake on windows
+on: push
+
+jobs:
+  build:
+    runs-on: windows-latest
+    if: always()
+    steps:
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: v2.8.2
+      - name: update repo
+        run: |
+          xrepo update-repo
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: cache packages from xrepo
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
+          key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
+      - name: cache xmake
+        uses: actions/cache@v2
+        with:
+          path: |
+            ${{ github.workspace }}/.xmake/**/cache
+            ${{ github.workspace }}/build/.build_cache
+            ${{ github.workspace }}/build/.deps
+            ${{ github.workspace }}/build/.gens
+            ${{ github.workspace }}/build/.objs
+          key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
+
+      - name: config by xmake
+        run: |
+          xmake config --yes
+
+      - name: build by xmake
+        run: |
+          xmake build --jobs=2

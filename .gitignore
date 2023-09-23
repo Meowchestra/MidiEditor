@@ -1,6 +1,8 @@
 midieditor.pro.user
+build/
 doxy/
 .qmake.stash
+.xmake/
 ProMidiEdit-*/
 releases/
 
@@ -12,6 +14,7 @@ Makefile
 *.Release
 release/**
 bin/
+.vscode/
 
 packaging/Install.exe
 packaging/org.midieditor.midieditor/data/**
