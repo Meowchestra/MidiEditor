@@ -3,7 +3,7 @@
 # ProMidEdit
 ------
 
-[![build windows](https://github.com/Meowchestra/MidiEditor/actions/workflows/compile.yaml/badge.svg)](https://github.com/Meowchestra/MidiEditor/actions/workflows/compile.yaml)
+[![build windows](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yaml/badge.svg)](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yaml)
 
 Downloads : [latest release](https://github.com/Meowchestra/MidiEditor/releases)
 
