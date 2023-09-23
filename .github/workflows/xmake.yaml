@@ -16,7 +16,7 @@ jobs:
         with:
           fetch-depth: 1
       - name: cache packages from xrepo
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
