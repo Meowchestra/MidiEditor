@@ -22,7 +22,7 @@ jobs:
             ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
           key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
       - name: cache xmake
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ github.workspace }}/.xmake/**/cache
