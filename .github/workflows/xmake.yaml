@@ -42,9 +42,9 @@ jobs:
           
       - name: Get build output directory
         run: |
-          BUILD_OUTPUT_DIR=$(xmake f -k)
-          echo "Build output directory: $BUILD_OUTPUT_DIR"
-          
+          $env:BUILD_OUTPUT_DIR = $(xmake f -k)
+          echo "Build output directory: $env:BUILD_OUTPUT_DIR"
+
       - name: Upload ProMidEdit.exe
         uses: actions/upload-artifact@v3
         with:
