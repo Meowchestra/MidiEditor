@@ -96,8 +96,8 @@ end
 target("installer") do
     set_kind("phony")
     
-    local installdir = 
-    set_installdir("packaging/org.midieditor.manual/data/manual")
+    local installdir = "packaging/org.midieditor.manual/data/manual"
+    set_installdir(installdir)
     add_installfiles("manual/(**)")
     add_packages("qtifw")
     add_deps("ProMidEdit")
@@ -114,7 +114,7 @@ target("installer") do
             local package_argv = {
                 "--config", "scripts/packaging/windows/config.xml",
                 "--packages", "packaging",
-                "packaging/Install.exe"
+                path.join(installdir, "Install.exe")
             }
             os.iorunv(binarycreator_path, package_argv)
         end
