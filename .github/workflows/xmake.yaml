@@ -40,9 +40,8 @@ jobs:
         run: |
           xmake build --jobs=2
           
-      - name: Upload 
+      - name: Upload
         uses: actions/upload-artifact@v3
         with:
           name: ProMidEdit
-          path: |
-            ProMidEdit.exe
+          path: ${{ github.workspace }}/$<targetfile>
