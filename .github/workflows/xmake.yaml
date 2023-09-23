@@ -40,6 +40,11 @@ jobs:
         run: |
           xmake build --jobs=2
 
+      - name: List contents of packaging directory
+        run: |
+          ls -R packaging
+        shell: bash
+
       - name: Upload
         uses: actions/upload-artifact@v3
         with:
