@@ -95,9 +95,12 @@ end
 
 target("installer") do
     set_kind("phony")
-    
-    local installdir = 
-    set_installdir("packaging/org.midieditor.manual/data/manual")
+
+    -- Specify the build directory to be in a "build" folder
+    set_builddir("build")
+
+    local installdir = "packaging/org.midieditor.manual/data/manual"
+    set_installdir(installdir)
     add_installfiles("manual/(**)")
     add_packages("qtifw")
     add_deps("ProMidEdit")
@@ -109,13 +112,18 @@ target("installer") do
             import("lib.detect.find_tool")
             local qtifw_dir = target:pkg("qtifw"):installdir()
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
-            -- generate windows package
-            local buildir = config.buildir()
+            
+            -- Specify the build directory for the package
+            local buildir = path.join(config.buildir(), "installer_build")
+            
             local package_argv = {
                 "--config", "scripts/packaging/windows/config.xml",
                 "--packages", "packaging",
                 "packaging/Install.exe"
             }
+            
+            -- Set the build directory before running binarycreator
+            os.cd(buildir)
             os.iorunv(binarycreator_path, package_argv)
         end
     end)
