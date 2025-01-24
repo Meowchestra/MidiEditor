@@ -24,16 +24,15 @@ The editor is able to open existing midi files and modify their content. New fil
 * Control changes can be visualized
 * Free
 * Available for Windows
-* English, Russian, and Simplified Chinese languages support
 
 ### Note
 
 ProMidEdit was developed by PROPHESSOR based on [Markus Schwenk's MidiEditor](https://github.com/markusschwenk/midieditor). My personal fork of ProMidEdit is a custom build based on [jingkaimori's fork](https://github.com/jingkaimori/midieditor/) of [ProMidEdit](https://github.com/PROPHESSOR/ProMidEdit), built on top of [MidiEditor](https://github.com/markusschwenk/midieditor) with additional changes & merged pull-requests ahead of upstream.
 
-### Project Page
+### Original Project Page
 
 [https://midieditor.org](https://midieditor.org)
 
 ### Manual
 
-[https://midieditor.org/index.php?category=manual](https://midieditor.org/index.php?category=manual)
+[https://Meowchestra.github.io/MidiEditor/](https://Meowchestra.github.io/MidiEditor/)

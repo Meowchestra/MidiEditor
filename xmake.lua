@@ -1,14 +1,25 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "3.8.1"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "3.9.0"
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
+set_allowedplats("windows")
+
+option("generate-repository", {
+    description = "generate repositiory to update online repositories",
+    default = false,
+    values = {true, false},
+    showmenu = true,
+})
 
 includes("scripts/xmake/packages.lua")
 add_all_requires()
 
+local installdir = "packaging/org.midieditor.midieditor/data/"
 target("ProMidEdit") do
+    set_languages("cxx17")
     add_packages({
         "rtmidi",
-        "qt5widgets"
+        "qt6base",
+        "qt6widgets"
     })
     add_rules("qt.widgetapp")
     add_frameworks({
@@ -29,94 +40,77 @@ target("ProMidEdit") do
     add_defines("MIDIEDITOR_RELEASE_VERSION_ID_DEF=" .. 0)
     add_defines("MIDIEDITOR_RELEASE_DATE_DEF=" .. os.date("%x"))
     add_defines("MIDIEDITOR_RELEASE_VERSION_STRING_DEF=" .. MIDIEDITOR_RELEASE_VERSION_STRING)
-    if is_plat("linux", "bsd") then
-        add_defines({
-            "__LINUX_ALSASEQ__",
-            "__LINUX_ALSA__"
-        })
-        add_syslinks("asound")
-    elseif is_plat("windows", "mingw") then
+    if is_plat("windows") then
         add_defines("__WINDOWS_MM__")
         add_syslinks("winmm")
         add_files("midieditor.rc")
-    elseif is_plat("macosx") then
-        add_defines("__MACOSX_CORE__")
-        add_frameworks("CoreMidi", "CoreAudio", "CoreFoundation")
-        -- TODO: icons
-        add_installfiles("midieditor.icns")
     end
     
-    local installdir = "packaging/org.midieditor.midieditor/data/"
     local bindir = path.join(installdir, "bin")
     local plugindir = path.join(bindir, "plugins")
     set_installdir(installdir)
     if is_plat("windows") then
-        set_values("qt.deploy.flags", {
+        local configs = {
             "--plugindir", plugindir,
             "--libdir", bindir
-        })
+        }
+        set_values("qt.deploy.flags", configs)
         after_install(function (target) 
             os.rm(path.join(bindir, "**", "dsengine.dll"))
         end)
-    elseif is_plat("mingw") then
-        after_install(function (target)
-            print("after_install of target ProMidEdit")
-            import("core.base.option")
-            import("core.project.config")
-            import("lib.detect.find_tool")
-
-            -- get windeployqt
-            local windeployqt_tool = assert(
-                find_tool("windeployqt", {check = "--help"}),
-                "windeployqt.exe not found!")
-            local windeployqt = windeployqt_tool.program
-            
-            -- deploy necessary dll
-            -- mingw with posix thread should be used, or dll error will be reported
-            local deploy_argv = {"--compiler-runtime", "--release"}
-            if option.get("diagnosis") then
-                table.insert(deploy_argv, "--verbose=2")
-            elseif option.get("verbose") then
-                table.insert(deploy_argv, "--verbose=1")
-            else
-                table.insert(deploy_argv, "--verbose=0")
-            end
-            local bindir = path.join(target:installdir(), "bin")
-            local plugindir = path.join(bindir, "plugins")
-            -- print(plugindir)
-            table.join2(deploy_argv, {"--plugindir", plugindir})
-            table.join2(deploy_argv, {"--libdir", bindir})
-            table.insert(deploy_argv, bindir)
-            os.iorunv(windeployqt, deploy_argv)
-            os.rm(path.join(bindir, "**", "dsengine.dll"))
+        after_uninstall(function (target)
+            os.rm(path.join(installdir, "**", "*.dll"))
+            os.rm(path.join(installdir, "**", "*.exe"))
         end)
     end
 end
 
-target("installer") do
+target("manual") do
     set_kind("phony")
-    
-    local installdir = 
     set_installdir("packaging/org.midieditor.manual/data/manual")
     add_installfiles("manual/(**)")
-    add_packages("qtifw")
-    add_deps("ProMidEdit")
+end
 
-    after_install(function (target, opt)
-        if is_plat("windows", "mingw") then
-            print("generate off-line installer")
+target("installer") do
+    set_kind("phony")
+    add_deps("ProMidEdit")
+    
+    set_installdir(installdir)
+    if is_plat("windows") then
+        add_deps("manual")
+        add_packages("qtifw")
+        after_install(function (target, opt)
             import("core.project.config")
-            import("lib.detect.find_tool")
             local qtifw_dir = target:pkg("qtifw"):installdir()
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
-            -- generate windows package
-            local buildir = config.buildir()
-            local package_argv = {
-                "--config", "scripts/packaging/windows/config.xml",
-                "--packages", "packaging",
-                "packaging/Install.exe"
-            }
-            os.iorunv(binarycreator_path, package_argv)
-        end
-    end)
+            local repogen_path = path.join(qtifw_dir, "/bin/repogen.exe")
+            if config.get("generate-repository") then
+                print("generate site")
+                print("  generate repository")
+                local repo_argv = {
+                    "--update-new-components",
+                    "--packages", "packaging",
+                    path.join(config.buildir(), "website", "repository")
+                }
+                os.iorunv(repogen_path, repo_argv)
+                print("  generate installer")
+                local package_argv = {
+                    "--config", "scripts/packaging/windows/config.xml",
+                    "--packages", "packaging",
+                    path.join(config.buildir(), "website", "ProMidEdit.exe")
+                }
+                os.iorunv(binarycreator_path, package_argv)
+                print("  copy online manual")
+                os.cp("manual/*", path.join(config.buildir(), "website"))
+            else
+                print("generate off-line installer")
+                local package_argv = {
+                    "--config", "scripts/packaging/windows/config.xml",
+                    "--packages", "packaging",
+                    "packaging/Install.exe"
+                }
+                os.iorunv(binarycreator_path, package_argv)
+            end
+        end)
+    end
 end

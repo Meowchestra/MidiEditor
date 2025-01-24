@@ -1911,7 +1911,7 @@ void MainWindow::spreadSelection() {
 }
 
 void MainWindow::manual() {
-    QDesktopServices::openUrl(QUrl("http://www.midieditor.org/index.php?category=manual&subcategory=editor-and-components", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://Meowchestra.github.io/MidiEditor/editor-and-components.html", QUrl::TolerantMode));
 }
 
 void MainWindow::changeMiscMode(int mode) {
