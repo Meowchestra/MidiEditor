@@ -29,7 +29,7 @@ class ToolButton : public QAction {
     Q_OBJECT
 
 public:
-    ToolButton(Tool* tool, QKeySequence sequence = QKeySequence(), QWidget* parent = 0);
+    explicit ToolButton(Tool* tool, const QKeySequence& sequence = QKeySequence(), QObject* parent = nullptr);
 
 public slots:
     void buttonClick();

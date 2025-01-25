@@ -10,21 +10,27 @@ option("generate-repository", {
     showmenu = true,
 })
 
-includes("scripts/xmake/packages.lua")
-add_all_requires()
-
 local installdir = "packaging/org.midieditor.midieditor/data/"
 target("ProMidEdit") do
     set_languages("cxx17")
-    add_packages({
-        "rtmidi",
-        "qt6base",
-        "qt6widgets"
-    })
     add_rules("qt.widgetapp")
+
+    -- Use system Qt6
+    add_includedirs("$(env QTDIR)/include")
+    add_linkdirs("$(env QTDIR)/lib")
+
+    -- Add Qt6 multimedia include paths explicitly
+    after_load(function (target)
+        local qt_dir = os.getenv("QTDIR")
+        if qt_dir then
+            target:add("includedirs", path.join(qt_dir, "include/QtMultimedia"))
+            target:add("includedirs", path.join(qt_dir, "include/QtMultimediaWidgets"))
+        end
+    end)
+
     add_frameworks({
         "QtGui",
-        "QtWidgets",
+        "QtWidgets", 
         "QtCore",
         "QtNetwork",
         "QtXml",

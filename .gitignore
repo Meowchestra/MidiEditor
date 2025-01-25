@@ -15,6 +15,7 @@ Makefile
 release/**
 bin/
 cmake-build-debug/
+cmake-build-release/
 
 packaging/Install.exe
 packaging/org.midieditor.midieditor/data/**

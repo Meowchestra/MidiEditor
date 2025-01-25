@@ -26,7 +26,7 @@
 
 class MidiFile;
 class MidiEvent;
-class QTime;
+class QElapsedTimer;
 
 class PlayerThread : public QThread {
 
@@ -60,7 +60,7 @@ private:
     int interval, position, timeoutSinceLastSignal;
     volatile bool stopped;
     QTimer* timer;
-    QTime* time;
+    QElapsedTimer* time;
 
     int measure, posInMeasure;
 };

@@ -28,6 +28,6 @@ void ColoredWidget::paintEvent(QPaintEvent* event)
     p.fillRect(0, 0, width(), height(), Qt::white);
     p.setPen(Qt::lightGray);
     p.setBrush(_color);
-    p.drawRoundRect(x, y, l, l, 30, 30);
+    p.drawRoundedRect(x, y, l, l, 30, 30);
     p.end();
 }

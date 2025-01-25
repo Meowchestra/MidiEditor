@@ -6,7 +6,8 @@
 #include <QFile>
 #include <QFileInfo>
 
-#include <QAudioDeviceInfo>
+#include <QAudioDevice>
+#include <QMediaDevices>
 #include <QSoundEffect>
 #include <QtGlobal>
 

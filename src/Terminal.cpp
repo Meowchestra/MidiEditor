@@ -22,6 +22,9 @@
 #include <QScrollBar>
 #include <QTextEdit>
 #include <QTimer>
+#include <QStringList>
+#include <QString>
+#include <QtGlobal>
 
 #include "midi/MidiInput.h"
 #include "midi/MidiOutput.h"
@@ -102,44 +105,44 @@ void Terminal::processStarted() {
     }
     outputVariants.append(outPort);
 
-    if (MidiInput::inputPort() == "" && _inPort != "") {
+    if (MidiInput::inputPort().isEmpty() && !_inPort.isEmpty()) {
         writeString(QObject::tr("Trying to set Input Port to ") + _inPort);
 
-        foreach (QString portVariant, inputVariants) {
-            foreach (QString port, MidiInput::inputPorts()) {
-                if (port.startsWith(portVariant)) {
+        QStringList inputPorts = MidiInput::inputPorts();
+        for (int i = 0; i < inputVariants.size(); i++) {
+            QString variant = inputVariants.at(i);
+            for (int j = 0; j < inputPorts.size(); j++) {
+                QString port = inputPorts.at(j);
+                if (port.startsWith(variant)) {
                     writeString(QObject::tr("Found port ") + port);
                     MidiInput::setInputPort(port);
-                    _inPort = "";
+                    _inPort.clear();
                     break;
                 }
             }
-            if (_inPort == "") {
+            if (_inPort.isEmpty()) {
                 break;
             }
         }
     }
 
-    if (MidiOutput::outputPort() == "" && _outPort != "") {
+    if (MidiOutput::outputPort().isEmpty() && !_outPort.isEmpty()) {
         writeString(QObject::tr("Trying to set Output Port to ") + _outPort);
 
-        foreach (QString portVariant, outputVariants) {
-            foreach (QString port, MidiOutput::outputPorts()) {
-                if (port.startsWith(portVariant)) {
-                    writeString(QObject::tr("Found port ") + port);
-                    MidiOutput::setOutputPort(port);
-                    _outPort = "";
-                    break;
-                }
-            }
-            if (_outPort == "") {
+        QStringList ports = MidiOutput::outputPorts();
+        for (int i = 0; i < ports.size(); i++) {
+            QString port = ports.at(i);
+            if (port.startsWith(outPort)) {
+                writeString(QObject::tr("Found port ") + port);
+                MidiOutput::setOutputPort(port);
+                _outPort.clear();
                 break;
             }
         }
     }
 
-    // if not both are set, try again in 1 second
-    if ((MidiOutput::outputPort() == "" && _outPort != "") || (MidiInput::inputPort() == "" && _inPort != "")) {
+    if ((MidiOutput::outputPort().isEmpty() && !_outPort.isEmpty()) || 
+        (MidiInput::inputPort().isEmpty() && !_inPort.isEmpty())) {
         QTimer* timer = new QTimer();
         connect(timer, SIGNAL(timeout()), this, SLOT(processStarted()));
         timer->setSingleShot(true);

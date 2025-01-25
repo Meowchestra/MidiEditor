@@ -48,8 +48,10 @@ public:
     int endTick();
     int timeMS(int midiTime);
     int measure(int startTick, int* startTickOfMeasure ,int* endTickOfMeasure);
-    QMap<int, MidiEvent*>* tempoEvents();
-    QMap<int, MidiEvent*>* timeSignatureEvents();
+
+    QMultiMap<int, MidiEvent *> *tempoEvents();
+
+    QMultiMap<int, MidiEvent *> *timeSignatureEvents();
     void calcMaxTime();
     int tick(int ms);
     int tick(int startms, int endms, QList<MidiEvent*>** events, int* endTick, int* msOfFirstEvent);

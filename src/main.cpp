@@ -28,6 +28,8 @@
 #include <QMultiMap>
 #include <QResource>
 
+#include <QStringList>
+
 #ifdef NO_CONSOLE_MODE
 #include <tchar.h>
 #include <windows.h>

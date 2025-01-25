@@ -1,59 +1,67 @@
-# name: Build with xmake on windows
-# on:
-  # push:
-    # branches:
-      # - 'main'
-    # paths:
-      # - '**.c'
-      # - '**.cpp'
-      # - '**.h'
-      # - '**.hpp'
-      # - '**.rc'
-      # - '**.qrc'
-      # - '**.ts'
-      # - '**.lua'
-      # - '.github/workflows/xmake.yaml'
+name: Build with xmake on windows
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '**.c'
+      - '**.cpp'
+      - '**.h'
+      - '**.hpp'
+      - '**.rc'
+      - '**.qrc'
+      - '**.ts'
+      - '**.lua'
+      - '.github/workflows/xmake.yaml'
 
-# jobs:
-  # build:
-    # runs-on: windows-latest
-    # if: always()
+jobs:
+  build:
+    runs-on: windows-latest
 
-    # steps:
-      # - uses: xmake-io/github-action-setup-xmake@v1
-        # with:
-          # xmake-version: latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      # - name: update repo
-        # run: |
-          # xrepo update-repo
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
 
-      # - uses: actions/checkout@v4
-        # with:
-          # fetch-depth: 1
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          modules: 'qtmultimedia'
 
-      # - name: cache packages from xrepo
-        # uses: actions/cache@v4
-        # with:
-          # path: |
-            # ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
-          # key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
+      - name: update repo
+        run: |
+          xrepo update-repo
 
-      # - name: cache xmake
-        # uses: actions/cache@v4
-        # with:
-          # path: |
-            # ${{ github.workspace }}/.xmake/**/cache
-            # ${{ github.workspace }}/build/.build_cache
-            # ${{ github.workspace }}/build/.deps
-            # ${{ github.workspace }}/build/.gens
-            # ${{ github.workspace }}/build/.objs
-          # key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
+      - name: cache packages from xrepo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
+          key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
 
-      # - name: config by xmake
-        # run: |
-          # xmake config --yes --verbose --diagnosis
+      - name: cache xmake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/.xmake/**/cache
+            ${{ github.workspace }}/build/.build_cache
+            ${{ github.workspace }}/build/.deps
+            ${{ github.workspace }}/build/.gens
+            ${{ github.workspace }}/build/.objs
+          key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
 
-      # - name: build by xmake
-        # run: |
-          # xmake build --verbose --diagnosis --jobs=2
+      - name: config by xmake
+        run: |
+          xmake config --yes --verbose --diagnosis
+
+      - name: build by xmake
+        run: |
+          xmake build --verbose --diagnosis --jobs=2

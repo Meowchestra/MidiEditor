@@ -128,7 +128,7 @@ int MidiChannel::number()
     return _num;
 }
 
-QMultiMap<int, MidiEvent*>* MidiChannel::eventMap()
+QMultiMap<int, MidiEvent *> *MidiChannel::eventMap()
 {
     return _events;
 }

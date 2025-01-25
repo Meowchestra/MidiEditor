@@ -47,8 +47,8 @@ TempoDialog::TempoDialog(MidiFile *file, int startTick, int endTick,  QWidget *p
     tip->setStyleSheet("color: black; background-color: white; padding: 5px");
 
     // identify tempo at start tick
-    QMap<int, MidiEvent*> *events = file->tempoEvents();
-    QMap<int, MidiEvent*>::iterator it = events->begin();
+    QMultiMap<int, MidiEvent*> *events = file->tempoEvents();
+    QMultiMap<int, MidiEvent*>::iterator it = events->begin();
     int tick = -1;
     MidiEvent *ev = 0;
     while(it != events->end()) {
@@ -120,8 +120,8 @@ void TempoDialog::accept()
 
     // Delete all events in range
     QList<MidiEvent*> toRemove;
-    QMap<int, MidiEvent*> *events = _file->tempoEvents();
-    QMap<int, MidiEvent*>::iterator it = events->begin();
+    QMultiMap<int, MidiEvent *> *events = _file->tempoEvents();
+    QMultiMap<int, MidiEvent*>::iterator it = events->begin();
     int fromTick = _startTick;
     int toTick = _startTick;
     if (_endTick > -1) {

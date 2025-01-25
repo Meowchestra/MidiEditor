@@ -26,7 +26,8 @@
 #include "MidiOutput.h"
 #include "MidiPlayer.h"
 #include <QMultiMap>
-#include <QTime>
+#include <QElapsedTimer>
+#include <QStringList>
 
 #define INTERVAL_TIME 15
 #define TIMEOUTS_PER_SIGNAL 1
@@ -60,6 +61,9 @@ void PlayerThread::run()
 
     if (!timer) {
         timer = new QTimer();
+    }
+    if (!time) {
+        time = new QElapsedTimer();
     }
     if (time) {
         delete time;
@@ -119,7 +123,7 @@ void PlayerThread::timeout()
 {
 
     if (!time) {
-        time = new QTime();
+        time = new QElapsedTimer();
         time->start();
     }
 

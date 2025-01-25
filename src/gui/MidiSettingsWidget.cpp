@@ -33,6 +33,8 @@
 #include <QSettings>
 #include <QSpinBox>
 #include <QTextEdit>
+#include <QStringList>
+#include <QVariant>
 
 AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, QWidget* parent)
     : SettingsWidget(tr("Additional Midi Settings"), parent) {
@@ -154,53 +156,33 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
 }
 
 void MidiSettingsWidget::reloadInputPorts() {
-
-    disconnect(_inList, SIGNAL(itemChanged(QListWidgetItem*)), this,
-               SLOT(inputChanged(QListWidgetItem*)));
-
-    // clear the list
     _inList->clear();
+    *_inputPorts = MidiInput::inputPorts();
 
-    foreach (QString name, MidiInput::inputPorts()) {
-
-        QListWidgetItem* item = new QListWidgetItem(name, _inList,
-                QListWidgetItem::UserType);
-        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
-
-        if (name == MidiInput::inputPort()) {
+    for (const QString& portName : *_inputPorts) {
+        QListWidgetItem* item = new QListWidgetItem(portName);
+        if (portName == MidiInput::inputPort()) {
             item->setCheckState(Qt::Checked);
         } else {
             item->setCheckState(Qt::Unchecked);
         }
         _inList->addItem(item);
     }
-    connect(_inList, SIGNAL(itemChanged(QListWidgetItem*)), this,
-            SLOT(inputChanged(QListWidgetItem*)));
 }
 
 void MidiSettingsWidget::reloadOutputPorts() {
-
-    disconnect(_outList, SIGNAL(itemChanged(QListWidgetItem*)), this,
-               SLOT(outputChanged(QListWidgetItem*)));
-
-    // clear the list
     _outList->clear();
+    *_outputPorts = MidiOutput::outputPorts();
 
-    foreach (QString name, MidiOutput::outputPorts()) {
-
-        QListWidgetItem* item = new QListWidgetItem(name, _outList,
-                QListWidgetItem::UserType);
-        item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
-
-        if (name == MidiOutput::outputPort()) {
+    for (const QString& portName : *_outputPorts) {
+        QListWidgetItem* item = new QListWidgetItem(portName);
+        if (portName == MidiOutput::outputPort()) {
             item->setCheckState(Qt::Checked);
         } else {
             item->setCheckState(Qt::Unchecked);
         }
         _outList->addItem(item);
     }
-    connect(_outList, SIGNAL(itemChanged(QListWidgetItem*)), this,
-            SLOT(outputChanged(QListWidgetItem*)));
 }
 
 void MidiSettingsWidget::inputChanged(QListWidgetItem* item) {

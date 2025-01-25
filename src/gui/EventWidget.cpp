@@ -1194,7 +1194,7 @@ QVariant EventWidget::fieldContent(EditorField field) {
                 return QVariant("");
             }
             QString s;
-            s.sprintf("%02X", n);
+            s.asprintf("%02X", n);
             s = "0x" + s;
             return QVariant(s);
         }
@@ -1262,7 +1262,7 @@ QString EventWidget::dataToString(QByteArray data) {
     QString s;
     foreach (unsigned char b, data) {
         QString t;
-        t.sprintf("%02X", b);
+        t.asprintf("%02X", b);
         s = s + "0x" + t + "\n";
     }
     return s.trimmed();

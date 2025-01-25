@@ -19,14 +19,15 @@
 #ifndef MIDIOUTPUT_H_
 #define MIDIOUTPUT_H_
 
-#include <QList>
-#include <QMap>
 #include <QObject>
+#include <QMap>
+#include <QList>
+#include <QString>
+#include <QStringList>
 
 class MidiEvent;
 class RtMidiIn;
 class RtMidiOut;
-class QStringList;
 class SenderThread;
 
 class MidiOutput : public QObject {

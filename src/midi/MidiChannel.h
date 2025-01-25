@@ -91,7 +91,7 @@ public:
 		 *
 		 * This contains all MidiEvents of the channel.
 		 */
-    QMultiMap<int, MidiEvent*>* eventMap();
+    QMultiMap<int, MidiEvent *> *eventMap();
 
     /**
 		 * \brief inserts a note to this channel.
@@ -172,7 +172,7 @@ protected:
     /**
 		 * \brief contains all MidiEvents of the channel sorted by their tick.
 		 */
-    QMultiMap<int, MidiEvent*>* _events;
+    QMultiMap<int, MidiEvent *> *_events;
 
     /**
 		 * \brief the channels number.
