@@ -10,7 +10,7 @@
     <RunProgram>@TargetDir@/ProMidEdit.exe</RunProgram>
     <RunProgramArguments>
     </RunProgramArguments>
-    <RunProgramDescription>run midieditor</RunProgramDescription>
+    <RunProgramDescription>Run ProMidEdit</RunProgramDescription>
     <StartMenuDir>ProMidEdit</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
 

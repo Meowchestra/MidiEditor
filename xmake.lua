@@ -10,14 +10,13 @@ option("generate-repository", {
     showmenu = true,
 })
 
+includes("scripts/xmake/packages.lua")
+add_all_requires()
+
 local installdir = "packaging/org.midieditor.midieditor/data/"
 target("ProMidEdit") do
     set_languages("cxx17")
     add_rules("qt.widgetapp")
-
-    -- Use system Qt6
-    add_includedirs("$(env QTDIR)/include")
-    add_linkdirs("$(env QTDIR)/lib")
 
     -- Add Qt6 multimedia include paths explicitly
     after_load(function (target)
@@ -77,7 +76,7 @@ target("manual") do
     add_installfiles("manual/(**)")
 end
 
-target("installer") do
+target("installer")
     set_kind("phony")
     add_deps("ProMidEdit")
     
@@ -87,36 +86,26 @@ target("installer") do
         add_packages("qtifw")
         after_install(function (target, opt)
             import("core.project.config")
+            
+            -- Create required directories
+            os.mkdir("packaging/org.midieditor.midieditor/data/bin")
+            
+            -- Copy all files from release directory
+            os.cp("build/windows/x64/release/*", "packaging/org.midieditor.midieditor/data/bin/")
+            
+            -- Copy additional resources
+            -- os.cp("run_environment/**", "packaging/org.midieditor.midieditor/data/")
+            
+            -- Generate installer
             local qtifw_dir = target:pkg("qtifw"):installdir()
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
-            local repogen_path = path.join(qtifw_dir, "/bin/repogen.exe")
-            if config.get("generate-repository") then
-                print("generate site")
-                print("  generate repository")
-                local repo_argv = {
-                    "--update-new-components",
-                    "--packages", "packaging",
-                    path.join(config.buildir(), "website", "repository")
-                }
-                os.iorunv(repogen_path, repo_argv)
-                print("  generate installer")
-                local package_argv = {
-                    "--config", "scripts/packaging/windows/config.xml",
-                    "--packages", "packaging",
-                    path.join(config.buildir(), "website", "ProMidEdit.exe")
-                }
-                os.iorunv(binarycreator_path, package_argv)
-                print("  copy online manual")
-                os.cp("manual/*", path.join(config.buildir(), "website"))
-            else
-                print("generate off-line installer")
-                local package_argv = {
-                    "--config", "scripts/packaging/windows/config.xml",
-                    "--packages", "packaging",
-                    "packaging/Install.exe"
-                }
-                os.iorunv(binarycreator_path, package_argv)
-            end
+            
+            print("generate off-line installer")
+            local package_argv = {
+                "--config", "scripts/packaging/windows/config.xml",
+                "--packages", "packaging",
+                "packaging/Install.exe"
+            }
+            os.iorunv(binarycreator_path, package_argv)
         end)
     end
-end

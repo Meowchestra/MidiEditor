@@ -19,10 +19,6 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
@@ -39,6 +35,10 @@ jobs:
       - name: update repo
         run: |
           xrepo update-repo
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: cache packages from xrepo
         uses: actions/cache@v4
@@ -62,6 +62,13 @@ jobs:
         run: |
           xmake config --yes --verbose --diagnosis
 
-      - name: build by xmake
+      - name: build and create installer
         run: |
           xmake build --verbose --diagnosis --jobs=2
+          xmake install installer
+          
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProMidEdit-Installer
+          path: packaging/Install.exe
