@@ -3,16 +3,6 @@ on:
   push:
     branches:
       - 'main'
-    paths:
-      - '**.c'
-      - '**.cpp'
-      - '**.h'
-      - '**.hpp'
-      - '**.rc'
-      - '**.qrc'
-      - '**.ts'
-      - '**.lua'
-      - '.github/workflows/xmake.yaml'
 
 jobs:
   build:
@@ -32,43 +22,37 @@ jobs:
           arch: 'win64_msvc2022_64'
           modules: 'qtmultimedia'
 
-      - name: update repo
-        run: |
-          xrepo update-repo
+      - uses: jmarrec/setup-qtifw@v1
+        with:
+          qtifw-version: '4.x'
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: cache packages from xrepo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
-          key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
-
-      - name: cache xmake
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/.xmake/**/cache
-            ${{ github.workspace }}/build/.build_cache
-            ${{ github.workspace }}/build/.deps
-            ${{ github.workspace }}/build/.gens
-            ${{ github.workspace }}/build/.objs
-          key: ${{ runner.os }}-xmake-build-${{ hashFiles('**/xmake.lua') }}
-
-      - name: config by xmake
+      - name: Build
         run: |
-          xmake config --yes --verbose --diagnosis
+          xmake config --yes
+          xmake build --jobs=2
 
-      - name: build and create installer
+      - name: Copy Files 
+        shell: pwsh
         run: |
-          xmake build --verbose --diagnosis --jobs=2
-          xmake install installer
-          
+          mkdir ./packaging/org.midieditor.midieditor/data/
+          cp ./bin/ProMidEdit.exe ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+          windeployqt ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+          mkdir ./packaging/org.midieditor.midieditor/data/metronome
+          cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
+          mkdir ./packaging/org.midieditor.manual/data/
+          cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
+
+      - name: Packaging
+        shell: cmd
+        run: |
+          binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ProMidEdit-Installer
-          path: packaging/Install.exe
+          path: Install.exe
