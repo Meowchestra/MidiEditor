@@ -8,21 +8,25 @@ jobs:
     steps:
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: v2.8.2
+          xmake-version: latest
+
       - name: update repo
         run: |
           xrepo update-repo
-      - uses: actions/checkout@v3
+
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
       - name: cache packages from xrepo
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ env.XMAKE_GLOBALDIR }}/.xmake/packages
           key: ${{ runner.os }}-xrepo-qt-${{ hashFiles('scripts/xmake/packages.lua') }}
+
       - name: cache xmake
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ${{ github.workspace }}/.xmake/**/cache
@@ -40,8 +44,17 @@ jobs:
         run: |
           xmake build --jobs=2
 
-      - name: Upload
-        uses: actions/upload-artifact@v3
+      - name: create installer
+        run: |
+          echo "Creating installer (this will install ProMidEdit automatically)..."
+          xmake install --admin installer
+          echo "Checking packaging directory contents:"
+          dir packaging /s
+          echo "Checking if Install.exe was created:"
+          if exist packaging\Install.exe (echo "Install.exe found") else (echo "Install.exe NOT found")
+
+      - name: Upload Installer
+        uses: actions/upload-artifact@v4
         with:
-          name: ProMidEdit
-          path: .
+          name: ProMidEdit-Installer
+          path: packaging/Install.exe

@@ -18,19 +18,16 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2019_64
     steps:
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
+      - name: Install Qt and Qt Installer Framework
+        uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt_ver }}
           arch: ${{ matrix.qt_arch }}
           host: 'windows'
           target: 'desktop'
           cache: 'false'
+          tools: 'tools_ifw'
 
-      - uses: jmarrec/setup-qtifw@v1
-        with:
-          qtifw-version: '4.x'
-      
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1

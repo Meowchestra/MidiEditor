@@ -50,15 +50,14 @@ target("ProMidEdit") do
     local bindir = path.join(installdir, "bin")
     local plugindir = path.join(bindir, "plugins")
     set_installdir(installdir)
-    if is_plat("windows") then
+
+    -- Install metronome files
+    add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
+    if is_plat("windows", "mingw") then
         set_values("qt.deploy.flags", {
             "--plugindir", plugindir,
             "--libdir", bindir
         })
-        after_install(function (target) 
-            os.rm(path.join(bindir, "**", "dsengine.dll"))
-        end)
-    elseif is_plat("mingw") then
         after_install(function (target)
             print("after_install of target ProMidEdit")
             import("core.base.option")
@@ -70,9 +69,8 @@ target("ProMidEdit") do
                 find_tool("windeployqt", {check = "--help"}),
                 "windeployqt.exe not found!")
             local windeployqt = windeployqt_tool.program
-            
+
             -- deploy necessary dll
-            -- mingw with posix thread should be used, or dll error will be reported
             local deploy_argv = {"--compiler-runtime", "--release"}
             if option.get("diagnosis") then
                 table.insert(deploy_argv, "--verbose=2")
@@ -83,10 +81,11 @@ target("ProMidEdit") do
             end
             local bindir = path.join(target:installdir(), "bin")
             local plugindir = path.join(bindir, "plugins")
-            -- print(plugindir)
+            print("Deploying Qt to:", bindir)
             table.join2(deploy_argv, {"--plugindir", plugindir})
             table.join2(deploy_argv, {"--libdir", bindir})
-            table.insert(deploy_argv, bindir)
+            table.insert(deploy_argv, path.join(bindir, "ProMidEdit.exe"))
+            print("Running windeployqt with args:", table.concat(deploy_argv, " "))
             os.iorunv(windeployqt, deploy_argv)
             os.rm(path.join(bindir, "**", "dsengine.dll"))
         end)
@@ -95,15 +94,21 @@ end
 
 target("installer") do
     set_kind("phony")
-    
-    local installdir = 
+
     set_installdir("packaging/org.midieditor.manual/data/manual")
     add_installfiles("manual/(**)")
     add_packages("qtifw")
     add_deps("ProMidEdit")
 
+    before_install(function (target, opt)
+        -- Ensure ProMidEdit is installed first (since dependencies don't auto-install)
+        import("core.project.task")
+        print("Installing ProMidEdit dependency...")
+        task.run("install", {target = "ProMidEdit"})
+    end)
+
     after_install(function (target, opt)
-        if is_plat("windows", "mingw") then
+        if is_plat("windows") then
             print("generate off-line installer")
             import("core.project.config")
             import("lib.detect.find_tool")
@@ -116,6 +121,7 @@ target("installer") do
                 "--packages", "packaging",
                 "packaging/Install.exe"
             }
+            print("Running binarycreator with args:", table.concat(package_argv, " "))
             os.iorunv(binarycreator_path, package_argv)
         end
     end)
