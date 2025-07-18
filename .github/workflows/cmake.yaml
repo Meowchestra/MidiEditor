@@ -1,4 +1,4 @@
-name: build with xmake on windows
+name: build with cmake on windows
 on:
   push:
     branches: [ main ]
@@ -6,6 +6,9 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
+      MIDIEDITOR_RELEASE_DATE: ""
     strategy:
       matrix:
         include:
@@ -14,10 +17,6 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2019_64
     steps:
-      - uses: xmake-io/github-action-setup-xmake@v1
-        with:
-          xmake-version: latest
-
       - name: Install Qt and Qt Installer Framework
         uses: jurplel/install-qt-action@v4
         with:
@@ -33,10 +32,14 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: Build
+      - name: msvc-build
+        id: build
+        shell: cmd
         run: |
-          xmake config --yes
-          xmake build --jobs=2
+          set MIDIEDITOR_RELEASE_DATE="%DATE%"
+          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
+          qmake
+          nmake
 
       - name: Copy Files 
         shell: pwsh
@@ -49,13 +52,21 @@ jobs:
           mkdir ./packaging/org.midieditor.manual/data/
           cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
 
-      - name: Packaging
+      - name: packaging
         shell: cmd
         run: |
           binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
-      - name: Upload artifact
+      - name: Upload 
         uses: actions/upload-artifact@v4
         with:
-          name: ProMidEdit-Installer
+          name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
           path: Install.exe
+
+      - name: Report 
+        shell: cmd
+        run: |
+          echo winSdkDir=%WindowsSdkDir% >> %GITHUB_ENV%
+          echo winSdkVer=%WindowsSdkVersion% >> %GITHUB_ENV%
+          echo vcToolsInstallDir=%VCToolsInstallDir% >> %GITHUB_ENV%
+          echo vcToolsRedistDir=%VCToolsRedistDir% >> %GITHUB_ENV%

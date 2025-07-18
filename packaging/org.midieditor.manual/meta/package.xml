@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <Package>
     <DisplayName>Manual</DisplayName>
-    <Description>manual of ProMidEdit</Description>
-    <Version>3.4.0</Version>
-    <ReleaseDate>2022-01-31</ReleaseDate>
+    <Description>Manual of ProMidEdit</Description>
+    <Version>3.9.0</Version>
+    <ReleaseDate>2025-07-17</ReleaseDate>
     <Name>org.midieditor.manual</Name>
     <Default>true</Default>
     <ForcedInstallation>false</ForcedInstallation>

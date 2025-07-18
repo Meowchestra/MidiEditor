@@ -2,7 +2,7 @@ Package: promidedit
 Version: {VERSION}-{PACKAGE}
 Section: sound
 Priority: extra
-Architecture: {ARCHITECURE}
+Architecture: {ARCH}
 Depends: {DEPENDS}
 Installed-Size: {SIZE}
 Maintainer: PROPHESSOR, Markus Schwenk <kontakt@markus-schwenk.de>

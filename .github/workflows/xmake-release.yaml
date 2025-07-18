@@ -1,15 +1,11 @@
-name: build windows
+name: publish website with xmake on windows
 on:
   push:
-    branches: [ main ]
+    tags: '*'
 
 jobs:
   build:
     runs-on: windows-latest
-    env:
-      MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
-      MIDIEDITOR_RELEASE_DATE: ""
-    if: always()
     strategy:
       matrix:
         include:
@@ -18,6 +14,10 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2019_64
     steps:
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+
       - name: Install Qt and Qt Installer Framework
         uses: jurplel/install-qt-action@v4
         with:
@@ -33,14 +33,21 @@ jobs:
           fetch-depth: 1
           submodules: true
 
-      - name: msvc-build
-        id: build
-        shell: cmd
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: build/website
+          fetch-depth: 1
+
+      - name: Setup graphviz
         run: |
-          set MIDIEDITOR_RELEASE_DATE="%DATE%"
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
-          qmake
-          nmake
+          choco install graphviz doxygen.install
+
+      - name: Build
+        run: |
+          xmake config --yes --mode=release --generate-repository=y
+          xmake build --jobs=2
+          xmake doxygen --yes
 
       - name: Copy Files 
         shell: pwsh
@@ -53,22 +60,31 @@ jobs:
           mkdir ./packaging/org.midieditor.manual/data/
           cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
 
-      - name: packaging
+      - name: Packaging
         shell: cmd
         run: |
           binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
-      - name: Upload 
+      - name: Release installer
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ github.workspace }}/CHANGELOG.md
+          draft: ${{ startsWith(github.ref, 'refs/tags/nightly') }}
+          fail_on_unmatched_files: true
+          files: |
+            build/website/ProMidEdit.exe
+
+      - name: Publish website
+        run: |
+          cd build/website
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add .
+          git commit -m "Generate Website for ${{ github.ref }}"
+          git push
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
-          path: |
-            Install.exe
-
-      - name: Report 
-        shell: cmd
-        run: |
-          echo winSdkDir=%WindowsSdkDir% >> %GITHUB_ENV%
-          echo winSdkVer=%WindowsSdkVersion% >> %GITHUB_ENV%
-          echo vcToolsInstallDir=%VCToolsInstallDir% >> %GITHUB_ENV%
-          echo vcToolsRedistDir=%VCToolsRedistDir% >> %GITHUB_ENV%
+          name: ProMidEdit-Installer
+          path: Install.exe

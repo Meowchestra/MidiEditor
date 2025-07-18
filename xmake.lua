@@ -1,11 +1,25 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "3.8.1"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "3.9.0"
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
+set_allowedplats("windows", "linux", "macosx")
 
-includes("scripts/xmake/packages.lua")
-add_all_requires()
+option("generate-repository", {
+    description = "generate repositiory to update online repositories",
+    default = false,
+    values = {true, false},
+    showmenu = true,
+})
+option("libraries-from-apt", {
+    description = "use libraries from apt rather than xmake-repo",
+    default = false,
+    values = {true, false},
+    showmenu = is_host("linux") and (linuxos.name() == "ubuntu"),
+})
 
 target("ProMidEdit") do
+    set_languages("cxx17")
+    set_targetdir("bin")
+
     add_packages({
         "rtmidi",
         "qt5widgets"
@@ -35,7 +49,7 @@ target("ProMidEdit") do
             "__LINUX_ALSA__"
         })
         add_syslinks("asound")
-    elseif is_plat("windows", "mingw") then
+    elseif is_plat("windows") then
         add_defines("__WINDOWS_MM__")
         add_syslinks("winmm")
         add_files("midieditor.rc")
@@ -50,79 +64,98 @@ target("ProMidEdit") do
     local bindir = path.join(installdir, "bin")
     local plugindir = path.join(bindir, "plugins")
     set_installdir(installdir)
-
-    -- Install metronome files
-    add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
-    if is_plat("windows", "mingw") then
-        set_values("qt.deploy.flags", {
+	
+	add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
+    if is_plat("windows") then
+        local configs = {
             "--plugindir", plugindir,
             "--libdir", bindir
-        })
-        after_install(function (target)
-            print("after_install of target ProMidEdit")
-            import("core.base.option")
-            import("core.project.config")
-            import("lib.detect.find_tool")
-
-            -- get windeployqt
-            local windeployqt_tool = assert(
-                find_tool("windeployqt", {check = "--help"}),
-                "windeployqt.exe not found!")
-            local windeployqt = windeployqt_tool.program
-
-            -- deploy necessary dll
-            local deploy_argv = {"--compiler-runtime", "--release"}
-            if option.get("diagnosis") then
-                table.insert(deploy_argv, "--verbose=2")
-            elseif option.get("verbose") then
-                table.insert(deploy_argv, "--verbose=1")
-            else
-                table.insert(deploy_argv, "--verbose=0")
-            end
-            local bindir = path.join(target:installdir(), "bin")
-            local plugindir = path.join(bindir, "plugins")
-            print("Deploying Qt to:", bindir)
-            table.join2(deploy_argv, {"--plugindir", plugindir})
-            table.join2(deploy_argv, {"--libdir", bindir})
-            table.insert(deploy_argv, path.join(bindir, "ProMidEdit.exe"))
-            print("Running windeployqt with args:", table.concat(deploy_argv, " "))
-            os.iorunv(windeployqt, deploy_argv)
+        }
+        set_values("qt.deploy.flags", configs)
+        after_install(function (target) 
             os.rm(path.join(bindir, "**", "dsengine.dll"))
+        end)
+        after_uninstall(function (target)
+            os.rm(path.join(installdir, "**", "*.dll"))
+            os.rm(path.join(installdir, "**", "*.exe"))
         end)
     end
 end
 
-target("installer") do
+target("manual") do
     set_kind("phony")
-
+    set_enabled(is_plat("windows"))
     set_installdir("packaging/org.midieditor.manual/data/manual")
     add_installfiles("manual/(**)")
-    add_packages("qtifw")
+end
+
+target("installer") do
+    set_kind("phony")
+    set_enabled(is_plat("windows", "linux"))
     add_deps("ProMidEdit")
-
-    before_install(function (target, opt)
-        -- Ensure ProMidEdit is installed first (since dependencies don't auto-install)
-        import("core.project.task")
-        print("Installing ProMidEdit dependency...")
-        task.run("install", {target = "ProMidEdit"})
-    end)
-
-    after_install(function (target, opt)
-        if is_plat("windows") then
-            print("generate off-line installer")
+    
+    set_installdir(installdir)
+    if is_plat("windows") then
+        add_deps("manual")
+        add_packages("qtifw")
+        after_install(function (target, opt)
             import("core.project.config")
-            import("lib.detect.find_tool")
             local qtifw_dir = target:pkg("qtifw"):installdir()
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
-            -- generate windows package
-            local buildir = config.buildir()
-            local package_argv = {
-                "--config", "scripts/packaging/windows/config.xml",
-                "--packages", "packaging",
-                "packaging/Install.exe"
+            local repogen_path = path.join(qtifw_dir, "/bin/repogen.exe")
+            if config.get("generate-repository") then
+                print("generate site")
+                print("  generate repository")
+                local repo_argv = {
+                    "--update-new-components",
+                    "--packages", "packaging",
+                    path.join(config.buildir(), "website", "repository")
+                }
+                os.iorunv(repogen_path, repo_argv)
+                print("  generate installer")
+                local package_argv = {
+                    "--config", "scripts/packaging/windows/config.xml",
+                    "--packages", "packaging",
+                    path.join(config.buildir(), "website", "ProMidiEdit.exe")
+                }
+                os.iorunv(binarycreator_path, package_argv)
+                print("  copy online manual")
+                os.cp("manual/*", path.join(config.buildir(), "website"))
+            else
+                print("generate off-line installer")
+                local package_argv = {
+                    "--config", "scripts/packaging/windows/config.xml",
+                    "--packages", "packaging",
+                    "packaging/Install.exe"
+                }
+                os.iorunv(binarycreator_path, package_argv)
+            end
+        end)
+    elseif is_plat("linux") and linuxos.name() == "ubuntu" then
+        add_installfiles("scripts/packaging/debian/ProMidEdit.desktop", {prefixdir = "usr/share/applications"})
+        add_installfiles("scripts/packaging/debian/logo48.png", {prefixdir = "usr/share/pixmaps"})
+        add_installfiles("scripts/packaging/debian/copyright", {prefixdir = "usr/share/doc/promidedit/copyright"})
+        add_installfiles("$(buildir)/control", {prefixdir = "DEBIAN"})
+        add_configfiles("scripts/packaging/debian/control", {
+            pattern = "{(.-)}",
+            variables = {
+                PACKAGE = 1,
+                DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase5-dev, qtdeclarative5-dev, libqt5webkit5-dev, libsqlite3-dev, qt5-default, qtmultimedia5-dev, libqt5multimedia5, qttools5-dev-tools, libqt5multimedia5-plugins, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
+                SIZE = 70, -- in kb, todo
             }
-            print("Running binarycreator with args:", table.concat(package_argv, " "))
-            os.iorunv(binarycreator_path, package_argv)
-        end
-    end)
+        })
+        after_install(function (target, opt)
+            import("core.project.config")
+            local installdir_glob = path.join(target:installdir(), "**")
+            for _, file in ipairs(os.dirs(installdir_glob)) do
+                os.runv("chmod", {"755", file})
+            end
+            for _, file in ipairs(os.files(installdir_glob)) do
+                os.runv("chmod", {"644", file})
+            end
+            os.runv("chmod", {
+                "+x", path.join(target:installdir(), "bin", target:deps()["ProMidEdit"]:filename())})
+            os.iorunv("fakeroot", {"dpkg-deb", "--build", target:installdir()})
+        end)
+    end
 end

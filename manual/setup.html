@@ -4,15 +4,15 @@
 <p>
   MidiEditor has to be correctly configured in order to be able to send data to a
   Midi device which is connected to the computer and (if required) to receive any data in order to
-  allow <a href="index.php?category=manual&subcategory=record">recording</a>. If not correctly configured, MidiEditor
+  allow <a href="record.html">recording</a>. If not correctly configured, MidiEditor
   can be used to edit Midi files; however, you won't be able to listen to the music.
 </p>
 
-<img class="figure" src="pages/manual/screenshots/setup-io.png" width="600"/>
+<img class="figure" src="screenshots/setup-io.png" width="600"/>
 
 <p>
 	To select the input or output device click &quot;Settings..&quot; in the
-	<a href="index.php?category=manual&subcategory=menu-midi">midi menu in the menubar</a>. In the list on the left-hand side of the
+	<a href="menu-midi.html">midi menu in the menubar</a>. In the list on the left-hand side of the
 	upcoming dialog, please select the card &quot;Midi I/O&quot;. This will show
 	two lists which show all available input/output devices.
 </p>
@@ -27,12 +27,12 @@
 
 <h3 id="connect">Making the Input Device audible</h3>
 
-<img src="pages/manual/tools/connection.png" align="left" width="40" height="40" hspace="10" vspace="10"/>
+<img src="tools/connection.png" align="left" width="40" height="40" hspace="10" vspace="10"/>
 
 <p>
   A lot of Midi devices which allow you to input Midi data are not audible but need a connected computer to generate sounds (similar to MidiEditor).
   When having chosen a valid output device, you can pass all notes played at the input device to the output device which makes the played notes audible.
-  Select the option &quot;Connect Midi In/Out&quot; in the <a href="index.php?category=manual&subcategory=menu-midi">midi menu in the menubar</a> or in the toolbar.
+  Select the option &quot;Connect Midi In/Out&quot; in the <a href="menu-midi.html">midi menu in the menubar</a> or in the toolbar.
 </p>
 
 <h3 id="external">Starting Synthesizers along with MidiEditor</h3>
@@ -46,7 +46,7 @@
 	To start a software each time when MidiEditor is started, you can set a start-command which is executed
 	at each startup of the editor.
   To enter this command, click the menu entry &quot;Settings...&quot; in the
-	<a href="index.php?category=manual&subcategory=menu-midi">midi menu in the menubar</a>. Select the card &quot;Additional Midi Settings&quot;
+	<a href="menu-midi.html">midi menu in the menubar</a>. Select the card &quot;Additional Midi Settings&quot;
 	and enter your start command in the according field. The output of the started component
 	will be visible (after the next startup) in the text area below this field.
 </p>
@@ -79,4 +79,4 @@
   On linux, use the command line to start MidiEditor. On windows, right-click on the desktop-shortcut and select &quot;Properties&quot;.
   Add the argument --large-playback-toolbar to the target field as shown below.
 </p>
-<img class="figure" src="pages/manual/screenshots/command-line-windows.png" width="400"/>
+<img class="figure" src="screenshots/command-line-windows.png" width="400"/>

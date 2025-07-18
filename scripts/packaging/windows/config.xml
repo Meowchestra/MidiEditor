@@ -1,19 +1,25 @@
 <?xml version="1.0"?>
 <Installer>
     <Name>ProMidEdit</Name>
-    <Version>3.8.1</Version>
+    <Version>3.9.0</Version>
     <Title>ProMidEdit Setup</Title>
-    <Publisher>jingkaimori</Publisher>
-    <ProductUrl>https://github.com/jingkaimori/midieditor</ProductUrl>
+    <Publisher>Meowchestra</Publisher>
+    <ProductUrl>https://github.com/Meowchestra/MidiEditor</ProductUrl>
     <InstallerWindowIcon>package.png</InstallerWindowIcon>
     <Logo>midieditor.png</Logo>
     <RunProgram>@TargetDir@/ProMidEdit.exe</RunProgram>
-    <RunProgramArguments>
-    </RunProgramArguments>
-    <RunProgramDescription>run midieditor</RunProgramDescription>
+    <RunProgramArguments></RunProgramArguments>
+    <RunProgramDescription>Run MidiEditor</RunProgramDescription>
     <StartMenuDir>ProMidEdit</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
 
     <TargetDir>@HomeDir@/ProMidEdit</TargetDir>
     <AdminTargetDir>@RootDir@/ProMidEdit</AdminTargetDir>
+    <RemoteRepositories>
+        <Repository>
+            <Url>https://Meowchestra.github.io/MidiEditor/</Url>
+            <Enabled>1</Enabled>
+            <DisplayName>Github Repository</DisplayName>
+        </Repository>
+    </RemoteRepositories>
 </Installer>
