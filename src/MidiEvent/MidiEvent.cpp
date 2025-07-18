@@ -301,12 +301,33 @@ MidiEvent* MidiEvent::loadMidiEvent(QDataStream* content, bool* ok,
                     TextEvent* textEvent = new TextEvent(channel, track);
                     textEvent->setType(tempByte);
                     uint length = MidiFile::variableLengthvalue(content);
-                    char str[128] = "";
+
+                    // Safety check: prevent unreasonably large text events that could cause memory issues
+                    if (length > 65535) { // 64KB limit for text events
+                        *ok = false;
+                        delete textEvent;
+                        return 0;
+                    }
+
+                    // Additional safety: check for zero-length text events
+                    if (length == 0) {
+                        textEvent->setText(QString());
+                        *ok = true;
+                        return textEvent;
+                    }
+
+                    // Use QByteArray for safe dynamic memory management
+                    QByteArray textData;
+                    textData.reserve(length);
+
                     for (uint i = 0; i < length; i++) {
                         (*content) >> tempByte;
-                        str[i] = tempByte;
+                        textData.append((char)tempByte);
                     }
-                    textEvent->setText(QString::fromUtf8(str));
+
+                    // QString::fromUtf8() safely handles malformed UTF-8 by replacing
+                    // invalid sequences with Unicode replacement characters (U+FFFD)
+                    textEvent->setText(QString::fromUtf8(textData));
                     *ok = true;
                     return textEvent;
 
