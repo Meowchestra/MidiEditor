@@ -21,7 +21,6 @@ target("ProMidEdit") do
     set_targetdir("bin")
 
     add_packages({
-        "rtmidi",
         "qt5widgets"
     })
     add_rules("qt.widgetapp")
@@ -34,9 +33,27 @@ target("ProMidEdit") do
         "QtMultimedia",
         "QtMultimediaWidgets"
     })
-    add_files("src/**.cpp")
-    add_files("src/**.h")
+
+    -- Add source files, including only the main rtmidi files (not examples/tests)
+    add_files("src/*.cpp")
+    add_files("src/MidiEvent/**.cpp")
+    add_files("src/gui/**.cpp")
+    add_files("src/midi/*.cpp")
+    add_files("src/protocol/**.cpp")
+    add_files("src/tool/**.cpp")
+    -- Add only the main rtmidi source files
+    add_files("src/midi/rtmidi/RtMidi.cpp")
+
+    add_files("src/*.h")
+    add_files("src/MidiEvent/**.h")
+    add_files("src/gui/**.h")
+    add_files("src/midi/*.h")
+    add_files("src/protocol/**.h")
+    add_files("src/tool/**.h")
+    -- Add only the main rtmidi header files
+    add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")
+
     if is_arch("x86_64") then
         add_defines("__ARCH64__")
     end
@@ -65,7 +82,7 @@ target("ProMidEdit") do
     local plugindir = path.join(bindir, "plugins")
     set_installdir(installdir)
 	
-	add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
+    add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
     if is_plat("windows") then
         local configs = {
             "--plugindir", plugindir,

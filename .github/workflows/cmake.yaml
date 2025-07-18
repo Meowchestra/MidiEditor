@@ -41,7 +41,7 @@ jobs:
           qmake
           nmake
 
-      - name: Copy Files 
+      - name: Copy Files
         shell: pwsh
         run: |
           mkdir ./packaging/org.midieditor.midieditor/data/
