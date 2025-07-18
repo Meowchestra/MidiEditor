@@ -42,12 +42,15 @@ jobs:
           qmake
           nmake
 
-      - name: Copy Files 
+      - name: Copy Files
         shell: pwsh
         run: |
           mkdir ./packaging/org.midieditor.midieditor/data/
           cp ./bin/ProMidEdit.exe ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
-          windeployqt ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+
+          # Deploy Qt with size optimizations - using only verified Qt 5.15.2 flags
+          windeployqt --release --no-opengl-sw --no-system-d3d-compiler --no-translations ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+
           mkdir ./packaging/org.midieditor.midieditor/data/metronome
           cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
           mkdir ./packaging/org.midieditor.manual/data/
@@ -56,7 +59,18 @@ jobs:
       - name: packaging
         shell: cmd
         run: |
+          echo Creating optimized installer...
+          echo Checking packaging directory structure:
+          dir packaging /s
+          echo Running binarycreator...
           binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
+          if exist Install.exe (
+            echo Installer created successfully
+            dir Install.exe
+          ) else (
+            echo ERROR: Install.exe was not created
+            exit /b 1
+          )
 
       - name: Upload 
         uses: actions/upload-artifact@v4

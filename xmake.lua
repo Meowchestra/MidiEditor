@@ -70,8 +70,14 @@ target("ProMidEdit") do
                 "windeployqt.exe not found!")
             local windeployqt = windeployqt_tool.program
 
-            -- deploy necessary dll
-            local deploy_argv = {"--compiler-runtime", "--release"}
+            -- deploy necessary dll with size optimizations
+            local deploy_argv = {
+                "--compiler-runtime",
+                "--release",
+                "--no-opengl-sw",           -- Remove opengl32sw.dll
+                "--no-system-d3d-compiler", -- Remove D3Dcompiler_47.dll
+                "--no-translations"         -- Remove Qt translations
+            }
             if option.get("diagnosis") then
                 table.insert(deploy_argv, "--verbose=2")
             elseif option.get("verbose") then

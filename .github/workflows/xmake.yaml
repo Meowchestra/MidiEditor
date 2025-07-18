@@ -46,12 +46,7 @@ jobs:
 
       - name: create installer
         run: |
-          echo "Creating installer (this will install ProMidEdit automatically)..."
           xmake install --admin installer
-          echo "Checking packaging directory contents:"
-          dir packaging /s
-          echo "Checking if Install.exe was created:"
-          if exist packaging\Install.exe (echo "Install.exe found") else (echo "Install.exe NOT found")
 
       - name: Upload Installer
         uses: actions/upload-artifact@v4

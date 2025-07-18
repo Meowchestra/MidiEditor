@@ -14,6 +14,14 @@
     <StartMenuDir>ProMidEdit</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
 
+    <!-- Reduce installer size by disabling unnecessary features -->
+    <CreateLocalRepository>false</CreateLocalRepository>
+    <AllowSpaceInPath>true</AllowSpaceInPath>
+    <RemoteRepositories></RemoteRepositories>
+
+    <!-- Disable maintenance tool - use Windows built-in uninstall instead -->
+    <MaintenanceToolName></MaintenanceToolName>
+
     <TargetDir>@HomeDir@/ProMidEdit</TargetDir>
     <AdminTargetDir>@RootDir@/ProMidEdit</AdminTargetDir>
 </Installer>
