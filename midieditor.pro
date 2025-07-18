@@ -84,6 +84,8 @@ win32: {
     OBJECTS_DIR = .tmp
     MOC_DIR = .tmp
     Release:DESTDIR = bin
+    # Set Windows subsystem to GUI to prevent console window
+    QMAKE_LFLAGS += /SUBSYSTEM:WINDOWS
 }
 
 macx: {

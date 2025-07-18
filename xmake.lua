@@ -70,6 +70,9 @@ target("ProMidEdit") do
         add_defines("__WINDOWS_MM__")
         add_syslinks("winmm")
         add_files("midieditor.rc")
+        -- Set Windows subsystem to GUI to prevent console window
+        set_kind("binary")
+        add_ldflags("/SUBSYSTEM:WINDOWS", {force = true})
     elseif is_plat("macosx") then
         add_defines("__MACOSX_CORE__")
         add_frameworks("CoreMidi", "CoreAudio", "CoreFoundation")
