@@ -317,7 +317,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 text += QString("%1:").arg(minutes, 2, 10, QChar('0'));
                 text += QString("%1").arg(seconds, 2, 10, QChar('0'));
                 text += QString(".%1").arg(ms / 10, 2, 10, QChar('0'));
-                int textlength = QFontMetrics(pixpainter->font()).width(text);
+                int textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
                 if (startNumber > 0) {
                     pixpainter->drawText(pos - textlength / 2, timeHeight / 2 - 6, text);
                 }
@@ -360,10 +360,10 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 pixpainter->setPen(Qt::gray);
                 pixpainter->drawLine(xfrom, timeHeight / 2, xfrom, height());
                 QString text = tr("Measure ") + QString::number(measure - 1);
-                int textlength = QFontMetrics(pixpainter->font()).width(text);
+                int textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
                 if (textlength > xto - xfrom) {
                     text = QString::number(measure - 1);
-                    textlength = QFontMetrics(pixpainter->font()).width(text);
+                    textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
                 }
                 int pos = (xfrom + xto) / 2;
                 pixpainter->setPen(Qt::white);
@@ -470,7 +470,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             font = painter->font();
             font.setPixelSize(10);
             painter->setFont(font);
-            int textlength = QFontMetrics(font).width(text);
+            int textlength = QFontMetrics(font).horizontalAdvance(text);
             painter->drawText(lineNameWidth - 15 - textlength, startLine + lineHeight(), text);
         }
     }
@@ -557,7 +557,7 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     // filter events
     QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
 
-    QMap<int, MidiEvent*>::iterator it = map->lowerBound(startTick);
+    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(startTick);
     while (it != map->end() && it.key() <= endTick) {
         MidiEvent* event = it.value();
         if (eventInWidget(event)) {
@@ -805,7 +805,7 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
 
         if (name != "") {
             painter->setPen(Qt::gray);
-            int textlength = QFontMetrics(painter->font()).width(name);
+            int textlength = QFontMetrics(painter->font()).horizontalAdvance(name);
             painter->drawText(x + width - textlength - 2, y + height - 1, name);
             painter->setPen(Qt::black);
         }
@@ -841,7 +841,7 @@ void MatrixWidget::setFile(MidiFile* f) {
 
         QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
 
-        QMap<int, MidiEvent*>::iterator it = map->lowerBound(0);
+        QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(0);
         while (it != map->end()) {
             NoteOnEvent* onev = dynamic_cast<NoteOnEvent*>(it.value());
             if (onev && eventInWidget(onev)) {

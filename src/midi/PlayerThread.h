@@ -23,10 +23,10 @@
 #include <QObject>
 #include <QThread>
 #include <QTimer>
+#include <QElapsedTimer>
 
 class MidiFile;
 class MidiEvent;
-class QTime;
 
 class PlayerThread : public QThread {
 
@@ -60,7 +60,7 @@ private:
     int interval, position, timeoutSinceLastSignal;
     volatile bool stopped;
     QTimer* timer;
-    QTime* time;
+    QElapsedTimer* time;
 
     int measure, posInMeasure;
 };

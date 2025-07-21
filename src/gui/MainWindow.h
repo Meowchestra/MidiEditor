@@ -23,6 +23,7 @@
 #include <QMainWindow>
 #include <QScrollBar>
 #include <QSettings>
+#include <QStringList>
 
 class MatrixWidget;
 class MidiEvent;
@@ -31,7 +32,6 @@ class ChannelListWidget;
 class ProtocolWidget;
 class EventWidget;
 class ClickButton;
-class QStringList;
 class QTabWidget;
 class QMenu;
 class TrackListWidget;

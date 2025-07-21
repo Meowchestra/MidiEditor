@@ -20,7 +20,7 @@
 #include "Tool.h"
 
 ToolButton::ToolButton(Tool* tool, QKeySequence sequence, QWidget* parent)
-    : QAction(parent)
+    : QAction(reinterpret_cast<QObject*>(parent))
 {
     button_tool = tool;
     tool->setButton(this);

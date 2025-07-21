@@ -21,7 +21,7 @@ target("ProMidEdit") do
     set_targetdir("bin")
 
     add_packages({
-        "qt5widgets"
+        "qt6widgets"
     })
     add_rules("qt.widgetapp")
     add_frameworks({
@@ -160,7 +160,7 @@ target("installer") do
             pattern = "{(.-)}",
             variables = {
                 PACKAGE = 1,
-                DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase5-dev, qtdeclarative5-dev, libqt5webkit5-dev, libsqlite3-dev, qt5-default, qtmultimedia5-dev, libqt5multimedia5, qttools5-dev-tools, libqt5multimedia5-plugins, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
+                DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase6-dev, qtdeclarative6-dev, libqt6webkit6-dev, libsqlite3-dev, qt6-default, qtmultimedia6-dev, libqt6multimedia6, qttools6-dev-tools, libqt6multimedia6-plugins, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
                 SIZE = 70, -- in kb, todo
             }
         })

@@ -23,13 +23,13 @@
 #include <QMultiMap>
 #include <QObject>
 #include <QProcess>
+#include <QStringList>
 
 #include <vector>
 
 class MidiEvent;
 class RtMidiIn;
 class RtMidiOut;
-class QStringList;
 class MidiTrack;
 
 class MidiInput : public QObject {

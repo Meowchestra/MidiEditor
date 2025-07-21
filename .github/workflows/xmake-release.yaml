@@ -9,10 +9,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - qt_ver: 5.15.2
-            qt_arch: win64_msvc2019_64
+          - qt_ver: 6.10.0
+            qt_arch: win64_msvc2022_64
             msvc_arch: x64
-            qt_arch_install: msvc2019_64
+            qt_arch_install: msvc2022_64
     steps:
       - uses: xmake-io/github-action-setup-xmake@v1
         with:
@@ -27,6 +27,7 @@ jobs:
           target: 'desktop'
           cache: 'false'
           tools: 'tools_ifw'
+          modules: 'qtmultimedia'
 
       - uses: actions/checkout@v4
         with:

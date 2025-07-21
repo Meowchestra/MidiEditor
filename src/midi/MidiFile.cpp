@@ -347,11 +347,11 @@ int MidiFile::variableLengthvalue(QDataStream* content) {
 }
 
 QMap<int, MidiEvent*>* MidiFile::timeSignatureEvents() {
-    return channels[18]->eventMap();
+    return reinterpret_cast<QMap<int, MidiEvent*>*>(channels[18]->eventMap());
 }
 
 QMap<int, MidiEvent*>* MidiFile::tempoEvents() {
-    return channels[17]->eventMap();
+    return reinterpret_cast<QMap<int, MidiEvent*>*>(channels[17]->eventMap());
 }
 
 void MidiFile::calcMaxTime() {
@@ -1828,7 +1828,7 @@ void MidiFile::deleteMeasures(int from, int to) {
 
     // Delete all events. For notes, only delete if starting within the given tick range.
     for (int ch = 0; ch < 19; ch++) {
-        QMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
+        QMultiMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
         QList<MidiEvent*> toRemove;
         while(it != channel(ch)->eventMap()->end()) {
             if (it.key() >= tickFrom && it.key() <= tickTo) {
@@ -1857,7 +1857,7 @@ void MidiFile::deleteMeasures(int from, int to) {
     // duration.
     for (int ch = 0; ch < 19; ch++) {
         QList<MidiEvent*> toUpdate;
-        QMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
+        QMultiMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
         while(it != channel(ch)->eventMap()->end()) {
             if (it.key() > tickTo) {
                 toUpdate.append(it.value());
@@ -1911,7 +1911,7 @@ void MidiFile::insertMeasures(int after, int numMeasures) {
     // Shift all ticks.
     for (int ch = 0; ch < 19; ch++) {
         QList<MidiEvent*> toUpdate;
-        QMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
+        QMultiMap<int, MidiEvent*>::Iterator it = channel(ch)->eventMap()->begin();
         while(it != channel(ch)->eventMap()->end()) {
             if (it.key() >= tick) {
                 toUpdate.append(it.value());

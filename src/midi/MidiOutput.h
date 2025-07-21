@@ -22,11 +22,11 @@
 #include <QList>
 #include <QMap>
 #include <QObject>
+#include <QStringList>
 
 class MidiEvent;
 class RtMidiIn;
 class RtMidiOut;
-class QStringList;
 class SenderThread;
 
 class MidiOutput : public QObject {

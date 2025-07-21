@@ -62,7 +62,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     QToolBar* toolBar = new QToolBar(this);
     toolBar->setIconSize(QSize(12, 12));
     QPalette palette = toolBar->palette();
-    palette.setColor(QPalette::Background, Qt::white);
+    palette.setColor(QPalette::Window, Qt::white);
     toolBar->setPalette(palette);
 
     // visibility
