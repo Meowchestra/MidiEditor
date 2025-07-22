@@ -5,7 +5,7 @@ on:
 
 jobs:
   build:
-    runs-on: windows-latest
+    runs-on: windows-2025
     strategy:
       matrix:
         include:
@@ -46,7 +46,7 @@ jobs:
 
       - name: Build
         run: |
-          xmake config --yes --arch=x86_64 --mode=release --generate-repository=y
+          xmake config --yes --arch=x64 --toolchain=msvc --mode=release --generate-repository=y
           xmake build --jobs=2
           xmake doxygen --yes
 

@@ -17,7 +17,7 @@ option("libraries-from-apt", {
 })
 
 target("ProMidEdit") do
-    set_languages("cxx17")
+    set_languages("cxxlatest")
     set_targetdir("bin")
 
     add_packages({
@@ -54,7 +54,7 @@ target("ProMidEdit") do
     add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")
 
-    if is_arch("x86_64") then
+    if is_arch("x64", "x86_64") then
         add_defines("__ARCH64__")
     end
     add_defines("MIDIEDITOR_RELEASE_VERSION_ID_DEF=" .. 0)
@@ -72,6 +72,7 @@ target("ProMidEdit") do
         add_files("midieditor.rc")
         -- Set Windows subsystem to GUI to prevent console window
         set_kind("binary")
+        -- Use MSVC-style linker flags for Windows
         add_ldflags("/SUBSYSTEM:WINDOWS", {force = true})
     elseif is_plat("macosx") then
         add_defines("__MACOSX_CORE__")
