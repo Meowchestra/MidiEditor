@@ -28,6 +28,7 @@
 #include <QInputDialog>
 #include <QLabel>
 #include <QList>
+#include <QMap>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -503,31 +504,40 @@ void MainWindow::scrollPositionsChanged(int startMs, int maxMs, int startLine,
     vert->setValue(startLine);
 }
 
-void MainWindow::setFile(MidiFile* file) {
+void MainWindow::setFile(MidiFile* newFile) {
+
+    // Store reference to old file for cleanup
+    MidiFile* oldFile = this->file;
 
     EventTool::clearSelection();
-    Selection::setFile(file);
-    Metronome::instance()->setFile(file);
-    protocolWidget->setFile(file);
-    channelWidget->setFile(file);
-    _trackWidget->setFile(file);
-    eventWidget()->setFile(file);
+    Selection::setFile(newFile);
+    Metronome::instance()->setFile(newFile);
+    protocolWidget->setFile(newFile);
+    channelWidget->setFile(newFile);
+    _trackWidget->setFile(newFile);
+    eventWidget()->setFile(newFile);
 
-    Tool::setFile(file);
-    this->file = file;
-    connect(file, SIGNAL(trackChanged()), this, SLOT(updateTrackMenu()));
-    setWindowTitle(QApplication::applicationName() + " - " + file->path() + "[*]");
-    connect(file, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
-    connect(file, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
-    connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
-    connect(file->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
-    connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
-    mw_matrixWidget->setFile(file);
+    Tool::setFile(newFile);
+    this->file = newFile;
+    connect(newFile, SIGNAL(trackChanged()), this, SLOT(updateTrackMenu()));
+    setWindowTitle(QApplication::applicationName() + " - " + newFile->path() + "[*]");
+    connect(newFile, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
+    connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
+    connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
+    connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
+    connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
+    mw_matrixWidget->setFile(newFile);
     updateChannelMenu();
     updateTrackMenu();
     mw_matrixWidget->update();
     _miscWidget->update();
     checkEnableActionsForSelection();
+
+    // Clean up the old file after everything has been switched to the new file
+    // This ensures all widgets have switched to the new file before cleanup
+    if (oldFile) {
+        delete oldFile;
+    }
 }
 
 MidiFile* MainWindow::getFile() {
@@ -1260,9 +1270,37 @@ void MainWindow::deleteSelectedEvents() {
     if (showsSelected && Selection::instance()->selectedEvents().size() > 0 && file) {
 
         file->protocol()->startNewAction(tr("Remove event(s)"));
+
+        // Group events by channel to minimize protocol entries
+        QMap<int, QList<MidiEvent*>> eventsByChannel;
         foreach (MidiEvent* ev, Selection::instance()->selectedEvents()) {
-            file->channel(ev->channel())->removeEvent(ev);
+            eventsByChannel[ev->channel()].append(ev);
         }
+
+        // Remove events channel by channel to create fewer protocol entries
+        foreach (int channelNum, eventsByChannel.keys()) {
+            MidiChannel* channel = file->channel(channelNum);
+            ProtocolEntry* toCopy = channel->copy();
+
+            // Remove all events from this channel at once
+            foreach (MidiEvent* ev, eventsByChannel[channelNum]) {
+                // Handle track name events
+                if (channelNum == 16 && (MidiEvent*)(ev->track()->nameEvent()) == ev) {
+                    ev->track()->setNameEvent(0);
+                }
+
+                // Remove the event and its off event if it exists
+                channel->eventMap()->remove(ev->midiTime(), ev);
+                OnEvent* on = dynamic_cast<OnEvent*>(ev);
+                if (on && on->offEvent()) {
+                    channel->eventMap()->remove(on->offEvent()->midiTime(), on->offEvent());
+                }
+            }
+
+            // Create single protocol entry for this channel
+            channel->protocol(toCopy, channel);
+        }
+
         Selection::instance()->clearSelection();
         eventWidget()->reportSelectionChangedByTool();
         file->protocol()->endAction();

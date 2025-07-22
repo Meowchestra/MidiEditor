@@ -49,6 +49,10 @@ Selection* Selection::instance()
 
 void Selection::setFile(MidiFile* file)
 {
+    // Delete the old selection instance to prevent memory leak
+    if (_selectionInstance) {
+        delete _selectionInstance;
+    }
 
     // create new selection
     _selectionInstance = new Selection(file);

@@ -133,6 +133,30 @@ MidiFile::MidiFile(int ticks, Protocol* p) {
     prot = p;
 }
 
+MidiFile::~MidiFile()
+{
+    // Conservative cleanup - only delete containers, not the complex
+    // protocol-managed objects to avoid crashes
+
+    // Note: We intentionally do NOT delete the protocol or events here
+    // The original system was designed to leak these rather than crash
+    // This is a compromise between memory usage and stability
+
+    // Clean up tracks
+    if (_tracks) {
+        qDeleteAll(*_tracks);
+        delete _tracks;
+    }
+
+    // Clean up player map
+    if (playerMap) {
+        delete playerMap;
+    }
+
+    // Note: channels and prot are intentionally not deleted to avoid
+    // complex interaction with the protocol system
+}
+
 bool MidiFile::readMidiFile(QDataStream* content, QStringList* log) {
 
     OffEvent::clearOnEvents();

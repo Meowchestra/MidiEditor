@@ -42,6 +42,7 @@ public:
     MidiFile();
     // needed to protocol fileLength
     MidiFile(int maxTime, Protocol* p);
+    ~MidiFile();
     bool save(QString path);
     QByteArray writeDeltaTime(int time);
     int maxTime();
