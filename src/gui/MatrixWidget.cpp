@@ -232,10 +232,25 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             QColor c;
             if(i<=127){
                 bool isHighlighted = false;
+                bool isRangeLine = false;
+
+                // Check for C3/C6 range lines if enabled
+                if (Appearance::showRangeLines()) {
+                    // C3 = MIDI note 48, C6 = MIDI note 84
+                    // Matrix widget uses inverted indexing (127-i), so:
+                    // For C3: 127-48 = 79
+                    // For C6: 127-84 = 43
+                    if (i == 79 || i == 43) {  // C3 or C6 lines
+                        isRangeLine = true;
+                    }
+                }
+
                 Appearance::stripStyle strip = Appearance::strip();
                 switch (strip) {
                     case Appearance::onOctave :
-                        isHighlighted = (static_cast<unsigned int>(i) % 12) == 2 ;
+                        // MIDI note 0 = C, so we want (127-i) % 12 == 0 for C notes
+                        // Since i is inverted (127-i gives actual MIDI note), we need:
+                        isHighlighted = ((127 - static_cast<unsigned int>(i)) % 12) == 0 ;  // Highlight C notes (octave boundaries)
                     break;
                     case Appearance::onSharp :
                         isHighlighted = ! ( (1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask) ;
@@ -245,7 +260,10 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                     break;
 
                 }
-                if (isHighlighted){
+
+                if (isRangeLine) {
+                    c = QColor(255, 239, 194);  // Light cream color for C3/C6 range lines
+                } else if (isHighlighted){
                     c = QColor(234, 246, 255);
                 }else{
                     c = QColor(194, 230, 255);

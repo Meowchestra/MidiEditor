@@ -3,6 +3,7 @@
 
 #include <QSettings>
 #include <QColor>
+#include <QStringList>
 
 class Appearance
 {
@@ -24,6 +25,17 @@ public:
     };
     static stripStyle strip();
     static void setStrip(stripStyle opacity);
+    static bool showRangeLines();
+    static void setShowRangeLines(bool enabled);
+
+    // UI Styling options
+    static QString applicationStyle();
+    static void setApplicationStyle(const QString& style);
+    static int toolbarIconSize();
+    static void setToolbarIconSize(int size);
+    static QStringList availableStyles();
+    static void applyStyle();
+    static void notifyIconSizeChanged();
 
 private:
     static int trackToColorIndex(int track);
@@ -35,6 +47,9 @@ private:
     static void write(QString name, QSettings *settings, QColor *color);
     static int _opacity;
     static stripStyle _strip;
+    static bool _showRangeLines;
+    static QString _applicationStyle;
+    static int _toolbarIconSize;
 };
 
 #endif // APPEARANCE_H

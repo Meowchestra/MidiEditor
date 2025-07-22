@@ -10,6 +10,8 @@
 #include <QList>
 #include <QSlider>
 #include <QComboBox>
+#include <QCheckBox>
+#include <QSpinBox>
 
 #include "Appearance.h"
 
@@ -76,13 +78,39 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
     layout->addWidget(new QLabel("Strip Style"),7,0,1,1);
     QComboBox *strip = new QComboBox(this);
     strip->addItems({
-                        "Highlight between octanes",
-                        "Highlight notes in tunes",
-                        "Highlight oddly"
+                        "Highlight between octaves",
+                        "Highlight notes by keys",
+                        "Highlight alternatively"
                     });
     strip->setCurrentIndex(Appearance::strip());
     connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
     layout->addWidget(strip,7,1,1,1);
+
+    layout->addWidget(new QLabel("Show C3/C6 Range Lines"), 8, 0, 1, 1);
+    QCheckBox *rangeLines = new QCheckBox(this);
+    rangeLines->setChecked(Appearance::showRangeLines());
+    connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
+    layout->addWidget(rangeLines, 8, 1, 1, 1);
+
+    // UI Styling options
+    layout->addWidget(new QLabel("Application Style"), 9, 0, 1, 1);
+    QComboBox *styleCombo = new QComboBox(this);
+    QStringList availableStyles = Appearance::availableStyles();
+    styleCombo->addItems(availableStyles);
+    int currentIndex = availableStyles.indexOf(Appearance::applicationStyle());
+    if (currentIndex >= 0) {
+        styleCombo->setCurrentIndex(currentIndex);
+    }
+    connect(styleCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(styleChanged(QString)));
+    layout->addWidget(styleCombo, 9, 1, 1, 1);
+
+    layout->addWidget(new QLabel("Toolbar Icon Size"), 10, 0, 1, 1);
+    QSpinBox *iconSize = new QSpinBox(this);
+    iconSize->setMinimum(16);
+    iconSize->setMaximum(32);
+    iconSize->setValue(Appearance::toolbarIconSize());
+    connect(iconSize, SIGNAL(valueChanged(int)), this, SLOT(iconSizeChanged(int)));
+    layout->addWidget(iconSize, 10, 1, 1, 1);
 }
 
 void AppearanceSettingsWidget::channelColorChanged(int channel, QColor c){
@@ -118,7 +146,21 @@ void AppearanceSettingsWidget::opacityChanged(int opacity) {
 
 void AppearanceSettingsWidget::stripStyleChanged(int strip){
     Appearance::setStrip(static_cast<Appearance::stripStyle>(strip));
+    update();
+}
 
+void AppearanceSettingsWidget::rangeLinesChanged(bool enabled){
+    Appearance::setShowRangeLines(enabled);
+    update();
+}
+
+void AppearanceSettingsWidget::styleChanged(const QString& style){
+    Appearance::setApplicationStyle(style);
+    update();
+}
+
+void AppearanceSettingsWidget::iconSizeChanged(int size){
+    Appearance::setToolbarIconSize(size);
     update();
 }
 

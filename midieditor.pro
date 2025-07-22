@@ -1,5 +1,13 @@
 TEMPLATE = app
 TARGET = ProMidEdit
+
+# Force 64-bit build by default
+CONFIG += force_64bit
+force_64bit {
+    DEFINES += __ARCH64__
+    message(Forcing 64-bit build)
+}
+
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 QT += core \
     gui \
@@ -15,19 +23,27 @@ SOURCES += src/midi/rtmidi/RtMidi.cpp
 CONFIG += static
 FORMS += 
 RESOURCES += resources.qrc
+# Enhanced architecture detection
 ARCH_FORCE = $$(OVERRIDE_ARCH)
 contains(ARCH_FORCE, 64){
     DEFINES += __ARCH64__
     message(arch forced to 64 bit)
 } else {
     contains(ARCH_FORCE, 32){
-	message(arch forced to 32 bit)
+        message(arch forced to 32 bit)
     } else {
-	contains(QMAKE_HOST.arch, x86_64):{
-	    DEFINES += __ARCH64__
-	    message(arch recognized as 64 bit)
-	} else {
-	    message(arch recognized as 32 bit)
+        # Check multiple ways to detect 64-bit architecture
+        contains(QMAKE_HOST.arch, x86_64) | contains(QMAKE_HOST.arch, amd64) | contains(QT_ARCH, x86_64) | contains(QT_ARCH, amd64) {
+            DEFINES += __ARCH64__
+            message(arch recognized as 64 bit)
+        } else {
+            # Check if we're using a 64-bit Qt installation
+            contains(QMAKE_TARGET.arch, x86_64) | contains(QMAKE_TARGET.arch, amd64) {
+                DEFINES += __ARCH64__
+                message(arch recognized as 64 bit via target arch)
+            } else {
+                message(arch recognized as 32 bit)
+            }
         }
     }
 }

@@ -2671,7 +2671,8 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     toolBar->setFloatable(false);
     toolBar->setContentsMargins(0, 0, 0, 0);
     toolBar->layout()->setSpacing(3);
-    toolBar->setIconSize(QSize(20, 20));
+    int iconSize = Appearance::toolbarIconSize();
+    toolBar->setIconSize(QSize(iconSize, iconSize));
     toolBar->addAction(newAction);
     toolBar->setStyleSheet("QToolBar { border: 0px }");
 

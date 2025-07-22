@@ -1,9 +1,18 @@
 #include "Appearance.h"
+#include <QApplication>
+#include <QStyleFactory>
+#include <QPalette>
+#include <QStyle>
+#include <QToolBar>
+#include <QWidget>
 
 QMap<int, QColor*> Appearance::channelColors = QMap<int, QColor*>();
 QMap<int, QColor*> Appearance::trackColors = QMap<int, QColor*>();
 int Appearance::_opacity = 100;
 Appearance::stripStyle Appearance::_strip = Appearance::onSharp;
+bool Appearance::_showRangeLines = false;
+QString Appearance::_applicationStyle = "windowsvista";
+int Appearance::_toolbarIconSize = 20;
 
 void Appearance::init(QSettings *settings){
     for (int channel = 0; channel < 17; channel++) {
@@ -17,7 +26,27 @@ void Appearance::init(QSettings *settings){
                                   settings, defaultColor(track)));
     }
     _opacity = settings->value("appearance_opacity", 100).toInt();
-    _strip = static_cast<Appearance::stripStyle>(settings->value("strip_style",Appearance::onSharp).toInt()) ;
+    _strip = static_cast<Appearance::stripStyle>(settings->value("strip_style",Appearance::onSharp).toInt());
+    _showRangeLines = settings->value("show_range_lines", false).toBool();
+    // Set default style with fallback
+    QString defaultStyle = "windowsvista";
+    QStringList availableStyles = QStyleFactory::keys();
+    if (!availableStyles.contains(defaultStyle, Qt::CaseInsensitive)) {
+        // Fallback order: windows -> fusion -> first available
+        if (availableStyles.contains("windows", Qt::CaseInsensitive)) {
+            defaultStyle = "windows";
+        } else if (availableStyles.contains("fusion", Qt::CaseInsensitive)) {
+            defaultStyle = "fusion";
+        } else if (!availableStyles.isEmpty()) {
+            defaultStyle = availableStyles.first();
+        }
+    }
+
+    _applicationStyle = settings->value("application_style", defaultStyle).toString();
+    _toolbarIconSize = settings->value("toolbar_icon_size", 20).toInt();
+
+    // Apply the style after loading settings
+    applyStyle();
 }
 
 QColor *Appearance::channelColor(int channel){
@@ -41,6 +70,9 @@ void Appearance::writeSettings(QSettings *settings) {
     }
     settings->setValue("appearance_opacity", _opacity);
     settings->setValue("strip_style",_strip);
+    settings->setValue("show_range_lines", _showRangeLines);
+    settings->setValue("application_style", _applicationStyle);
+    settings->setValue("toolbar_icon_size", _toolbarIconSize);
 }
 
 QColor *Appearance::defaultColor(int n) {
@@ -188,4 +220,72 @@ Appearance::stripStyle Appearance::strip(){
 
 void Appearance::setStrip(Appearance::stripStyle render){
     _strip = render;
+}
+
+bool Appearance::showRangeLines(){
+    return _showRangeLines;
+}
+
+void Appearance::setShowRangeLines(bool enabled){
+    _showRangeLines = enabled;
+}
+
+QString Appearance::applicationStyle(){
+    return _applicationStyle;
+}
+
+void Appearance::setApplicationStyle(const QString& style){
+    _applicationStyle = style;
+    applyStyle();
+}
+
+int Appearance::toolbarIconSize(){
+    return _toolbarIconSize;
+}
+
+void Appearance::setToolbarIconSize(int size){
+    _toolbarIconSize = size;
+    notifyIconSizeChanged();
+}
+
+QStringList Appearance::availableStyles(){
+    // Only return QWidget styles that actually work with QApplication::setStyle()
+    // Qt Quick Controls styles (Material, Universal, FluentWinUI3, etc.) don't work with QWidget applications
+    QStringList styles = QStyleFactory::keys();
+    styles.sort();
+    return styles;
+}
+
+
+
+void Appearance::applyStyle(){
+    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    if (!app) return;
+
+    // Apply QWidget style
+    if (QStyleFactory::keys().contains(_applicationStyle)) {
+        app->setStyle(_applicationStyle);
+    }
+}
+
+void Appearance::notifyIconSizeChanged(){
+    // Find the main window and update only the main toolbar icon size
+    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    if (!app) return;
+
+    // Find all top-level widgets and look for the main window
+    foreach (QWidget* widget, app->topLevelWidgets()) {
+        if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
+            // Find only the main toolbar (not channel/track toolbars)
+            // Look for toolbar with name "File" which is the main toolbar
+            QList<QToolBar*> toolbars = widget->findChildren<QToolBar*>();
+            foreach (QToolBar* toolbar, toolbars) {
+                if (toolbar->windowTitle() == "File") {  // This is the main toolbar
+                    toolbar->setIconSize(QSize(_toolbarIconSize, _toolbarIconSize));
+                    break;  // Only update the main toolbar
+                }
+            }
+            break;
+        }
+    }
 }
