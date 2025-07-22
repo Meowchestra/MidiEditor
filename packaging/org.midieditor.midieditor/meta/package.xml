@@ -1,9 +1,9 @@
 <?xml version="1.0"?>
 <Package>
-    <DisplayName>ProMidEdit</DisplayName>
-    <Description>ProMidEdit is a free software providing an interface to edit, record, and play Midi data. Packed with all necessary dependencies.</Description>
-    <Version>3.9.0</Version>
-    <ReleaseDate>2025-07-17</ReleaseDate>
+    <DisplayName>MidiEditor</DisplayName>
+    <Description>MidiEditor is a free software providing an interface to edit, record, and play Midi data. Packed with all necessary dependencies.</Description>
+    <Version>4.0.0</Version>
+    <ReleaseDate>2025-07-22</ReleaseDate>
     <Name>org.midieditor.midieditor</Name>
     <Licenses>
         <License name="License Agreement" file="LICENSE" />

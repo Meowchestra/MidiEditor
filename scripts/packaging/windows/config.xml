@@ -1,20 +1,20 @@
 <?xml version="1.0"?>
 <Installer>
-    <Name>ProMidEdit</Name>
-    <Version>3.9.0</Version>
-    <Title>ProMidEdit Setup</Title>
+    <Name>MidiEditor</Name>
+    <Version>4.0.0</Version>
+    <Title>MidiEditor Setup</Title>
     <Publisher>Meowchestra</Publisher>
     <ProductUrl>https://github.com/Meowchestra/MidiEditor</ProductUrl>
     <InstallerWindowIcon>package.png</InstallerWindowIcon>
     <Logo>midieditor.png</Logo>
-    <RunProgram>@TargetDir@/ProMidEdit.exe</RunProgram>
+    <RunProgram>@TargetDir@/MidiEditor.exe</RunProgram>
     <RunProgramArguments></RunProgramArguments>
     <RunProgramDescription>Run MidiEditor</RunProgramDescription>
-    <StartMenuDir>ProMidEdit</StartMenuDir>
+    <StartMenuDir>MidiEditor</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
 
-    <TargetDir>@HomeDir@/ProMidEdit</TargetDir>
-    <AdminTargetDir>@RootDir@/ProMidEdit</AdminTargetDir>
+    <TargetDir>@HomeDir@/MidiEditor</TargetDir>
+    <AdminTargetDir>@RootDir@/MidiEditor</AdminTargetDir>
     <RemoteRepositories>
         <Repository>
             <Url>https://Meowchestra.github.io/MidiEditor/</Url>

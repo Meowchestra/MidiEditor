@@ -1,5 +1,5 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "3.9.0"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "4.0.0"
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 set_allowedplats("windows", "linux", "macosx")
 
@@ -16,7 +16,7 @@ option("libraries-from-apt", {
     showmenu = is_host("linux") and (linuxos.name() == "ubuntu"),
 })
 
-target("ProMidEdit") do
+target("MidiEditor") do
     set_languages("cxxlatest")
     set_targetdir("bin")
 
@@ -113,7 +113,7 @@ end
 target("installer") do
     set_kind("phony")
     set_enabled(is_plat("windows", "linux"))
-    add_deps("ProMidEdit")
+    add_deps("MidiEditor")
     
     set_installdir(installdir)
     if is_plat("windows") then
@@ -137,7 +137,7 @@ target("installer") do
                 local package_argv = {
                     "--config", "scripts/packaging/windows/config.xml",
                     "--packages", "packaging",
-                    path.join(config.buildir(), "website", "ProMidiEdit.exe")
+                    path.join(config.buildir(), "website", "MidiEditor.exe")
                 }
                 os.iorunv(binarycreator_path, package_argv)
                 print("  copy online manual")
@@ -153,9 +153,9 @@ target("installer") do
             end
         end)
     elseif is_plat("linux") and linuxos.name() == "ubuntu" then
-        add_installfiles("scripts/packaging/debian/ProMidEdit.desktop", {prefixdir = "usr/share/applications"})
+        add_installfiles("scripts/packaging/debian/MidiEditor.desktop", {prefixdir = "usr/share/applications"})
         add_installfiles("scripts/packaging/debian/logo48.png", {prefixdir = "usr/share/pixmaps"})
-        add_installfiles("scripts/packaging/debian/copyright", {prefixdir = "usr/share/doc/promidedit/copyright"})
+        add_installfiles("scripts/packaging/debian/copyright", {prefixdir = "usr/share/doc/midieditor/copyright"})
         add_installfiles("$(buildir)/control", {prefixdir = "DEBIAN"})
         add_configfiles("scripts/packaging/debian/control", {
             pattern = "{(.-)}",
@@ -175,7 +175,7 @@ target("installer") do
                 os.runv("chmod", {"644", file})
             end
             os.runv("chmod", {
-                "+x", path.join(target:installdir(), "bin", target:deps()["ProMidEdit"]:filename())})
+                "+x", path.join(target:installdir(), "bin", target:deps()["MidiEditor"]:filename())})
             os.iorunv("fakeroot", {"dpkg-deb", "--build", target:installdir()})
         end)
     end

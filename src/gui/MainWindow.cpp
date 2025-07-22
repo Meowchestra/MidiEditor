@@ -102,7 +102,7 @@ MainWindow::MainWindow(QString initFile)
     : QMainWindow()
     , _initFile(initFile) {
     file = 0;
-    _settings = new QSettings(QString("ProMidEdit"), QString("NONE"));
+    _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
 
     _moveSelectedEventsToChannelMenu = 0;
     _moveSelectedEventsToTrackMenu = 0;
@@ -2654,7 +2654,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
     helpMB->addAction(manualAction);
 
-    QAction* aboutAction = new QAction(tr("About ProMidEdit"), this);
+    QAction* aboutAction = new QAction(tr("About MidiEditor"), this);
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     helpMB->addAction(aboutAction);
 

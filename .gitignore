@@ -3,7 +3,7 @@ build/
 doxy/
 .qmake.stash
 .xmake/
-ProMidiEdit-*/
+MidiEditor-*/
 releases/
 
 #local 

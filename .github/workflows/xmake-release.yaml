@@ -54,8 +54,8 @@ jobs:
         shell: pwsh
         run: |
           mkdir ./packaging/org.midieditor.midieditor/data/
-          cp ./bin/ProMidEdit.exe ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
-          windeployqt ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+          cp ./bin/MidiEditor.exe ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
+          windeployqt ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
           mkdir ./packaging/org.midieditor.midieditor/data/metronome
           cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
           mkdir ./packaging/org.midieditor.manual/data/
@@ -73,7 +73,7 @@ jobs:
           draft: ${{ startsWith(github.ref, 'refs/tags/nightly') }}
           fail_on_unmatched_files: true
           files: |
-            build/website/ProMidEdit.exe
+            build/website/MidiEditor.exe
 
       - name: Publish website
         run: |
@@ -87,5 +87,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ProMidEdit-Installer
+          name: MidiEditor-Installer
           path: Install.exe

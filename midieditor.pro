@@ -1,5 +1,5 @@
 TEMPLATE = app
-TARGET = ProMidEdit
+TARGET = MidiEditor
 
 # Force 64-bit build by default
 CONFIG += force_64bit
@@ -8,8 +8,8 @@ force_64bit {
     message(Forcing 64-bit build)
 }
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-QT += core \
+QT += widgets \
+    core \
     gui \
     network \
     xml \

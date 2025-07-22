@@ -44,7 +44,7 @@ void MidiOutput::init() {
 
     // RtMidiOut constructor
     try {
-        _midiOut = new RtMidiOut(RtMidi::UNSPECIFIED, QString(tr("ProMidEdit output")).toStdString());
+        _midiOut = new RtMidiOut(RtMidi::UNSPECIFIED, QString(tr("MidiEditor output")).toStdString());
     } catch (RtMidiError& error) {
         error.printMessage();
     }

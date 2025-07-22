@@ -80,7 +80,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, 
     startCmd = new QLineEdit(this);
     layout->addWidget(startCmd, 8, 2, 1, 4);
 
-    QWidget* startCmdInfo = createInfoBox(tr("The start command can be used to start additional software components (e.g. Midi synthesizers) each time, ProMidEdit is started. You can see the output of the started software / script in the field below."));
+    QWidget* startCmdInfo = createInfoBox(tr("The start command can be used to start additional software components (e.g. Midi synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
     layout->addWidget(startCmdInfo, 9, 0, 1, 6);
 
     layout->addWidget(Terminal::terminal()->console(), 10, 0, 1, 6);
@@ -115,7 +115,7 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
     QGridLayout* layout = new QGridLayout(this);
     setLayout(layout);
 
-    QWidget* playerModeInfo = createInfoBox(tr("Choose the Midi ports on your machine to which ProMidEdit connects in order to play and record Midi data."));
+    QWidget* playerModeInfo = createInfoBox(tr("Choose the Midi ports on your machine to which MidiEditor connects in order to play and record Midi data."));
     layout->addWidget(playerModeInfo, 0, 0, 1, 6);
 
     // output

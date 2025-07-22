@@ -51,7 +51,7 @@ CompleteMidiSetupDialog::CompleteMidiSetupDialog(QWidget* parent, bool alertAbou
     if (alertAboutOutput) {
         connectOutput = tr("<h3>Output is not connected</h3>"
                            "<p>"
-                           "In order to play your music, you have to connect ProMidEdit to a "
+                           "In order to play your music, you have to connect MidiEditor to a "
                            "midi device (on your computer or externally) which can play your sounds.</br>"
                            "</p>");
     }
@@ -59,7 +59,7 @@ CompleteMidiSetupDialog::CompleteMidiSetupDialog(QWidget* parent, bool alertAbou
     if (alertAboutInput) {
         connectInput = tr("<h3>Input is not connected</h3>"
                           "<p>"
-                          "In order to record music, ProMidEdit must be connected to a midi device that you will record music on.</br>"
+                          "In order to record music, MidiEditor must be connected to a midi device that you will record music on.</br>"
                           "</p>");
     }
     QLabel* content = new QLabel(QString("<html>"

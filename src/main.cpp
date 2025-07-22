@@ -60,13 +60,9 @@ int main(int argc, char* argv[]) {
 #endif
 
     QApplication a(argc, argv);
-    bool ok = QResource::registerResource(a.applicationDirPath() + "/ressources.rcc");
-    if (!ok) {
-        ok = QResource::registerResource("ressources.rcc");
-    }
 
-    a.setApplicationVersion("3.9.0");
-    a.setApplicationName("ProMidEdit");
+    a.setApplicationVersion("4.0.0");
+    a.setApplicationName("Meow MidiEditor");
     a.setQuitOnLastWindowClosed(true);
 
 // Use more reliable architecture detection

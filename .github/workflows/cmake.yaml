@@ -1,7 +1,7 @@
 name: build with cmake on windows
 on:
   push:
-    branches: [ qt6 ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -46,8 +46,8 @@ jobs:
         shell: pwsh
         run: |
           mkdir ./packaging/org.midieditor.midieditor/data/
-          cp ./bin/ProMidEdit.exe ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
-          windeployqt ./packaging/org.midieditor.midieditor/data/ProMidEdit.exe
+          cp ./bin/MidiEditor.exe ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
+          windeployqt ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
           mkdir ./packaging/org.midieditor.midieditor/data/metronome
           cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
           mkdir ./packaging/org.midieditor.manual/data/

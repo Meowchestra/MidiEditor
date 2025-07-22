@@ -46,7 +46,7 @@ void MidiInput::init() {
 
     // RtMidiIn constructor
     try {
-        _midiIn = new RtMidiIn(RtMidi::UNSPECIFIED, QString(tr("ProMidEdit input")).toStdString());
+        _midiIn = new RtMidiIn(RtMidi::UNSPECIFIED, QString(tr("MidiEditor input")).toStdString());
         //_midiIn->setQueueSizeLimit(65535);
         _midiIn->ignoreTypes(false, true, true);
         _midiIn->setCallback(&receiveMessage);
