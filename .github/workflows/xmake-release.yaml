@@ -69,11 +69,9 @@ jobs:
       - name: Release installer
         uses: softprops/action-gh-release@v2
         with:
-          body_path: ${{ github.workspace }}/CHANGELOG.md
           draft: ${{ startsWith(github.ref, 'refs/tags/nightly') }}
           fail_on_unmatched_files: true
-          files: |
-            build/website/MidiEditor.exe
+          files: Install.exe
 
       - name: Publish website
         run: |
