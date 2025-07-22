@@ -2074,6 +2074,18 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     editMB->addSeparator();
 
+    QAction* transposeOctaveUpAction = new QAction(tr("Transpose selected notes octave up"), editMB);
+    transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
+    connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
+    editMB->addAction(transposeOctaveUpAction);
+
+    QAction* transposeOctaveDownAction = new QAction(tr("Transpose selected notes octave down"), editMB);
+    transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
+    connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
+    editMB->addAction(transposeOctaveDownAction);
+
+    editMB->addSeparator();
+
     QAction* copyAction = new QAction(tr("Copy events"), this);
     _activateWithSelections.append(copyAction);
     copyAction->setIcon(QIcon(":/run_environment/graphics/tool/copy.png"));
@@ -3025,4 +3037,56 @@ void MainWindow::navigateSelectionLeft() {
 
 void MainWindow::navigateSelectionRight() {
     selectionNavigator->right();
+}
+
+void MainWindow::transposeSelectedNotesOctaveUp() {
+    if (!file) {
+        return;
+    }
+
+    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+    if (selectedEvents.isEmpty()) {
+        return;
+    }
+
+    file->protocol()->startNewAction("Transpose octave up");
+
+    foreach (MidiEvent* event, selectedEvents) {
+        NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(event);
+        if (noteOnEvent) {
+            int newNote = noteOnEvent->note() + 12; // Move up one octave (12 semitones)
+            if (newNote <= 127) { // MIDI note range is 0-127
+                noteOnEvent->setNote(newNote);
+            }
+        }
+    }
+
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::transposeSelectedNotesOctaveDown() {
+    if (!file) {
+        return;
+    }
+
+    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+    if (selectedEvents.isEmpty()) {
+        return;
+    }
+
+    file->protocol()->startNewAction("Transpose octave down");
+
+    foreach (MidiEvent* event, selectedEvents) {
+        NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(event);
+        if (noteOnEvent) {
+            int newNote = noteOnEvent->note() - 12; // Move down one octave (12 semitones)
+            if (newNote >= 0) { // MIDI note range is 0-127
+                noteOnEvent->setNote(newNote);
+            }
+        }
+    }
+
+    file->protocol()->endAction();
+    updateAll();
 }

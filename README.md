@@ -1,11 +1,14 @@
 <img align="left" width="70px" src="run_environment/midieditor.ico">
 
 # MidiEditor
-------
 
 [![build windows](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yaml/badge.svg)](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yaml)
 
 Downloads : [latest release](https://github.com/Meowchestra/MidiEditor/releases)
+
+Updated MidiEditor with additional improvements, custom changes, & merged pull-requests ahead of upstream.
+
+Based on [jingkaimori's fork](https://github.com/jingkaimori/midieditor/) of [ProMidEdit](https://github.com/PROPHESSOR/ProMidEdit), built on top of [MidiEditor](https://github.com/markusschwenk/midieditor).
 
 ### Introduction
 
@@ -24,12 +27,6 @@ The editor is able to open existing midi files and modify their content. New fil
 * Control changes can be visualized
 * Free
 * Available for Windows
-
-### Note
-
-Updated MidiEditor with additional improvements, custom changes, & merged pull-requests ahead of upstream.
-
-Based on [jingkaimori's fork](https://github.com/jingkaimori/midieditor/) of [ProMidEdit](https://github.com/PROPHESSOR/ProMidEdit), built on top of [MidiEditor](https://github.com/markusschwenk/midieditor).
 
 ### Project Page and Manual
 

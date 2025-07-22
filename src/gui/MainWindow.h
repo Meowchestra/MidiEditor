@@ -194,6 +194,9 @@ class MainWindow : public QMainWindow {
     void navigateSelectionLeft();
     void navigateSelectionRight();
 
+    void transposeSelectedNotesOctaveUp();
+    void transposeSelectedNotesOctaveDown();
+
   protected:
     void closeEvent(QCloseEvent* event);
     void keyPressEvent(QKeyEvent* e);
