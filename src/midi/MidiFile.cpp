@@ -87,8 +87,10 @@ MidiFile::MidiFile() {
 
 MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
 
+    bool deleteLog = false;
     if (!log) {
         log = new QStringList();
+        deleteLog = true;
     }
 
     _pauseTick = -1;
@@ -105,6 +107,10 @@ MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
         *ok = false;
         log->append(tr("Error: File could not be opened."));
         printLog(log);
+        if (deleteLog) {
+            delete log;
+        }
+        delete f;
         return;
     }
 
@@ -117,15 +123,26 @@ MidiFile::MidiFile(QString path, bool* ok, QStringList* log) {
     if (!readMidiFile(stream, log)) {
         *ok = false;
         printLog(log);
+        if (deleteLog) {
+            delete log;
+        }
+        delete stream;  // Clean up stream on error
+        delete f;
         return;
     }
 
+    delete stream;  // Clean up stream
     delete f;
 
     *ok = true;
     playerMap = new QMultiMap<int, MidiEvent*>;
     calcMaxTime();
     printLog(log);
+
+    // Clean up log if we created it
+    if (deleteLog) {
+        delete log;
+    }
 }
 
 MidiFile::MidiFile(int ticks, Protocol* p) {
@@ -142,19 +159,23 @@ MidiFile::~MidiFile()
     // The original system was designed to leak these rather than crash
     // This is a compromise between memory usage and stability
 
-    // Clean up tracks
+    // Clean up tracks (these should be safe)
     if (_tracks) {
         qDeleteAll(*_tracks);
         delete _tracks;
     }
 
-    // Clean up player map
+    // Clean up player map (this should be safe)
     if (playerMap) {
         delete playerMap;
     }
 
-    // Note: channels and prot are intentionally not deleted to avoid
-    // complex interaction with the protocol system
+    // Clean up channels (only the containers, not the protocol or events)
+    for (int i = 0; i < 19; i++) {
+        if (channels[i]) {
+            delete channels[i];
+        }
+    }
 }
 
 bool MidiFile::readMidiFile(QDataStream* content, QStringList* log) {

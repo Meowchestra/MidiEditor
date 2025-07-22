@@ -1,7 +1,6 @@
-name: build with cmake on windows
+name: build with qmake on windows
 on:
-  push:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
