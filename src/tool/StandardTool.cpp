@@ -79,21 +79,29 @@ bool StandardTool::press(bool leftClick) {
                 int diffToMousePos = 0;
                 int currentAction = NO_ACTION;
 
-                // left side means SizeChangeTool
+                // left side - resize cursor shown, behavior depends on Ctrl
                 if (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
                                 ev->y() + ev->height())) {
                     diffToMousePos = ev->x() - mouseX;
-                    currentAction = SIZE_CHANGE_ACTION;
+                    if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+                        currentAction = SIZE_CHANGE_ACTION;  // Change duration from left edge
+                    } else {
+                        currentAction = MOVE_ACTION;         // Move note
+                    }
                 }
 
-                // right side means SizeChangeTool
+                // right side - resize cursor shown, behavior depends on Ctrl
                 else if (pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),
                                      ev->x() + ev->width() + 2, ev->y() + ev->height())) {
                     diffToMousePos = ev->x() + ev->width() - mouseX;
-                    currentAction = SIZE_CHANGE_ACTION;
+                    if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+                        currentAction = SIZE_CHANGE_ACTION;  // Change duration from right edge
+                    } else {
+                        currentAction = MOVE_ACTION;         // Move note
+                    }
                 }
 
-                // in the event means EventMoveTool, except when CTRL is pressed
+                // in the event means EventMoveTool always
                 else {
                     int diffRight = ev->x() + ev->width() - mouseX;
                     int diffLeft = diffToMousePos = ev->x() - mouseX;
@@ -108,11 +116,7 @@ bool StandardTool::press(bool leftClick) {
                     } else {
                         diffToMousePos = diffRight;
                     }
-                    if (!QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
-                        currentAction = MOVE_ACTION;
-                    } else {
-                        currentAction = NO_ACTION; // select tool
-                    }
+                    currentAction = MOVE_ACTION; // Always move when clicking in middle
                 }
 
                 if (diffToMousePos < 0) {
@@ -147,6 +151,10 @@ bool StandardTool::press(bool leftClick) {
                     protocol(toCopy, this);
                     file()->protocol()->endAction();
                 }
+                Tool::setCurrentTool(sizeChangeTool);
+                sizeChangeTool->move(mouseX, mouseY);
+                sizeChangeTool->press(leftClick);
+                return false;
             }
             case MOVE_ACTION: {
                 if (!onSelectedEvent) {
@@ -196,7 +204,7 @@ bool StandardTool::press(bool leftClick) {
 bool StandardTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     foreach (MidiEvent* ev, *(matrixWidget->activeEvents())) {
-        // left/right side means SizeChangeTool
+        // left/right side always shows resize cursor
         if (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
                         ev->y() + ev->height())
                 || pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),
