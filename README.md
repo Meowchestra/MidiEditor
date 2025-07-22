@@ -30,4 +30,4 @@ The editor is able to open existing midi files and modify their content. New fil
 
 ### Project Page and Manual
 
-[https://Meowchestra.github.io/MidiEditor/](https://Meowchestra.github.io/MidiEditor/)
+[https://meowchestra.github.io/MidiEditor/manual/](https://meowchestra.github.io/MidiEditor/manual/)

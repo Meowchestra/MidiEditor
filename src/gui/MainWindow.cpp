@@ -1950,7 +1950,7 @@ void MainWindow::spreadSelection() {
 }
 
 void MainWindow::manual() {
-    QDesktopServices::openUrl(QUrl("https://Meowchestra.github.io/MidiEditor/editor-and-components.html", QUrl::TolerantMode));
+    QDesktopServices::openUrl(QUrl("https://meowchestra.github.io/MidiEditor/manual/", QUrl::TolerantMode));
 }
 
 void MainWindow::changeMiscMode(int mode) {
