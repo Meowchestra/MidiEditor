@@ -2,7 +2,7 @@
 <Installer>
     <Name>MidiEditor</Name>
     <Version>4.0.0</Version>
-    <Title>MidiEditor Setup</Title>
+    <Title>MidiEditor</Title>
     <Publisher>Meowchestra</Publisher>
     <ProductUrl>https://github.com/Meowchestra/MidiEditor</ProductUrl>
     <InstallerWindowIcon>package.png</InstallerWindowIcon>
@@ -12,6 +12,7 @@
     <RunProgramDescription>Run MidiEditor</RunProgramDescription>
     <StartMenuDir>MidiEditor</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
+    <WizardStyle>Modern</WizardStyle>
 
     <TargetDir>@HomeDir@/MidiEditor</TargetDir>
     <AdminTargetDir>@RootDir@/MidiEditor</AdminTargetDir>

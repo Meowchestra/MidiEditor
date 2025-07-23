@@ -38,23 +38,6 @@ jobs:
           update: true
           install: mingw-w64-x86_64-qt-installer-framework
 
-      - name: Debug MSYS2 Installation
-        shell: msys2 {0}
-        run: |
-          echo "=== Checking MSYS2 QtIFW Installation ==="
-          echo "Current working directory: $(pwd)"
-          echo "MSYSTEM: $MSYSTEM"
-          echo ""
-          echo "=== Searching for QtIFW tools ==="
-          find /mingw64 -name "*creator*" -type f 2>/dev/null || echo "No *creator* files found in /mingw64"
-          find /usr -name "*creator*" -type f 2>/dev/null || echo "No *creator* files found in /usr"
-          echo ""
-          echo "=== Checking installed packages ==="
-          pacman -Q | grep -i qt-installer || echo "No qt-installer packages found"
-          echo ""
-          echo "=== Listing /mingw64/bin contents ==="
-          ls -la /mingw64/bin/ | head -20
-
       - name: Setup QtIFW Path from MSYS2
         shell: msys2 {0}
         run: |
@@ -74,14 +57,12 @@ jobs:
             echo "QTIFW_PATH=$QTIFW_WIN_PATH" >> $GITHUB_ENV
             echo "QTIFW_UNIX_PATH=$QTIFW_UNIX_PATH" >> $GITHUB_ENV
 
-            # Test the tools work (binarycreator doesn't have --version, so test with --help)
+            # Test the tools work
             echo "=== Testing QtIFW Tools ==="
             echo "Testing binarycreator..."
             "$QTIFW_UNIX_PATH/binarycreator.exe" --help > /dev/null 2>&1 && echo "✓ binarycreator.exe is working"
             echo "Testing repogen..."
             "$QTIFW_UNIX_PATH/repogen.exe" --help > /dev/null 2>&1 && echo "✓ repogen.exe is working"
-            echo "Testing archivegen..."
-            "$QTIFW_UNIX_PATH/archivegen.exe" --help > /dev/null 2>&1 && echo "✓ archivegen.exe is working"
             echo "QtIFW tools verified successfully!"
           else
             echo "ERROR: QtIFW tools not found in expected location!"
@@ -124,7 +105,7 @@ jobs:
           echo "Using binarycreator at: $binaryCreator"
           & $binaryCreator --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
-      - name: Upload 
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
