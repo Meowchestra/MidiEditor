@@ -18,7 +18,7 @@ jobs:
         with:
           xmake-version: latest
 
-      - name: Install Qt and Qt Installer Framework
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt_ver }}
@@ -26,13 +26,77 @@ jobs:
           host: 'windows'
           target: 'desktop'
           cache: 'false'
-          tools: 'tools_ifw'
           modules: 'qtmultimedia'
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
+
+      - name: Setup MSYS2 and Install QtIFW 4.10.0
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: mingw-w64-x86_64-qt-installer-framework
+
+      - name: Debug MSYS2 Installation
+        shell: msys2 {0}
+        run: |
+          echo "=== Checking MSYS2 QtIFW Installation ==="
+          echo "Current working directory: $(pwd)"
+          echo "MSYSTEM: $MSYSTEM"
+          echo ""
+          echo "=== Searching for QtIFW tools ==="
+          find /mingw64 -name "*creator*" -type f 2>/dev/null || echo "No *creator* files found in /mingw64"
+          find /usr -name "*creator*" -type f 2>/dev/null || echo "No *creator* files found in /usr"
+          echo ""
+          echo "=== Checking installed packages ==="
+          pacman -Q | grep -i qt-installer || echo "No qt-installer packages found"
+          echo ""
+          echo "=== Listing /mingw64/bin contents ==="
+          ls -la /mingw64/bin/ | head -20
+
+      - name: Setup QtIFW Path from MSYS2
+        shell: msys2 {0}
+        run: |
+          # Find QtIFW tools in MSYS2 environment and convert path to Windows format
+          echo "=== Setting up QtIFW Path ==="
+
+          # Check if tools are installed
+          if [ -f "/mingw64/bin/binarycreator.exe" ]; then
+            echo "Found QtIFW tools in /mingw64/bin/"
+            QTIFW_UNIX_PATH="/mingw64/bin"
+            # Convert MSYS2 path to Windows path
+            QTIFW_WIN_PATH=$(cygpath -w "$QTIFW_UNIX_PATH")
+            echo "MSYS2 path: $QTIFW_UNIX_PATH"
+            echo "Windows path: $QTIFW_WIN_PATH"
+
+            # Save to GitHub environment
+            echo "QTIFW_PATH=$QTIFW_WIN_PATH" >> $GITHUB_ENV
+            echo "QTIFW_UNIX_PATH=$QTIFW_UNIX_PATH" >> $GITHUB_ENV
+
+            # Test the tools work (binarycreator doesn't have --version, so test with --help)
+            echo "=== Testing QtIFW Tools ==="
+            echo "Testing binarycreator..."
+            "$QTIFW_UNIX_PATH/binarycreator.exe" --help > /dev/null 2>&1 && echo "✓ binarycreator.exe is working"
+            echo "Testing repogen..."
+            "$QTIFW_UNIX_PATH/repogen.exe" --help > /dev/null 2>&1 && echo "✓ repogen.exe is working"
+            echo "Testing archivegen..."
+            "$QTIFW_UNIX_PATH/archivegen.exe" --help > /dev/null 2>&1 && echo "✓ archivegen.exe is working"
+            echo "QtIFW tools verified successfully!"
+          else
+            echo "ERROR: QtIFW tools not found in expected location!"
+            exit 1
+          fi
+
+      - name: Clear MSYS2 Environment for Build
+        shell: pwsh
+        run: |
+          # Clear MSYS2 environment variables that interfere with xmake
+          echo "Clearing MSYS2 environment variables..."
+          echo "MSYSTEM=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "Environment cleared for native Windows build"
 
       - name: Build
         run: |
@@ -51,9 +115,12 @@ jobs:
           cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
 
       - name: Packaging
-        shell: cmd
+        shell: pwsh
         run: |
-          binarycreator.exe --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
+          # Use the QtIFW path found in previous step
+          $binaryCreator = "$env:QTIFW_PATH\binarycreator.exe"
+          echo "Using binarycreator at: $binaryCreator"
+          & $binaryCreator --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
