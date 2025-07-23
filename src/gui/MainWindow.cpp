@@ -67,6 +67,7 @@
 #include "../tool/EraserTool.h"
 #include "../tool/EventMoveTool.h"
 #include "../tool/EventTool.h"
+#include "../tool/GlueTool.h"
 #include "../tool/MeasureTool.h"
 #include "../tool/NewNoteTool.h"
 #include "../tool/SelectTool.h"
@@ -1259,6 +1260,36 @@ void MainWindow::equalize() {
     }
 }
 
+void MainWindow::glueSelection() {
+    if (!file) {
+        return;
+    }
+
+    // Ensure the current file is set for the tool
+    Tool::setFile(file);
+
+    // Create a temporary GlueTool instance to perform the operation
+    // Respect channels (only merge notes within the same channel)
+    GlueTool glueTool;
+    glueTool.performGlueOperation(true); // true = respect channels
+    updateAll();
+}
+
+void MainWindow::glueSelectionAllChannels() {
+    if (!file) {
+        return;
+    }
+
+    // Ensure the current file is set for the tool
+    Tool::setFile(file);
+
+    // Create a temporary GlueTool instance to perform the operation
+    // Don't respect channels (merge notes across all channels on the same track)
+    GlueTool glueTool;
+    glueTool.performGlueOperation(false); // false = ignore channels
+    updateAll();
+}
+
 void MainWindow::deleteSelectedEvents() {
     bool showsSelected = false;
     if (Tool::currentTool()) {
@@ -2334,10 +2365,26 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     toolsMB->addSeparator();
 
+    QAction* glueNotesAction = new QAction(tr("Glue notes (same channel)"), this);
+    glueNotesAction->setShortcut(QKeySequence(Qt::Key_G | Qt::CTRL));
+    glueNotesAction->setIcon(QIcon(":/run_environment/graphics/tool/glue.png"));
+    connect(glueNotesAction, SIGNAL(triggered()), this, SLOT(glueSelection()));
+    _activateWithSelections.append(glueNotesAction);
+    toolsMB->addAction(glueNotesAction);
+
+    QAction* glueNotesAllChannelsAction = new QAction(tr("Glue notes (all channels)"), this);
+    glueNotesAllChannelsAction->setShortcut(QKeySequence(Qt::Key_G | Qt::CTRL | Qt::SHIFT));
+    glueNotesAllChannelsAction->setIcon(QIcon(":/run_environment/graphics/tool/glue.png"));
+    connect(glueNotesAllChannelsAction, SIGNAL(triggered()), this, SLOT(glueSelectionAllChannels()));
+    _activateWithSelections.append(glueNotesAllChannelsAction);
+    toolsMB->addAction(glueNotesAllChannelsAction);
+
+    toolsMB->addSeparator();
+
     QAction* quantizeAction = new QAction(tr("Quantify selection"), this);
     _activateWithSelections.append(quantizeAction);
     quantizeAction->setIcon(QIcon(":/run_environment/graphics/tool/quantize.png"));
-    quantizeAction->setShortcut(QKeySequence(Qt::Key_G | Qt::CTRL));
+    quantizeAction->setShortcut(QKeySequence(Qt::Key_Q | Qt::CTRL));
     connect(quantizeAction, SIGNAL(triggered()), this, SLOT(quantizeSelection()));
     toolsMB->addAction(quantizeAction);
 
@@ -2756,6 +2803,15 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(pasteActionTB, SIGNAL(triggered()), this, SLOT(paste()));
     pasteActionTB->setMenu(pasteOptionsMenu);
     toolBar->addAction(pasteActionTB);
+
+    toolBar->addSeparator();
+
+    QAction* glueActionTB = new QAction(tr("Glue notes"), this);
+    glueActionTB->setToolTip(tr("Glue adjacent notes of the same pitch (Ctrl+G)"));
+    glueActionTB->setIcon(QIcon(":/run_environment/graphics/tool/glue.png"));
+    connect(glueActionTB, SIGNAL(triggered()), this, SLOT(glueSelection()));
+    _activateWithSelections.append(glueActionTB);
+    toolBar->addAction(glueActionTB);
 
     toolBar->addSeparator();
 

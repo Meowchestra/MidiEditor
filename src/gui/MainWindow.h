@@ -102,6 +102,8 @@ class MainWindow : public QMainWindow {
     void alignLeft();
     void alignRight();
     void equalize();
+    void glueSelection();
+    void glueSelectionAllChannels();
     void deleteSelectedEvents();
     void deleteChannel(QAction* action);
     void moveSelectedEventsToChannel(QAction* action);
