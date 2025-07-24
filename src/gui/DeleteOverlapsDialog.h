@@ -27,6 +27,9 @@
 #include <QHBoxLayout>
 #include <QGroupBox>
 #include <QLabel>
+#include <QPaintEvent>
+#include <QMoveEvent>
+#include <QResizeEvent>
 
 #include "../tool/DeleteOverlapsTool.h"
 
@@ -81,6 +84,22 @@ private slots:
      * \brief Updates the description when mode selection changes.
      */
     void onModeChanged();
+
+protected:
+    /**
+     * \brief Override paint event to ensure description is always visible.
+     */
+    void paintEvent(QPaintEvent* event);
+
+    /**
+     * \brief Override move event to refresh description.
+     */
+    void moveEvent(QMoveEvent* event);
+
+    /**
+     * \brief Override resize event to prevent unwanted resizing.
+     */
+    void resizeEvent(QResizeEvent* event);
 
 private:
     QRadioButton* _monoModeRadio;

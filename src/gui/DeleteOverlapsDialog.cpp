@@ -17,17 +17,17 @@
  */
 
 #include "DeleteOverlapsDialog.h"
+#include <QTimer>
 
 DeleteOverlapsDialog::DeleteOverlapsDialog(QWidget* parent)
     : QDialog(parent)
 {
     setWindowTitle(tr("Delete Overlaps"));
     setModal(true);
-    setFixedSize(400, 300);
-    
+
     setupUI();
     setupConnections();
-    
+
     // Set default selection
     _monoModeRadio->setChecked(true);
     _respectChannelsCheckBox->setChecked(true);
@@ -35,14 +35,19 @@ DeleteOverlapsDialog::DeleteOverlapsDialog(QWidget* parent)
 
     // Update initial description
     onModeChanged();
+
+    // Set fixed size after UI is set up to ensure proper sizing
+    setFixedSize(480, 420);
 }
 
 void DeleteOverlapsDialog::setupUI()
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    mainLayout->setSizeConstraint(QLayout::SetFixedSize);  // Prevent layout from resizing
     
     // Mode selection group
     QGroupBox* modeGroup = new QGroupBox(tr("Delete Mode"), this);
+    modeGroup->setFixedHeight(200);  // Increased height for mode group
     QVBoxLayout* modeLayout = new QVBoxLayout(modeGroup);
     
     _monoModeRadio = new QRadioButton(tr("Delete Overlaps (Mono)"), modeGroup);
@@ -53,16 +58,20 @@ void DeleteOverlapsDialog::setupUI()
     modeLayout->addWidget(_polyModeRadio);
     modeLayout->addWidget(_doublesModeRadio);
 
-    // Add dynamic description label
+    // Add dynamic description label with fixed size
     _modeDescriptionLabel = new QLabel(modeGroup);
     _modeDescriptionLabel->setWordWrap(true);
+    _modeDescriptionLabel->setFixedSize(400, 90);  // Fixed width AND height
+    _modeDescriptionLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     _modeDescriptionLabel->setStyleSheet("QLabel { color: gray; font-size: 10px; margin-left: 20px; margin-bottom: 10px; padding: 5px; background-color: #f0f0f0; border-radius: 3px; }");
+    _modeDescriptionLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     modeLayout->addWidget(_modeDescriptionLabel);
     
     mainLayout->addWidget(modeGroup);
     
     // Boundary options group
     QGroupBox* boundaryGroup = new QGroupBox(tr("Boundary Options"), this);
+    boundaryGroup->setFixedHeight(160);  // Increased height for boundary group
     QVBoxLayout* boundaryLayout = new QVBoxLayout(boundaryGroup);
 
     _respectTracksCheckBox = new QCheckBox(tr("Respect track boundaries"), boundaryGroup);
@@ -141,20 +150,66 @@ void DeleteOverlapsDialog::onCancelClicked()
 
 void DeleteOverlapsDialog::onModeChanged()
 {
+    if (!_modeDescriptionLabel) {
+        return; // Safety check
+    }
+
     QString description;
 
-    if (_monoModeRadio->isChecked()) {
+    if (_monoModeRadio && _monoModeRadio->isChecked()) {
         description = tr("Removes overlapping notes of the same pitch. When notes of the same pitch overlap, "
                         "longer notes are preserved and shorter overlapping notes are removed or shortened. "
                         "This is useful for cleaning up duplicate notes or notes hidden under long sustains.");
-    } else if (_polyModeRadio->isChecked()) {
+    } else if (_polyModeRadio && _polyModeRadio->isChecked()) {
         description = tr("Makes the part monophonic by shortening all overlapping notes regardless of pitch. "
                         "No two notes will overlap after this operation. This is useful for preparing parts "
                         "for monophonic synthesizers or removing unwanted overlaps in solo lines.");
-    } else if (_doublesModeRadio->isChecked()) {
+    } else if (_doublesModeRadio && _doublesModeRadio->isChecked()) {
         description = tr("Removes notes that are exact duplicates (same pitch, start time, end time, and duration). "
                         "This is useful for cleaning up accidentally duplicated notes or MIDI recording artifacts.");
     }
 
+    // Ensure the text is set and the widget is updated
     _modeDescriptionLabel->setText(description);
+    _modeDescriptionLabel->update();
+    _modeDescriptionLabel->repaint();
+}
+
+void DeleteOverlapsDialog::paintEvent(QPaintEvent* event)
+{
+    // Call the base class paint event first
+    QDialog::paintEvent(event);
+
+    // Ensure the description label is always properly painted
+    if (_modeDescriptionLabel && !_modeDescriptionLabel->text().isEmpty()) {
+        _modeDescriptionLabel->update();
+    }
+}
+
+void DeleteOverlapsDialog::moveEvent(QMoveEvent* event)
+{
+    // Call the base class move event first
+    QDialog::moveEvent(event);
+
+    // Force refresh of the description label after window move
+    if (_modeDescriptionLabel) {
+        // Use a single-shot timer to refresh after the move is complete
+        QTimer::singleShot(0, this, [this]() {
+            if (_modeDescriptionLabel) {
+                _modeDescriptionLabel->update();
+                _modeDescriptionLabel->repaint();
+            }
+        });
+    }
+}
+
+void DeleteOverlapsDialog::resizeEvent(QResizeEvent* event)
+{
+    // Ignore resize events and maintain fixed size
+    Q_UNUSED(event);
+
+    // Force the dialog to stay at the fixed size
+    if (size() != QSize(480, 420)) {
+        resize(480, 420);
+    }
 }
