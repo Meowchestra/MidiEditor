@@ -1,4 +1,5 @@
 #include "ColoredWidget.h"
+#include "Appearance.h"
 
 #include <QPainter>
 #include <QPaintEvent>
@@ -27,7 +28,7 @@ void ColoredWidget::paintEvent(QPaintEvent* event)
     p.setRenderHint(QPainter::Antialiasing);
 
     // Don't fill background - let it be transparent to match container
-    p.setPen(Qt::lightGray);
+    p.setPen(Appearance::borderColor());
     p.setBrush(_color);
     p.drawRoundedRect(x, y, l, l, 30, 30);
     p.end();

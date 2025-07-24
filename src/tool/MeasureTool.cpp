@@ -4,6 +4,7 @@
 
 #include "EventTool.h"
 #include "../gui/MatrixWidget.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 
@@ -50,7 +51,7 @@ void MeasureTool::draw(QPainter* painter){
         int x1 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureFrom)));
         int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo+1)));
         painter->setOpacity(0.2);
-        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Qt::lightGray);
+        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::selectionHighlightColor());
     }
     int dist, measureX;
     this->closestMeasureStart(&dist, &measureX);
@@ -66,7 +67,7 @@ void MeasureTool::draw(QPainter* painter){
         int x1 = matrixWidget->xPosOfMs(file()->msOfTick(measureStartTick));
         int x2 = matrixWidget->xPosOfMs(file()->msOfTick(measureEndTick));
         painter->setOpacity(0.5);
-        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Qt::lightGray);
+        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::selectionHighlightColor());
     }
 }
 
@@ -187,5 +188,5 @@ void MeasureTool::fillMeasures(QPainter *painter, int measureFrom, int measureTo
     }
     int x1 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureFrom)));
     int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo+1)));
-    painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Qt::lightGray);
+    painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::selectionHighlightColor());
 }

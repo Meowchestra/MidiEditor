@@ -175,8 +175,8 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         if (!QApplication::arguments().contains("--no-antialiasing")) {
             pixpainter->setRenderHint(QPainter::Antialiasing);
         }
-        // dark gray shade
-        pixpainter->fillRect(0, 0, width(), height(), Qt::darkGray);
+        // background shade
+        pixpainter->fillRect(0, 0, width(), height(), Appearance::backgroundColor());
 
         QFont f = pixpainter->font();
         f.setPixelSize(12);
@@ -202,7 +202,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         TempoChangeEvent* ev = dynamic_cast<TempoChangeEvent*>(
                                    currentTempoEvents->at(0));
         if (!ev) {
-            pixpainter->fillRect(0, 0, width(), height(), Qt::red);
+            pixpainter->fillRect(0, 0, width(), height(), Appearance::errorColor());
             delete pixpainter;
             return;
         }
@@ -213,16 +213,16 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         }
 
         // fill background of the line descriptions
-        pixpainter->fillRect(PianoArea, QApplication::palette().window());
+        pixpainter->fillRect(PianoArea, Appearance::measureBackgroundColor());
 
-        // fill the pianos background white
+        // fill the pianos background
         int pianoKeys = numLines;
         if (endLineY > 127) {
             pianoKeys -= (endLineY - 127);
         }
         if (pianoKeys > 0) {
             pixpainter->fillRect(0, timeHeight, lineNameWidth - 10,
-                                 pianoKeys * lineHeight(), Qt::white);
+                                 pianoKeys * lineHeight(), Appearance::pianoWhiteKeyColor());
         }
 
 
@@ -262,17 +262,17 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 }
 
                 if (isRangeLine) {
-                    c = QColor(255, 239, 194);  // Light cream color for C3/C6 range lines
+                    c = Appearance::rangeLineColor();  // Range line color (C3/C6)
                 } else if (isHighlighted){
-                    c = QColor(234, 246, 255);
+                    c = Appearance::stripHighlightColor();
                 }else{
-                    c = QColor(194, 230, 255);
+                    c = Appearance::stripNormalColor();
                 }
             }else{
                 if (i % 2 == 1) {
-                    c = QColor(234, 246, 255);
+                    c = Appearance::stripHighlightColor();
                 }else{
-                    c = QColor(194, 194, 194);
+                    c = Appearance::stripNormalColor();
                 }
             }
             pixpainter->fillRect(lineNameWidth, startLine, width(),
@@ -280,18 +280,18 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         }
 
         // paint measures and timeline background
-        pixpainter->fillRect(0, 0, width(), timeHeight, QApplication::palette().window());
+        pixpainter->fillRect(0, 0, width(), timeHeight, Appearance::measureBackgroundColor());
 
         pixpainter->setClipping(true);
         pixpainter->setClipRect(lineNameWidth, 0, width() - lineNameWidth - 2,
                                 height());
 
-        pixpainter->setPen(Qt::darkGray);
-        pixpainter->setBrush(Qt::white);
+        pixpainter->setPen(Appearance::foregroundColor());
+        pixpainter->setBrush(Appearance::measureBackgroundColor());
         pixpainter->drawRect(lineNameWidth, 2, width() - lineNameWidth - 1, timeHeight - 2);
-        pixpainter->setPen(Qt::black);
+        pixpainter->setPen(Appearance::foregroundColor());
 
-        pixpainter->fillRect(0, timeHeight - 3, width(), 3, QApplication::palette().window());
+        pixpainter->fillRect(0, timeHeight - 3, width(), 3, Appearance::measureBackgroundColor());
 
         // paint time text in ms
         int numbers = (width() - lineNameWidth) / 80;
@@ -320,7 +320,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             if (startNumber < startTimeX) {
                 startNumber += realstep;
             }
-            pixpainter->setPen(Qt::gray);
+            pixpainter->setPen(Appearance::measureTextColor());
             while (startNumber < endTimeX) {
                 int pos = xPosOfMs(startNumber);
                 QString text = "";
@@ -384,7 +384,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                     textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
                 }
                 int pos = (xfrom + xto) / 2;
-                pixpainter->setPen(Qt::white);
+                pixpainter->setPen(Appearance::measureTextColor());
                 pixpainter->drawText(pos - textlength / 2, timeHeight - 9, text);
 
                 if (_div >= 0) {
@@ -484,7 +484,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                     break;
                 }
             }
-            painter->setPen(Qt::darkGray);
+            painter->setPen(Appearance::foregroundColor());
             font = painter->font();
             font.setPixelSize(10);
             painter->setFont(font);
@@ -622,10 +622,10 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
                 event->draw(painter, cC);
 
                 if (Selection::instance()->selectedEvents().contains(event)) {
-                    painter->setPen(Qt::gray);
+                    painter->setPen(Appearance::foregroundColor());
                     painter->drawLine(lineNameWidth, y, this->width(), y);
                     painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
-                    painter->setPen(Qt::black);
+                    painter->setPen(Appearance::foregroundColor());
                 }
                 objects->prepend(event);
             }
@@ -763,9 +763,9 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
             playerRect.setY(y);
             playerRect.setWidth(width * scaleWidthBlack);
             playerRect.setHeight(height * scaleHeightBlack + 0.5);
-            QColor c = Qt::black;
+            QColor c = Appearance::pianoBlackKeyColor();
             if (mouseInRect(playerRect)) {
-                c = QColor(200, 200, 200);
+                c = Appearance::pianoBlackKeyHoverColor();
                 inRect = true;
             }
             painter->fillRect(playerRect, c);
@@ -803,33 +803,37 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
 
         if (isBlack) {
             if (inRect) {
-                painter->setBrush(Qt::lightGray);
+                painter->setBrush(Appearance::pianoBlackKeyHoverColor());
             } else if (selected) {
-                painter->setBrush(Qt::darkGray);
+                painter->setBrush(Appearance::pianoBlackKeyHoverColor());
             } else {
-                painter->setBrush(Qt::black);
+                painter->setBrush(Appearance::pianoBlackKeyColor());
             }
         } else {
             if (inRect) {
-                painter->setBrush(Qt::darkGray);
+                painter->setBrush(Appearance::pianoWhiteKeyHoverColor());
             } else if (selected) {
-                painter->setBrush(Qt::lightGray);
+                painter->setBrush(Appearance::pianoWhiteKeyHoverColor());
             } else {
-                painter->setBrush(Qt::white);
+                painter->setBrush(Appearance::pianoWhiteKeyColor());
             }
         }
-        painter->setPen(Qt::darkGray);
+        painter->setPen(Appearance::foregroundColor());
         painter->drawPolygon(keyPolygon, Qt::OddEvenFill);
 
         if (name != "") {
-            painter->setPen(Qt::gray);
+            // Use contrasting color based on key type
+            if (isBlack) {
+                painter->setPen(Appearance::pianoWhiteKeyColor()); // Light text on dark keys
+            } else {
+                painter->setPen(Appearance::pianoBlackKeyColor()); // Dark text on light keys
+            }
             int textlength = QFontMetrics(painter->font()).horizontalAdvance(name);
             painter->drawText(x + width - textlength - 2, y + height - 1, name);
-            painter->setPen(Qt::black);
         }
         if (inRect && enabled) {
             // mark the current Line
-            QColor lineColor = QColor(0, 0, 100, 40);
+            QColor lineColor = Appearance::selectionHighlightColor();
             painter->fillRect(x + width + borderRight, yPosOfLine(127 - number),
                               this->width() - x - width - borderRight, height, lineColor);
         }

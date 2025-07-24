@@ -3,6 +3,7 @@
 #include "EventTool.h"
 #include "../gui/MatrixWidget.h"
 #include "../gui/TimeSignatureDialog.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 
 
@@ -25,7 +26,7 @@ void TimeSignatureTool::draw(QPainter* painter){
     int startX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureStartTick));
     int endX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureEndTick));
     painter->setOpacity(0.5);
-    painter->fillRect(startX, 0, endX-startX, matrixWidget->height(), Qt::lightGray);
+    painter->fillRect(startX, 0, endX-startX, matrixWidget->height(), Appearance::selectionHighlightColor());
 }
 
 bool TimeSignatureTool::press(bool leftClick){

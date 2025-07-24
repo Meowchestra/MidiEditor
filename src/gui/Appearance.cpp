@@ -5,6 +5,7 @@
 #include <QStyle>
 #include <QToolBar>
 #include <QWidget>
+#include <QStyleHints>
 
 QMap<int, QColor*> Appearance::channelColors = QMap<int, QColor*>();
 QMap<int, QColor*> Appearance::trackColors = QMap<int, QColor*>();
@@ -288,4 +289,186 @@ void Appearance::notifyIconSizeChanged(){
             break;
         }
     }
+}
+
+// Dark mode detection and color scheme methods
+bool Appearance::isDarkModeEnabled() {
+    // Use Qt's built-in dark mode detection (Qt 6.5+)
+    QStyleHints* hints = QApplication::styleHints();
+
+    // Qt 6.5+ has colorScheme() method that returns Qt::ColorScheme::Dark or Qt::ColorScheme::Light
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    return hints->colorScheme() == Qt::ColorScheme::Dark;
+#else
+    // Fallback for older Qt versions: check system palette
+    QPalette palette = QApplication::palette();
+    QColor windowColor = palette.color(QPalette::Window);
+    QColor textColor = palette.color(QPalette::WindowText);
+
+    // If window is darker than text, we're in dark mode
+    return windowColor.lightness() < textColor.lightness();
+#endif
+}
+
+bool Appearance::shouldUseDarkMode() {
+    // Only use dark mode for specific styles that support it
+    QString style = _applicationStyle.toLower();
+    if (style == "windowsvista") {
+        return false; // Always use light mode for WindowsVista
+    }
+
+    // For Windows11, Windows, and Fusion styles, respect system dark mode
+    if (style == "windows11" || style == "windows" || style == "fusion") {
+        return isDarkModeEnabled();
+    }
+
+    return false; // Default to light mode for other styles
+}
+
+// Color scheme methods
+QColor Appearance::backgroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(45, 45, 45); // Dark gray
+    }
+    return QColor(240, 240, 240); // Light gray
+}
+
+QColor Appearance::foregroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(255, 255, 255); // White
+    }
+    return QColor(0, 0, 0); // Black
+}
+
+QColor Appearance::pianoWhiteKeyColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(200, 200, 200); // Light gray for dark mode
+    }
+    return Qt::white;
+}
+
+QColor Appearance::pianoBlackKeyColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(60, 60, 60); // Dark gray for dark mode
+    }
+    return Qt::black;
+}
+
+QColor Appearance::pianoWhiteKeyHoverColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(150, 150, 150); // Medium gray for dark mode
+    }
+    return QColor(200, 200, 200);
+}
+
+QColor Appearance::pianoBlackKeyHoverColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 100, 100); // Lighter gray for dark mode
+    }
+    return QColor(200, 200, 200);
+}
+
+QColor Appearance::stripHighlightColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(70, 70, 70); // Dark gray
+    }
+    return QColor(234, 246, 255); // Light blue
+}
+
+QColor Appearance::stripNormalColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(55, 55, 55); // Darker gray
+    }
+    return QColor(194, 230, 255); // Lighter blue
+}
+
+QColor Appearance::rangeLineColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(120, 100, 80); // Darker cream for dark mode
+    }
+    return QColor(255, 239, 194); // Light cream
+}
+
+QColor Appearance::velocityBackgroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(60, 75, 85); // Dark blue-gray
+    }
+    return QColor(234, 246, 255); // Light blue
+}
+
+QColor Appearance::velocityGridColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(80, 95, 105); // Lighter blue-gray
+    }
+    return QColor(194, 230, 255); // Light blue
+}
+
+QColor Appearance::measureBackgroundColor() {
+    if (shouldUseDarkMode()) {
+        return backgroundColor(); // Use main background color
+    }
+    return QApplication::palette().window().color();
+}
+
+QColor Appearance::measureTextColor() {
+    if (shouldUseDarkMode()) {
+        return foregroundColor(); // Use main foreground color
+    }
+    return QApplication::palette().windowText().color();
+}
+
+QColor Appearance::protocolTextColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(220, 220, 220); // Light gray text
+    }
+    return Qt::black;
+}
+
+QColor Appearance::protocolBackgroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(128, 128, 128); // Medium gray for redo items
+    }
+    return Qt::lightGray;
+}
+
+QColor Appearance::infoBoxBackgroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(60, 60, 60); // Dark gray
+    }
+    return Qt::white;
+}
+
+QColor Appearance::infoBoxTextColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(200, 200, 200); // Light gray
+    }
+    return Qt::gray;
+}
+
+QColor Appearance::toolbarBackgroundColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(70, 70, 70); // Dark gray
+    }
+    return Qt::white;
+}
+
+QColor Appearance::selectionHighlightColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 150, 200, 40); // Blue with transparency for dark mode
+    }
+    return QColor(0, 0, 100, 40); // Blue with transparency for light mode
+}
+
+QColor Appearance::borderColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 100, 100); // Medium gray for dark mode
+    }
+    return Qt::lightGray;
+}
+
+QColor Appearance::errorColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(200, 80, 80); // Lighter red for dark mode
+    }
+    return Qt::red;
 }

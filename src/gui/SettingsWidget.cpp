@@ -17,6 +17,7 @@
  */
 
 #include "SettingsWidget.h"
+#include "Appearance.h"
 
 #include <QFrame>
 #include <QLabel>
@@ -41,7 +42,12 @@ QString SettingsWidget::title()
 QWidget* SettingsWidget::createInfoBox(QString info)
 {
     QLabel* label = new QLabel(info, this);
-    label->setStyleSheet("color: gray; background-color: white; padding: 5px");
+    QColor bgColor = Appearance::infoBoxBackgroundColor();
+    QColor textColor = Appearance::infoBoxTextColor();
+    QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                        .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                        .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+    label->setStyleSheet(styleSheet);
     label->setWordWrap(true);
     label->setAlignment(Qt::AlignJustify);
     label->setOpenExternalLinks(true);

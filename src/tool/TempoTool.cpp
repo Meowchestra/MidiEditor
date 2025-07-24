@@ -3,6 +3,7 @@
 #include "EventTool.h"
 #include "../gui/MatrixWidget.h"
 #include "../gui/TempoDialog.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 
 
@@ -23,9 +24,10 @@ void TempoTool::draw(QPainter* painter){
         int start = rasteredX(_startX);
         int end = rasteredX(mouseX);
         painter->setOpacity(0.5);
-        painter->fillRect(start, 0, end-start, matrixWidget->height(), Qt::lightGray);
+        painter->fillRect(start, 0, end-start, matrixWidget->height(), Appearance::selectionHighlightColor());
     } else {
         int x = rasteredX(mouseX);
+        painter->setPen(Appearance::foregroundColor());
         painter->drawLine(x, 0, x, matrixWidget->height());
     }
 }

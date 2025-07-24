@@ -18,6 +18,7 @@
 
 #include "MidiEvent.h"
 #include "../gui/EventWidget.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "ChannelPressureEvent.h"
@@ -460,7 +461,7 @@ int MidiEvent::line()
 
 void MidiEvent::draw(QPainter* p, QColor c)
 {
-    p->setPen(Qt::gray);
+    p->setPen(Appearance::borderColor());
     p->setBrush(c);
     p->drawRoundedRect(x(), y(), width(), height(), 1, 1);
 }

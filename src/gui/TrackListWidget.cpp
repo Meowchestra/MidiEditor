@@ -18,6 +18,7 @@
 
 #include "TrackListWidget.h"
 #include "ColoredWidget.h"
+#include "Appearance.h"
 
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
@@ -60,7 +61,7 @@ TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
     QToolBar* toolBar = new QToolBar(this);
     toolBar->setIconSize(QSize(12, 12));
     QPalette palette = toolBar->palette();
-    palette.setColor(QPalette::Window, Qt::white);
+    palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
     toolBar->setPalette(palette);
     // visibility
     visibleAction = new QAction(QIcon(":/run_environment/graphics/trackwidget/visible.png"), tr("Track visible"), toolBar);

@@ -17,6 +17,7 @@
  */
 
 #include "CompleteMidiSetupDialog.h"
+#include "Appearance.h"
 
 #include <QGridLayout>
 #include <QIcon>
@@ -40,11 +41,14 @@ CompleteMidiSetupDialog::CompleteMidiSetupDialog(QWidget* parent, bool alertAbou
 
     QLabel* title = new QLabel(tr("<h1>Complete MIDI Setup</h1>"), this);
     layout->addWidget(title, 0, 1, 1, 2);
-    title->setStyleSheet("color: black");
+    QColor textColor = Appearance::foregroundColor();
+    QString textColorStyle = QString("color: rgb(%1, %2, %3)")
+                            .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue());
+    title->setStyleSheet(textColorStyle);
 
     QLabel* version = new QLabel(tr("It appears that you did not complete your midi setup!"), this);
     layout->addWidget(version, 1, 1, 1, 2);
-    version->setStyleSheet("color: black");
+    version->setStyleSheet(textColorStyle);
 
     QScrollArea* a = new QScrollArea(this);
     QString connectOutput = "";

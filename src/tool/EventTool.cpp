@@ -25,6 +25,7 @@
 #include "../gui/EventWidget.h"
 #include "../gui/MainWindow.h"
 #include "../gui/MatrixWidget.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiPlayer.h"
@@ -124,8 +125,8 @@ void EventTool::paintSelectedEvents(QPainter* painter) {
         }
 
         if (show) {
-            painter->setBrush(Qt::darkBlue);
-            painter->setPen(Qt::lightGray);
+            painter->setBrush(Appearance::selectionHighlightColor());
+            painter->setPen(Appearance::borderColor());
             painter->drawRoundedRect(event->x(), event->y(), event->width(),
                                      event->height(), 1, 1);
         }

@@ -10,6 +10,7 @@
 #include "../tool/SelectTool.h"
 #include "../tool/Selection.h"
 #include "MatrixWidget.h"
+#include "Appearance.h"
 
 #include "../MidiEvent/ChannelPressureEvent.h"
 #include "../MidiEvent/ControlChangeEvent.h"
@@ -92,13 +93,13 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
     QFont f = painter.font();
     f.setPixelSize(9);
     painter.setFont(f);
-    QColor c(234, 246, 255);
+    QColor c = Appearance::velocityBackgroundColor();
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::gray);
     painter.setBrush(c);
     painter.drawRect(0, 0, width() - 1, height() - 1);
 
-    painter.setPen(QColor(194, 230, 255));
+    painter.setPen(Appearance::velocityGridColor());
     for (int i = 0; i < 8; i++) {
         painter.drawLine(0, (i * height()) / 8, width(), (i * height()) / 8);
     }

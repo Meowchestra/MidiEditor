@@ -37,6 +37,34 @@ public:
     static void applyStyle();
     static void notifyIconSizeChanged();
 
+    // Dark mode support
+    static bool isDarkModeEnabled();
+    static bool shouldUseDarkMode();
+    static void onSystemThemeChanged(); // Call this when system theme changes
+
+    // Color scheme methods
+    static QColor backgroundColor();
+    static QColor foregroundColor();
+    static QColor pianoWhiteKeyColor();
+    static QColor pianoBlackKeyColor();
+    static QColor pianoWhiteKeyHoverColor();
+    static QColor pianoBlackKeyHoverColor();
+    static QColor stripHighlightColor();
+    static QColor stripNormalColor();
+    static QColor rangeLineColor();
+    static QColor velocityBackgroundColor();
+    static QColor velocityGridColor();
+    static QColor measureBackgroundColor();
+    static QColor measureTextColor();
+    static QColor protocolTextColor();
+    static QColor protocolBackgroundColor();
+    static QColor infoBoxBackgroundColor();
+    static QColor infoBoxTextColor();
+    static QColor toolbarBackgroundColor();
+    static QColor selectionHighlightColor();
+    static QColor borderColor();
+    static QColor errorColor();
+
 private:
     static int trackToColorIndex(int track);
     static int channelToColorIndex(int channel);
