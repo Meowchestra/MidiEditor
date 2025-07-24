@@ -41,6 +41,7 @@
         <file>run_environment/graphics/tool/refresh.png</file>
         <file>run_environment/graphics/tool/save.png</file>
         <file>run_environment/graphics/tool/saveas.png</file>
+        <file>run_environment/graphics/tool/scissors.png</file>
         <file>run_environment/graphics/tool/screen_locked.png</file>
         <file>run_environment/graphics/tool/screen_unlocked.png</file>
         <file>run_environment/graphics/tool/select.png</file>

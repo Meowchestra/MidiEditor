@@ -70,6 +70,7 @@
 #include "../tool/GlueTool.h"
 #include "../tool/MeasureTool.h"
 #include "../tool/NewNoteTool.h"
+#include "../tool/ScissorsTool.h"
 #include "../tool/SelectTool.h"
 #include "../tool/Selection.h"
 #include "../tool/SizeChangeTool.h"
@@ -2379,6 +2380,9 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     _activateWithSelections.append(glueNotesAllChannelsAction);
     toolsMB->addAction(glueNotesAllChannelsAction);
 
+    QAction* scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(Qt::Key_X | Qt::CTRL), toolsMB);
+    toolsMB->addAction(scissorsAction);
+
     toolsMB->addSeparator();
 
     QAction* quantizeAction = new QAction(tr("Quantify selection"), this);
@@ -2812,6 +2816,8 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(glueActionTB, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueActionTB);
     toolBar->addAction(glueActionTB);
+
+    toolBar->addAction(scissorsAction);
 
     toolBar->addSeparator();
 
