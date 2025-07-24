@@ -42,6 +42,8 @@ ProtocolWidget::ProtocolWidget(QWidget* parent)
 
 void ProtocolWidget::setFile(MidiFile* f)
 {
+    if (file != NULL)
+        file->protocol()->disconnect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(protocolChanged()));
     file = f;
     protocolHasChanged = true;
     nextChangeFromList = false;
