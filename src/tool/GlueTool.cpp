@@ -37,7 +37,7 @@ GlueTool::GlueTool()
     : EventTool()
 {
     setImage(":/run_environment/graphics/tool/glue.png");
-    setToolTipText("Glue adjacent notes of the same pitch");
+    setToolTipText("Glue notes");
 }
 
 GlueTool::GlueTool(GlueTool& other)

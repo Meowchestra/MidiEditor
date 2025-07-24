@@ -2807,7 +2807,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     toolBar->addSeparator();
 
     QAction* glueActionTB = new QAction(tr("Glue notes"), this);
-    glueActionTB->setToolTip(tr("Glue adjacent notes of the same pitch (Ctrl+G)"));
+    glueActionTB->setToolTip(tr("Glue notes (same channel)"));
     glueActionTB->setIcon(QIcon(":/run_environment/graphics/tool/glue.png"));
     connect(glueActionTB, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueActionTB);
