@@ -209,7 +209,8 @@ void MidiChannel::deleteAllEvents()
 
 int MidiChannel::progAtTick(int tick)
 {
-
+    if (_events->count() == 0)
+        return 0;
     // search for the last ProgChangeEvent in the channel
     QMultiMap<int, MidiEvent*>::iterator it = _events->upperBound(tick);
     if (it == _events->end()) {
