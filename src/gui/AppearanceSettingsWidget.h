@@ -42,6 +42,7 @@ public slots:
     void channelColorChanged(int channel, QColor c);
     void trackColorChanged(int track, QColor c);
     void resetColors();
+    void refreshColors(); // Refresh colors when they're auto-updated
     void opacityChanged(int opacity);
     void stripStyleChanged(int strip);
     void rangeLinesChanged(bool enabled);

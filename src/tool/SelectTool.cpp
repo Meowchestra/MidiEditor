@@ -21,6 +21,7 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../gui/MatrixWidget.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 #include "StandardTool.h"
@@ -64,14 +65,17 @@ SelectTool::SelectTool(SelectTool& other)
 void SelectTool::draw(QPainter* painter) {
     paintSelectedEvents(painter);
     if (SELECTION_TYPE_BOX && (x_rect || y_rect)) {
-        painter->setPen(Qt::gray);
-        painter->setBrush(QColor(0, 0, 0, 100));
+        painter->setPen(Appearance::borderColor());
+        QColor selectionColor = Appearance::foregroundColor();
+        selectionColor.setAlpha(100);
+        painter->setBrush(selectionColor);
         painter->drawRect(x_rect, y_rect, mouseX - x_rect, mouseY - y_rect);
     } else if (stool_type == SELECTION_TYPE_RIGHT || stool_type == SELECTION_TYPE_LEFT) {
         if (mouseIn) {
-            painter->setPen(Qt::black);
-            painter->setPen(Qt::gray);
-            painter->setBrush(QColor(0, 0, 0, 100));
+            painter->setPen(Appearance::borderColor());
+            QColor selectionColor = Appearance::foregroundColor();
+            selectionColor.setAlpha(100);
+            painter->setBrush(selectionColor);
             if (stool_type == SELECTION_TYPE_LEFT) {
                 painter->drawRect(0, 0, mouseX, matrixWidget->height() - 1);
             } else {

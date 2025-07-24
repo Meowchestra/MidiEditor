@@ -125,8 +125,8 @@ void EventTool::paintSelectedEvents(QPainter* painter) {
         }
 
         if (show) {
-            painter->setBrush(Appearance::selectionHighlightColor());
-            painter->setPen(Appearance::borderColor());
+            painter->setBrush(Appearance::noteSelectionColor());
+            painter->setPen(Appearance::selectionBorderColor());
             painter->drawRoundedRect(event->x(), event->y(), event->width(),
                                      event->height(), 1, 1);
         }

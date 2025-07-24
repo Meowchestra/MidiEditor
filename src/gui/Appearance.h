@@ -4,6 +4,11 @@
 #include <QSettings>
 #include <QColor>
 #include <QStringList>
+#include <QMap>
+#include <QString>
+#include <QSet>
+
+class QAction;
 
 class Appearance
 {
@@ -15,6 +20,8 @@ public:
     static void setTrackColor(int track, QColor color);
     static void setChannelColor(int channel, QColor color);
     static void reset();
+    static void autoResetDefaultColors(); // Auto-reset colors if they're still default
+    static void forceResetAllColors(); // Force reset all colors to current theme defaults
     static int opacity();
     static void setOpacity(int opacity);
 
@@ -62,51 +69,46 @@ public:
     static QColor rangeLineColor();
     static QColor velocityBackgroundColor();
     static QColor velocityGridColor();
-    static QColor measureBackgroundColor();
-    static QColor measureTextColor();
-    static QColor protocolTextColor();
-    static QColor protocolBackgroundColor();
+    static QColor systemWindowColor(); // QApplication::palette().window()
+    static QColor systemTextColor(); // QApplication::palette().windowText()
     static QColor infoBoxBackgroundColor();
     static QColor infoBoxTextColor();
     static QColor toolbarBackgroundColor();
-    static QColor selectionHighlightColor();
     static QColor borderColor();
     static QColor borderColorAlt();
+    static QColor selectionBorderColor(); // For selected notes and velocity bars
     static QColor errorColor();
-
-    // Dark mode support
-    static bool isDarkModeEnabled();
-    static bool shouldUseDarkMode();
-    static void onSystemThemeChanged(); // Call this when system theme changes
-
-    // Color scheme methods
-    static QColor backgroundColor();
-    static QColor foregroundColor();
-    static QColor pianoWhiteKeyColor();
-    static QColor pianoBlackKeyColor();
-    static QColor pianoWhiteKeyHoverColor();
-    static QColor pianoBlackKeyHoverColor();
-    static QColor stripHighlightColor();
-    static QColor stripNormalColor();
-    static QColor rangeLineColor();
-    static QColor velocityBackgroundColor();
-    static QColor velocityGridColor();
-    static QColor measureBackgroundColor();
+    static QColor cursorLineColor();
+    static QColor cursorTriangleColor();
+    static QColor tempoToolHighlightColor();
+    static QColor measureToolHighlightColor();
+    static QColor timeSignatureToolHighlightColor();
+    static QColor pianoKeyLineHighlightColor();
     static QColor measureTextColor();
-    static QColor protocolTextColor();
-    static QColor protocolBackgroundColor();
-    static QColor infoBoxBackgroundColor();
-    static QColor infoBoxTextColor();
-    static QColor toolbarBackgroundColor();
-    static QColor selectionHighlightColor();
-    static QColor borderColor();
-    static QColor errorColor();
+    static QColor measureBarColor();
+    static QColor measureLineColor();
+    static QColor timelineGridColor();
+    static QColor playbackCursorColor();
+    static QColor recordingIndicatorColor();
+    static QColor programEventHighlightColor();
+    static QColor programEventNormalColor();
+    static QColor noteSelectionColor(); // Consistent color for selected/dragged notes
+
+    // Icon adjustment for dark mode
+    static QPixmap adjustIconForDarkMode(const QPixmap& original, const QString& iconName = "");
+    static QIcon adjustIconForDarkMode(const QString& iconPath);
+    static void refreshAllIcons(); // Refresh all icons in the application
+    static void registerIconAction(QAction* action, const QString& iconPath); // Register action for icon refresh
+    static void setActionIcon(QAction* action, const QString& iconPath); // Set icon and register for refresh
 
 private:
     static int trackToColorIndex(int track);
     static int channelToColorIndex(int channel);
     static QMap<int, QColor*> channelColors;
     static QMap<int, QColor*> trackColors;
+    static QSet<int> customChannelColors; // Track which channel colors are custom
+    static QSet<int> customTrackColors; // Track which track colors are custom
+    static QMap<QAction*, QString> registeredIconActions; // Track actions with their icon paths
     static QColor *defaultColor(int n);
     static QColor *decode(QString name, QSettings *settings, QColor *defaultColor);
     static void write(QString name, QSettings *settings, QColor *color);

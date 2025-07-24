@@ -84,7 +84,7 @@ void ProtocolWidget::update()
 
         for (int i = 0; i < stepsBack + stepsForward; i++) {
             ProtocolStep* step;
-            QColor bg = Appearance::protocolTextColor();
+            QColor bg = Appearance::foregroundColor(); // Qt::black for light mode
             QFont f = undoFont;
             if (i < stepsBack) {
                 step = file->protocol()->undoStep(i);
@@ -93,7 +93,7 @@ void ProtocolWidget::update()
                 }
             } else {
                 step = file->protocol()->redoStep(stepsForward - i + stepsBack - 1);
-                bg = Appearance::protocolBackgroundColor();
+                bg = Appearance::lightGrayColor(); // Qt::lightGray for light mode
                 f = redoFont;
             }
 
@@ -103,9 +103,12 @@ void ProtocolWidget::update()
             item->setFont(f);
             if (step->image()) {
                 QImage img = step->image()->scaled(20, 20, Qt::KeepAspectRatio);
-                item->setIcon(QIcon(QPixmap::fromImage(img)));
+                QPixmap pixmap = QPixmap::fromImage(img);
+                // Apply dark mode adjustment to protocol step icons
+                pixmap = Appearance::adjustIconForDarkMode(pixmap, "protocol_step");
+                item->setIcon(QIcon(pixmap));
             } else {
-                item->setIcon(QIcon(":/run_environment/graphics/tool/noicon.png"));
+                item->setIcon(Appearance::adjustIconForDarkMode(":/run_environment/graphics/tool/noicon.png"));
             }
             QVariant v;
             v.setValue(i);
@@ -155,4 +158,11 @@ void ProtocolWidget::stepClicked(QListWidgetItem* item)
     }
 
     file->protocol()->goTo(step);
+}
+
+void ProtocolWidget::refreshColors()
+{
+    // Force protocol to refresh with new colors
+    protocolHasChanged = true;
+    update();
 }

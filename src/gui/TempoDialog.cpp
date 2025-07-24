@@ -1,4 +1,5 @@
 #include "TempoDialog.h"
+#include "Appearance.h"
 
 #include <QGridLayout>
 #include <QLabel>
@@ -20,17 +21,23 @@ TempoDialog::TempoDialog(MidiFile *file, int startTick, int endTick,  QWidget *p
     setMinimumWidth(550);
     setMaximumHeight(450);
     setWindowTitle(tr("Edit Tempo"));
-    setWindowIcon(QIcon(":/run_environment/graphics/icon.png"));
+    // Note: setWindowIcon doesn't use QAction, so we keep the direct approach
+    setWindowIcon(Appearance::adjustIconForDarkMode(":/run_environment/graphics/icon.png"));
     QGridLayout* layout = new QGridLayout(this);
 
     QLabel* icon = new QLabel();
-    icon->setPixmap(QPixmap(":/run_environment/graphics/midieditor.png").scaledToWidth(80, Qt::SmoothTransformation));
+    QPixmap iconPixmap = Appearance::adjustIconForDarkMode(QPixmap(":/run_environment/graphics/midieditor.png"), "midieditor");
+    icon->setPixmap(iconPixmap.scaledToWidth(80, Qt::SmoothTransformation));
     icon->setFixedSize(80, 80);
     layout->addWidget(icon, 0, 0, 3, 1);
 
     QLabel* title = new QLabel("<h3>Edit Tempo</h3>", this);
     layout->addWidget(title, 0, 1, 1, 2);
-    title->setStyleSheet("color: black");
+    if (Appearance::shouldUseDarkMode()) {
+        title->setStyleSheet("color: white");
+    } else {
+        title->setStyleSheet("color: black");
+    }
 
     // Use smooth transition
     _smoothTransition = new QCheckBox("Smooth Transition");
@@ -44,7 +51,11 @@ TempoDialog::TempoDialog(MidiFile *file, int startTick, int endTick,  QWidget *p
                                  "</body>"
                                  "</html>");
     layout->addWidget(tip, 2, 1, 1, 2);
-    tip->setStyleSheet("color: black; background-color: white; padding: 5px");
+    if (Appearance::shouldUseDarkMode()) {
+        tip->setStyleSheet("color: white; background-color: #404040; padding: 5px");
+    } else {
+        tip->setStyleSheet("color: black; background-color: white; padding: 5px");
+    }
 
     // identify tempo at start tick
     QMap<int, MidiEvent*> *events = file->tempoEvents();

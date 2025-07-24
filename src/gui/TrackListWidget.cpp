@@ -64,14 +64,16 @@ TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
     palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
     toolBar->setPalette(palette);
     // visibility
-    visibleAction = new QAction(QIcon(":/run_environment/graphics/trackwidget/visible.png"), tr("Track visible"), toolBar);
+    visibleAction = new QAction(tr("Track visible"), toolBar);
+    Appearance::setActionIcon(visibleAction, ":/run_environment/graphics/trackwidget/visible.png");
     visibleAction->setCheckable(true);
     visibleAction->setChecked(true);
     toolBar->addAction(visibleAction);
     connect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
 
     // audibility
-    loudAction = new QAction(QIcon(":/run_environment/graphics/trackwidget/loud.png"), tr("Track audible"), toolBar);
+    loudAction = new QAction(tr("Track audible"), toolBar);
+    Appearance::setActionIcon(loudAction, ":/run_environment/graphics/trackwidget/loud.png");
     loudAction->setCheckable(true);
     loudAction->setChecked(true);
     toolBar->addAction(loudAction);
@@ -80,12 +82,14 @@ TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
     toolBar->addSeparator();
 
     // name
-    QAction* renameAction = new QAction(QIcon(":/run_environment/graphics/trackwidget/rename.png"), tr("Rename track"), toolBar);
+    QAction* renameAction = new QAction(tr("Rename track"), toolBar);
+    Appearance::setActionIcon(renameAction, ":/run_environment/graphics/trackwidget/rename.png");
     toolBar->addAction(renameAction);
     connect(renameAction, SIGNAL(triggered()), this, SLOT(renameTrack()));
 
     // remove
-    QAction* removeAction = new QAction(QIcon(":/run_environment/graphics/trackwidget/remove.png"), tr("Remove track"), toolBar);
+    QAction* removeAction = new QAction(tr("Remove track"), toolBar);
+    Appearance::setActionIcon(removeAction, ":/run_environment/graphics/trackwidget/remove.png");
     toolBar->addAction(removeAction);
     connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTrack()));
 

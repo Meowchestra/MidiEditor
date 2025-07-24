@@ -66,7 +66,8 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     toolBar->setPalette(palette);
 
     // visibility
-    visibleAction = new QAction(QIcon(":/run_environment/graphics/channelwidget/visible.png"), tr("Channel visible"), toolBar);
+    visibleAction = new QAction(tr("Channel visible"), toolBar);
+    Appearance::setActionIcon(visibleAction, ":/run_environment/graphics/channelwidget/visible.png");
     visibleAction->setCheckable(true);
     visibleAction->setChecked(true);
     toolBar->addAction(visibleAction);
@@ -74,14 +75,16 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
 
     // audibility
     if (channel < 16) {
-        loudAction = new QAction(QIcon(":/run_environment/graphics/channelwidget/loud.png"), tr("Channel audible"), toolBar);
+        loudAction = new QAction(tr("Channel audible"), toolBar);
+        Appearance::setActionIcon(loudAction, ":/run_environment/graphics/channelwidget/loud.png");
         loudAction->setCheckable(true);
         loudAction->setChecked(true);
         toolBar->addAction(loudAction);
         connect(loudAction, SIGNAL(toggled(bool)), this, SLOT(toggleAudibility(bool)));
 
         // solo
-        soloAction = new QAction(QIcon(":/run_environment/graphics/channelwidget/solo.png"), tr("Solo mode"), toolBar);
+        soloAction = new QAction(tr("Solo mode"), toolBar);
+        Appearance::setActionIcon(soloAction, ":/run_environment/graphics/channelwidget/solo.png");
         soloAction->setCheckable(true);
         soloAction->setChecked(false);
         toolBar->addAction(soloAction);
@@ -91,7 +94,8 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
 
         if (channel != 9) {
             // instrument
-            QAction* instrumentAction = new QAction(QIcon(":/run_environment/graphics/channelwidget/instrument.png"), tr("Select instrument"), toolBar);
+            QAction* instrumentAction = new QAction(tr("Select instrument"), toolBar);
+            Appearance::setActionIcon(instrumentAction, ":/run_environment/graphics/channelwidget/instrument.png");
             toolBar->addAction(instrumentAction);
             connect(instrumentAction, SIGNAL(triggered()), this, SLOT(instrument()));
         }

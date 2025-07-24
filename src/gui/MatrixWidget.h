@@ -90,6 +90,7 @@ class MatrixWidget : public PaintWidget {
     void takeKeyReleaseEvent(QKeyEvent* event);
     void setDiv(int div);
     int div();
+    void forceCompleteRedraw(); // Force complete redraw for theme changes
 
   signals:
     void sizeChanged(int maxScrollTime, int maxScrollLine, int valueX,

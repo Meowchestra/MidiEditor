@@ -18,6 +18,7 @@
 
 #include "ToolButton.h"
 #include "Tool.h"
+#include "../gui/Appearance.h"
 
 ToolButton::ToolButton(Tool* tool, QKeySequence sequence, QWidget* parent)
     : QAction(reinterpret_cast<QObject*>(parent))
@@ -26,7 +27,10 @@ ToolButton::ToolButton(Tool* tool, QKeySequence sequence, QWidget* parent)
     tool->setButton(this);
     setText(button_tool->toolTip());
     QImage image = *(button_tool->image());
-    setIcon(QIcon(QPixmap::fromImage(image)));
+    QPixmap pixmap = QPixmap::fromImage(image);
+    // Apply dark mode adjustment if needed
+    pixmap = Appearance::adjustIconForDarkMode(pixmap, button_tool->toolTip());
+    setIcon(QIcon(pixmap));
     connect(this, SIGNAL(triggered()), this, SLOT(buttonClick()));
     setCheckable(true);
     setShortcut(sequence);
@@ -40,4 +44,13 @@ void ToolButton::buttonClick()
 void ToolButton::releaseButton()
 {
     button_tool->buttonClick();
+}
+
+void ToolButton::refreshIcon()
+{
+    QImage image = *(button_tool->image());
+    QPixmap pixmap = QPixmap::fromImage(image);
+    // Apply dark mode adjustment if needed
+    pixmap = Appearance::adjustIconForDarkMode(pixmap, button_tool->toolTip());
+    setIcon(QIcon(pixmap));
 }

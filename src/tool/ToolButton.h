@@ -34,6 +34,7 @@ public:
 public slots:
     void buttonClick();
     void releaseButton();
+    void refreshIcon(); // Refresh icon for theme changes
 
 private:
     Tool* button_tool;

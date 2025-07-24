@@ -123,6 +123,11 @@ void AppearanceSettingsWidget::trackColorChanged(int track, QColor c) {
 
 void AppearanceSettingsWidget::resetColors() {
     Appearance::reset();
+    refreshColors();
+}
+
+void AppearanceSettingsWidget::refreshColors() {
+    // Refresh all color widgets to show current colors
     foreach (NamedColorWidgetItem* item, *_trackItems) {
         item->colorChanged(*Appearance::trackColor(item->number()));
     }
@@ -189,9 +194,13 @@ NamedColorWidgetItem::NamedColorWidgetItem(int number, QString name, QColor colo
 
 void NamedColorWidgetItem::mousePressEvent(QMouseEvent* event) {
     QColor newColor = QColorDialog::getColor(color, this);
-    colorChanged(newColor);
-    colored->setColor(newColor);
-    colored->update();
+    // Only apply the color if user didn't cancel (valid color returned)
+    if (newColor.isValid()) {
+        colorChanged(newColor);
+        colored->setColor(newColor);
+        colored->update();
+    }
+    // If user canceled, do nothing - keep the original color
 }
 
 void NamedColorWidgetItem::colorChanged(QColor color) {

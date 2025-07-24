@@ -95,7 +95,7 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
     painter.setFont(f);
     QColor c = Appearance::velocityBackgroundColor();
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(Qt::gray);
+    painter.setPen(Appearance::grayColor());
     painter.setBrush(c);
     painter.drawRect(0, 0, width() - 1, height() - 1);
 
@@ -137,7 +137,7 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
                 if (velocity > 0) {
                     int h = (height() * velocity) / 128;
                     painter.setBrush(*c);
-                    painter.setPen(Qt::lightGray);
+                    painter.setPen(Appearance::lightGrayColor());
                     painter.drawRoundedRect(event->x() - LEFT_BORDER_MATRIX_WIDGET, height() - h, WIDTH, h, 1, 1);
                 }
             }
@@ -167,8 +167,8 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
                         if (edit_mode == SINGLE_MODE && dragging) {
                             h += (dragY - mouseY);
                         }
-                        painter.setBrush(Qt::darkBlue);
-                        painter.setPen(Qt::lightGray);
+                        painter.setBrush(Appearance::noteSelectionColor());
+                        painter.setPen(Appearance::selectionBorderColor());
                         painter.drawRoundedRect(event->x() - LEFT_BORDER_MATRIX_WIDGET, height() - h, WIDTH, h, 1, 1);
                     }
                 }
@@ -184,7 +184,7 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
         pen.setWidth(3);
         painter.setPen(pen);
 
-        QPen circlePen(Qt::darkGray);
+        QPen circlePen(Appearance::darkGrayColor());
         circlePen.setWidth(1);
 
         QList<MidiEvent*> accordingEvents;

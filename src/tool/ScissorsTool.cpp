@@ -22,6 +22,7 @@
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../gui/MatrixWidget.h"
+#include "../gui/Appearance.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
@@ -51,7 +52,7 @@ void ScissorsTool::draw(QPainter* painter)
     }
 
     // Draw red vertical line at cursor position (like Cubase scissors)
-    painter->setPen(QPen(Qt::red, 2));
+    painter->setPen(QPen(Appearance::playbackCursorColor(), 2));
 
     // Calculate the tick position from mouse X coordinate
     int ms = matrixWidget->msOfXPos(mouseX);
@@ -63,7 +64,7 @@ void ScissorsTool::draw(QPainter* painter)
     int timelineHeight = 50; // This is the typical timeline height
     painter->drawLine(mouseX, timelineHeight, mouseX, matrixWidget->height());
 
-    painter->setPen(Qt::black);
+    painter->setPen(Appearance::foregroundColor());
 }
 
 bool ScissorsTool::press(bool leftClick)

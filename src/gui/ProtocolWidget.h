@@ -37,6 +37,7 @@ public slots:
     void protocolChanged();
     void update();
     void stepClicked(QListWidgetItem* item);
+    void refreshColors(); // Refresh colors for theme changes
 
 private:
     MidiFile* file;

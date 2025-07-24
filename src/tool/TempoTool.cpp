@@ -24,7 +24,7 @@ void TempoTool::draw(QPainter* painter){
         int start = rasteredX(_startX);
         int end = rasteredX(mouseX);
         painter->setOpacity(0.5);
-        painter->fillRect(start, 0, end-start, matrixWidget->height(), Appearance::selectionHighlightColor());
+        painter->fillRect(start, 0, end-start, matrixWidget->height(), Appearance::tempoToolHighlightColor());
     } else {
         int x = rasteredX(mouseX);
         painter->setPen(Appearance::foregroundColor());
