@@ -1316,6 +1316,15 @@ void MainWindow::deleteOverlaps() {
     }
 }
 
+void MainWindow::resetView() {
+    if (!file) {
+        return;
+    }
+
+    // Call the matrix widget's reset view function
+    mw_matrixWidget->resetView();
+}
+
 void MainWindow::deleteSelectedEvents() {
     bool showsSelected = false;
     if (Tool::currentTool()) {
@@ -1619,11 +1628,23 @@ void MainWindow::viewChannel(QAction* action) {
 }
 
 void MainWindow::keyPressEvent(QKeyEvent* event) {
-    mw_matrixWidget->takeKeyPressEvent(event);
+    // First, let Qt handle any shortcuts
+    QMainWindow::keyPressEvent(event);
+
+    // If the event wasn't accepted by a shortcut, forward it to the matrix widget
+    if (!event->isAccepted()) {
+        mw_matrixWidget->takeKeyPressEvent(event);
+    }
 }
 
 void MainWindow::keyReleaseEvent(QKeyEvent* event) {
-    mw_matrixWidget->takeKeyReleaseEvent(event);
+    // First, let Qt handle any shortcuts
+    QMainWindow::keyReleaseEvent(event);
+
+    // If the event wasn't accepted by a shortcut, forward it to the matrix widget
+    if (!event->isAccepted()) {
+        mw_matrixWidget->takeKeyReleaseEvent(event);
+    }
 }
 
 void MainWindow::showEventWidget(bool show) {
@@ -2567,13 +2588,21 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     zoomMenu->addSeparator();
 
-    QAction* zoomStdAction = new QAction(tr("Restore default"), this);
-    zoomStdAction->setShortcut(QKeySequence(Qt::Key_0 | Qt::CTRL | Qt::SHIFT));
+    QAction* zoomStdAction = new QAction(tr("Restore default zoom"), this);
+    zoomStdAction->setShortcut(QKeySequence(Qt::Key_Backspace | Qt::CTRL));
     connect(zoomStdAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomStd()));
     zoomMenu->addAction(zoomStdAction);
 
     viewMB->addMenu(zoomMenu);
+
+    viewMB->addSeparator();
+
+    QAction* resetViewAction = new QAction(tr("Reset view"), this);
+    resetViewAction->setShortcut(QKeySequence(Qt::Key_Backspace | Qt::CTRL | Qt::ALT));
+    resetViewAction->setToolTip(tr("Reset zoom, scroll position, and cursor to defaults"));
+    connect(resetViewAction, SIGNAL(triggered()), this, SLOT(resetView()));
+    viewMB->addAction(resetViewAction);
 
     viewMB->addSeparator();
 

@@ -1103,6 +1103,33 @@ void MatrixWidget::zoomStd() {
     calcSizes();
 }
 
+void MatrixWidget::resetView() {
+    if (!file) {
+        return;
+    }
+
+    // Reset zoom to default
+    scaleX = 1;
+    scaleY = 1;
+
+    // Reset horizontal scroll to beginning
+    startTimeX = 0;
+
+    // Reset vertical scroll to roughly center on Middle C (line 60)
+    startLineY = 50;
+
+    // Reset cursor and pause positions to beginning
+    file->setCursorTick(0);
+    file->setPauseTick(-1);
+
+    // Recalculate sizes and update display
+    calcSizes();
+
+    // Force a complete repaint
+    registerRelayout();
+    update();
+}
+
 void MatrixWidget::zoomHorIn() {
     scaleX += 0.1;
     calcSizes();
