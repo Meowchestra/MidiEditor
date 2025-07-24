@@ -64,6 +64,8 @@
 #include "TransposeDialog.h"
 #include "TweakTarget.h"
 
+#include "../tool/DeleteOverlapsTool.h"
+#include "DeleteOverlapsDialog.h"
 #include "../tool/EraserTool.h"
 #include "../tool/EventMoveTool.h"
 #include "../tool/EventTool.h"
@@ -1291,6 +1293,29 @@ void MainWindow::glueSelectionAllChannels() {
     updateAll();
 }
 
+void MainWindow::deleteOverlaps() {
+    if (!file) {
+        return;
+    }
+
+    // Show the delete overlaps dialog
+    DeleteOverlapsDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        // Ensure the current file is set for the tool
+        Tool::setFile(file);
+
+        // Get user selections from dialog
+        DeleteOverlapsTool::OverlapMode mode = dialog.getSelectedMode();
+        bool respectChannels = dialog.getRespectChannels();
+        bool respectTracks = dialog.getRespectTracks();
+
+        // Create a temporary DeleteOverlapsTool instance to perform the operation
+        DeleteOverlapsTool deleteOverlapsTool;
+        deleteOverlapsTool.performDeleteOverlapsOperation(mode, respectChannels, respectTracks);
+        updateAll();
+    }
+}
+
 void MainWindow::deleteSelectedEvents() {
     bool showsSelected = false;
     if (Tool::currentTool()) {
@@ -2383,6 +2408,13 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QAction* scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(Qt::Key_X | Qt::CTRL), toolsMB);
     toolsMB->addAction(scissorsAction);
 
+    QAction* deleteOverlapsAction = new QAction(tr("Delete overlaps..."), this);
+    deleteOverlapsAction->setShortcut(QKeySequence(Qt::Key_D | Qt::CTRL));
+    deleteOverlapsAction->setIcon(QIcon(":/run_environment/graphics/tool/deleteoverlap.png"));
+    connect(deleteOverlapsAction, SIGNAL(triggered()), this, SLOT(deleteOverlaps()));
+    _activateWithSelections.append(deleteOverlapsAction);
+    toolsMB->addAction(deleteOverlapsAction);
+
     toolsMB->addSeparator();
 
     QAction* quantizeAction = new QAction(tr("Quantify selection"), this);
@@ -2818,6 +2850,13 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     toolBar->addAction(glueActionTB);
 
     toolBar->addAction(scissorsAction);
+
+    QAction* deleteOverlapsActionTB = new QAction(tr("Delete overlaps..."), this);
+    deleteOverlapsActionTB->setToolTip(tr("Delete overlaps..."));
+    deleteOverlapsActionTB->setIcon(QIcon(":/run_environment/graphics/tool/deleteoverlap.png"));
+    connect(deleteOverlapsActionTB, SIGNAL(triggered()), this, SLOT(deleteOverlaps()));
+    _activateWithSelections.append(deleteOverlapsActionTB);
+    toolBar->addAction(deleteOverlapsActionTB);
 
     toolBar->addSeparator();
 

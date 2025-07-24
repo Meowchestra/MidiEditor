@@ -14,11 +14,12 @@
         <file>run_environment/graphics/tool/config.png</file>
         <file>run_environment/graphics/tool/connection.png</file>
         <file>run_environment/graphics/tool/copy.png</file>
+        <file>run_environment/graphics/tool/deleteoverlap.png</file>
         <file>run_environment/graphics/tool/equalize.png</file>
         <file>run_environment/graphics/tool/eraser.png</file>
         <file>run_environment/graphics/tool/forward.png</file>
-        <file>run_environment/graphics/tool/glue.png</file>
         <file>run_environment/graphics/tool/forward_marker.png</file>
+        <file>run_environment/graphics/tool/glue.png</file>
         <file>run_environment/graphics/tool/load.png</file>
         <file>run_environment/graphics/tool/magnet.png</file>
         <file>run_environment/graphics/tool/metronome.png</file>

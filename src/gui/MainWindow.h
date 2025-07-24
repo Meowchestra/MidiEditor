@@ -104,6 +104,7 @@ class MainWindow : public QMainWindow {
     void equalize();
     void glueSelection();
     void glueSelectionAllChannels();
+    void deleteOverlaps();
     void deleteSelectedEvents();
     void deleteChannel(QAction* action);
     void moveSelectedEventsToChannel(QAction* action);
