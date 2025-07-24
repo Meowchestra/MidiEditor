@@ -63,7 +63,7 @@ void DeleteOverlapsDialog::setupUI()
     _modeDescriptionLabel->setWordWrap(true);
     _modeDescriptionLabel->setFixedSize(400, 90);  // Fixed width AND height
     _modeDescriptionLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    _modeDescriptionLabel->setStyleSheet("QLabel { color: gray; font-size: 10px; margin-left: 20px; margin-bottom: 10px; padding: 5px; background-color: #f0f0f0; border-radius: 3px; }");
+    _modeDescriptionLabel->setStyleSheet("QLabel { color: gray; font-size: 10px; margin-left: 20px; margin-bottom: 10px; padding: 5px; }");
     _modeDescriptionLabel->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     modeLayout->addWidget(_modeDescriptionLabel);
     

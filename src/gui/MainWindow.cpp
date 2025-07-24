@@ -2190,18 +2190,6 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     editMB->addSeparator();
 
-    QAction* transposeOctaveUpAction = new QAction(tr("Transpose selected notes octave up"), editMB);
-    transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
-    connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
-    editMB->addAction(transposeOctaveUpAction);
-
-    QAction* transposeOctaveDownAction = new QAction(tr("Transpose selected notes octave down"), editMB);
-    transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
-    connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
-    editMB->addAction(transposeOctaveDownAction);
-
-    editMB->addSeparator();
-
     QAction* copyAction = new QAction(tr("Copy events"), this);
     _activateWithSelections.append(copyAction);
     copyAction->setIcon(QIcon(":/run_environment/graphics/tool/copy.png"));
@@ -2533,6 +2521,18 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     transposeAction->setShortcut(QKeySequence(Qt::Key_T | Qt::CTRL));
     connect(transposeAction, SIGNAL(triggered()), this, SLOT(transposeNSemitones()));
     toolsMB->addAction(transposeAction);
+
+    QAction* transposeOctaveUpAction = new QAction(tr("Transpose octave up"), this);
+    _activateWithSelections.append(transposeOctaveUpAction);
+    transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
+    connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
+    toolsMB->addAction(transposeOctaveUpAction);
+
+    QAction* transposeOctaveDownAction = new QAction(tr("Transpose octave down"), this);
+    _activateWithSelections.append(transposeOctaveDownAction);
+    transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
+    connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
+    toolsMB->addAction(transposeOctaveDownAction);
 
     toolsMB->addSeparator();
 
