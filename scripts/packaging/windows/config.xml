@@ -13,6 +13,8 @@
     <StartMenuDir>MidiEditor</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>
     <WizardStyle>Modern</WizardStyle>
+    <WizardDefaultWidth>800</WizardDefaultWidth>
+    <WizardDefaultHeight>450</WizardDefaultHeight>
 
     <TargetDir>@HomeDir@/MidiEditor</TargetDir>
     <AdminTargetDir>@RootDir@/MidiEditor</AdminTargetDir>
