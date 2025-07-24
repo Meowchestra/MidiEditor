@@ -2322,12 +2322,12 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     tweakMenu->addAction(tweakMediumIncreaseAction);
 
     QAction* tweakLargeDecreaseAction = new QAction(tr("Large decrease"), tweakMenu);
-    tweakLargeDecreaseAction->setShortcut(QKeySequence(Qt::Key_9 | Qt::ALT | Qt::SHIFT));
+    tweakLargeDecreaseAction->setShortcut(QKeySequence(Qt::Key_9 | Qt::CTRL | Qt::ALT | Qt::SHIFT));
     connect(tweakLargeDecreaseAction, SIGNAL(triggered()), this, SLOT(tweakLargeDecrease()));
     tweakMenu->addAction(tweakLargeDecreaseAction);
 
     QAction* tweakLargeIncreaseAction = new QAction(tr("Large increase"), tweakMenu);
-    tweakLargeIncreaseAction->setShortcut(QKeySequence(Qt::Key_0 | Qt::ALT | Qt::SHIFT));
+    tweakLargeIncreaseAction->setShortcut(QKeySequence(Qt::Key_0 | Qt::CTRL | Qt::ALT | Qt::SHIFT));
     connect(tweakLargeIncreaseAction, SIGNAL(triggered()), this, SLOT(tweakLargeIncrease()));
     tweakMenu->addAction(tweakLargeIncreaseAction);
 
@@ -2514,7 +2514,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     QAction* zoomHorInAction = new QAction(tr("Horizontal in"), this);
     zoomHorInAction->setIcon(QIcon(":/run_environment/graphics/tool/zoom_hor_in.png"));
-    zoomHorInAction->setShortcut(QKeySequence(Qt::Key_Plus | Qt::CTRL));
+    zoomHorInAction->setShortcut(QKeySequence(Qt::Key_Equal | Qt::CTRL));
     connect(zoomHorInAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomHorIn()));
     zoomMenu->addAction(zoomHorInAction);
@@ -2528,7 +2528,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     QAction* zoomVerInAction = new QAction(tr("Vertical in"), this);
     zoomVerInAction->setIcon(QIcon(":/run_environment/graphics/tool/zoom_ver_in.png"));
-    zoomVerInAction->setShortcut(QKeySequence(Qt::Key_Plus | Qt::CTRL | Qt::ALT));
+    zoomVerInAction->setShortcut(QKeySequence(Qt::Key_Equal | Qt::CTRL | Qt::ALT));
     connect(zoomVerInAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
@@ -2536,7 +2536,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     zoomMenu->addSeparator();
 
     QAction* zoomStdAction = new QAction(tr("Restore default"), this);
-    zoomStdAction->setShortcut(QKeySequence(Qt::Key_0 | Qt::CTRL));
+    zoomStdAction->setShortcut(QKeySequence(Qt::Key_0 | Qt::CTRL | Qt::SHIFT));
     connect(zoomStdAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomStd()));
     zoomMenu->addAction(zoomStdAction);
