@@ -48,6 +48,9 @@ void Appearance::init(QSettings *settings){
 
     // Apply the style after loading settings
     applyStyle();
+
+    // Connect to system theme changes
+    connectToSystemThemeChanges();
 }
 
 QColor *Appearance::channelColor(int channel){
@@ -238,6 +241,8 @@ QString Appearance::applicationStyle(){
 void Appearance::setApplicationStyle(const QString& style){
     _applicationStyle = style;
     applyStyle();
+    // Refresh colors when style changes since dark mode behavior depends on style
+    refreshColors();
 }
 
 int Appearance::toolbarIconSize(){
@@ -293,21 +298,9 @@ void Appearance::notifyIconSizeChanged(){
 
 // Dark mode detection and color scheme methods
 bool Appearance::isDarkModeEnabled() {
-    // Use Qt's built-in dark mode detection (Qt 6.5+)
+    // Use Qt's built-in dark mode detection
     QStyleHints* hints = QApplication::styleHints();
-
-    // Qt 6.5+ has colorScheme() method that returns Qt::ColorScheme::Dark or Qt::ColorScheme::Light
-#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     return hints->colorScheme() == Qt::ColorScheme::Dark;
-#else
-    // Fallback for older Qt versions: check system palette
-    QPalette palette = QApplication::palette();
-    QColor windowColor = palette.color(QPalette::Window);
-    QColor textColor = palette.color(QPalette::WindowText);
-
-    // If window is darker than text, we're in dark mode
-    return windowColor.lightness() < textColor.lightness();
-#endif
 }
 
 bool Appearance::shouldUseDarkMode() {
@@ -330,14 +323,42 @@ QColor Appearance::backgroundColor() {
     if (shouldUseDarkMode()) {
         return QColor(45, 45, 45); // Dark gray
     }
-    return QColor(240, 240, 240); // Light gray
+    return Qt::darkGray; // Original Qt color for light mode
+}
+
+QColor Appearance::backgroundShade() {
+    if (shouldUseDarkMode()) {
+        return QColor(60, 60, 60); // Dark gray shade
+    }
+    return Qt::darkGray; // Original Qt color for light mode
 }
 
 QColor Appearance::foregroundColor() {
     if (shouldUseDarkMode()) {
         return QColor(255, 255, 255); // White
     }
-    return QColor(0, 0, 0); // Black
+    return Qt::black; // Original Qt color for light mode
+}
+
+QColor Appearance::lightGrayColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(150, 150, 150); // Light gray for dark mode
+    }
+    return Qt::lightGray; // Original Qt color for light mode
+}
+
+QColor Appearance::darkGrayColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 100, 100); // Dark gray for dark mode
+    }
+    return Qt::darkGray; // Original Qt color for light mode
+}
+
+QColor Appearance::grayColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(128, 128, 128); // Medium gray for dark mode
+    }
+    return Qt::gray; // Original Qt color for light mode
 }
 
 QColor Appearance::pianoWhiteKeyColor() {
@@ -356,16 +377,30 @@ QColor Appearance::pianoBlackKeyColor() {
 
 QColor Appearance::pianoWhiteKeyHoverColor() {
     if (shouldUseDarkMode()) {
-        return QColor(150, 150, 150); // Medium gray for dark mode
+        return QColor(100, 100, 100); // Dark gray for hover in dark mode
     }
-    return QColor(200, 200, 200);
+    return Qt::darkGray; // Original Qt color for light mode
 }
 
 QColor Appearance::pianoBlackKeyHoverColor() {
     if (shouldUseDarkMode()) {
-        return QColor(100, 100, 100); // Lighter gray for dark mode
+        return QColor(150, 150, 150); // Light gray for hover in dark mode
     }
-    return QColor(200, 200, 200);
+    return Qt::lightGray; // Original Qt color for light mode
+}
+
+QColor Appearance::pianoWhiteKeySelectedColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(150, 150, 150); // Light gray for selected in dark mode
+    }
+    return Qt::lightGray; // Original Qt color for light mode
+}
+
+QColor Appearance::pianoBlackKeySelectedColor() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 100, 100); // Dark gray for selected in dark mode
+    }
+    return Qt::darkGray; // Original Qt color for light mode
 }
 
 QColor Appearance::stripHighlightColor() {
@@ -463,6 +498,13 @@ QColor Appearance::borderColor() {
     if (shouldUseDarkMode()) {
         return QColor(100, 100, 100); // Medium gray for dark mode
     }
+    return Qt::gray;
+}
+
+QColor Appearance::borderColorAlt() {
+    if (shouldUseDarkMode()) {
+        return QColor(100, 100, 100); // Medium gray for dark mode
+    }
     return Qt::lightGray;
 }
 
@@ -471,4 +513,42 @@ QColor Appearance::errorColor() {
         return QColor(200, 80, 80); // Lighter red for dark mode
     }
     return Qt::red;
+}
+
+void Appearance::refreshColors() {
+    // Force all widgets to update their colors by triggering a repaint
+    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    if (!app) return;
+
+    // Update all top-level widgets
+    foreach (QWidget* widget, app->topLevelWidgets()) {
+        if (widget->isVisible()) {
+            widget->update();
+            // Also update all child widgets recursively
+            QList<QWidget*> children = widget->findChildren<QWidget*>();
+            foreach (QWidget* child, children) {
+                child->update();
+            }
+        }
+    }
+}
+
+void Appearance::forceColorRefresh() {
+    // Public method that can be called from settings dialogs or other places
+    refreshColors();
+}
+
+void Appearance::connectToSystemThemeChanges() {
+    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    if (!app) return;
+
+    // Connect to system theme change detection
+    QStyleHints* hints = app->styleHints();
+
+    // Connect to colorSchemeChanged signal
+    QObject::connect(hints, &QStyleHints::colorSchemeChanged, [](Qt::ColorScheme colorScheme) {
+        Q_UNUSED(colorScheme)
+        // Refresh colors when system theme changes
+        refreshColors();
+    });
 }

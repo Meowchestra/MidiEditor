@@ -36,6 +36,43 @@ public:
     static QStringList availableStyles();
     static void applyStyle();
     static void notifyIconSizeChanged();
+    static void forceColorRefresh(); // Public method to manually trigger color refresh
+
+    // Dark mode support
+    static bool isDarkModeEnabled();
+    static bool shouldUseDarkMode();
+    static void refreshColors(); // Refresh all UI colors when theme changes
+    static void connectToSystemThemeChanges(); // Connect to system theme change signals
+
+    // Color scheme methods
+    static QColor backgroundColor();
+    static QColor backgroundShade();
+    static QColor foregroundColor();
+    static QColor lightGrayColor();
+    static QColor darkGrayColor();
+    static QColor grayColor();
+    static QColor pianoWhiteKeyColor();
+    static QColor pianoBlackKeyColor();
+    static QColor pianoWhiteKeyHoverColor();
+    static QColor pianoBlackKeyHoverColor();
+    static QColor pianoWhiteKeySelectedColor();
+    static QColor pianoBlackKeySelectedColor();
+    static QColor stripHighlightColor();
+    static QColor stripNormalColor();
+    static QColor rangeLineColor();
+    static QColor velocityBackgroundColor();
+    static QColor velocityGridColor();
+    static QColor measureBackgroundColor();
+    static QColor measureTextColor();
+    static QColor protocolTextColor();
+    static QColor protocolBackgroundColor();
+    static QColor infoBoxBackgroundColor();
+    static QColor infoBoxTextColor();
+    static QColor toolbarBackgroundColor();
+    static QColor selectionHighlightColor();
+    static QColor borderColor();
+    static QColor borderColorAlt();
+    static QColor errorColor();
 
     // Dark mode support
     static bool isDarkModeEnabled();

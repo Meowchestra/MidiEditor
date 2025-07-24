@@ -156,6 +156,8 @@ void AppearanceSettingsWidget::rangeLinesChanged(bool enabled){
 
 void AppearanceSettingsWidget::styleChanged(const QString& style){
     Appearance::setApplicationStyle(style);
+    // Force immediate color refresh for all widgets
+    Appearance::forceColorRefresh();
     update();
 }
 
