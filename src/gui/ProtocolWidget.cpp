@@ -42,6 +42,9 @@ ProtocolWidget::ProtocolWidget(QWidget* parent)
 
 void ProtocolWidget::setFile(MidiFile* f)
 {
+    //release the Kraken before attaching a new
+    if (file != NULL)
+        file->protocol()->disconnect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(protocolChanged()));
     file = f;
     protocolHasChanged = true;
     nextChangeFromList = false;
