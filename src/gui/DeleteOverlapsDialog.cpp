@@ -100,8 +100,8 @@ void DeleteOverlapsDialog::setupUI()
     _okButton = new QPushButton(tr("OK"), this);
     _okButton->setDefault(true);
     
-    buttonLayout->addWidget(_cancelButton);
     buttonLayout->addWidget(_okButton);
+    buttonLayout->addWidget(_cancelButton);
     
     mainLayout->addLayout(buttonLayout);
 }

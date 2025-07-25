@@ -44,6 +44,8 @@ class Update;
 class SelectionNavigator;
 class TweakTarget;
 
+#include "ToolbarActionInfo.h"
+
 class MainWindow : public QMainWindow {
 
     Q_OBJECT
@@ -235,10 +237,18 @@ class MainWindow : public QMainWindow {
     MiscWidget* _miscWidget;
 
     QWidget* setupActions(QWidget* parent);
+    void rebuildToolbar();
+    QAction* getActionById(const QString& actionId);
+    QWidget* createCustomToolbar(QWidget* parent);
+    QWidget* createSimpleCustomToolbar(QWidget* parent);
+    QList<ToolbarActionInfo> getDefaultActionsForPlaceholder();
+    void refreshToolbarIcons();
 
     int _quantizationGrid;
     int quantize(int t, QList<int> ticks);
     QList<QAction*> _activateWithSelections;
+    QWidget* _toolbarWidget;
+    QMap<QString, QAction*> _actionMap;
 
     TweakTarget* currentTweakTarget;
     SelectionNavigator* selectionNavigator;

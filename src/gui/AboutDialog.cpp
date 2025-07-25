@@ -112,6 +112,9 @@ AboutDialog::AboutDialog(QWidget* parent)
         a->setStyleSheet("background-color: white");
     }
 
+    // Ensure the scroll area uses the application style
+    a->setStyle(QApplication::style());
+
     content->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
     content->setOpenExternalLinks(true);
 

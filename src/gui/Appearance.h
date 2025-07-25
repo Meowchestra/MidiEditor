@@ -42,6 +42,14 @@ public:
     static void setToolbarIconSize(int size);
     static QStringList availableStyles();
 
+    // Toolbar Layout options
+    static bool toolbarTwoRowMode();
+    static void setToolbarTwoRowMode(bool twoRows);
+    static QStringList toolbarActionOrder();
+    static void setToolbarActionOrder(const QStringList& order);
+    static QStringList toolbarEnabledActions();
+    static void setToolbarEnabledActions(const QStringList& enabled);
+
     // High DPI scaling control
     static void setIgnoreSystemScaling(bool ignore);
     static bool ignoreSystemScaling();
@@ -133,6 +141,9 @@ private:
     static bool _showRangeLines;
     static QString _applicationStyle;
     static int _toolbarIconSize;
+    static bool _toolbarTwoRowMode;
+    static QStringList _toolbarActionOrder;
+    static QStringList _toolbarEnabledActions;
     static bool _ignoreSystemScaling;
     static bool _useRoundedScaling;
 };

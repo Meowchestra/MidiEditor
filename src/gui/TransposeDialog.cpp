@@ -29,6 +29,8 @@
 
 TransposeDialog::TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file, QWidget* parent) {
 
+    setWindowTitle(tr("Transpose Selection"));
+
     QLabel* text = new QLabel(tr("Number of semitones: "), this);
     _valueBox = new QSpinBox(this);
     _valueBox->setMinimum(0);
@@ -52,8 +54,8 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file
     layout->addWidget(_valueBox, 0, 1, 1, 2);
     layout->addWidget(_up, 1, 0, 1, 1);
     layout->addWidget(_down, 1, 2, 1, 1);
-    layout->addWidget(breakButton, 2, 0, 1, 1);
-    layout->addWidget(acceptButton, 2, 2, 1, 1);
+    layout->addWidget(acceptButton, 2, 0, 1, 1);
+    layout->addWidget(breakButton, 2, 2, 1, 1);
     layout->setColumnStretch(1, 1);
 
     _valueBox->setFocus();

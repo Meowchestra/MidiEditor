@@ -43,6 +43,9 @@ QString Appearance::_applicationStyle = "windowsvista";
 int Appearance::_toolbarIconSize = 20;
 bool Appearance::_ignoreSystemScaling = false;
 bool Appearance::_useRoundedScaling = false;
+bool Appearance::_toolbarTwoRowMode = false;
+QStringList Appearance::_toolbarActionOrder = QStringList();
+QStringList Appearance::_toolbarEnabledActions = QStringList();
 
 void Appearance::init(QSettings *settings){
     // CRITICAL: Load application style FIRST before creating any colors
@@ -67,6 +70,9 @@ void Appearance::init(QSettings *settings){
     _toolbarIconSize = settings->value("toolbar_icon_size", 20).toInt();
     _ignoreSystemScaling = settings->value("ignore_system_scaling", false).toBool();
     _useRoundedScaling = settings->value("use_rounded_scaling", false).toBool();
+    _toolbarTwoRowMode = settings->value("toolbar_two_row_mode", false).toBool();
+    _toolbarActionOrder = settings->value("toolbar_action_order", QStringList()).toStringList();
+    _toolbarEnabledActions = settings->value("toolbar_enabled_actions", QStringList()).toStringList();
 
     // Load custom color tracking FIRST
     QList<QVariant> customChannels = settings->value("custom_channel_colors", QList<QVariant>()).toList();
@@ -209,6 +215,9 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
     settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
     settings->setValue("use_rounded_scaling", _useRoundedScaling);
+    settings->setValue("toolbar_two_row_mode", _toolbarTwoRowMode);
+    settings->setValue("toolbar_action_order", _toolbarActionOrder);
+    settings->setValue("toolbar_enabled_actions", _toolbarEnabledActions);
 
     // Save custom color tracking
     QList<QVariant> customChannels;
@@ -672,6 +681,30 @@ QFont Appearance::improveFont(const QFont& font) {
     improvedFont.setHintingPreference(QFont::PreferFullHinting);
     improvedFont.setStyleStrategy(QFont::PreferAntialias);
     return improvedFont;
+}
+
+bool Appearance::toolbarTwoRowMode() {
+    return _toolbarTwoRowMode;
+}
+
+void Appearance::setToolbarTwoRowMode(bool twoRows) {
+    _toolbarTwoRowMode = twoRows;
+}
+
+QStringList Appearance::toolbarActionOrder() {
+    return _toolbarActionOrder;
+}
+
+void Appearance::setToolbarActionOrder(const QStringList& order) {
+    _toolbarActionOrder = order;
+}
+
+QStringList Appearance::toolbarEnabledActions() {
+    return _toolbarEnabledActions;
+}
+
+void Appearance::setToolbarEnabledActions(const QStringList& enabled) {
+    _toolbarEnabledActions = enabled;
 }
 
 QStringList Appearance::availableStyles(){
@@ -1273,6 +1306,16 @@ void Appearance::refreshColors() {
                 channelListWidget->update();
             }
 
+            // Refresh all LayoutSettingsWidget icons for theme changes
+            QList<QWidget*> layoutSettingsWidgets = widget->findChildren<QWidget*>("LayoutSettingsWidget");
+            foreach (QWidget* layoutWidget, layoutSettingsWidgets) {
+                // Call refreshIcons method if it exists
+                QMetaObject::invokeMethod(layoutWidget, "refreshIcons", Qt::DirectConnection);
+            }
+
+            // Refresh MainWindow toolbar icons for theme changes
+            QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
+
             // Force immediate processing of paint events
             app->processEvents();
             }
@@ -1340,29 +1383,29 @@ void Appearance::connectToSystemThemeChanges() {
     });
 }
 
-void Appearance::cleanupIconRegistry() {
-    int originalSize = registeredIconActions.size();
+void Appearance::cleanupIconRegistry() 
+{
+    std::list<QAction*> *remove_map = new std::list<QAction*>();
 
-    auto it = registeredIconActions.begin();
-    int removedCount = 0;
-
-    while (it != registeredIconActions.end()) {
-        QAction* action = it.key();
-
-        if (!action) {
-            // Remove null actions
-            it = registeredIconActions.erase(it);
-            removedCount++;
-        } else {
-            try {
-                // Test if action is still valid (minimal test)
-                action->objectName();
-                ++it;
-            } catch (...) {
-                // Action is invalid, remove it
-                it = registeredIconActions.erase(it);
-                removedCount++;
+    for (QMap<QAction*, QString>::iterator iter = registeredIconActions.begin(); iter != registeredIconActions.end(); iter++)
+    {
+        if (!iter.key())
+            remove_map->push_back(iter.key());
+        else
+        {
+            try 
+            {
+                iter.key()->objectName();
+            }
+            catch (...) 
+            {
+                remove_map->push_back(iter.key());
             }
         }
     }
+    for (std::list<QAction*>::iterator iter = remove_map->begin(); iter != remove_map->end(); iter++)
+    {
+        registeredIconActions.take(*iter);
+    }
+    delete remove_map;
 }

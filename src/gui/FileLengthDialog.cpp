@@ -41,8 +41,8 @@ FileLengthDialog::FileLengthDialog(MidiFile* f, QWidget* parent)
     QGridLayout* layout = new QGridLayout(this);
     layout->addWidget(text, 0, 0, 1, 1);
     layout->addWidget(_box, 0, 1, 1, 2);
-    layout->addWidget(breakButton, 1, 0, 1, 1);
-    layout->addWidget(acceptButton, 1, 2, 1, 1);
+    layout->addWidget(acceptButton, 1, 0, 1, 1);
+    layout->addWidget(breakButton, 1, 2, 1, 1);
     layout->setColumnStretch(1, 1);
 
     _box->setFocus();

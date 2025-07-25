@@ -119,8 +119,8 @@ TempoDialog::TempoDialog(MidiFile *file, int startTick, int endTick,  QWidget *p
     QPushButton* acceptButton = new QPushButton("Accept");
     connect(acceptButton, SIGNAL(clicked()), this, SLOT(accept()));
 
-    layout->addWidget(breakButton, 10, 1, 1, 1);
-    layout->addWidget(acceptButton, 10, 2, 1, 1);
+    layout->addWidget(acceptButton, 10, 1, 1, 1);
+    layout->addWidget(breakButton, 10, 2, 1, 1);
 }
 
 void TempoDialog::accept()

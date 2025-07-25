@@ -111,6 +111,7 @@ MainWindow::MainWindow(QString initFile)
 
     _moveSelectedEventsToChannelMenu = 0;
     _moveSelectedEventsToTrackMenu = 0;
+    _toolbarWidget = nullptr;
 
     Appearance::init(_settings);
 
@@ -2091,12 +2092,14 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(newAction, ":/run_environment/graphics/tool/new.png");
     connect(newAction, SIGNAL(triggered()), this, SLOT(newFile()));
     fileMB->addAction(newAction);
+    _actionMap["new"] = newAction;
 
     QAction* loadAction = new QAction(tr("Open..."), this);
     loadAction->setShortcut(QKeySequence::Open);
     Appearance::setActionIcon(loadAction, ":/run_environment/graphics/tool/load.png");
     connect(loadAction, SIGNAL(triggered()), this, SLOT(load()));
     fileMB->addAction(loadAction);
+    _actionMap["open"] = loadAction;
 
     _recentPathsMenu = new QMenu(tr("Open recent..."), this);
     _recentPathsMenu->setIcon(Appearance::adjustIconForDarkMode(":/run_environment/graphics/tool/noicon.png"));
@@ -2112,6 +2115,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(saveAction, ":/run_environment/graphics/tool/save.png");
     connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
     fileMB->addAction(saveAction);
+    _actionMap["save"] = saveAction;
 
     QAction* saveAsAction = new QAction(tr("Save as..."), this);
     saveAsAction->setShortcut(QKeySequence::SaveAs);
@@ -2133,12 +2137,14 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(undoAction, ":/run_environment/graphics/tool/undo.png");
     connect(undoAction, SIGNAL(triggered()), this, SLOT(undo()));
     editMB->addAction(undoAction);
+    _actionMap["undo"] = undoAction;
 
     redoAction = new QAction(tr("Redo"), this);
     redoAction->setShortcut(QKeySequence::Redo);
     Appearance::setActionIcon(redoAction, ":/run_environment/graphics/tool/redo.png");
     connect(redoAction, SIGNAL(triggered()), this, SLOT(redo()));
     editMB->addAction(redoAction);
+    _actionMap["redo"] = redoAction;
 
     editMB->addSeparator();
 
@@ -2200,12 +2206,14 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     copyAction->setShortcut(QKeySequence::Copy);
     connect(copyAction, SIGNAL(triggered()), this, SLOT(copy()));
     editMB->addAction(copyAction);
+    _actionMap["copy"] = copyAction;
 
     _pasteAction = new QAction(tr("Paste events"), this);
     _pasteAction->setToolTip(tr("Paste events at cursor position"));
     _pasteAction->setShortcut(QKeySequence::Paste);
     Appearance::setActionIcon(_pasteAction, ":/run_environment/graphics/tool/paste.png");
     connect(_pasteAction, SIGNAL(triggered()), this, SLOT(paste()));
+    _actionMap["paste"] = _pasteAction;
 
     _pasteToTrackMenu = new QMenu(tr("Paste to track..."));
     _pasteToChannelMenu = new QMenu(tr("Paste to channel..."));
@@ -2238,7 +2246,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     editMB->addSeparator();
 
-    QAction* configAction = new QAction(tr("Settings..."), this);
+    QAction* configAction = new QAction(tr("Settings"), this);
     Appearance::setActionIcon(configAction, ":/run_environment/graphics/tool/config.png");
     connect(configAction, SIGNAL(triggered()), this, SLOT(openConfig()));
     editMB->addAction(configAction);
@@ -2251,11 +2259,14 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     stdToolAction = new ToolButton(tool, QKeySequence(Qt::Key_F1), toolsToolsMenu);
     toolsToolsMenu->addAction(stdToolAction);
     tool->buttonClick();
+    _actionMap["standard_tool"] = stdToolAction;
 
     QAction* newNoteAction = new ToolButton(new NewNoteTool(), QKeySequence(Qt::Key_F2), toolsToolsMenu);
     toolsToolsMenu->addAction(newNoteAction);
+    _actionMap["new_note"] = newNoteAction;
     QAction* removeNotesAction = new ToolButton(new EraserTool(), QKeySequence(Qt::Key_F3), toolsToolsMenu);
     toolsToolsMenu->addAction(removeNotesAction);
+    _actionMap["remove_notes"] = removeNotesAction;
 
     toolsToolsMenu->addSeparator();
 
@@ -2265,8 +2276,10 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     toolsToolsMenu->addAction(selectBoxAction);
     QAction* selectLeftAction = new ToolButton(new SelectTool(SELECTION_TYPE_LEFT), QKeySequence(Qt::Key_F6), toolsToolsMenu);
     toolsToolsMenu->addAction(selectLeftAction);
+    _actionMap["select_left"] = selectLeftAction;
     QAction* selectRightAction = new ToolButton(new SelectTool(SELECTION_TYPE_RIGHT), QKeySequence(Qt::Key_F7), toolsToolsMenu);
     toolsToolsMenu->addAction(selectRightAction);
+    _actionMap["select_right"] = selectRightAction;
 
     toolsToolsMenu->addSeparator();
 
@@ -2282,15 +2295,19 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QAction* sizeChangeAction = new ToolButton(new SizeChangeTool(), QKeySequence(Qt::Key_F11), toolsToolsMenu);
     _activateWithSelections.append(sizeChangeAction);
     toolsToolsMenu->addAction(sizeChangeAction);
+    _actionMap["size_change"] = sizeChangeAction;
 
     toolsToolsMenu->addSeparator();
 
     QAction* measureAction= new ToolButton(new MeasureTool(), QKeySequence(Qt::Key_F12), toolsToolsMenu);
     toolsToolsMenu->addAction(measureAction);
+    _actionMap["measure"] = measureAction;
     QAction* timeSignatureAction= new ToolButton(new TimeSignatureTool(), QKeySequence(Qt::Key_F13), toolsToolsMenu);
     toolsToolsMenu->addAction(timeSignatureAction);
+    _actionMap["time_signature"] = timeSignatureAction;
     QAction* tempoAction= new ToolButton(new TempoTool(), QKeySequence(Qt::Key_F14), toolsToolsMenu);
     toolsToolsMenu->addAction(tempoAction);
+    _actionMap["tempo"] = tempoAction;
 
     toolsMB->addMenu(toolsToolsMenu);
 
@@ -2378,6 +2395,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(deleteAction, ":/run_environment/graphics/tool/eraser.png");
     connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteSelectedEvents()));
     toolsMB->addAction(deleteAction);
+    _actionMap["delete"] = deleteAction;
 
     toolsMB->addSeparator();
 
@@ -2387,6 +2405,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(alignLeftAction, ":/run_environment/graphics/tool/align_left.png");
     connect(alignLeftAction, SIGNAL(triggered()), this, SLOT(alignLeft()));
     toolsMB->addAction(alignLeftAction);
+    _actionMap["align_left"] = alignLeftAction;
 
     QAction* alignRightAction = new QAction(tr("Align right"), this);
     _activateWithSelections.append(alignRightAction);
@@ -2394,6 +2413,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     alignRightAction->setShortcut(QKeySequence(Qt::Key_Right | Qt::CTRL));
     connect(alignRightAction, SIGNAL(triggered()), this, SLOT(alignRight()));
     toolsMB->addAction(alignRightAction);
+    _actionMap["align_right"] = alignRightAction;
 
     QAction* equalizeAction = new QAction(tr("Equalize selection"), this);
     _activateWithSelections.append(equalizeAction);
@@ -2401,6 +2421,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     equalizeAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::CTRL));
     connect(equalizeAction, SIGNAL(triggered()), this, SLOT(equalize()));
     toolsMB->addAction(equalizeAction);
+    _actionMap["equalize"] = equalizeAction;
 
     toolsMB->addSeparator();
 
@@ -2410,6 +2431,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(glueNotesAction, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueNotesAction);
     toolsMB->addAction(glueNotesAction);
+    _actionMap["glue"] = glueNotesAction;
 
     QAction* glueNotesAllChannelsAction = new QAction(tr("Glue notes (all channels)"), this);
     glueNotesAllChannelsAction->setShortcut(QKeySequence(Qt::Key_G | Qt::CTRL | Qt::SHIFT));
@@ -2417,16 +2439,19 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(glueNotesAllChannelsAction, SIGNAL(triggered()), this, SLOT(glueSelectionAllChannels()));
     _activateWithSelections.append(glueNotesAllChannelsAction);
     toolsMB->addAction(glueNotesAllChannelsAction);
+    _actionMap["glue_all_channels"] = glueNotesAllChannelsAction;
 
     QAction* scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(Qt::Key_X | Qt::CTRL), toolsMB);
     toolsMB->addAction(scissorsAction);
+    _actionMap["scissors"] = scissorsAction;
 
-    QAction* deleteOverlapsAction = new QAction(tr("Delete overlaps..."), this);
+    QAction* deleteOverlapsAction = new QAction(tr("Delete overlaps"), this);
     deleteOverlapsAction->setShortcut(QKeySequence(Qt::Key_D | Qt::CTRL));
     Appearance::setActionIcon(deleteOverlapsAction, ":/run_environment/graphics/tool/deleteoverlap.png");
     connect(deleteOverlapsAction, SIGNAL(triggered()), this, SLOT(deleteOverlaps()));
     _activateWithSelections.append(deleteOverlapsAction);
     toolsMB->addAction(deleteOverlapsAction);
+    _actionMap["delete_overlaps"] = deleteOverlapsAction;
 
     toolsMB->addSeparator();
 
@@ -2436,8 +2461,9 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     quantizeAction->setShortcut(QKeySequence(Qt::Key_Q | Qt::CTRL));
     connect(quantizeAction, SIGNAL(triggered()), this, SLOT(quantizeSelection()));
     toolsMB->addAction(quantizeAction);
+    _actionMap["quantize"] = quantizeAction;
 
-    QMenu* quantMenu = new QMenu(tr("Quantization fractions"), viewMB);
+    QMenu* quantMenu = new QMenu(tr("Quantization fractions..."), viewMB);
     QActionGroup* quantGroup = new QActionGroup(viewMB);
     quantGroup->setExclusive(true);
 
@@ -2465,7 +2491,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(quantMenu, SIGNAL(triggered(QAction*)), this, SLOT(quantizationChanged(QAction*)));
     toolsMB->addMenu(quantMenu);
 
-    QAction* quantizeNToleAction = new QAction(tr("Quantify tuplet..."), this);
+    QAction* quantizeNToleAction = new QAction(tr("Quantify tuplet"), this);
     _activateWithSelections.append(quantizeNToleAction);
     quantizeNToleAction->setShortcut(QKeySequence(Qt::Key_H | Qt::CTRL | Qt::SHIFT));
     connect(quantizeNToleAction, SIGNAL(triggered()), this, SLOT(quantizeNtoleDialog()));
@@ -2477,16 +2503,29 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(quantizeNToleActionRepeat, SIGNAL(triggered()), this, SLOT(quantizeNtole()));
     toolsMB->addAction(quantizeNToleActionRepeat);
 
-    //toolsMB->addSeparator();
+    toolsMB->addSeparator();
 
-    QAction* spreadAction = new QAction(tr("Spread selection"), this);
-    _activateWithSelections.append(spreadAction);
-    connect(spreadAction, SIGNAL(triggered()), this, SLOT(spreadSelection()));
-    //toolsMB->addAction(spreadAction);
+    QAction* transposeAction = new QAction(tr("Transpose selection"), this);
+    _activateWithSelections.append(transposeAction);
+    transposeAction->setShortcut(QKeySequence(Qt::Key_T | Qt::CTRL));
+    connect(transposeAction, SIGNAL(triggered()), this, SLOT(transposeNSemitones()));
+    toolsMB->addAction(transposeAction);
+
+    QAction* transposeOctaveUpAction = new QAction(tr("Transpose octave up"), this);
+    _activateWithSelections.append(transposeOctaveUpAction);
+    transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
+    connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
+    toolsMB->addAction(transposeOctaveUpAction);
+
+    QAction* transposeOctaveDownAction = new QAction(tr("Transpose octave down"), this);
+    _activateWithSelections.append(transposeOctaveDownAction);
+    transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
+    connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
+    toolsMB->addAction(transposeOctaveDownAction);
 
     toolsMB->addSeparator();
 
-    QAction* addTrackAction = new QAction(tr("Add track..."), toolsMB);
+    QAction* addTrackAction = new QAction(tr("Add track"), toolsMB);
     toolsMB->addAction(addTrackAction);
     connect(addTrackAction, SIGNAL(triggered()), this, SLOT(addTrack()));
 
@@ -2520,26 +2559,6 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     toolsMB->addSeparator();
 
-    QAction* transposeAction = new QAction(tr("Transpose selection..."), this);
-    _activateWithSelections.append(transposeAction);
-    transposeAction->setShortcut(QKeySequence(Qt::Key_T | Qt::CTRL));
-    connect(transposeAction, SIGNAL(triggered()), this, SLOT(transposeNSemitones()));
-    toolsMB->addAction(transposeAction);
-
-    QAction* transposeOctaveUpAction = new QAction(tr("Transpose octave up"), this);
-    _activateWithSelections.append(transposeOctaveUpAction);
-    transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
-    connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
-    toolsMB->addAction(transposeOctaveUpAction);
-
-    QAction* transposeOctaveDownAction = new QAction(tr("Transpose octave down"), this);
-    _activateWithSelections.append(transposeOctaveDownAction);
-    transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
-    connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
-    toolsMB->addAction(transposeOctaveDownAction);
-
-    toolsMB->addSeparator();
-
     QAction* setFileLengthMs = new QAction(tr("Set file duration"), this);
     connect(setFileLengthMs, SIGNAL(triggered()), this, SLOT(setFileLengthMs()));
     toolsMB->addAction(setFileLengthMs);
@@ -2559,6 +2578,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     magnetAction->setChecked(false);
     magnetAction->setChecked(EventTool::magnetEnabled());
     connect(magnetAction, SIGNAL(toggled(bool)), this, SLOT(enableMagnet(bool)));
+    _actionMap["magnet"] = magnetAction;
 
     // View
     QMenu* zoomMenu = new QMenu(tr("Zoom..."), viewMB);
@@ -2568,6 +2588,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(zoomHorOutAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomHorOut()));
     zoomMenu->addAction(zoomHorOutAction);
+    _actionMap["zoom_hor_out"] = zoomHorOutAction;
 
     QAction* zoomHorInAction = new QAction(tr("Horizontal in"), this);
     Appearance::setActionIcon(zoomHorInAction, ":/run_environment/graphics/tool/zoom_hor_in.png");
@@ -2575,6 +2596,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(zoomHorInAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomHorIn()));
     zoomMenu->addAction(zoomHorInAction);
+    _actionMap["zoom_hor_in"] = zoomHorInAction;
 
     QAction* zoomVerOutAction = new QAction(tr("Vertical out"), this);
     Appearance::setActionIcon(zoomVerOutAction, ":/run_environment/graphics/tool/zoom_ver_out.png");
@@ -2582,6 +2604,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(zoomVerOutAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomVerOut()));
     zoomMenu->addAction(zoomVerOutAction);
+    _actionMap["zoom_ver_out"] = zoomVerOutAction;
 
     QAction* zoomVerInAction = new QAction(tr("Vertical in"), this);
     Appearance::setActionIcon(zoomVerInAction, ":/run_environment/graphics/tool/zoom_ver_in.png");
@@ -2589,6 +2612,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(zoomVerInAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
+    _actionMap["zoom_ver_in"] = zoomVerInAction;
 
     zoomMenu->addSeparator();
 
@@ -2617,7 +2641,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     viewMB->addSeparator();
 
-    QMenu* colorMenu = new QMenu(tr("Colors ..."), viewMB);
+    QMenu* colorMenu = new QMenu(tr("Colors..."), viewMB);
     _colorsByChannel = new QAction(tr("From channels"), this);
     _colorsByChannel->setCheckable(true);
     connect(_colorsByChannel, SIGNAL(triggered()), this, SLOT(colorsByChannel()));
@@ -2632,7 +2656,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     viewMB->addSeparator();
 
-    QMenu* divMenu = new QMenu(tr("Raster"), viewMB);
+    QMenu* divMenu = new QMenu(tr("Raster..."), viewMB);
     QActionGroup* divGroup = new QActionGroup(viewMB);
     divGroup->setExclusive(true);
 
@@ -2671,6 +2695,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     Appearance::setActionIcon(playAction, ":/run_environment/graphics/tool/play.png");
     connect(playAction, SIGNAL(triggered()), this, SLOT(play()));
     playbackMB->addAction(playAction);
+    _actionMap["play"] = playAction;
 
     QAction* pauseAction = new QAction(tr("Pause"), this);
     Appearance::setActionIcon(pauseAction, ":/run_environment/graphics/tool/pause.png");
@@ -2681,17 +2706,20 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 #endif
     connect(pauseAction, SIGNAL(triggered()), this, SLOT(pause()));
     playbackMB->addAction(pauseAction);
+    _actionMap["pause"] = pauseAction;
 
     QAction* recAction = new QAction(tr("Record"), this);
     Appearance::setActionIcon(recAction, ":/run_environment/graphics/tool/record.png");
     recAction->setShortcut(QKeySequence(Qt::Key_R | Qt::CTRL));
     connect(recAction, SIGNAL(triggered()), this, SLOT(record()));
     playbackMB->addAction(recAction);
+    _actionMap["record"] = recAction;
 
     QAction* stopAction = new QAction(tr("Stop"), this);
     Appearance::setActionIcon(stopAction, ":/run_environment/graphics/tool/stop.png");
     connect(stopAction, SIGNAL(triggered()), this, SLOT(stop()));
     playbackMB->addAction(stopAction);
+    _actionMap["stop"] = stopAction;
 
     playbackMB->addSeparator();
 
@@ -2704,6 +2732,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     backToBeginAction->setShortcuts(backToBeginActionShortcuts);
     connect(backToBeginAction, SIGNAL(triggered()), this, SLOT(backToBegin()));
     playbackMB->addAction(backToBeginAction);
+    _actionMap["back_to_begin"] = backToBeginAction;
 
     QAction* backAction = new QAction(tr("Previous measure"), this);
     Appearance::setActionIcon(backAction, ":/run_environment/graphics/tool/back.png");
@@ -2712,6 +2741,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     backAction->setShortcuts(backActionShortcuts);
     connect(backAction, SIGNAL(triggered()), this, SLOT(back()));
     playbackMB->addAction(backAction);
+    _actionMap["back"] = backAction;
 
     QAction* forwAction = new QAction(tr("Next measure"), this);
     Appearance::setActionIcon(forwAction, ":/run_environment/graphics/tool/forward.png");
@@ -2720,6 +2750,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     forwAction->setShortcuts(forwActionShortcuts);
     connect(forwAction, SIGNAL(triggered()), this, SLOT(forward()));
     playbackMB->addAction(forwAction);
+    _actionMap["forward"] = forwAction;
 
     playbackMB->addSeparator();
 
@@ -2729,6 +2760,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     backMarkerAction->setShortcut(QKeySequence(Qt::Key_Comma | Qt::ALT));
     connect(backMarkerAction, SIGNAL(triggered()), this, SLOT(backMarker()));
     playbackMB->addAction(backMarkerAction);
+    _actionMap["back_marker"] = backMarkerAction;
 
     QAction* forwMarkerAction = new QAction(tr("Next marker"), this);
     Appearance::setActionIcon(forwMarkerAction, ":/run_environment/graphics/tool/forward_marker.png");
@@ -2736,6 +2768,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     forwMarkerAction->setShortcut(QKeySequence(Qt::Key_Period | Qt::ALT));
     connect(forwMarkerAction, SIGNAL(triggered()), this, SLOT(forwardMarker()));
     playbackMB->addAction(forwMarkerAction);
+    _actionMap["forward_marker"] = forwMarkerAction;
 
     playbackMB->addSeparator();
 
@@ -2780,6 +2813,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(lockAction, SIGNAL(toggled(bool)), this, SLOT(screenLockPressed(bool)));
     playbackMB->addAction(lockAction);
     lockAction->setChecked(mw_matrixWidget->screenLocked());
+    _actionMap["lock"] = lockAction;
 
     QAction* metronomeAction = new QAction(tr("Metronome"), this);
     Appearance::setActionIcon(metronomeAction, ":/run_environment/graphics/tool/metronome.png");
@@ -2787,15 +2821,16 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     metronomeAction->setChecked(Metronome::enabled());
     connect(metronomeAction, SIGNAL(toggled(bool)), this, SLOT(enableMetronome(bool)));
     playbackMB->addAction(metronomeAction);
+    _actionMap["metronome"] = metronomeAction;
 
-    QAction* pianoEmulationAction = new QAction(tr("Piano Emulation"), this);
+    QAction* pianoEmulationAction = new QAction(tr("Piano emulation"), this);
     pianoEmulationAction->setCheckable(true);
     pianoEmulationAction->setChecked(mw_matrixWidget->getPianoEmulation());
     connect(pianoEmulationAction, SIGNAL(toggled(bool)), this, SLOT(togglePianoEmulation(bool)));
     playbackMB->addAction(pianoEmulationAction);
 
     // Midi
-    QAction* configAction2 = new QAction(tr("Settings..."), this);
+    QAction* configAction2 = new QAction(tr("Settings"), this);
     Appearance::setActionIcon(configAction2, ":/run_environment/graphics/tool/config.png");
     connect(configAction2, SIGNAL(triggered()), this, SLOT(openConfig()));
     midiMB->addAction(configAction2);
@@ -2806,6 +2841,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     thruAction->setChecked(MidiInput::thru());
     connect(thruAction, SIGNAL(toggled(bool)), this, SLOT(enableThru(bool)));
     midiMB->addAction(thruAction);
+    _actionMap["thru"] = thruAction;
 
     midiMB->addSeparator();
 
@@ -2816,15 +2852,22 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     midiMB->addAction(panicAction);
 
     // Help
-    QAction* manualAction = new QAction(tr("Manual"), this);
-    connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
-    helpMB->addAction(manualAction);
-
     QAction* aboutAction = new QAction(tr("About MidiEditor"), this);
     connect(aboutAction, SIGNAL(triggered()), this, SLOT(about()));
     helpMB->addAction(aboutAction);
 
-    // Button bar
+    QAction* manualAction = new QAction(tr("Manual"), this);
+    connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
+    helpMB->addAction(manualAction);
+
+    // Phase 2: Use full custom toolbar with settings integration
+    _toolbarWidget = createCustomToolbar(parent);
+    return _toolbarWidget;
+}
+
+QWidget* MainWindow::createSimpleCustomToolbar(QWidget* parent) {
+    // Step 1: Simple custom toolbar with hard-coded safe layout
+    // No settings dependencies, no complex logic - just basic customization
 
     QWidget* buttonBar = new QWidget(parent);
     QGridLayout* btnLayout = new QGridLayout(buttonBar);
@@ -2833,108 +2876,52 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     btnLayout->setSpacing(0);
     buttonBar->setContentsMargins(0, 0, 0, 0);
 
-    QToolBar* toolBar = new QToolBar("File", buttonBar);
+    QToolBar* toolBar = new QToolBar("Custom", buttonBar);
     toolBar->setFloatable(false);
     toolBar->setContentsMargins(0, 0, 0, 0);
     toolBar->layout()->setSpacing(3);
     int iconSize = Appearance::toolbarIconSize();
     toolBar->setIconSize(QSize(iconSize, iconSize));
-    toolBar->addAction(newAction);
     toolBar->setStyleSheet("QToolBar { border: 0px }");
 
-    QAction* loadAction2 = new QAction(tr("Open..."), this);
-    Appearance::setActionIcon(loadAction2, ":/run_environment/graphics/tool/load.png");
-    connect(loadAction2, SIGNAL(triggered()), this, SLOT(load()));
-    loadAction2->setMenu(_recentPathsMenu);
-    toolBar->addAction(loadAction2);
+    // Add actions manually to ensure proper layout and functionality
+    // This replicates the essential parts of the original toolbar
 
-    toolBar->addAction(saveAction);
+    // File actions
+    if (_actionMap.contains("new")) toolBar->addAction(_actionMap["new"]);
+
+    // Simple open action (recent files menu will be added in later steps)
+    if (_actionMap.contains("open")) {
+        toolBar->addAction(_actionMap["open"]);
+    }
+
+    if (_actionMap.contains("save")) toolBar->addAction(_actionMap["save"]);
     toolBar->addSeparator();
 
-    toolBar->addAction(undoAction);
-    toolBar->addAction(redoAction);
-
+    // Edit actions
+    if (_actionMap.contains("undo")) toolBar->addAction(_actionMap["undo"]);
+    if (_actionMap.contains("redo")) toolBar->addAction(_actionMap["redo"]);
     toolBar->addSeparator();
 
-    toolBar->addAction(stdToolAction);
-    toolBar->addAction(selectLeftAction);
-    toolBar->addAction(selectRightAction);
+    // Tool actions
+    if (_actionMap.contains("standard_tool")) toolBar->addAction(_actionMap["standard_tool"]);
+    if (_actionMap.contains("new_note")) toolBar->addAction(_actionMap["new_note"]);
+    if (_actionMap.contains("copy")) toolBar->addAction(_actionMap["copy"]);
 
-    toolBar->addSeparator();
-
-    toolBar->addAction(newNoteAction);
-    toolBar->addAction(removeNotesAction);
-    toolBar->addAction(copyAction);
-
-    pasteActionTB = new QAction(tr("Paste events"), this);
-    pasteActionTB->setToolTip(tr("Paste events at cursor position"));
-    Appearance::setActionIcon(pasteActionTB, ":/run_environment/graphics/tool/paste.png");
-    connect(pasteActionTB, SIGNAL(triggered()), this, SLOT(paste()));
-    pasteActionTB->setMenu(pasteOptionsMenu);
-    toolBar->addAction(pasteActionTB);
-
-    toolBar->addSeparator();
-
-    QAction* glueActionTB = new QAction(tr("Glue notes"), this);
-    glueActionTB->setToolTip(tr("Glue notes (same channel)"));
-    Appearance::setActionIcon(glueActionTB, ":/run_environment/graphics/tool/glue.png");
-    connect(glueActionTB, SIGNAL(triggered()), this, SLOT(glueSelection()));
-    _activateWithSelections.append(glueActionTB);
-    toolBar->addAction(glueActionTB);
-
-    toolBar->addAction(scissorsAction);
-
-    QAction* deleteOverlapsActionTB = new QAction(tr("Delete overlaps..."), this);
-    deleteOverlapsActionTB->setToolTip(tr("Delete overlaps..."));
-    Appearance::setActionIcon(deleteOverlapsActionTB, ":/run_environment/graphics/tool/deleteoverlap.png");
-    connect(deleteOverlapsActionTB, SIGNAL(triggered()), this, SLOT(deleteOverlaps()));
-    _activateWithSelections.append(deleteOverlapsActionTB);
-    toolBar->addAction(deleteOverlapsActionTB);
+    // Simple paste action (menu will be added in later steps)
+    if (_actionMap.contains("paste")) {
+        toolBar->addAction(_actionMap["paste"]);
+    }
 
     toolBar->addSeparator();
 
-    toolBar->addAction(backToBeginAction);
-    toolBar->addAction(backMarkerAction);
-    toolBar->addAction(backAction);
-    toolBar->addAction(playAction);
-    toolBar->addAction(pauseAction);
-    toolBar->addAction(stopAction);
-    toolBar->addAction(recAction);
-    toolBar->addAction(forwAction);
-    toolBar->addAction(forwMarkerAction);
-
-    toolBar->addSeparator();
-
-    toolBar->addAction(metronomeAction);
-
-    toolBar->addAction(alignLeftAction);
-    toolBar->addAction(equalizeAction);
-    toolBar->addAction(alignRightAction);
-
-    toolBar->addSeparator();
-
-    toolBar->addAction(zoomHorInAction);
-    toolBar->addAction(zoomHorOutAction);
-    toolBar->addAction(zoomVerInAction);
-    toolBar->addAction(zoomVerOutAction);
-
-    toolBar->addAction(lockAction);
-
-    toolBar->addSeparator();
-
-    toolBar->addAction(quantizeAction);
-    toolBar->addAction(magnetAction);
-
-    toolBar->addSeparator();
-
-    toolBar->addAction(thruAction);
-    toolBar->addSeparator();
-    toolBar->addAction(measureAction);
-    toolBar->addAction(timeSignatureAction);
-    toolBar->addAction(tempoAction);
+    // Playback actions
+    if (_actionMap.contains("play")) toolBar->addAction(_actionMap["play"]);
+    if (_actionMap.contains("pause")) toolBar->addAction(_actionMap["pause"]);
+    if (_actionMap.contains("stop")) toolBar->addAction(_actionMap["stop"]);
 
     btnLayout->setColumnStretch(4, 1);
-    btnLayout->addWidget(toolBar, 0, 0, 2, 1);
+    btnLayout->addWidget(toolBar, 0, 0, 1, 1);
 
     return buttonBar;
 }
@@ -2967,6 +2954,375 @@ void MainWindow::enableMetronome(bool enable) {
 
 void MainWindow::enableThru(bool enable) {
     MidiInput::setThruEnabled(enable);
+}
+
+void MainWindow::rebuildToolbar() {
+    if (_toolbarWidget) {
+        try {
+            // Remove the old toolbar
+            QWidget* parent = _toolbarWidget->parentWidget();
+            _toolbarWidget->setParent(nullptr);
+            delete _toolbarWidget;
+
+            // Create new toolbar
+            _toolbarWidget = createCustomToolbar(parent);
+
+            // Add it back to the layout
+            QGridLayout* layout = qobject_cast<QGridLayout*>(parent->layout());
+            if (layout) {
+                layout->addWidget(_toolbarWidget, 0, 0);
+            }
+        } catch (...) {
+            // If rebuild fails, create a minimal toolbar
+            if (_toolbarWidget && _toolbarWidget->parentWidget()) {
+                QWidget* parent = _toolbarWidget->parentWidget();
+                _toolbarWidget = new QWidget(parent);
+                QGridLayout* layout = qobject_cast<QGridLayout*>(parent->layout());
+                if (layout) {
+                    layout->addWidget(_toolbarWidget, 0, 0);
+                }
+            }
+        }
+    }
+}
+
+QAction* MainWindow::getActionById(const QString& actionId) {
+    return _actionMap.value(actionId, nullptr);
+}
+
+QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
+    QWidget* buttonBar = new QWidget(parent);
+    QGridLayout* btnLayout = new QGridLayout(buttonBar);
+
+    buttonBar->setLayout(btnLayout);
+    btnLayout->setSpacing(0);
+    buttonBar->setContentsMargins(0, 0, 0, 0);
+
+    // Safety check - if Appearance is not initialized, create a simple toolbar
+    bool twoRowMode = false;
+    QStringList actionOrder;
+    QStringList enabledActions;
+
+    try {
+        twoRowMode = Appearance::toolbarTwoRowMode();
+        actionOrder = Appearance::toolbarActionOrder();
+        enabledActions = Appearance::toolbarEnabledActions();
+    } catch (...) {
+        // If there's any issue with settings, use safe defaults
+        twoRowMode = false;
+        actionOrder.clear();
+        enabledActions.clear();
+    }
+
+    // If no custom order is set, use default based on row mode
+    if (actionOrder.isEmpty()) {
+        if (twoRowMode) {
+            // Two-row mode: Main tools that affect notes/MIDI on top, playback/view tools on bottom
+            actionOrder << "new" << "open" << "save" << "separator1"
+                       << "undo" << "redo" << "separator2"
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "size_change" << "separator5"
+                       << "align_left" << "equalize" << "align_right" << "separator6"
+                       << "quantize" << "magnet" << "separator7"
+                       << "measure" << "time_signature" << "tempo"
+                       << "row_separator" // Special separator to indicate second row
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator8"
+                       << "metronome" << "separator9"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator10" << "thru";
+        } else {
+            // Single-row mode: Compact layout with most essential tools
+            actionOrder << "new" << "open" << "save" << "separator1"
+                       << "undo" << "redo" << "separator2"
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
+                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
+                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
+        }
+    }
+
+    // If no enabled actions are set, enable all by default
+    if (enabledActions.isEmpty()) {
+        for (const QString& actionId : actionOrder) {
+            if (!actionId.startsWith("separator") && actionId != "row_separator") {
+                enabledActions << actionId;
+            }
+        }
+    }
+
+    // If still no actions, create a comprehensive default toolbar
+    if (actionOrder.isEmpty()) {
+        if (twoRowMode) {
+            // Two-row default layout
+            actionOrder << "new" << "open" << "save" << "separator1"
+                       << "undo" << "redo" << "separator2"
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
+                       << "align_left" << "equalize" << "align_right" << "separator6"
+                       << "quantize" << "magnet" << "separator7"
+                       << "measure" << "time_signature" << "tempo"
+                       << "row_separator" // Split point for second row
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator8"
+                       << "metronome" << "separator9"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator10" << "thru";
+        } else {
+            // Single-row default layout (more comprehensive than Step 1)
+            actionOrder << "new" << "open" << "save" << "separator1"
+                       << "undo" << "redo" << "separator2"
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
+                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
+                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
+        }
+
+        // Enable all non-separator actions by default
+        for (const QString& actionId : actionOrder) {
+            if (!actionId.startsWith("separator") && actionId != "row_separator") {
+                enabledActions << actionId;
+            }
+        }
+    }
+
+    int iconSize = Appearance::toolbarIconSize();
+    if (twoRowMode) {
+        iconSize = qMax(24, iconSize); // Larger icons for two-row mode
+    }
+
+    if (twoRowMode) {
+        // Create two separate toolbars for two-row mode
+        QToolBar* topToolBar = new QToolBar("Top", buttonBar);
+        QToolBar* bottomToolBar = new QToolBar("Bottom", buttonBar);
+
+        topToolBar->setFloatable(false);
+        topToolBar->setContentsMargins(0, 0, 0, 0);
+        topToolBar->layout()->setSpacing(3);
+        topToolBar->setIconSize(QSize(iconSize, iconSize));
+        topToolBar->setStyleSheet("QToolBar { border: 0px }");
+        topToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+
+        bottomToolBar->setFloatable(false);
+        bottomToolBar->setContentsMargins(0, 0, 0, 0);
+        bottomToolBar->layout()->setSpacing(3);
+        bottomToolBar->setIconSize(QSize(iconSize, iconSize));
+        bottomToolBar->setStyleSheet("QToolBar { border: 0px }");
+        bottomToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+        QToolBar* currentToolBar = topToolBar;
+
+        // Add actions to appropriate toolbar
+        for (const QString& actionId : actionOrder) {
+            if (actionId == "row_separator") {
+                currentToolBar = bottomToolBar;
+                continue;
+            }
+
+            if (actionId.startsWith("separator")) {
+                if (currentToolBar->actions().count() > 0) {
+                    currentToolBar->addSeparator();
+                }
+                continue;
+            }
+
+            if (!enabledActions.contains(actionId)) {
+                continue; // Skip disabled actions
+            }
+
+            QAction* action = getActionById(actionId);
+            if (!action) {
+                // Handle special actions that need custom creation
+                if (actionId == "open") {
+                    // Create special open action with recent files menu
+                    action = new QAction(tr("Open..."), currentToolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/load.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        action->setMenu(_recentPathsMenu);
+                    }
+                } else if (actionId == "paste") {
+                    // Create special paste action with options menu
+                    action = new QAction(tr("Paste events"), currentToolBar);
+                    action->setToolTip(tr("Paste events at cursor position"));
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(paste()));
+                    if (pasteOptionsMenu) {
+                        action->setMenu(pasteOptionsMenu);
+                    }
+                } else {
+                    // Create a placeholder action if the real one doesn't exist
+                    action = new QAction(actionId, currentToolBar);
+                    action->setEnabled(false);
+                    action->setToolTip("Action not yet implemented: " + actionId);
+
+                    // Try to find the icon path for this action from our default list
+                    try {
+                        QList<ToolbarActionInfo> defaultActions = getDefaultActionsForPlaceholder();
+                        for (const ToolbarActionInfo& info : defaultActions) {
+                            if (info.id == actionId && !info.iconPath.isEmpty()) {
+                                Appearance::setActionIcon(action, info.iconPath);
+                                break;
+                            }
+                        }
+                    } catch (...) {
+                        // If icon setting fails, just continue without icon
+                    }
+                }
+            }
+
+            if (action) {
+                try {
+                    currentToolBar->addAction(action);
+                } catch (...) {
+                    // If adding action fails, skip it
+                }
+            }
+        }
+
+        btnLayout->setColumnStretch(4, 1);
+        btnLayout->addWidget(topToolBar, 0, 0, 1, 1);
+        btnLayout->addWidget(bottomToolBar, 1, 0, 1, 1);
+
+    } else {
+        // Single-row mode
+        QToolBar* toolBar = new QToolBar("Main", buttonBar);
+        toolBar->setFloatable(false);
+        toolBar->setContentsMargins(0, 0, 0, 0);
+        toolBar->layout()->setSpacing(3);
+        toolBar->setIconSize(QSize(iconSize, iconSize));
+        toolBar->setStyleSheet("QToolBar { border: 0px }");
+
+        // Add actions to toolbar based on order and enabled state
+        for (const QString& actionId : actionOrder) {
+            if (actionId.startsWith("separator") || actionId == "row_separator") {
+                if (actionId != "row_separator" && toolBar->actions().count() > 0) {
+                    toolBar->addSeparator();
+                }
+                continue;
+            }
+
+            if (!enabledActions.contains(actionId)) {
+                continue; // Skip disabled actions
+            }
+
+            QAction* action = getActionById(actionId);
+            if (!action) {
+                // Handle special actions that need custom creation
+                if (actionId == "open") {
+                    // Create special open action with recent files menu
+                    action = new QAction(tr("Open..."), toolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/load.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        action->setMenu(_recentPathsMenu);
+                    }
+                } else if (actionId == "paste") {
+                    // Create special paste action with options menu
+                    action = new QAction(tr("Paste events"), toolBar);
+                    action->setToolTip(tr("Paste events at cursor position"));
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(paste()));
+                    if (pasteOptionsMenu) {
+                        action->setMenu(pasteOptionsMenu);
+                    }
+                } else {
+                    // Create a placeholder action if the real one doesn't exist
+                    action = new QAction(actionId, toolBar);
+                    action->setEnabled(false);
+                    action->setToolTip("Action not yet implemented: " + actionId);
+
+                    // Try to find the icon path for this action from our default list
+                    try {
+                        QList<ToolbarActionInfo> defaultActions = getDefaultActionsForPlaceholder();
+                        for (const ToolbarActionInfo& info : defaultActions) {
+                            if (info.id == actionId && !info.iconPath.isEmpty()) {
+                                Appearance::setActionIcon(action, info.iconPath);
+                                break;
+                            }
+                        }
+                    } catch (...) {
+                        // If icon setting fails, just continue without icon
+                    }
+                }
+            }
+
+            if (action) {
+                try {
+                    toolBar->addAction(action);
+                } catch (...) {
+                    // If adding action fails, skip it
+                }
+            }
+        }
+
+        btnLayout->setColumnStretch(4, 1);
+        btnLayout->addWidget(toolBar, 0, 0, 1, 1);
+    }
+
+    return buttonBar;
+}
+
+QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
+    // This is a simplified version of the default actions list for placeholder icons
+    // We include this here to avoid circular dependencies with LayoutSettingsWidget
+    QList<ToolbarActionInfo> actions;
+
+    actions << ToolbarActionInfo{"new", "New", ":/run_environment/graphics/tool/new.png", nullptr, true, true, "File"};
+    actions << ToolbarActionInfo{"open", "Open", ":/run_environment/graphics/tool/load.png", nullptr, true, true, "File"};
+    actions << ToolbarActionInfo{"save", "Save", ":/run_environment/graphics/tool/save.png", nullptr, true, true, "File"};
+    actions << ToolbarActionInfo{"undo", "Undo", ":/run_environment/graphics/tool/undo.png", nullptr, true, true, "Edit"};
+    actions << ToolbarActionInfo{"redo", "Redo", ":/run_environment/graphics/tool/redo.png", nullptr, true, true, "Edit"};
+    actions << ToolbarActionInfo{"standard_tool", "Standard Tool", ":/run_environment/graphics/tool/select.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"select_left", "Select Left", ":/run_environment/graphics/tool/select_left.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"select_right", "Select Right", ":/run_environment/graphics/tool/select_right.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"new_note", "New Note", ":/run_environment/graphics/tool/newnote.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"remove_notes", "Remove Notes", ":/run_environment/graphics/tool/eraser.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"copy", "Copy", ":/run_environment/graphics/tool/copy.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"paste", "Paste", ":/run_environment/graphics/tool/paste.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"glue", "Glue Notes (Same Channel)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"glue_all_channels", "Glue Notes (All Channels)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"back_to_begin", "Back to Begin", ":/run_environment/graphics/tool/back_to_begin.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"back_marker", "Back Marker", ":/run_environment/graphics/tool/back_marker.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"play", "Play", ":/run_environment/graphics/tool/play.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"pause", "Pause", ":/run_environment/graphics/tool/pause.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop_record.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"record", "Record", ":/run_environment/graphics/tool/record.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"forward", "Forward", ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"forward_marker", "Forward Marker", ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"metronome", "Metronome", ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"align_left", "Align Left", ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"equalize", "Equalize", ":/run_environment/graphics/tool/equalize.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"align_right", "Align Right", ":/run_environment/graphics/tool/align_right.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"zoom_hor_in", "Zoom Horizontal In", ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_hor_out", "Zoom Horizontal Out", ":/run_environment/graphics/tool/zoom_hor_out.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_ver_in", "Zoom Vertical In", ":/run_environment/graphics/tool/zoom_ver_in.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_ver_out", "Zoom Vertical Out", ":/run_environment/graphics/tool/zoom_ver_out.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"lock", "Lock Screen", ":/run_environment/graphics/tool/screen_unlocked.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"quantize", "Quantize", ":/run_environment/graphics/tool/quantize.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"magnet", "Magnet", ":/run_environment/graphics/tool/magnet.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"thru", "MIDI Thru", ":/run_environment/graphics/tool/connection.png", nullptr, true, false, "MIDI"};
+    actions << ToolbarActionInfo{"measure", "Measure", ":/run_environment/graphics/tool/measure.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"time_signature", "Time Signature", ":/run_environment/graphics/tool/meter.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"tempo", "Tempo", ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
+
+    return actions;
 }
 
 void MainWindow::togglePianoEmulation(bool mode) {
@@ -3144,6 +3500,23 @@ void MainWindow::updateAll() {
     channelWidget->update();
     _trackWidget->update();
     _miscWidget->update();
+
+    // Phase 2: Re-enable toolbar rebuild with safety checks
+    if (_toolbarWidget) {
+        try {
+            rebuildToolbar();
+        } catch (...) {
+            // If toolbar rebuild fails, just continue
+        }
+    }
+}
+
+void MainWindow::refreshToolbarIcons() {
+    // The individual actions will be refreshed by Appearance::refreshAllIcons()
+    // We just need to make sure our toolbar is up to date
+    if (_toolbarWidget) {
+        _toolbarWidget->update();
+    }
 }
 
 void MainWindow::tweakTime() {
