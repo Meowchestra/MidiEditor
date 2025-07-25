@@ -41,6 +41,16 @@ public:
     static int toolbarIconSize();
     static void setToolbarIconSize(int size);
     static QStringList availableStyles();
+
+    // High DPI scaling control
+    static void setIgnoreSystemScaling(bool ignore);
+    static bool ignoreSystemScaling();
+    static void setUseRoundedScaling(bool useRounded);
+    static bool useRoundedScaling();
+    static void loadEarlySettings(); // Load settings needed before QApplication creation
+
+    // Font rendering improvements
+    static QFont improveFont(const QFont& font);
     static void applyStyle();
     static void notifyIconSizeChanged();
     static void forceColorRefresh(); // Public method to manually trigger color refresh
@@ -117,6 +127,8 @@ private:
     static bool _showRangeLines;
     static QString _applicationStyle;
     static int _toolbarIconSize;
+    static bool _ignoreSystemScaling;
+    static bool _useRoundedScaling;
 };
 
 #endif // APPEARANCE_H

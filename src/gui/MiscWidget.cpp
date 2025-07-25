@@ -92,6 +92,8 @@ void MiscWidget::paintEvent(QPaintEvent* event) {
     QPainter painter(this);
     QFont f = painter.font();
     f.setPixelSize(9);
+    // Improve text rendering for high DPI displays
+    f = Appearance::improveFont(f);
     painter.setFont(f);
     QColor c = Appearance::velocityBackgroundColor();
     painter.setRenderHint(QPainter::Antialiasing);

@@ -25,6 +25,8 @@ Appearance::stripStyle Appearance::_strip = Appearance::onSharp;
 bool Appearance::_showRangeLines = false;
 QString Appearance::_applicationStyle = "windowsvista";
 int Appearance::_toolbarIconSize = 20;
+bool Appearance::_ignoreSystemScaling = false;
+bool Appearance::_useRoundedScaling = false;
 
 void Appearance::init(QSettings *settings){
     // CRITICAL: Load application style FIRST before creating any colors
@@ -47,6 +49,8 @@ void Appearance::init(QSettings *settings){
     }
     _applicationStyle = settings->value("application_style", defaultStyle).toString();
     _toolbarIconSize = settings->value("toolbar_icon_size", 20).toInt();
+    _ignoreSystemScaling = settings->value("ignore_system_scaling", false).toBool();
+    _useRoundedScaling = settings->value("use_rounded_scaling", false).toBool();
 
     // NOW load colors with correct theme context
     for (int channel = 0; channel < 17; channel++) {
@@ -102,6 +106,8 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("show_range_lines", _showRangeLines);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
+    settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
+    settings->setValue("use_rounded_scaling", _useRoundedScaling);
 
     // Save custom color tracking
     QList<QVariant> customChannels;
@@ -469,6 +475,38 @@ int Appearance::toolbarIconSize(){
 void Appearance::setToolbarIconSize(int size){
     _toolbarIconSize = size;
     notifyIconSizeChanged();
+}
+
+bool Appearance::ignoreSystemScaling(){
+    return _ignoreSystemScaling;
+}
+
+void Appearance::setIgnoreSystemScaling(bool ignore){
+    _ignoreSystemScaling = ignore;
+    // Note: This setting requires application restart to take effect
+}
+
+bool Appearance::useRoundedScaling(){
+    return _useRoundedScaling;
+}
+
+void Appearance::setUseRoundedScaling(bool useRounded){
+    _useRoundedScaling = useRounded;
+    // Note: This setting requires application restart to take effect
+}
+
+void Appearance::loadEarlySettings() {
+    // Load only the settings needed before QApplication is created
+    QSettings settings(QString("MidiEditor"), QString("NONE"));
+    _ignoreSystemScaling = settings.value("ignore_system_scaling", false).toBool();
+    _useRoundedScaling = settings.value("use_rounded_scaling", false).toBool();
+}
+
+QFont Appearance::improveFont(const QFont& font) {
+    QFont improvedFont = font;
+    improvedFont.setHintingPreference(QFont::PreferFullHinting);
+    improvedFont.setStyleStrategy(QFont::PreferAntialias);
+    return improvedFont;
 }
 
 QStringList Appearance::availableStyles(){

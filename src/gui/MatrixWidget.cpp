@@ -383,14 +383,25 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 pixpainter->setPen(Appearance::measureLineColor());
                 pixpainter->drawLine(xfrom, timeHeight / 2, xfrom, height());
                 QString text = tr("Measure ") + QString::number(measure - 1);
-                int textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
+
+                // Improve text rendering for high DPI displays
+                QFont font = Appearance::improveFont(pixpainter->font());
+                pixpainter->setFont(font);
+
+                QFontMetrics fm(font);
+                int textlength = fm.horizontalAdvance(text);
                 if (textlength > xto - xfrom) {
                     text = QString::number(measure - 1);
-                    textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
+                    textlength = fm.horizontalAdvance(text);
                 }
+
+                // Align text to pixel boundaries for sharper rendering
                 int pos = (xfrom + xto) / 2;
+                int textX = qRound(pos - textlength / 2.0);
+                int textY = timeHeight - 9;
+
                 pixpainter->setPen(Appearance::measureTextColor());
-                pixpainter->drawText(pos - textlength / 2, timeHeight - 9, text);
+                pixpainter->drawText(textX, textY, text);
 
                 if (_div >= 0) {
                     double metronomeDiv = 4 / (double)qPow(2, _div);
@@ -835,9 +846,19 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
         painter->drawPolygon(keyPolygon, Qt::OddEvenFill);
 
         if (name != "") {
+            // Improve text rendering for piano key names
+            QFont font = Appearance::improveFont(painter->font());
+            painter->setFont(font);
+
             painter->setPen(Qt::gray); // Original color for both modes
-            int textlength = QFontMetrics(painter->font()).horizontalAdvance(name);
-            painter->drawText(x + width - textlength - 2, y + height - 1, name);
+            QFontMetrics fm(font);
+            int textlength = fm.horizontalAdvance(name);
+
+            // Align text to pixel boundaries for sharper rendering
+            int textX = x + width - textlength - 2;
+            int textY = y + height - 1;
+
+            painter->drawText(textX, textY, name);
             painter->setPen(Appearance::foregroundColor());
         }
         if (inRect && enabled) {

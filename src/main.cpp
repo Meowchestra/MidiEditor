@@ -20,8 +20,10 @@
 #include <QStyleFactory>
 #include <QDir>
 #include <QFont>
+#include <QSettings>
 
 #include "gui/MainWindow.h"
+#include "gui/Appearance.h"
 #include "midi/MidiInput.h"
 #include "midi/MidiOutput.h"
 
@@ -58,6 +60,38 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
 #else
 int main(int argc, char* argv[]) {
 #endif
+
+    // Load high DPI scaling settings before creating QApplication
+    // These must be set before QApplication is created
+    Appearance::loadEarlySettings();
+    bool ignoreSystemScaling = Appearance::ignoreSystemScaling();
+    bool useRoundedScaling = Appearance::useRoundedScaling();
+
+    if (ignoreSystemScaling) {
+        // Completely disable high DPI scaling (like older Qt5 versions)
+        QApplication::setAttribute(Qt::AA_DisableHighDpiScaling, true);
+        QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps, false);
+    } else {
+        // Enable high DPI scaling
+        QApplication::setAttribute(Qt::AA_EnableHighDpiScaling, true);
+        QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps, true);
+
+        if (useRoundedScaling) {
+            // Use rounded scaling behavior (like Qt5) for sharper rendering
+            // Set rounding policy to Round instead of PassThrough (Qt6 default)
+            QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::Round);
+
+            // Disable fractional scaling for integer scaling only (100%, 200%, 300%)
+            qputenv("QT_ENABLE_HIGHDPI_SCALING", "1");
+            qputenv("QT_SCALE_FACTOR_ROUNDING_POLICY", "Round");
+
+            // Use integer-based DPI awareness
+            qputenv("QT_AUTO_SCREEN_SCALE_FACTOR", "1");
+        } else {
+            // Use Qt6 default behavior (PassThrough with fractional scaling)
+            QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+        }
+    }
 
     QApplication a(argc, argv);
 
