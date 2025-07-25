@@ -2578,14 +2578,14 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     QAction* zoomVerOutAction = new QAction(tr("Vertical out"), this);
     Appearance::setActionIcon(zoomVerOutAction, ":/run_environment/graphics/tool/zoom_ver_out.png");
-    zoomVerOutAction->setShortcut(QKeySequence(Qt::Key_Minus | Qt::CTRL | Qt::ALT));
+    zoomVerOutAction->setShortcut(QKeySequence(Qt::Key_Minus | Qt::SHIFT));
     connect(zoomVerOutAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomVerOut()));
     zoomMenu->addAction(zoomVerOutAction);
 
     QAction* zoomVerInAction = new QAction(tr("Vertical in"), this);
     Appearance::setActionIcon(zoomVerInAction, ":/run_environment/graphics/tool/zoom_ver_in.png");
-    zoomVerInAction->setShortcut(QKeySequence(Qt::Key_Equal | Qt::CTRL | Qt::ALT));
+    zoomVerInAction->setShortcut(QKeySequence(Qt::Key_Equal | Qt::SHIFT));
     connect(zoomVerInAction, SIGNAL(triggered()),
             mw_matrixWidget, SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
@@ -2603,7 +2603,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     viewMB->addSeparator();
 
     QAction* resetViewAction = new QAction(tr("Reset view"), this);
-    resetViewAction->setShortcut(QKeySequence(Qt::Key_Backspace | Qt::CTRL | Qt::ALT));
+    resetViewAction->setShortcut(QKeySequence(Qt::Key_Backspace | Qt::CTRL | Qt::SHIFT));
     resetViewAction->setToolTip(tr("Reset zoom, scroll position, and cursor to defaults"));
     connect(resetViewAction, SIGNAL(triggered()), this, SLOT(resetView()));
     viewMB->addAction(resetViewAction);

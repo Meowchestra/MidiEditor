@@ -21,6 +21,9 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
     QGridLayout* layout = new QGridLayout(this);
     setLayout(layout);
 
+    // Set minimum size to prevent overlapping elements
+    setMinimumSize(400, 700);
+
     _channelItems = new QList<NamedColorWidgetItem*>();
     _trackItems = new QList<NamedColorWidgetItem*>();
     layout->addWidget(new QLabel("Channel Colors"), 0, 0, 1, 2);
@@ -33,8 +36,10 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
         if (i == 16) {
             name = "General Events (affecting all channels)";
         }
+        QColor* channelColor = Appearance::channelColor(i);
+        QColor safeColor = channelColor ? *channelColor : QColor(100, 100, 100);
         NamedColorWidgetItem *channelItem = new NamedColorWidgetItem(i, name,
-                                                                     *Appearance::channelColor(i), this);
+                                                                     safeColor, this);
         QListWidgetItem* item = new QListWidgetItem();
         item->setSizeHint(QSize(0, ROW_HEIGHT));
         channelList->addItem(item);
@@ -43,7 +48,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
         connect(channelItem, SIGNAL(colorChanged(int,QColor)), this, SLOT(channelColorChanged(int,QColor)));
     }
     channelList->setFixedHeight(ROW_HEIGHT * 5);
-    layout->setRowStretch(1, 1);
+    channelList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
 
     layout->addWidget(new QLabel("Track Colors"), 2, 0, 1, 2);
     QListWidget *trackList = new QListWidget(this);
@@ -51,8 +56,10 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
     trackList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
     layout->addWidget(trackList, 3, 0, 1, 2);
     for (int i = 0; i < 16; i++) {
+        QColor* trackColor = Appearance::trackColor(i);
+        QColor safeColor = trackColor ? *trackColor : QColor(100, 100, 100);
         NamedColorWidgetItem *trackItem = new NamedColorWidgetItem(i, "Track " + QString::number(i),
-                                                                     *Appearance::trackColor(i), this);
+                                                                     safeColor, this);
         QListWidgetItem* item = new QListWidgetItem();
         item->setSizeHint(QSize(0, ROW_HEIGHT));
         trackList->addItem(item);
@@ -61,7 +68,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
         connect(trackItem, SIGNAL(colorChanged(int,QColor)), this, SLOT(trackColorChanged(int,QColor)));
     }
     trackList->setFixedHeight(ROW_HEIGHT * 5);
-    layout->setRowStretch(3, 1);
+    trackList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
     QPushButton *resetButton = new QPushButton("Reset Colors", this);
     connect(resetButton, SIGNAL(clicked()), this, SLOT(resetColors()));
     layout->addWidget(resetButton, 4, 1, 1, 1);
@@ -129,10 +136,16 @@ void AppearanceSettingsWidget::resetColors() {
 void AppearanceSettingsWidget::refreshColors() {
     // Refresh all color widgets to show current colors
     foreach (NamedColorWidgetItem* item, *_trackItems) {
-        item->colorChanged(*Appearance::trackColor(item->number()));
+        QColor* trackColor = Appearance::trackColor(item->number());
+        if (trackColor) {
+            item->colorChanged(*trackColor);
+        }
     }
     foreach (NamedColorWidgetItem* item, *_channelItems) {
-        item->colorChanged(*Appearance::channelColor(item->number()));
+        QColor* channelColor = Appearance::channelColor(item->number());
+        if (channelColor) {
+            item->colorChanged(*channelColor);
+        }
     }
     update();
 }
@@ -161,8 +174,10 @@ void AppearanceSettingsWidget::rangeLinesChanged(bool enabled){
 
 void AppearanceSettingsWidget::styleChanged(const QString& style){
     Appearance::setApplicationStyle(style);
+
     // Force immediate color refresh for all widgets
     Appearance::forceColorRefresh();
+    refreshColors(); // Also refresh this widget's colors immediately
     update();
 }
 
@@ -196,17 +211,24 @@ void NamedColorWidgetItem::mousePressEvent(QMouseEvent* event) {
     QColor newColor = QColorDialog::getColor(color, this);
     // Only apply the color if user didn't cancel (valid color returned)
     if (newColor.isValid()) {
-        colorChanged(newColor);
-        colored->setColor(newColor);
+        // Emit signal with raw color (Appearance::setChannelColor will apply opacity)
+        emit colorChanged(_number, newColor);
+
+        // But display the color with current opacity applied
+        QColor displayColor = newColor;
+        displayColor.setAlpha(Appearance::opacity() * 255 / 100);
+        colored->setColor(displayColor);
         colored->update();
     }
     // If user canceled, do nothing - keep the original color
 }
 
 void NamedColorWidgetItem::colorChanged(QColor color) {
+    // This slot is called when refreshing colors from the appearance system
+    // The color already has opacity applied, so display it as-is
     colored->setColor(color);
     update();
-    emit colorChanged(_number, color);
+    // Don't emit signal here - this is for display updates only
 }
 
 int NamedColorWidgetItem::number(){

@@ -17,6 +17,7 @@
  */
 
 #include "MidiSettingsWidget.h"
+#include "Appearance.h"
 
 #include "../Terminal.h"
 #include "../midi/MidiFile.h"
@@ -50,8 +51,8 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, 
     connect(_tpqBox, SIGNAL(valueChanged(int)), this, SLOT(setDefaultTimePerQuarter(int)));
     layout->addWidget(_tpqBox, 0, 2, 1, 4);
 
-    QWidget* tpqInfo = createInfoBox(tr("Note: There aren't many reasons to change this. MIDI files have a resolution for how many ticks can fit in a quarter note. Higher values = more detail. Lower values may be required for compatibility. Only affects new files."));
-    layout->addWidget(tpqInfo, 1, 0, 1, 6);
+    _tpqInfoBox = createInfoBox(tr("Note: There aren't many reasons to change this. MIDI files have a resolution for how many ticks can fit in a quarter note. Higher values = more detail. Lower values may be required for compatibility. Only affects new files."));
+    layout->addWidget(_tpqInfoBox, 1, 0, 1, 6);
 
     layout->addWidget(separator(), 2, 0, 1, 6);
 
@@ -61,8 +62,8 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, 
     connect(_alternativePlayerModeBox, SIGNAL(toggled(bool)), this, SLOT(manualModeToggled(bool)));
     layout->addWidget(_alternativePlayerModeBox, 3, 0, 1, 6);
 
-    QWidget* playerModeInfo = createInfoBox(tr("Note: the above option should not be enabled in general. It is only required if the stop button does not stop playback as expected (e.g. when some notes are not stopped correctly)."));
-    layout->addWidget(playerModeInfo, 4, 0, 1, 6);
+    _playerModeInfoBox = createInfoBox(tr("Note: the above option should not be enabled in general. It is only required if the stop button does not stop playback as expected (e.g. when some notes are not stopped correctly)."));
+    layout->addWidget(_playerModeInfoBox, 4, 0, 1, 6);
 
     layout->addWidget(separator(), 5, 0, 1, 6);
 
@@ -80,8 +81,8 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, 
     startCmd = new QLineEdit(this);
     layout->addWidget(startCmd, 8, 2, 1, 4);
 
-    QWidget* startCmdInfo = createInfoBox(tr("The start command can be used to start additional software components (e.g. Midi synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
-    layout->addWidget(startCmdInfo, 9, 0, 1, 6);
+    _startCmdInfoBox = createInfoBox(tr("The start command can be used to start additional software components (e.g. Midi synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
+    layout->addWidget(_startCmdInfoBox, 9, 0, 1, 6);
 
     layout->addWidget(Terminal::terminal()->console(), 10, 0, 1, 6);
 
@@ -101,6 +102,47 @@ void AdditionalMidiSettingsWidget::setMetronomeLoudness(int value) {
     Metronome::setLoudness(value);
 }
 
+void AdditionalMidiSettingsWidget::refreshColors() {
+    // Update info box colors to match current theme
+    if (_tpqInfoBox) {
+        QLabel* label = qobject_cast<QLabel*>(_tpqInfoBox);
+        if (label) {
+            QColor bgColor = Appearance::infoBoxBackgroundColor();
+            QColor textColor = Appearance::infoBoxTextColor();
+            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            label->setStyleSheet(styleSheet);
+        }
+    }
+
+    if (_startCmdInfoBox) {
+        QLabel* label = qobject_cast<QLabel*>(_startCmdInfoBox);
+        if (label) {
+            QColor bgColor = Appearance::infoBoxBackgroundColor();
+            QColor textColor = Appearance::infoBoxTextColor();
+            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            label->setStyleSheet(styleSheet);
+        }
+    }
+
+    if (_playerModeInfoBox) {
+        QLabel* label = qobject_cast<QLabel*>(_playerModeInfoBox);
+        if (label) {
+            QColor bgColor = Appearance::infoBoxBackgroundColor();
+            QColor textColor = Appearance::infoBoxTextColor();
+            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            label->setStyleSheet(styleSheet);
+        }
+    }
+
+    update();
+}
+
 bool AdditionalMidiSettingsWidget::accept() {
     QString text = startCmd->text();
     if (!text.isEmpty()) {
@@ -115,8 +157,8 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
     QGridLayout* layout = new QGridLayout(this);
     setLayout(layout);
 
-    QWidget* playerModeInfo = createInfoBox(tr("Choose the Midi ports on your machine to which MidiEditor connects in order to play and record Midi data."));
-    layout->addWidget(playerModeInfo, 0, 0, 1, 6);
+    _playerModeInfoBox = createInfoBox(tr("Choose the Midi ports on your machine to which MidiEditor connects in order to play and record Midi data."));
+    layout->addWidget(_playerModeInfoBox, 0, 0, 1, 6);
 
     // output
     layout->addWidget(new QLabel(tr("Midi output: "), this), 1, 0, 1, 2);
@@ -221,4 +263,21 @@ void MidiSettingsWidget::outputChanged(QListWidgetItem* item) {
 
         reloadOutputPorts();
     }
+}
+
+void MidiSettingsWidget::refreshColors() {
+    // Update info box colors to match current theme
+    if (_playerModeInfoBox) {
+        QLabel* label = qobject_cast<QLabel*>(_playerModeInfoBox);
+        if (label) {
+            QColor bgColor = Appearance::infoBoxBackgroundColor();
+            QColor textColor = Appearance::infoBoxTextColor();
+            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            label->setStyleSheet(styleSheet);
+        }
+    }
+
+    update();
 }

@@ -112,6 +112,12 @@ public:
     static void setActionIcon(QAction* action, const QString& iconPath); // Set icon and register for refresh
 
 private:
+    // Internal icon processing functions
+    static void startQueuedIconProcessing(); // Start processing icons from queue
+    static void processNextQueuedIcon(); // Process next icon in queue
+    static void cleanupIconRegistry(); // Remove invalid actions from registry (automatic)
+
+private:
     static int trackToColorIndex(int track);
     static int channelToColorIndex(int channel);
     static QMap<int, QColor*> channelColors;

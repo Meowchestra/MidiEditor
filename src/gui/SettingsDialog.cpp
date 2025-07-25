@@ -28,6 +28,7 @@
 
 #include "MidiSettingsWidget.h"
 #include "AppearanceSettingsWidget.h"
+#include "ApplicationSettingsWidget.h"
 #include "SettingsWidget.h"
 
 SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* parent)
@@ -89,6 +90,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* pare
     addSetting(new MidiSettingsWidget(central));
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
     addSetting(new AppearanceSettingsWidget(central));
+    addSetting(new ApplicationSettingsWidget(central));
 }
 
 void SettingsDialog::addSetting(SettingsWidget* settingWidget) {

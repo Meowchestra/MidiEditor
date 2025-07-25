@@ -41,12 +41,16 @@ public slots:
     void manualModeToggled(bool enable);
     void setDefaultTimePerQuarter(int value);
     void setMetronomeLoudness(int value);
+    void refreshColors(); // Refresh colors when theme changes
 private:
     QCheckBox* _alternativePlayerModeBox;
     QSettings* _settings;
     QLineEdit* startCmd;
     QSpinBox* _tpqBox;
     QSpinBox* _metronomeLoudnessBox;
+    QWidget* _tpqInfoBox;
+    QWidget* _startCmdInfoBox;
+    QWidget* _playerModeInfoBox;
 };
 
 class MidiSettingsWidget : public SettingsWidget {
@@ -57,15 +61,16 @@ public:
     MidiSettingsWidget(QWidget* parent = 0);
 
 public slots:
-
     void reloadInputPorts();
     void reloadOutputPorts();
     void inputChanged(QListWidgetItem* item);
     void outputChanged(QListWidgetItem* item);
+    void refreshColors(); // Refresh colors when theme changes
 
 private:
     QStringList *_inputPorts, *_outputPorts;
     QListWidget *_inList, *_outList;
+    QWidget* _playerModeInfoBox;
 };
 
 #endif
