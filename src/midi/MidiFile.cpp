@@ -255,9 +255,19 @@ bool MidiFile::readTrack(QDataStream* content, int num, QStringList* log) {
 
     QString badHeader = tr("Error: Bad format in track header (Track ") + QString::number(num) + tr(", Expected MTrk).");
     (*content) >> tempByte;
-    if (tempByte != 'M') {
-        log->append(badHeader);
-        return false;
+    if (tempByte != 'M') 
+    {
+        while(!content->atEnd())
+        {
+            (*content) >> tempByte;
+            if (tempByte == 'M')
+                break;
+        }
+        if (content->atEnd())
+        {
+            log->append(badHeader);
+            return false;
+        }
     }
     (*content) >> tempByte;
     if (tempByte != 'T') {
