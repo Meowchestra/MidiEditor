@@ -1099,6 +1099,19 @@ void MainWindow::closeEvent(QCloseEvent* event) {
 void MainWindow::about() {
     AboutDialog* d = new AboutDialog(this);
     d->setModal(true);
+
+    // Ensure the about dialog inherits the current application style and palette
+    d->setPalette(QApplication::palette());
+    d->setStyleSheet(this->styleSheet());
+
+    // Force style refresh on the dialog
+    QTimer::singleShot(0, [d]() {
+        if (d) {
+            d->style()->polish(d);
+            d->update();
+        }
+    });
+
     d->show();
 }
 
@@ -3359,9 +3372,14 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
 
         // First, add essential actions to essential toolbar
         QStringList essentialActions;
-        essentialActions << "new" << "open" << "save" << "undo" << "redo";
+        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo" << "separator2";
 
         for (const QString& actionId : essentialActions) {
+            if (actionId.startsWith("separator")) {
+                essentialToolBar->addSeparator();
+                continue;
+            }
+
             QAction* action = getActionById(actionId);
             if (action) {
                 // Special handling for open action to add recent files menu
@@ -3401,16 +3419,12 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
             }
 
             if (actionId.startsWith("separator")) {
-                // Always add the first separator in each row (separator2 and separator8) to separate from essential toolbar
-                if (actionId == "separator2" || actionId == "separator8") {
-                    currentToolBar->addSeparator();
-                } else {
-                    // For other separators, only add if there are actions and the last action isn't already a separator
-                    if (currentToolBar->actions().count() > 0) {
-                        QAction* lastAction = currentToolBar->actions().last();
-                        if (!lastAction->isSeparator()) {
-                            currentToolBar->addSeparator();
-                        }
+                // Only add separators if there are already actions in the toolbar
+                // This prevents separators at the beginning of rows
+                if (currentToolBar->actions().count() > 0) {
+                    QAction* lastAction = currentToolBar->actions().last();
+                    if (!lastAction->isSeparator()) {
+                        currentToolBar->addSeparator();
                     }
                 }
                 continue;
@@ -3490,7 +3504,7 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
 
         // Layout: Essential toolbar on left, content toolbars stacked on right
         btnLayout->setColumnStretch(1, 1);
-        btnLayout->setColumnMinimumWidth(1, 400); // Ensure content toolbars have minimum width
+        btnLayout->setColumnMinimumWidth(1, 800); // Ensure content toolbars have adequate width for double row
         btnLayout->addWidget(essentialToolBar, 0, 0, 2, 1); // Spans both rows
         btnLayout->addWidget(topToolBar, 0, 1, 1, 1);
         btnLayout->addWidget(bottomToolBar, 1, 1, 1, 1);
@@ -3733,9 +3747,14 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
 
         // First, add essential actions to essential toolbar
         QStringList essentialActionsList;
-        essentialActionsList << "new" << "open" << "save" << "undo" << "redo";
+        essentialActionsList << "new" << "open" << "save" << "separator1" << "undo" << "redo" << "separator2";
 
         for (const QString& actionId : essentialActionsList) {
+            if (actionId.startsWith("separator")) {
+                essentialToolBar->addSeparator();
+                continue;
+            }
+
             QAction* action = getActionById(actionId);
             if (action) {
                 // Special handling for open action to add recent files menu
@@ -3842,7 +3861,7 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
 
         // Layout: Essential toolbar on left, content toolbars stacked on right
         btnLayout->setColumnStretch(1, 1);
-        btnLayout->setColumnMinimumWidth(1, 400); // Ensure content toolbars have minimum width
+        btnLayout->setColumnMinimumWidth(1, 800); // Ensure content toolbars have adequate width for double row
         btnLayout->addWidget(essentialToolBar, 0, 0, 2, 1); // Spans both rows
         btnLayout->addWidget(topToolBar, 0, 1, 1, 1);
         btnLayout->addWidget(bottomToolBar, 1, 1, 1, 1);
@@ -3951,7 +3970,7 @@ QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
     actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"play", "Play", ":/run_environment/graphics/tool/play.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"pause", "Pause", ":/run_environment/graphics/tool/pause.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop_record.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"record", "Record", ":/run_environment/graphics/tool/record.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"forward", "Forward", ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"forward_marker", "Forward Marker", ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
@@ -4170,6 +4189,28 @@ void MainWindow::rebuildToolbarFromSettings() {
 
                 // Now rebuild the toolbar contents directly in the existing widget
                 updateToolbarContents(_toolbarWidget, toolbarLayout);
+
+                // Reset toolbar size constraints to allow proper recalculation
+                _toolbarWidget->setMinimumSize(0, 0);
+                _toolbarWidget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+
+                // Also reset any child toolbar size constraints
+                QList<QToolBar*> childToolbars = _toolbarWidget->findChildren<QToolBar*>();
+                for (QToolBar* toolbar : childToolbars) {
+                    toolbar->setMinimumSize(0, 0);
+                    toolbar->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
+                }
+
+                // Update geometry without forcing window resize
+                _toolbarWidget->updateGeometry();
+
+                // Let the layout system recalculate naturally
+                QTimer::singleShot(0, [this]() {
+                    if (_toolbarWidget && _toolbarWidget->layout()) {
+                        _toolbarWidget->layout()->invalidate();
+                        _toolbarWidget->layout()->activate();
+                    }
+                });
 
                 // Refresh icons
                 refreshToolbarIcons();

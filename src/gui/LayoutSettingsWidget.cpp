@@ -49,9 +49,30 @@ void DraggableListWidget::dropEvent(QDropEvent* event) {
                 newItem->setFlags(originalItem->flags());
                 newItem->setCheckState(originalItem->checkState());
 
-                // Find drop position
+                // Find drop position based on cursor position
                 QListWidgetItem* targetItem = itemAt(event->pos());
-                int dropIndex = targetItem ? row(targetItem) : count();
+                int dropIndex;
+                if (targetItem) {
+                    int targetRow = row(targetItem);
+                    QRect targetRect = visualItemRect(targetItem);
+                    // If dropping in the bottom half of the item, insert after it
+                    if (event->pos().y() > targetRect.center().y()) {
+                        dropIndex = targetRow + 1;
+                    } else {
+                        dropIndex = targetRow;
+                    }
+                } else {
+                    // If no target item, calculate position based on Y coordinate
+                    int itemHeight = 0;
+                    if (count() > 0) {
+                        itemHeight = visualItemRect(item(0)).height();
+                    }
+                    if (itemHeight > 0) {
+                        dropIndex = qMin(event->pos().y() / itemHeight, count());
+                    } else {
+                        dropIndex = count();
+                    }
+                }
 
                 // Insert at the drop position
                 insertItem(dropIndex, newItem);
@@ -328,6 +349,10 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
             return; // Already populated, don't reset
         }
 
+        // Block signals during population to prevent cascading updates
+        _actionsList->blockSignals(true);
+        _secondRowList->blockSignals(true);
+
         _actionsList->clear();
         _secondRowList->clear();
         _availableActions = getDefaultActions();
@@ -353,39 +378,36 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
         // Use saved custom order
         orderToUse = customOrder;
     } else {
-        // Use comprehensive default order (starts from separator2, essential actions are always included)
+        // Use comprehensive default order (essential actions are always included)
         // Order matches the menu structure: Tools -> Edit -> Playback -> View -> MIDI
-        orderToUse << "separator2"
-                  // Tools menu order
-                  << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
-                  << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                  << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "size_change" << "separator5"
-                  << "move_all" << "move_lr" << "move_ud" << "separator6"
-                  << "size_change" << "separator7"
-                  << "align_left" << "equalize" << "align_right" << "separator8"
-                  << "quantize" << "magnet" << "separator9"
-                  << "transpose" << "transpose_up" << "transpose_down" << "separator10"
+        orderToUse // Tools menu order
+                  << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
+                  << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+                  << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
+                  << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
+                  << "align_left" << "equalize" << "align_right" << "separator6"
+                  << "quantize" << "magnet" << "separator7"
+                  << "transpose" << "transpose_up" << "transpose_down" << "separator8"
                   // Playback menu order
                   << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                  << "stop" << "record" << "forward" << "forward_marker" << "separator11"
-                  << "separator12" << "metronome" << "separator13"
+                  << "stop" << "record" << "forward" << "forward_marker" << "separator9"
+                  << "metronome" << "separator10"
                   // View menu order
                   << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                  << "lock" << "separator14" << "thru" << "panic" << "separator15"
+                  << "lock" << "separator11" << "thru" << "panic" << "separator12"
                   << "measure" << "time_signature" << "tempo";
 
         // Default enabled actions (comprehensive list - starts from separator2)
-        defaultEnabledActions << "separator2"
-                             << "standard_tool" << "select_left" << "select_right" << "separator3"
-                             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                             << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                             << "align_left" << "equalize" << "align_right" << "separator6"
-                             << "quantize" << "magnet" << "separator7"
+        defaultEnabledActions << "standard_tool" << "select_left" << "select_right" << "separator2"
+                             << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+                             << "glue" << "scissors" << "delete_overlaps" << "separator4"
+                             << "align_left" << "equalize" << "align_right" << "separator5"
+                             << "quantize" << "magnet" << "separator6"
                              << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                             << "stop" << "record" << "forward" << "forward_marker" << "separator8"
-                             << "metronome" << "separator9"
+                             << "stop" << "record" << "forward" << "forward_marker" << "separator9"
+                             << "metronome" << "separator10"
                              << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                             << "separator10" << "lock" << "measure" << "time_signature" << "tempo" << "separator11" << "thru";
+                             << "lock" << "separator11" << "measure" << "time_signature" << "tempo" << "thru" << "separator12";
         // Note: Additional actions like glue_all_channels, select_single, select_box, panic, etc. are disabled by default
     }
 
@@ -419,24 +441,21 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
             // Default split: Editing tools on row 1, playback/view on row 2
             // Use the same split logic as MainWindow default (starting from separator2)
             QStringList row1DefaultActions;
-            row1DefaultActions << "separator2"
-                              << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
-                              << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                              << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator5"
-                              << "move_all" << "move_lr" << "move_ud" << "separator6"
-                              << "size_change" << "separator7"
-                              << "align_left" << "equalize" << "align_right" << "separator8"
-                              << "quantize" << "magnet" << "separator9"
-                              << "transpose" << "transpose_up" << "transpose_down" << "separator10"
+            row1DefaultActions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
+                              << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+                              << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
+                              << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
+                              << "align_left" << "equalize" << "align_right" << "separator6"
+                              << "quantize" << "magnet" << "separator7"
+                              << "transpose" << "transpose_up" << "transpose_down" << "separator8"
                               << "measure" << "time_signature" << "tempo";
 
             QStringList row2DefaultActions;
-            row2DefaultActions << "separator11" // First separator in second row
-                              << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                              << "stop" << "record" << "forward" << "forward_marker" << "separator12"
-                              << "metronome" << "separator13"
+            row2DefaultActions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                              << "stop" << "record" << "forward" << "forward_marker" << "separator9"
+                              << "metronome" << "separator10"
                               << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                              << "lock" << "separator14" << "thru" << "panic";
+                              << "lock" << "separator11" << "thru" << "panic";
 
             // Use the predefined split
             for (const QString& actionId : orderToUse) {
@@ -535,6 +554,10 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
             item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
         }
     }
+
+    // Unblock signals after population is complete
+    _actionsList->blockSignals(false);
+    _secondRowList->blockSignals(false);
 }
 
 void LayoutSettingsWidget::customizeToolbarToggled(bool customizeToolbarEnabled) {
@@ -552,9 +575,7 @@ void LayoutSettingsWidget::customizeToolbarToggled(bool customizeToolbarEnabled)
         // Show/hide second row based on current mode
         _secondRowLabel->setVisible(_twoRowMode);
         _secondRowList->setVisible(_twoRowMode);
-        // Save the current state as custom
-        saveSettings();
-        triggerToolbarUpdate();
+        // Don't save settings or trigger update here - let the user make changes first
     } else {
         // When disabling customization, clear custom settings and use defaults
         Appearance::setToolbarActionOrder(QStringList());
@@ -579,8 +600,16 @@ void LayoutSettingsWidget::rowModeChanged() {
         _secondRowLabel->setVisible(_twoRowMode);
         _secondRowList->setVisible(_twoRowMode);
 
+        // Block signals during redistribution to prevent cascading updates
+        _actionsList->blockSignals(true);
+        _secondRowList->blockSignals(true);
+
         // Redistribute actions when switching modes
         redistributeActions();
+
+        // Unblock signals after redistribution is complete
+        _actionsList->blockSignals(false);
+        _secondRowList->blockSignals(false);
 
         // Save custom settings and update toolbar
         saveSettings();
@@ -655,12 +684,11 @@ void LayoutSettingsWidget::redistributeActions() {
                           << "measure" << "time_signature" << "tempo";
 
         QStringList row2DefaultActions;
-        row2DefaultActions << "separator11"
-                          << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                          << "stop" << "record" << "forward" << "forward_marker" << "separator12"
-                          << "metronome" << "separator13"
+        row2DefaultActions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                          << "stop" << "record" << "forward" << "forward_marker" << "separator10"
+                          << "metronome" << "separator11"
                           << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                          << "lock" << "separator14" << "thru" << "panic";
+                          << "lock" << "separator12" << "thru" << "panic";
 
         // Distribute actions
         for (const QString& actionId : orderToUse) {
@@ -814,7 +842,7 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"play", "Play", ":/run_environment/graphics/tool/play.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"pause", "Pause", ":/run_environment/graphics/tool/pause.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop_record.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"record", "Record", ":/run_environment/graphics/tool/record.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"forward", "Forward", ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"forward_marker", "Forward Marker", ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};

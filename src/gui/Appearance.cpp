@@ -629,7 +629,7 @@ QString Appearance::applicationStyle(){
 void Appearance::setApplicationStyle(const QString& style){
     // Prevent rapid successive theme changes that might cause crashes
     QDateTime now = QDateTime::currentDateTime();
-    if (lastThemeChange.isValid() && lastThemeChange.msecsTo(now) < 1000) {
+    if (lastThemeChange.isValid() && lastThemeChange.msecsTo(now) < 500) {
         return;
     }
     lastThemeChange = now;
@@ -641,8 +641,19 @@ void Appearance::setApplicationStyle(const QString& style){
 
     applyStyle();
 
-    // Refresh colors when style changes since dark mode behavior depends on style
-    refreshColors();
+    // Use a timer to debounce the expensive refresh operations
+    static QTimer* refreshTimer = nullptr;
+    if (!refreshTimer) {
+        refreshTimer = new QTimer();
+        refreshTimer->setSingleShot(true);
+        QObject::connect(refreshTimer, &QTimer::timeout, []() {
+            refreshColors();
+        });
+    }
+
+    // Debounce refresh to prevent multiple rapid updates
+    refreshTimer->stop();
+    refreshTimer->start(100); // Wait 100ms before refreshing
 }
 
 int Appearance::toolbarIconSize(){
@@ -1246,6 +1257,13 @@ void Appearance::setActionIcon(QAction* action, const QString& iconPath) {
 }
 
 void Appearance::refreshColors() {
+    // Prevent cascading toolbar updates during style changes
+    static bool isRefreshingColors = false;
+    if (isRefreshingColors) {
+        return; // Already refreshing, prevent recursion
+    }
+    isRefreshingColors = true;
+
     try {
         // Auto-reset default colors for the new theme
         autoResetDefaultColors();
@@ -1361,6 +1379,9 @@ void Appearance::refreshColors() {
             }
         }
     }
+
+    // Reset the flag to allow future refreshes
+    isRefreshingColors = false;
 }
 
 void Appearance::forceColorRefresh() {
