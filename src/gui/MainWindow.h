@@ -221,7 +221,7 @@ class MainWindow : public QMainWindow {
     QStringList _recentFilePaths;
     QMenu *_recentPathsMenu, *_deleteChannelMenu,
           *_moveSelectedEventsToTrackMenu, *_moveSelectedEventsToChannelMenu,
-          *_pasteToTrackMenu, *_pasteToChannelMenu, *_selectAllFromTrackMenu, *_selectAllFromChannelMenu;
+          *_pasteToTrackMenu, *_pasteToChannelMenu, *_selectAllFromTrackMenu, *_selectAllFromChannelMenu, * _pasteOptionsMenu;
 
     QTabWidget* lowerTabWidget;
     QAction *_colorsByChannel, *_colorsByTracks;
@@ -233,7 +233,7 @@ class MainWindow : public QMainWindow {
 
     QComboBox *_miscMode, *_miscController, *_miscChannel;
     QAction *setSingleMode, *setLineMode, *setFreehandMode, *_allChannelsVisible, *_allChannelsInvisible, *_allTracksAudible, *_allTracksMute,
-            *_allChannelsAudible, *_allChannelsMute, *_allTracksVisible, *_allTracksInvisible, *stdToolAction, *undoAction, *redoAction, *_pasteAction, *pasteActionTB;
+            *_allChannelsAudible, *_allChannelsMute, *_allTracksVisible, *_allTracksInvisible, *stdToolAction, *undoAction, *redoAction, *_pasteAction;
     MiscWidget* _miscWidget;
 
     QWidget* setupActions(QWidget* parent);
