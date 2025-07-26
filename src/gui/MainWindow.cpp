@@ -3491,7 +3491,6 @@ void MainWindow::toolChanged() {
 void MainWindow::copiedEventsChanged() {
     bool enable = EventTool::copiedEvents->size() > 0;
     _pasteAction->setEnabled(enable);
-    pasteActionTB->setEnabled(enable);
 }
 
 void MainWindow::updateAll() {
