@@ -221,7 +221,7 @@ class MainWindow : public QMainWindow {
     QStringList _recentFilePaths;
     QMenu *_recentPathsMenu, *_deleteChannelMenu,
           *_moveSelectedEventsToTrackMenu, *_moveSelectedEventsToChannelMenu,
-          *_pasteToTrackMenu, *_pasteToChannelMenu, *_selectAllFromTrackMenu, *_selectAllFromChannelMenu;
+          *_pasteToTrackMenu, *_pasteToChannelMenu, *_selectAllFromTrackMenu, *_selectAllFromChannelMenu, * _pasteOptionsMenu;
 
     QTabWidget* lowerTabWidget;
     QAction *_colorsByChannel, *_colorsByTracks;
