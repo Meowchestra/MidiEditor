@@ -2676,6 +2676,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QActionGroup* divGroup = new QActionGroup(viewMB);
     divGroup->setExclusive(true);
 
+    // Regular divisions
     for (int i = -1; i <= 5; i++) {
         QVariant variant(i);
         QString text = tr("Off");
@@ -2695,6 +2696,27 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
         a->setCheckable(true);
         a->setChecked(i == mw_matrixWidget->div());
     }
+
+    // Add separator before triplets
+    divMenu->addSeparator();
+
+    // Triplet divisions (using negative values to distinguish from regular divisions)
+    // Quarter note triplets: -102 (2 + 100 for triplet flag)
+    QAction* quarterTriplet = new QAction(tr("Quarter note triplets"), this);
+    quarterTriplet->setData(QVariant(-102));
+    divGroup->addAction(quarterTriplet);
+    divMenu->addAction(quarterTriplet);
+    quarterTriplet->setCheckable(true);
+    quarterTriplet->setChecked(-102 == mw_matrixWidget->div());
+
+    // Eighth note triplets: -103 (3 + 100 for triplet flag)
+    QAction* eighthTriplet = new QAction(tr("Eighth note triplets"), this);
+    eighthTriplet->setData(QVariant(-103));
+    divGroup->addAction(eighthTriplet);
+    divMenu->addAction(eighthTriplet);
+    eighthTriplet->setCheckable(true);
+    eighthTriplet->setChecked(-103 == mw_matrixWidget->div());
+
     connect(divMenu, SIGNAL(triggered(QAction*)), this, SLOT(divChanged(QAction*)));
     viewMB->addMenu(divMenu);
 

@@ -403,9 +403,21 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 pixpainter->setPen(Appearance::measureTextColor());
                 pixpainter->drawText(textX, textY, text);
 
-                if (_div >= 0) {
-                    double metronomeDiv = 4 / (double)qPow(2, _div);
-                    int ticksPerDiv = metronomeDiv * file->ticksPerQuarter();
+                if (_div >= 0 || _div <= -100) {
+                    int ticksPerDiv;
+
+                    if (_div >= 0) {
+                        // Regular divisions
+                        double metronomeDiv = 4 / (double)qPow(2, _div);
+                        ticksPerDiv = metronomeDiv * file->ticksPerQuarter();
+                    } else {
+                        // Triplet divisions (negative values -100 and below)
+                        int baseDivision = (-_div) - 100; // Extract base division (2 for quarter, 3 for eighth)
+                        double baseDiv = 4 / (double)qPow(2, baseDivision);
+                        // For triplets, divide by 3 instead of the normal power of 2
+                        ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 3;
+                    }
+
                     int startTickDiv = ticksPerDiv;
                     QPen oldPen = pixpainter->pen();
                     QPen dashPen = QPen(Appearance::timelineGridColor(), 1, Qt::DashLine);
@@ -1112,17 +1124,22 @@ bool MatrixWidget::eventInWidget(MidiEvent* event) {
         on = dynamic_cast<NoteOnEvent*>(off->onEvent());
     }
     if (on && off) {
-        int line = off->line();
-        int tick = off->midiTime();
-        bool offIn = line >= startLineY && line <= endLineY && tick >= startTick && tick <= endTick;
-        line = on->line();
-        tick = on->midiTime();
-        bool onIn = line >= startLineY && line <= endLineY && tick >= startTick && tick <= endTick;
+        int offLine = off->line();
+        int offTick = off->midiTime();
+        bool offIn = offLine >= startLineY && offLine <= endLineY && offTick >= startTick && offTick <= endTick;
 
-        off->setShown(offIn);
-        on->setShown(onIn);
+        int onLine = on->line();
+        int onTick = on->midiTime();
+        bool onIn = onLine >= startLineY && onLine <= endLineY && onTick >= startTick && onTick <= endTick;
 
-        return offIn || onIn;
+        // Check if note spans across the viewport (starts before and ends after)
+        bool spansViewport = (onLine >= startLineY && onLine <= endLineY) &&
+                            (onTick < startTick && offTick > endTick);
+
+        off->setShown(offIn || spansViewport);
+        on->setShown(onIn || spansViewport);
+
+        return offIn || onIn || spansViewport;
 
     } else {
         int line = event->line();

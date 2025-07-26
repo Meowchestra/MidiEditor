@@ -29,6 +29,9 @@ class CompleteMidiSetupDialog : public QDialog {
 
 public:
     CompleteMidiSetupDialog(QWidget* parent, bool alertAboutInput, bool alertAboutOutput);
+
+public slots:
+    void openSettings();
 };
 
 #endif

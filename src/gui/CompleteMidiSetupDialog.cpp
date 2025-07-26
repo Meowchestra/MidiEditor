@@ -18,6 +18,7 @@
 
 #include "CompleteMidiSetupDialog.h"
 #include "Appearance.h"
+#include "MainWindow.h"
 
 #include <QGridLayout>
 #include <QIcon>
@@ -98,7 +99,19 @@ CompleteMidiSetupDialog::CompleteMidiSetupDialog(QWidget* parent, bool alertAbou
     f->setFrameStyle(QFrame::HLine | QFrame::Sunken);
     layout->addWidget(f, 4, 0, 1, 3);
 
+    QPushButton* settings = new QPushButton(tr("Settings"));
+    layout->addWidget(settings, 5, 1, 1, 1);
+    connect(settings, SIGNAL(clicked()), this, SLOT(openSettings()));
+
     QPushButton* close = new QPushButton(tr("Close"));
     layout->addWidget(close, 5, 2, 1, 1);
     connect(close, SIGNAL(clicked()), this, SLOT(hide()));
+}
+
+void CompleteMidiSetupDialog::openSettings() {
+    // Find the MainWindow parent and open its settings dialog
+    MainWindow* mainWindow = qobject_cast<MainWindow*>(parent());
+    if (mainWindow) {
+        mainWindow->openConfig();
+    }
 }
