@@ -2475,10 +2475,13 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QActionGroup* quantGroup = new QActionGroup(viewMB);
     quantGroup->setExclusive(true);
 
+    // Regular Notes submenu
+    QMenu* quantRegularMenu = new QMenu(tr("Regular Notes"), quantMenu);
+    quantMenu->addMenu(quantRegularMenu);
+
     for (int i = 0; i <= 5; i++) {
         QVariant variant(i);
-        QString text = "";
-
+        QString text;
         if (i == 0) {
             text = tr("Whole note");
         } else if (i == 1) {
@@ -2486,16 +2489,92 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
         } else if (i == 2) {
             text = tr("Quarter note");
         } else {
-            text = QString::number((int)qPow(2, i)) + tr("th note");
+            int noteValue = (int)qPow(2, i);
+            if (noteValue == 32) {
+                text = tr("32nd note");
+            } else {
+                text = QString::number(noteValue) + tr("th note");
+            }
         }
-
         QAction* a = new QAction(text, this);
         a->setData(variant);
         quantGroup->addAction(a);
-        quantMenu->addAction(a);
+        quantRegularMenu->addAction(a);
         a->setCheckable(true);
         a->setChecked(i == _quantizationGrid);
     }
+
+    quantMenu->addSeparator();
+
+    // Triplets submenu
+    QMenu* quantTripletsMenu = new QMenu(tr("Triplets"), quantMenu);
+    quantMenu->addMenu(quantTripletsMenu);
+
+    QStringList tripletNames = QStringList() << tr("Whole note triplets") << tr("Half note triplets")
+                                            << tr("Quarter note triplets") << tr("8th note triplets")
+                                            << tr("16th note triplets") << tr("32nd note triplets");
+
+    for (int i = 0; i < tripletNames.size(); i++) {
+        QAction* tripletAction = new QAction(tripletNames[i], this);
+        tripletAction->setData(QVariant(-100 - i));
+        quantGroup->addAction(tripletAction);
+        quantTripletsMenu->addAction(tripletAction);
+        tripletAction->setCheckable(true);
+        tripletAction->setChecked((-100 - i) == _quantizationGrid);
+    }
+
+    quantMenu->addSeparator();
+
+    // Other Tuplets submenu
+    QMenu* quantTupletsMenu = new QMenu(tr("Other Tuplets"), quantMenu);
+    quantMenu->addMenu(quantTupletsMenu);
+
+    // Quintuplets submenu (most commonly used tuplets after triplets)
+    QMenu* quantQuintupletsMenu = new QMenu(tr("Quintuplets"), quantTupletsMenu);
+    quantTupletsMenu->addMenu(quantQuintupletsMenu);
+
+    QStringList quintupletNames = QStringList() << tr("Quarter quintuplets") << tr("8th quintuplets") << tr("16th quintuplets");
+    for (int i = 0; i < quintupletNames.size(); i++) {
+        QAction* quintupletAction = new QAction(quintupletNames[i], this);
+        quintupletAction->setData(QVariant(-202 - i));
+        quantGroup->addAction(quintupletAction);
+        quantQuintupletsMenu->addAction(quintupletAction);
+        quintupletAction->setCheckable(true);
+        quintupletAction->setChecked((-202 - i) == _quantizationGrid);
+    }
+
+    // Sextuplets submenu (for advanced users)
+    QMenu* quantSextupletsMenu = new QMenu(tr("Sextuplets"), quantTupletsMenu);
+    quantTupletsMenu->addMenu(quantSextupletsMenu);
+
+    QStringList quantSextupletNames = QStringList() << tr("Quarter sextuplets") << tr("8th sextuplets");
+    for (int i = 0; i < quantSextupletNames.size(); i++) {
+        QAction* sextupletAction = new QAction(quantSextupletNames[i], this);
+        sextupletAction->setData(QVariant(-302 - i));
+        quantGroup->addAction(sextupletAction);
+        quantSextupletsMenu->addAction(sextupletAction);
+        sextupletAction->setCheckable(true);
+        sextupletAction->setChecked((-302 - i) == _quantizationGrid);
+    }
+
+    quantMenu->addSeparator();
+
+    // Dotted Notes submenu (important for compound meters)
+    QMenu* quantDottedMenu = new QMenu(tr("Dotted Notes"), quantMenu);
+    quantMenu->addMenu(quantDottedMenu);
+
+    QStringList quantDottedNames = QStringList() << tr("Dotted quarter notes") << tr("Dotted 8th notes");
+    QList<int> quantDottedValues = QList<int>() << -502 << -503;
+
+    for (int i = 0; i < quantDottedNames.size(); i++) {
+        QAction* dottedAction = new QAction(quantDottedNames[i], this);
+        dottedAction->setData(QVariant(quantDottedValues[i]));
+        quantGroup->addAction(dottedAction);
+        quantDottedMenu->addAction(dottedAction);
+        dottedAction->setCheckable(true);
+        dottedAction->setChecked(quantDottedValues[i] == _quantizationGrid);
+    }
+
     connect(quantMenu, SIGNAL(triggered(QAction*)), this, SLOT(quantizationChanged(QAction*)));
     toolsMB->addMenu(quantMenu);
 
@@ -2676,46 +2755,140 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QActionGroup* divGroup = new QActionGroup(viewMB);
     divGroup->setExclusive(true);
 
-    // Regular divisions
-    for (int i = -1; i <= 5; i++) {
+    // Off option
+    QAction* offAction = new QAction(tr("Off"), this);
+    offAction->setData(QVariant(-1));
+    divGroup->addAction(offAction);
+    divMenu->addAction(offAction);
+    offAction->setCheckable(true);
+    offAction->setChecked(-1 == mw_matrixWidget->div());
+
+    divMenu->addSeparator();
+
+    // Regular Notes submenu
+    QMenu* regularMenu = new QMenu(tr("Regular Notes"), divMenu);
+    divMenu->addMenu(regularMenu);
+
+    for (int i = 0; i <= 5; i++) {
         QVariant variant(i);
-        QString text = tr("Off");
+        QString text;
         if (i == 0) {
             text = tr("Whole note");
         } else if (i == 1) {
             text = tr("Half note");
         } else if (i == 2) {
             text = tr("Quarter note");
-        } else if (i > 0) {
-            text = QString::number((int)qPow(2, i)) + tr("th note");
+        } else {
+            int noteValue = (int)qPow(2, i);
+            if (noteValue == 32) {
+                text = tr("32nd note");
+            } else {
+                text = QString::number(noteValue) + tr("th note");
+            }
         }
         QAction* a = new QAction(text, this);
         a->setData(variant);
         divGroup->addAction(a);
-        divMenu->addAction(a);
+        regularMenu->addAction(a);
         a->setCheckable(true);
         a->setChecked(i == mw_matrixWidget->div());
     }
 
-    // Add separator before triplets
     divMenu->addSeparator();
 
-    // Triplet divisions (using negative values to distinguish from regular divisions)
-    // Quarter note triplets: -102 (2 + 100 for triplet flag)
-    QAction* quarterTriplet = new QAction(tr("Quarter note triplets"), this);
-    quarterTriplet->setData(QVariant(-102));
-    divGroup->addAction(quarterTriplet);
-    divMenu->addAction(quarterTriplet);
-    quarterTriplet->setCheckable(true);
-    quarterTriplet->setChecked(-102 == mw_matrixWidget->div());
+    // Triplets submenu
+    QMenu* tripletsMenu = new QMenu(tr("Triplets"), divMenu);
+    divMenu->addMenu(tripletsMenu);
 
-    // Eighth note triplets: -103 (3 + 100 for triplet flag)
-    QAction* eighthTriplet = new QAction(tr("Eighth note triplets"), this);
-    eighthTriplet->setData(QVariant(-103));
-    divGroup->addAction(eighthTriplet);
-    divMenu->addAction(eighthTriplet);
-    eighthTriplet->setCheckable(true);
-    eighthTriplet->setChecked(-103 == mw_matrixWidget->div());
+    QStringList rasterTripletNames = QStringList() << tr("Whole note triplets") << tr("Half note triplets")
+                                                   << tr("Quarter note triplets") << tr("8th note triplets")
+                                                   << tr("16th note triplets") << tr("32nd note triplets");
+
+    for (int i = 0; i < rasterTripletNames.size(); i++) {
+        QAction* tripletAction = new QAction(rasterTripletNames[i], this);
+        tripletAction->setData(QVariant(-100 - i));
+        divGroup->addAction(tripletAction);
+        tripletsMenu->addAction(tripletAction);
+        tripletAction->setCheckable(true);
+        tripletAction->setChecked((-100 - i) == mw_matrixWidget->div());
+    }
+
+    divMenu->addSeparator();
+
+    // Other Tuplets submenu
+    QMenu* tupletsMenu = new QMenu(tr("Other Tuplets"), divMenu);
+    divMenu->addMenu(tupletsMenu);
+
+    // Quintuplets submenu
+    QMenu* quintupletsMenu = new QMenu(tr("Quintuplets"), tupletsMenu);
+    tupletsMenu->addMenu(quintupletsMenu);
+
+    QStringList rasterQuintupletNames = QStringList() << tr("Quarter quintuplets") << tr("8th quintuplets") << tr("16th quintuplets");
+    for (int i = 0; i < rasterQuintupletNames.size(); i++) {
+        QAction* quintupletAction = new QAction(rasterQuintupletNames[i], this);
+        quintupletAction->setData(QVariant(-202 - i)); // -202, -203, -204
+        divGroup->addAction(quintupletAction);
+        quintupletsMenu->addAction(quintupletAction);
+        quintupletAction->setCheckable(true);
+        quintupletAction->setChecked((-202 - i) == mw_matrixWidget->div());
+    }
+
+    // Sextuplets submenu
+    QMenu* sextupletsMenu = new QMenu(tr("Sextuplets"), tupletsMenu);
+    tupletsMenu->addMenu(sextupletsMenu);
+
+    QStringList rasterSextupletNames = QStringList() << tr("Quarter sextuplets") << tr("8th sextuplets") << tr("16th sextuplets");
+    for (int i = 0; i < rasterSextupletNames.size(); i++) {
+        QAction* sextupletAction = new QAction(rasterSextupletNames[i], this);
+        sextupletAction->setData(QVariant(-302 - i)); // -302, -303, -304
+        divGroup->addAction(sextupletAction);
+        sextupletsMenu->addAction(sextupletAction);
+        sextupletAction->setCheckable(true);
+        sextupletAction->setChecked((-302 - i) == mw_matrixWidget->div());
+    }
+
+    // Septuplets submenu
+    QMenu* septupletsMenu = new QMenu(tr("Septuplets"), tupletsMenu);
+    tupletsMenu->addMenu(septupletsMenu);
+
+    QStringList rasterSeptupletNames = QStringList() << tr("Quarter septuplets") << tr("8th septuplets") << tr("16th septuplets");
+    for (int i = 0; i < rasterSeptupletNames.size(); i++) {
+        QAction* septupletAction = new QAction(rasterSeptupletNames[i], this);
+        septupletAction->setData(QVariant(-402 - i)); // -402, -403, -404
+        divGroup->addAction(septupletAction);
+        septupletsMenu->addAction(septupletAction);
+        septupletAction->setCheckable(true);
+        septupletAction->setChecked((-402 - i) == mw_matrixWidget->div());
+    }
+
+    divMenu->addSeparator();
+
+    // Dotted Notes submenu
+    QMenu* dottedMenu = new QMenu(tr("Dotted Notes"), divMenu);
+    divMenu->addMenu(dottedMenu);
+
+    // Regular dotted notes
+    QStringList rasterDottedNames = QStringList() << tr("Dotted half notes") << tr("Dotted quarter notes") << tr("Dotted 8th notes");
+    QList<int> rasterDottedValues = QList<int>() << -501 << -502 << -503;
+
+    for (int i = 0; i < rasterDottedNames.size(); i++) {
+        QAction* dottedAction = new QAction(rasterDottedNames[i], this);
+        dottedAction->setData(QVariant(rasterDottedValues[i]));
+        divGroup->addAction(dottedAction);
+        dottedMenu->addAction(dottedAction);
+        dottedAction->setCheckable(true);
+        dottedAction->setChecked(rasterDottedValues[i] == mw_matrixWidget->div());
+    }
+
+    dottedMenu->addSeparator();
+
+    // Double dotted notes (1.75x duration)
+    QAction* doubleDottedQuarter = new QAction(tr("Double dotted quarters"), this);
+    doubleDottedQuarter->setData(QVariant(-602)); // New encoding for double dotted
+    divGroup->addAction(doubleDottedQuarter);
+    dottedMenu->addAction(doubleDottedQuarter);
+    doubleDottedQuarter->setCheckable(true);
+    doubleDottedQuarter->setChecked(-602 == mw_matrixWidget->div());
 
     connect(divMenu, SIGNAL(triggered(QAction*)), this, SLOT(divChanged(QAction*)));
     viewMB->addMenu(divMenu);

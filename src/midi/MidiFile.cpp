@@ -1816,7 +1816,44 @@ MidiTrack* MidiFile::getPasteTrack(MidiTrack* source, MidiFile* fileFrom) {
 
 QList<int> MidiFile::quantization(int fractionSize) {
 
-    int fractionTicks = (4 * ticksPerQuarter()) / qPow(2, fractionSize);
+    int fractionTicks;
+
+    if (fractionSize >= 0) {
+        // Regular divisions: same as before
+        fractionTicks = (4 * ticksPerQuarter()) / qPow(2, fractionSize);
+    } else if (fractionSize <= -100) {
+        // Extended subdivision system (same logic as MatrixWidget)
+        int subdivisionType = (-fractionSize) / 100;  // 1=triplets, 2=quintuplets, etc.
+        int baseDivision = (-fractionSize) % 100;     // Extract base division
+
+        double baseDiv = 4 / (double)qPow(2, baseDivision);
+
+        if (subdivisionType == 1) {
+            // Triplets: divide by 3
+            fractionTicks = (baseDiv * ticksPerQuarter()) / 3;
+        } else if (subdivisionType == 2) {
+            // Quintuplets: divide by 5
+            fractionTicks = (baseDiv * ticksPerQuarter()) / 5;
+        } else if (subdivisionType == 3) {
+            // Sextuplets: divide by 6
+            fractionTicks = (baseDiv * ticksPerQuarter()) / 6;
+        } else if (subdivisionType == 4) {
+            // Septuplets: divide by 7
+            fractionTicks = (baseDiv * ticksPerQuarter()) / 7;
+        } else if (subdivisionType == 5) {
+            // Dotted notes: multiply by 1.5
+            fractionTicks = (baseDiv * ticksPerQuarter()) * 1.5;
+        } else if (subdivisionType == 6) {
+            // Double dotted notes: multiply by 1.75
+            fractionTicks = (baseDiv * ticksPerQuarter()) * 1.75;
+        } else {
+            // Fallback to triplets for unknown types
+            fractionTicks = (baseDiv * ticksPerQuarter()) / 3;
+        }
+    } else {
+        // Fallback for unexpected values
+        fractionTicks = ticksPerQuarter(); // Default to quarter notes
+    }
 
     QList<int> list;
 

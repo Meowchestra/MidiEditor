@@ -407,15 +407,46 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                     int ticksPerDiv;
 
                     if (_div >= 0) {
-                        // Regular divisions
+                        // Regular divisions: _div=0 (whole), _div=1 (half), _div=2 (quarter), etc.
+                        // Formula: 4 / 2^_div quarters per division
                         double metronomeDiv = 4 / (double)qPow(2, _div);
                         ticksPerDiv = metronomeDiv * file->ticksPerQuarter();
-                    } else {
-                        // Triplet divisions (negative values -100 and below)
-                        int baseDivision = (-_div) - 100; // Extract base division (2 for quarter, 3 for eighth)
+                    } else if (_div <= -100) {
+                        // Extended subdivision system:
+                        // -100 to -199: Triplets (÷3)
+                        // -200 to -299: Quintuplets (÷5)
+                        // -300 to -399: Sextuplets (÷6)
+                        // -400 to -499: Septuplets (÷7)
+                        // -500 to -599: Dotted notes (×1.5)
+                        // -600 to -699: Double dotted notes (×1.75)
+
+                        int subdivisionType = (-_div) / 100;  // 1=triplets, 2=quintuplets, etc.
+                        int baseDivision = (-_div) % 100;     // Extract base division
+
                         double baseDiv = 4 / (double)qPow(2, baseDivision);
-                        // For triplets, divide by 3 instead of the normal power of 2
-                        ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 3;
+
+                        if (subdivisionType == 1) {
+                            // Triplets: divide by 3
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 3;
+                        } else if (subdivisionType == 2) {
+                            // Quintuplets: divide by 5
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 5;
+                        } else if (subdivisionType == 3) {
+                            // Sextuplets: divide by 6
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 6;
+                        } else if (subdivisionType == 4) {
+                            // Septuplets: divide by 7
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 7;
+                        } else if (subdivisionType == 5) {
+                            // Dotted notes: multiply by 1.5
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) * 1.5;
+                        } else if (subdivisionType == 6) {
+                            // Double dotted notes: multiply by 1.75
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) * 1.75;
+                        } else {
+                            // Fallback to triplets for unknown types
+                            ticksPerDiv = (baseDiv * file->ticksPerQuarter()) / 3;
+                        }
                     }
 
                     int startTickDiv = ticksPerDiv;
@@ -611,8 +642,12 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     // filter events
     QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
 
-    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(startTick);
-    while (it != map->end() && it.key() <= endTick) {
+    // Process ALL events in the channel to ensure no notes are missed
+    // This is the only way to guarantee that long notes spanning the viewport are found
+    // Performance impact is minimal since eventInWidget() does efficient filtering
+    QMultiMap<int, MidiEvent*>::iterator it = map->begin();
+    while (it != map->end()) {
+        // Let eventInWidget() do the precise visibility filtering
         MidiEvent* event = it.value();
         if (eventInWidget(event)) {
             // insert all Events in objects, set their coordinates
@@ -1132,14 +1167,26 @@ bool MatrixWidget::eventInWidget(MidiEvent* event) {
         int onTick = on->midiTime();
         bool onIn = onLine >= startLineY && onLine <= endLineY && onTick >= startTick && onTick <= endTick;
 
-        // Check if note spans across the viewport (starts before and ends after)
-        bool spansViewport = (onLine >= startLineY && onLine <= endLineY) &&
-                            (onTick < startTick && offTick > endTick);
+        // Check if note line is visible (same line for both on and off events)
+        bool lineVisible = (onLine >= startLineY && onLine <= endLineY);
 
-        off->setShown(offIn || spansViewport);
-        on->setShown(onIn || spansViewport);
+        // Check all possible time overlap scenarios:
+        // 1. Note starts before viewport and ends after viewport (spans completely)
+        // 2. Note starts before viewport and ends inside viewport
+        // 3. Note starts inside viewport and ends after viewport
+        // 4. Note starts and ends inside viewport
+        // All of these can be captured by: note starts before viewport ends AND note ends after viewport starts
+        bool timeOverlaps = (onTick < endTick && offTick > startTick);
 
-        return offIn || onIn || spansViewport;
+        // Show note if:
+        // 1. Either start or end is fully visible (both time and line), OR
+        // 2. Note line is visible AND note overlaps viewport in time
+        bool shouldShow = offIn || onIn || (lineVisible && timeOverlaps);
+
+        off->setShown(shouldShow);
+        on->setShown(shouldShow);
+
+        return shouldShow;
 
     } else {
         int line = event->line();
