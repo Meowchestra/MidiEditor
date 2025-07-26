@@ -106,14 +106,13 @@ AboutDialog::AboutDialog(QWidget* parent)
 
     if (Appearance::shouldUseDarkMode()) {
         content->setStyleSheet("color: white; background-color: #404040; padding: 5px");
-        a->setStyleSheet("background-color: #404040");
+        // Don't override scroll area styling - let it inherit from application
+        a->setStyleSheet("QScrollArea { background-color: #404040; }");
     } else {
         content->setStyleSheet("color: black; background-color: white; padding: 5px");
-        a->setStyleSheet("background-color: white");
+        // Don't override scroll area styling - let it inherit from application
+        a->setStyleSheet("QScrollArea { background-color: white; }");
     }
-
-    // Ensure the scroll area uses the application style
-    a->setStyle(QApplication::style());
 
     content->setTextInteractionFlags(Qt::LinksAccessibleByMouse);
     content->setOpenExternalLinks(true);

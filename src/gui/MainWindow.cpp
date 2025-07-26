@@ -53,6 +53,7 @@
 #include "EventWidget.h"
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
+#include "LayoutSettingsWidget.h"
 #include "MatrixWidget.h"
 #include "MiscWidget.h"
 #include "NToleQuantizationDialog.h"
@@ -1102,7 +1103,15 @@ void MainWindow::about() {
 
     // Ensure the about dialog inherits the current application style and palette
     d->setPalette(QApplication::palette());
-    d->setStyleSheet(this->styleSheet());
+
+    // Apply the same style as the application
+    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    if (app) {
+        QString appStyleSheet = app->styleSheet();
+        if (!appStyleSheet.isEmpty()) {
+            d->setStyleSheet(appStyleSheet);
+        }
+    }
 
     // Force style refresh on the dialog
     QTimer::singleShot(0, [d]() {
@@ -3276,47 +3285,27 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
     // Essential actions that can't be disabled (only for single row mode)
     QStringList essentialActions;
     if (!twoRowMode) {
-        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo";
+        essentialActions = LayoutSettingsWidget::getEssentialActionIds();
     }
 
-    // Use custom settings only if customization is enabled, otherwise use defaults
-    if (!customizeEnabled || actionOrder.isEmpty()) {
+    // Use custom settings only if customization is enabled AND we have valid action order
+    // If customization is disabled, always use defaults regardless of stored action order
+    if (!customizeEnabled) {
+        // Use minimal default toolbar (not comprehensive - that's for customize UI only)
+        actionOrder = LayoutSettingsWidget::getDefaultToolbarOrder();
+
         if (twoRowMode) {
-            // Two-row default layout: editing tools on top, playback + view on bottom
-            actionOrder << "separator2" // First separator after essential icons
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                       << "align_left" << "equalize" << "align_right" << "separator6"
-                       << "quantize" << "magnet" << "separator7"
-                       << "measure" << "time_signature" << "tempo"
-                       << "row_separator" // Split point for second row
-                       << "separator8" // First separator in second row
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator9"
-                       << "metronome" << "separator10"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator11" << "thru";
-        } else {
-            // Single-row default layout: start after essential actions
-            actionOrder << "separator2" // First separator after essential icons (redo)
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
-                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
-                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
+            // Add row separator for double row mode using default toolbar row distribution
+            QStringList row1Actions, row2Actions;
+            LayoutSettingsWidget::getDefaultToolbarRowDistribution(row1Actions, row2Actions);
+
+            // Rebuild action order with row separator
+            actionOrder.clear();
+            actionOrder << row1Actions << "row_separator" << row2Actions;
         }
 
-        // Enable all non-separator actions by default
-        for (const QString& actionId : actionOrder) {
-            if (!actionId.startsWith("separator") && actionId != "row_separator") {
-                enabledActions << actionId;
-            }
-        }
+        // Use default toolbar enabled actions (all actions in default toolbar are enabled)
+        enabledActions = LayoutSettingsWidget::getDefaultToolbarEnabledActions();
     }
 
     // Only prepend essential actions for single row mode
@@ -3334,6 +3323,18 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
     }
 
     int iconSize = Appearance::toolbarIconSize();
+
+    // CRITICAL: Reset all grid layout constraints before setting up new layout
+    // This prevents issues when switching between single/double row modes
+
+    for (int col = 0; col < 10; col++) {  // Clear up to 10 columns
+        btnLayout->setColumnStretch(col, 0);
+        btnLayout->setColumnMinimumWidth(col, 0);
+    }
+    for (int row = 0; row < 5; row++) {   // Clear up to 5 rows
+        btnLayout->setRowStretch(row, 0);
+        btnLayout->setRowMinimumHeight(row, 0);
+    }
 
     if (twoRowMode) {
         // Create three separate toolbars: essential (larger), top row, bottom row
@@ -3371,8 +3372,7 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         QToolBar* currentToolBar = topToolBar;
 
         // First, add essential actions to essential toolbar
-        QStringList essentialActions;
-        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo" << "separator2";
+        QStringList essentialActions = LayoutSettingsWidget::getEssentialActionIds();
 
         for (const QString& actionId : essentialActions) {
             if (actionId.startsWith("separator")) {
@@ -3406,10 +3406,10 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         }
 
         // Add actions to appropriate toolbar
+        QStringList essentialIds = LayoutSettingsWidget::getEssentialActionIds();
         for (const QString& actionId : actionOrder) {
             // Essential actions are already handled above, skip them here
-            if (actionId == "new" || actionId == "open" || actionId == "save" ||
-                actionId == "undo" || actionId == "redo") {
+            if (essentialIds.contains(actionId)) {
                 continue;
             }
 
@@ -3419,9 +3419,8 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
             }
 
             if (actionId.startsWith("separator")) {
-                // Only add separators if there are already actions in the toolbar
-                // This prevents separators at the beginning of rows
-                if (currentToolBar->actions().count() > 0) {
+                // Only add separators if they are enabled and there are already actions in the toolbar
+                if (enabledActions.contains(actionId) && currentToolBar->actions().count() > 0) {
                     QAction* lastAction = currentToolBar->actions().last();
                     if (!lastAction->isSeparator()) {
                         currentToolBar->addSeparator();
@@ -3522,8 +3521,8 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         for (const QString& actionId : actionOrder) {
             if (actionId.startsWith("separator") || actionId == "row_separator") {
                 if (actionId != "row_separator") {
-                    // Only add separator if there are actions in the toolbar and the last action isn't already a separator
-                    if (toolBar->actions().count() > 0) {
+                    // Only add separator if it's enabled and there are actions in the toolbar and the last action isn't already a separator
+                    if (enabledActions.contains(actionId) && toolBar->actions().count() > 0) {
                         QAction* lastAction = toolBar->actions().last();
                         if (!lastAction->isSeparator()) {
                             toolBar->addSeparator();
@@ -3599,8 +3598,8 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
                     toolBar->addAction(action);
 
                     // In two-row mode, add text labels only for essential actions
-                    if (twoRowMode && (actionId == "new" || actionId == "open" || actionId == "save" ||
-                                      actionId == "undo" || actionId == "redo")) {
+                    QStringList essentialIds = LayoutSettingsWidget::getEssentialActionIds();
+                    if (twoRowMode && essentialIds.contains(actionId) && !actionId.startsWith("separator")) {
                         // Set the toolbar style for this specific action
                         QWidget* toolButton = toolBar->widgetForAction(action);
                         if (QToolButton* button = qobject_cast<QToolButton*>(toolButton)) {
@@ -3651,47 +3650,27 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
     // Essential actions that can't be disabled (only for single row mode)
     QStringList essentialActions;
     if (!twoRowMode) {
-        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo";
+        essentialActions = LayoutSettingsWidget::getEssentialActionIds();
     }
 
-    // Use custom settings only if customization is enabled, otherwise use defaults
-    if (!customizeEnabled || actionOrder.isEmpty()) {
+    // Use custom settings only if customization is enabled AND we have valid action order
+    // If customization is disabled, always use defaults regardless of stored action order
+    if (!customizeEnabled) {
+        // Use minimal default toolbar (not comprehensive - that's for customize UI only)
+        actionOrder = LayoutSettingsWidget::getDefaultToolbarOrder();
+
         if (twoRowMode) {
-            // Two-row default layout: editing tools on top, playback + view on bottom
-            actionOrder << "separator2" // First separator after essential icons
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                       << "align_left" << "equalize" << "align_right" << "separator6"
-                       << "quantize" << "magnet" << "separator7"
-                       << "measure" << "time_signature" << "tempo"
-                       << "row_separator" // Split point for second row
-                       << "separator8" // First separator in second row
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator9"
-                       << "metronome" << "separator10"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator11" << "thru";
-        } else {
-            // Single-row default layout: start after essential actions
-            actionOrder << "separator2" // First separator after essential icons (redo)
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
-                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
-                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
+            // Add row separator for double row mode using default toolbar row distribution
+            QStringList row1Actions, row2Actions;
+            LayoutSettingsWidget::getDefaultToolbarRowDistribution(row1Actions, row2Actions);
+
+            // Rebuild action order with row separator
+            actionOrder.clear();
+            actionOrder << row1Actions << "row_separator" << row2Actions;
         }
 
-        // Enable all non-separator actions by default
-        for (const QString& actionId : actionOrder) {
-            if (!actionId.startsWith("separator") && actionId != "row_separator") {
-                enabledActions << actionId;
-            }
-        }
+        // Use default toolbar enabled actions (all actions in default toolbar are enabled)
+        enabledActions = LayoutSettingsWidget::getDefaultToolbarEnabledActions();
     }
 
     // Only prepend essential actions for single row mode
@@ -3709,6 +3688,18 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
     }
 
     int iconSize = Appearance::toolbarIconSize();
+
+    // CRITICAL: Reset all grid layout constraints before setting up new layout
+    // This prevents issues when switching between single/double row modes
+
+    for (int col = 0; col < 10; col++) {  // Clear up to 10 columns
+        btnLayout->setColumnStretch(col, 0);
+        btnLayout->setColumnMinimumWidth(col, 0);
+    }
+    for (int row = 0; row < 5; row++) {   // Clear up to 5 rows
+        btnLayout->setRowStretch(row, 0);
+        btnLayout->setRowMinimumHeight(row, 0);
+    }
 
     if (twoRowMode) {
         // Create three separate toolbars: essential (larger), top row, bottom row
@@ -3746,8 +3737,7 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
         QToolBar* currentToolBar = topToolBar;
 
         // First, add essential actions to essential toolbar
-        QStringList essentialActionsList;
-        essentialActionsList << "new" << "open" << "save" << "separator1" << "undo" << "redo" << "separator2";
+        QStringList essentialActionsList = LayoutSettingsWidget::getEssentialActionIds();
 
         for (const QString& actionId : essentialActionsList) {
             if (actionId.startsWith("separator")) {
@@ -3781,10 +3771,10 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
         }
 
         // Add actions to appropriate toolbar
+        QStringList essentialIds = LayoutSettingsWidget::getEssentialActionIds();
         for (const QString& actionId : actionOrder) {
             // Essential actions are already handled above, skip them here
-            if (actionId == "new" || actionId == "open" || actionId == "save" ||
-                actionId == "undo" || actionId == "redo") {
+            if (essentialIds.contains(actionId)) {
                 continue;
             }
 
@@ -3794,15 +3784,18 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
             }
 
             if (actionId.startsWith("separator")) {
-                // Always add the first separator in each row (separator2 and separator8) to separate from essential toolbar
-                if (actionId == "separator2" || actionId == "separator8") {
-                    currentToolBar->addSeparator();
-                } else {
-                    // For other separators, only add if there are actions and the last action isn't already a separator
-                    if (currentToolBar->actions().count() > 0) {
-                        QAction* lastAction = currentToolBar->actions().last();
-                        if (!lastAction->isSeparator()) {
-                            currentToolBar->addSeparator();
+                // Check if separator is enabled before adding
+                if (enabledActions.contains(actionId)) {
+                    // Always add the first separator in each row (separator2 and separator9) to separate from essential toolbar
+                    if (actionId == "separator2" || actionId == "separator9") {
+                        currentToolBar->addSeparator();
+                    } else {
+                        // For other separators, only add if there are actions and the last action isn't already a separator
+                        if (currentToolBar->actions().count() > 0) {
+                            QAction* lastAction = currentToolBar->actions().last();
+                            if (!lastAction->isSeparator()) {
+                                currentToolBar->addSeparator();
+                            }
                         }
                     }
                 }
@@ -3879,8 +3872,8 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
         for (const QString& actionId : actionOrder) {
             if (actionId.startsWith("separator") || actionId == "row_separator") {
                 if (actionId != "row_separator") {
-                    // Only add separator if there are actions in the toolbar and the last action isn't already a separator
-                    if (toolBar->actions().count() > 0) {
+                    // Only add separator if it's enabled and there are actions in the toolbar and the last action isn't already a separator
+                    if (enabledActions.contains(actionId) && toolBar->actions().count() > 0) {
                         QAction* lastAction = toolBar->actions().last();
                         if (!lastAction->isSeparator()) {
                             toolBar->addSeparator();
@@ -4171,35 +4164,57 @@ void MainWindow::updateAll() {
 
 void MainWindow::rebuildToolbarFromSettings() {
     // Dedicated method for rebuilding toolbar when settings change
+    // Prevent rapid successive rebuilds
+    static bool isRebuilding = false;
+    static QDateTime lastRebuild;
+    QDateTime now = QDateTime::currentDateTime();
+    
+    // Check if we're in the middle of a style change
+    static bool isStyleChanging = false;
+    if (isStyleChanging) {
+        return;
+    }
+    
+    if (isRebuilding) {
+        return;
+    }
+    
+    // Debounce rapid rebuilds (prevent rebuilds within 100ms)
+    if (lastRebuild.isValid() && lastRebuild.msecsTo(now) < 100) {
+        return;
+    }
+    
+    isRebuilding = true;
+    lastRebuild = now;
+    
     if (_toolbarWidget) {
         try {
             // Clear existing toolbar contents while keeping the widget in place
             QGridLayout* toolbarLayout = qobject_cast<QGridLayout*>(_toolbarWidget->layout());
             if (toolbarLayout) {
-                // Remove all child widgets but keep the layout
+                bool twoRowMode = Appearance::toolbarTwoRowMode();
+
+                // Find and immediately delete all child toolbars
+                QList<QToolBar*> childToolbars = _toolbarWidget->findChildren<QToolBar*>();
+                for (QToolBar* toolbar : childToolbars) {
+                    toolbar->setParent(nullptr); // Remove from parent immediately
+                    delete toolbar; // Delete immediately instead of deleteLater()
+                }
+
+                // Remove all layout items
                 while (toolbarLayout->count() > 0) {
                     QLayoutItem* item = toolbarLayout->takeAt(0);
                     if (item) {
-                        if (item->widget()) {
-                            item->widget()->deleteLater();
-                        }
                         delete item;
                     }
                 }
-
-                // Now rebuild the toolbar contents directly in the existing widget
-                updateToolbarContents(_toolbarWidget, toolbarLayout);
 
                 // Reset toolbar size constraints to allow proper recalculation
                 _toolbarWidget->setMinimumSize(0, 0);
                 _toolbarWidget->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
 
-                // Also reset any child toolbar size constraints
-                QList<QToolBar*> childToolbars = _toolbarWidget->findChildren<QToolBar*>();
-                for (QToolBar* toolbar : childToolbars) {
-                    toolbar->setMinimumSize(0, 0);
-                    toolbar->setMaximumSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX);
-                }
+                // Now rebuild the toolbar contents directly in the existing widget
+                updateToolbarContents(_toolbarWidget, toolbarLayout);
 
                 // Update geometry without forcing window resize
                 _toolbarWidget->updateGeometry();
@@ -4225,6 +4240,9 @@ void MainWindow::rebuildToolbarFromSettings() {
             refreshToolbarIcons();
         }
     }
+
+    // Reset the rebuilding guard
+    isRebuilding = false;
 }
 
 void MainWindow::refreshToolbarIcons() {
@@ -4242,7 +4260,7 @@ void MainWindow::refreshToolbarIcons() {
                 }
             }
         } catch (...) {
-            // If refresh fails, don't crash - just continue
+            // Error refreshing toolbar icons
         }
     }
 }

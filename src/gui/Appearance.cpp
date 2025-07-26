@@ -11,6 +11,8 @@
 #include <QPixmap>
 #include <QAction>
 #include <QDateTime>
+#include <QFile>
+#include <QTextStream>
 #include "../tool/ToolButton.h"
 #include "ProtocolWidget.h"
 #include "MatrixWidget.h"
@@ -1259,10 +1261,20 @@ void Appearance::setActionIcon(QAction* action, const QString& iconPath) {
 void Appearance::refreshColors() {
     // Prevent cascading toolbar updates during style changes
     static bool isRefreshingColors = false;
+    static QDateTime lastRefresh;
+    QDateTime now = QDateTime::currentDateTime();
+
     if (isRefreshingColors) {
         return; // Already refreshing, prevent recursion
     }
+
+    // Debounce rapid refresh calls
+    if (lastRefresh.isValid() && lastRefresh.msecsTo(now) < 200) {
+        return; // Too soon since last refresh
+    }
+
     isRefreshingColors = true;
+    lastRefresh = now;
 
     try {
         // Auto-reset default colors for the new theme
@@ -1342,12 +1354,23 @@ void Appearance::refreshColors() {
             }
 
             // Refresh MainWindow toolbar icons for theme changes
-            QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
+            // BUT: Don't trigger rebuilds during style changes - just refresh icons
+            if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
+                
+                // Only refresh icons, don't rebuild toolbar structure
+                QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
+                
+                // DON'T call rebuildToolbarFromSettings during style changes
+                // This prevents the cascade that causes flickering
+            } else {
+                // For non-MainWindow widgets, use the original call
+                QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
+            }
 
             // Force immediate processing of paint events
             app->processEvents();
-            }
         }
+    }
 
     // Refresh all icons after widget updates
     refreshAllIcons();
@@ -1414,29 +1437,37 @@ void Appearance::connectToSystemThemeChanges() {
     });
 }
 
-void Appearance::cleanupIconRegistry() 
+void Appearance::cleanupIconRegistry()
 {
+    // Prevent cleanup during style changes to avoid crashes
+    static bool isCleaningUp = false;
+    if (isCleaningUp) {
+        return;
+    }
+    isCleaningUp = true;
+
     std::list<QAction*> *remove_map = new std::list<QAction*>();
+    int invalidCount = 0;
 
     for (QMap<QAction*, QString>::iterator iter = registeredIconActions.begin(); iter != registeredIconActions.end(); iter++)
     {
-        if (!iter.key())
+        if (!iter.key()) {
             remove_map->push_back(iter.key());
-        else
-        {
-            try 
-            {
-                iter.key()->objectName();
-            }
-            catch (...) 
-            {
+            invalidCount++;
+        } else {
+            // Use QPointer-style validation instead of try/catch
+            QObject* obj = qobject_cast<QObject*>(iter.key());
+            if (!obj) {
                 remove_map->push_back(iter.key());
+                invalidCount++;
             }
         }
     }
+
     for (std::list<QAction*>::iterator iter = remove_map->begin(); iter != remove_map->end(); iter++)
     {
         registeredIconActions.take(*iter);
     }
     delete remove_map;
+    isCleaningUp = false;
 }

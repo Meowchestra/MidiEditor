@@ -53,6 +53,18 @@ public:
     QIcon icon() override;
     virtual bool accept() override;
 
+    // Static methods for consolidated default configurations (accessible to MainWindow)
+    static QStringList getComprehensiveActionOrder();
+    static QStringList getDefaultEnabledActions();
+    static void getDefaultRowDistribution(QStringList& row1Actions, QStringList& row2Actions);
+    static QStringList getEssentialActionIds();
+    static QList<ToolbarActionInfo> getEssentialActionInfos();
+
+    // Static methods for default toolbar (when customization is disabled)
+    static QStringList getDefaultToolbarOrder();
+    static QStringList getDefaultToolbarEnabledActions();
+    static void getDefaultToolbarRowDistribution(QStringList& row1Actions, QStringList& row2Actions);
+
 public slots:
     void customizeToolbarToggled(bool customizeToolbarEnabled);
     void rowModeChanged();
