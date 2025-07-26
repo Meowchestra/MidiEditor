@@ -233,7 +233,7 @@ class MainWindow : public QMainWindow {
 
     QComboBox *_miscMode, *_miscController, *_miscChannel;
     QAction *setSingleMode, *setLineMode, *setFreehandMode, *_allChannelsVisible, *_allChannelsInvisible, *_allTracksAudible, *_allTracksMute,
-            *_allChannelsAudible, *_allChannelsMute, *_allTracksVisible, *_allTracksInvisible, *stdToolAction, *undoAction, *redoAction, *_pasteAction, *pasteActionTB;
+            *_allChannelsAudible, *_allChannelsMute, *_allTracksVisible, *_allTracksInvisible, *stdToolAction, *undoAction, *redoAction, *_pasteAction;
     MiscWidget* _miscWidget;
 
     QWidget* setupActions(QWidget* parent);
