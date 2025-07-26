@@ -2217,8 +2217,8 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     _pasteToTrackMenu = new QMenu(tr("Paste to track..."));
     _pasteToChannelMenu = new QMenu(tr("Paste to channel..."));
-    QMenu* pasteOptionsMenu = new QMenu(tr("Paste options..."));
-    pasteOptionsMenu->addMenu(_pasteToChannelMenu);
+    _pasteOptionsMenu = new QMenu(tr("Paste options..."));
+    _pasteOptionsMenu->addMenu(_pasteToChannelMenu);
     QActionGroup* pasteChannelGroup = new QActionGroup(this);
     pasteChannelGroup->setExclusive(true);
     connect(_pasteToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(pasteToChannel(QAction*)));
@@ -2240,9 +2240,9 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
         pasteChannelGroup->addAction(pasteToChannelAction);
         pasteToChannelAction->setChecked(i < 0);
     }
-    pasteOptionsMenu->addMenu(_pasteToTrackMenu);
+    _pasteOptionsMenu->addMenu(_pasteToTrackMenu);
     editMB->addAction(_pasteAction);
-    editMB->addMenu(pasteOptionsMenu);
+    editMB->addMenu(_pasteOptionsMenu);
 
     editMB->addSeparator();
 
@@ -3159,8 +3159,8 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
                     action->setToolTip(tr("Paste events at cursor position"));
                     Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
                     connect(action, SIGNAL(triggered()), this, SLOT(paste()));
-                    if (pasteOptionsMenu) {
-                        action->setMenu(pasteOptionsMenu);
+                    if (_pasteOptionsMenu) {
+                        action->setMenu(_pasteOptionsMenu);
                     }
                 } else {
                     // Create a placeholder action if the real one doesn't exist
@@ -3235,8 +3235,8 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
                     action->setToolTip(tr("Paste events at cursor position"));
                     Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
                     connect(action, SIGNAL(triggered()), this, SLOT(paste()));
-                    if (pasteOptionsMenu) {
-                        action->setMenu(pasteOptionsMenu);
+                    if (_pasteOptionsMenu) {
+                        action->setMenu(_pasteOptionsMenu);
                     }
                 } else {
                     // Create a placeholder action if the real one doesn't exist
