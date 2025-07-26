@@ -52,6 +52,9 @@
         <file>run_environment/graphics/tool/select_single.png</file>
         <file>run_environment/graphics/tool/stop.png</file>
         <file>run_environment/graphics/tool/stop_record.png</file>
+        <file>run_environment/graphics/tool/transpose.png</file>
+        <file>run_environment/graphics/tool/transpose_up.png</file>
+        <file>run_environment/graphics/tool/transpose_down.png</file>
         <file>run_environment/graphics/tool/undo.png</file>
         <file>run_environment/graphics/tool/zoom_hor_in.png</file>
         <file>run_environment/graphics/tool/zoom_hor_out.png</file>

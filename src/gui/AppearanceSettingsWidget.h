@@ -47,7 +47,6 @@ public slots:
     void stripStyleChanged(int strip);
     void rangeLinesChanged(bool enabled);
     void styleChanged(const QString& style);
-    void iconSizeChanged(int size);
 
 private:
     QList<NamedColorWidgetItem*> *_channelItems;

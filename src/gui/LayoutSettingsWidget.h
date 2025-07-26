@@ -51,33 +51,44 @@ class LayoutSettingsWidget : public SettingsWidget {
 public:
     LayoutSettingsWidget(QWidget* parent = nullptr);
     QIcon icon() override;
+    virtual bool accept() override;
 
 public slots:
+    void customizeToolbarToggled(bool customizeToolbarEnabled);
     void rowModeChanged();
     void actionEnabledChanged();
     void resetToDefault();
     void itemsReordered();
     void itemCheckStateChanged(QListWidgetItem* item);
     void refreshIcons(); // Refresh icons when theme changes
+    void iconSizeChanged(int size);
+    void debouncedToolbarUpdate(); // Debounced toolbar update
 
 private:
     void setupUI();
     void loadSettings();
     void saveSettings();
+    void triggerToolbarUpdate();
     void populateActionsList();
+    void populateActionsList(bool forceRepopulation);
+    void redistributeActions();
     void updateActionOrder();
     QList<ToolbarActionInfo> getDefaultActions();
     
+    QCheckBox* _enableCustomizeCheckbox;
     QRadioButton* _singleRowRadio;
     QRadioButton* _doubleRowRadio;
+    QSpinBox* _iconSizeSpinBox;
     DraggableListWidget* _actionsList;
     DraggableListWidget* _secondRowList; // For two-row mode
     QLabel* _secondRowLabel;
     QHBoxLayout* _actionsLayout;
     QPushButton* _resetButton;
+    QWidget* _customizationWidget; // Container for customization options
     
     QList<ToolbarActionInfo> _availableActions;
     bool _twoRowMode;
+    QTimer* _updateTimer; // Timer for debouncing toolbar updates
 };
 
 #endif // LAYOUTSETTINGSWIDGET_H

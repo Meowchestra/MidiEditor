@@ -173,6 +173,8 @@ class MainWindow : public QMainWindow {
 
     void togglePianoEmulation(bool);
 
+    void rebuildToolbarFromSettings(); // Public slot for toolbar updates
+
     void quantizeSelection();
     void quantizeNtoleDialog();
     void quantizeNtole();
@@ -241,6 +243,7 @@ class MainWindow : public QMainWindow {
     QAction* getActionById(const QString& actionId);
     QWidget* createCustomToolbar(QWidget* parent);
     QWidget* createSimpleCustomToolbar(QWidget* parent);
+    void updateToolbarContents(QWidget* toolbarWidget, QGridLayout* layout);
     QList<ToolbarActionInfo> getDefaultActionsForPlaceholder();
     void refreshToolbarIcons();
 

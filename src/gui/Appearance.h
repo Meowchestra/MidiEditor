@@ -45,6 +45,8 @@ public:
     // Toolbar Layout options
     static bool toolbarTwoRowMode();
     static void setToolbarTwoRowMode(bool twoRows);
+    static bool toolbarCustomizeEnabled();
+    static void setToolbarCustomizeEnabled(bool enabled);
     static QStringList toolbarActionOrder();
     static void setToolbarActionOrder(const QStringList& order);
     static QStringList toolbarEnabledActions();
@@ -142,6 +144,7 @@ private:
     static QString _applicationStyle;
     static int _toolbarIconSize;
     static bool _toolbarTwoRowMode;
+    static bool _toolbarCustomizeEnabled;
     static QStringList _toolbarActionOrder;
     static QStringList _toolbarEnabledActions;
     static bool _ignoreSystemScaling;

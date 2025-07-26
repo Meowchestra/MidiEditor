@@ -2272,8 +2272,10 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
 
     QAction* selectSingleAction = new ToolButton(new SelectTool(SELECTION_TYPE_SINGLE), QKeySequence(Qt::Key_F4), toolsToolsMenu);
     toolsToolsMenu->addAction(selectSingleAction);
+    _actionMap["select_single"] = selectSingleAction;
     QAction* selectBoxAction = new ToolButton(new SelectTool(SELECTION_TYPE_BOX), QKeySequence(Qt::Key_F5), toolsToolsMenu);
     toolsToolsMenu->addAction(selectBoxAction);
+    _actionMap["select_box"] = selectBoxAction;
     QAction* selectLeftAction = new ToolButton(new SelectTool(SELECTION_TYPE_LEFT), QKeySequence(Qt::Key_F6), toolsToolsMenu);
     toolsToolsMenu->addAction(selectLeftAction);
     _actionMap["select_left"] = selectLeftAction;
@@ -2286,12 +2288,18 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     QAction* moveAllAction = new ToolButton(new EventMoveTool(true, true), QKeySequence(Qt::Key_F8), toolsToolsMenu);
     _activateWithSelections.append(moveAllAction);
     toolsToolsMenu->addAction(moveAllAction);
+    _actionMap["move_all"] = moveAllAction;
+
     QAction* moveLRAction = new ToolButton(new EventMoveTool(false, true), QKeySequence(Qt::Key_F9), toolsToolsMenu);
     _activateWithSelections.append(moveLRAction);
     toolsToolsMenu->addAction(moveLRAction);
+    _actionMap["move_lr"] = moveLRAction;
+
     QAction* moveUDAction = new ToolButton(new EventMoveTool(true, false), QKeySequence(Qt::Key_F10), toolsToolsMenu);
     _activateWithSelections.append(moveUDAction);
     toolsToolsMenu->addAction(moveUDAction);
+    _actionMap["move_ud"] = moveUDAction;
+
     QAction* sizeChangeAction = new ToolButton(new SizeChangeTool(), QKeySequence(Qt::Key_F11), toolsToolsMenu);
     _activateWithSelections.append(sizeChangeAction);
     toolsToolsMenu->addAction(sizeChangeAction);
@@ -2506,22 +2514,28 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     toolsMB->addSeparator();
 
     QAction* transposeAction = new QAction(tr("Transpose selection"), this);
+    Appearance::setActionIcon(transposeAction, ":/run_environment/graphics/tool/transpose.png");
     _activateWithSelections.append(transposeAction);
     transposeAction->setShortcut(QKeySequence(Qt::Key_T | Qt::CTRL));
     connect(transposeAction, SIGNAL(triggered()), this, SLOT(transposeNSemitones()));
     toolsMB->addAction(transposeAction);
+    _actionMap["transpose"] = transposeAction;
 
     QAction* transposeOctaveUpAction = new QAction(tr("Transpose octave up"), this);
+    Appearance::setActionIcon(transposeOctaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
     _activateWithSelections.append(transposeOctaveUpAction);
     transposeOctaveUpAction->setShortcut(QKeySequence(Qt::Key_Up | Qt::SHIFT));
     connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
     toolsMB->addAction(transposeOctaveUpAction);
+    _actionMap["transpose_up"] = transposeOctaveUpAction;
 
     QAction* transposeOctaveDownAction = new QAction(tr("Transpose octave down"), this);
+    Appearance::setActionIcon(transposeOctaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
     _activateWithSelections.append(transposeOctaveDownAction);
     transposeOctaveDownAction->setShortcut(QKeySequence(Qt::Key_Down | Qt::SHIFT));
     connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
     toolsMB->addAction(transposeOctaveDownAction);
+    _actionMap["transpose_down"] = transposeOctaveDownAction;
 
     toolsMB->addSeparator();
 
@@ -2567,6 +2581,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     _activateWithSelections.append(scaleSelection);
     connect(scaleSelection, SIGNAL(triggered()), this, SLOT(scaleSelection()));
     toolsMB->addAction(scaleSelection);
+    _actionMap["scale_selection"] = scaleSelection;
 
     toolsMB->addSeparator();
 
@@ -2631,6 +2646,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     resetViewAction->setToolTip(tr("Reset zoom, scroll position, and cursor to defaults"));
     connect(resetViewAction, SIGNAL(triggered()), this, SLOT(resetView()));
     viewMB->addAction(resetViewAction);
+    _actionMap["reset_view"] = resetViewAction;
 
     viewMB->addSeparator();
 
@@ -2850,6 +2866,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     panicAction->setShortcut(QKeySequence(Qt::Key_Escape));
     connect(panicAction, SIGNAL(triggered()), this, SLOT(panic()));
     midiMB->addAction(panicAction);
+    _actionMap["panic"] = panicAction;
 
     // Help
     QAction* aboutAction = new QAction(tr("About MidiEditor"), this);
@@ -2961,11 +2978,19 @@ void MainWindow::rebuildToolbar() {
         try {
             // Remove the old toolbar
             QWidget* parent = _toolbarWidget->parentWidget();
+            if (!parent) {
+                return; // No parent, can't rebuild
+            }
+
             _toolbarWidget->setParent(nullptr);
             delete _toolbarWidget;
+            _toolbarWidget = nullptr;
 
             // Create new toolbar
             _toolbarWidget = createCustomToolbar(parent);
+            if (!_toolbarWidget) {
+                return; // Failed to create toolbar
+            }
 
             // Add it back to the layout
             QGridLayout* layout = qobject_cast<QGridLayout*>(parent->layout());
@@ -2974,13 +2999,20 @@ void MainWindow::rebuildToolbar() {
             }
         } catch (...) {
             // If rebuild fails, create a minimal toolbar
-            if (_toolbarWidget && _toolbarWidget->parentWidget()) {
-                QWidget* parent = _toolbarWidget->parentWidget();
-                _toolbarWidget = new QWidget(parent);
-                QGridLayout* layout = qobject_cast<QGridLayout*>(parent->layout());
-                if (layout) {
-                    layout->addWidget(_toolbarWidget, 0, 0);
+            _toolbarWidget = nullptr; // Ensure it's not left dangling
+            try {
+                // Try to get the parent from the central widget
+                QWidget* central = centralWidget();
+                if (central) {
+                    _toolbarWidget = new QWidget(central);
+                    QGridLayout* layout = qobject_cast<QGridLayout*>(central->layout());
+                    if (layout) {
+                        layout->addWidget(_toolbarWidget, 0, 0);
+                    }
                 }
+            } catch (...) {
+                // If even that fails, just leave _toolbarWidget as nullptr
+                _toolbarWidget = nullptr;
             }
         }
     }
@@ -3003,49 +3035,25 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
     QStringList actionOrder;
     QStringList enabledActions;
 
+    bool customizeEnabled = false;
     try {
         twoRowMode = Appearance::toolbarTwoRowMode();
+        customizeEnabled = Appearance::toolbarCustomizeEnabled();
         actionOrder = Appearance::toolbarActionOrder();
         enabledActions = Appearance::toolbarEnabledActions();
     } catch (...) {
         // If there's any issue with settings, use safe defaults
         twoRowMode = false;
+        customizeEnabled = false;
         actionOrder.clear();
         enabledActions.clear();
     }
 
     // If no custom order is set, use default based on row mode
     if (actionOrder.isEmpty()) {
-        if (twoRowMode) {
-            // Two-row mode: Main tools that affect notes/MIDI on top, playback/view tools on bottom
-            actionOrder << "new" << "open" << "save" << "separator1"
-                       << "undo" << "redo" << "separator2"
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "size_change" << "separator5"
-                       << "align_left" << "equalize" << "align_right" << "separator6"
-                       << "quantize" << "magnet" << "separator7"
-                       << "measure" << "time_signature" << "tempo"
-                       << "row_separator" // Special separator to indicate second row
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator8"
-                       << "metronome" << "separator9"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator10" << "thru";
-        } else {
-            // Single-row mode: Compact layout with most essential tools
-            actionOrder << "new" << "open" << "save" << "separator1"
-                       << "undo" << "redo" << "separator2"
-                       << "standard_tool" << "select_left" << "select_right" << "separator3"
-                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
-                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
-                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
-                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
-                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
-        }
+        // These are the old defaults that include essential actions - they cause duplicates
+        // We should only use the new defaults that don't include essential actions
+        actionOrder.clear(); // Force use of new defaults
     }
 
     // If no enabled actions are set, enable all by default
@@ -3057,12 +3065,17 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         }
     }
 
-    // If still no actions, create a comprehensive default toolbar
-    if (actionOrder.isEmpty()) {
+    // Essential actions that can't be disabled (only for single row mode)
+    QStringList essentialActions;
+    if (!twoRowMode) {
+        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo";
+    }
+
+    // Use custom settings only if customization is enabled, otherwise use defaults
+    if (!customizeEnabled || actionOrder.isEmpty()) {
         if (twoRowMode) {
-            // Two-row default layout
-            actionOrder << "new" << "open" << "save" << "separator1"
-                       << "undo" << "redo" << "separator2"
+            // Two-row default layout: editing tools on top, playback + view on bottom
+            actionOrder << "separator2" // First separator after essential icons
                        << "standard_tool" << "select_left" << "select_right" << "separator3"
                        << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
                        << "glue" << "scissors" << "delete_overlaps" << "separator5"
@@ -3070,15 +3083,15 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
                        << "quantize" << "magnet" << "separator7"
                        << "measure" << "time_signature" << "tempo"
                        << "row_separator" // Split point for second row
+                       << "separator8" // First separator in second row
                        << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                       << "stop" << "record" << "forward" << "forward_marker" << "separator8"
-                       << "metronome" << "separator9"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator9"
+                       << "metronome" << "separator10"
                        << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                       << "lock" << "separator10" << "thru";
+                       << "lock" << "separator11" << "thru";
         } else {
-            // Single-row default layout (more comprehensive than Step 1)
-            actionOrder << "new" << "open" << "save" << "separator1"
-                       << "undo" << "redo" << "separator2"
+            // Single-row default layout: start after essential actions
+            actionOrder << "separator2" // First separator after essential icons (redo)
                        << "standard_tool" << "select_left" << "select_right" << "separator3"
                        << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
                        << "glue" << "scissors" << "delete_overlaps" << "separator5"
@@ -3098,51 +3111,139 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         }
     }
 
-    int iconSize = Appearance::toolbarIconSize();
-    if (twoRowMode) {
-        iconSize = qMax(24, iconSize); // Larger icons for two-row mode
+    // Only prepend essential actions for single row mode
+    if (!twoRowMode) {
+        QStringList finalActionOrder = essentialActions;
+        finalActionOrder.append(actionOrder);
+        actionOrder = finalActionOrder;
     }
 
+    // Always enable essential actions
+    for (const QString& actionId : essentialActions) {
+        if (!actionId.startsWith("separator") && !enabledActions.contains(actionId)) {
+            enabledActions << actionId;
+        }
+    }
+
+    int iconSize = Appearance::toolbarIconSize();
+
     if (twoRowMode) {
-        // Create two separate toolbars for two-row mode
+        // Create three separate toolbars: essential (larger), top row, bottom row
+        QToolBar* essentialToolBar = new QToolBar("Essential", buttonBar);
         QToolBar* topToolBar = new QToolBar("Top", buttonBar);
         QToolBar* bottomToolBar = new QToolBar("Bottom", buttonBar);
 
+        // Essential toolbar setup (larger icons)
+        int essentialIconSize = iconSize + 8;
+        essentialToolBar->setFloatable(false);
+        essentialToolBar->setContentsMargins(0, 0, 0, 0);
+        essentialToolBar->layout()->setSpacing(3);
+        essentialToolBar->setIconSize(QSize(essentialIconSize, essentialIconSize));
+        essentialToolBar->setStyleSheet("QToolBar { border: 0px }");
+        essentialToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+        // Top toolbar setup
         topToolBar->setFloatable(false);
         topToolBar->setContentsMargins(0, 0, 0, 0);
         topToolBar->layout()->setSpacing(3);
         topToolBar->setIconSize(QSize(iconSize, iconSize));
         topToolBar->setStyleSheet("QToolBar { border: 0px }");
-        topToolBar->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+        topToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        topToolBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
+        // Bottom toolbar setup
         bottomToolBar->setFloatable(false);
         bottomToolBar->setContentsMargins(0, 0, 0, 0);
         bottomToolBar->layout()->setSpacing(3);
         bottomToolBar->setIconSize(QSize(iconSize, iconSize));
         bottomToolBar->setStyleSheet("QToolBar { border: 0px }");
         bottomToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        bottomToolBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
         QToolBar* currentToolBar = topToolBar;
 
+        // First, add essential actions to essential toolbar
+        QStringList essentialActions;
+        essentialActions << "new" << "open" << "save" << "undo" << "redo";
+
+        for (const QString& actionId : essentialActions) {
+            QAction* action = getActionById(actionId);
+            if (action) {
+                // Special handling for open action to add recent files menu
+                if (actionId == "open") {
+                    QAction* openWithRecentAction = new QAction(action->text(), essentialToolBar);
+                    openWithRecentAction->setIcon(action->icon());
+                    openWithRecentAction->setShortcut(action->shortcut());
+                    openWithRecentAction->setToolTip(action->toolTip());
+                    connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        openWithRecentAction->setMenu(_recentPathsMenu);
+                    }
+                    action = openWithRecentAction;
+                }
+
+                essentialToolBar->addAction(action);
+
+                // Set text under icon for essential actions
+                QWidget* toolButton = essentialToolBar->widgetForAction(action);
+                if (QToolButton* button = qobject_cast<QToolButton*>(toolButton)) {
+                    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+                }
+            }
+        }
+
         // Add actions to appropriate toolbar
         for (const QString& actionId : actionOrder) {
+            // Essential actions are already handled above, skip them here
+            if (actionId == "new" || actionId == "open" || actionId == "save" ||
+                actionId == "undo" || actionId == "redo") {
+                continue;
+            }
+
             if (actionId == "row_separator") {
                 currentToolBar = bottomToolBar;
                 continue;
             }
 
             if (actionId.startsWith("separator")) {
-                if (currentToolBar->actions().count() > 0) {
+                // Always add the first separator in each row (separator2 and separator8) to separate from essential toolbar
+                if (actionId == "separator2" || actionId == "separator8") {
                     currentToolBar->addSeparator();
+                } else {
+                    // For other separators, only add if there are actions and the last action isn't already a separator
+                    if (currentToolBar->actions().count() > 0) {
+                        QAction* lastAction = currentToolBar->actions().last();
+                        if (!lastAction->isSeparator()) {
+                            currentToolBar->addSeparator();
+                        }
+                    }
                 }
                 continue;
             }
 
-            if (!enabledActions.contains(actionId)) {
+            // Skip disabled actions only if customization is enabled
+            if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
                 continue; // Skip disabled actions
             }
 
+            // Use current toolbar for all non-essential actions
+
             QAction* action = getActionById(actionId);
+
+            // Special handling for open action to add recent files menu (for non-essential open actions)
+            if (actionId == "open" && action) {
+                // Create a new action with the recent files menu for the toolbar
+                QAction* openWithRecentAction = new QAction(action->text(), currentToolBar);
+                openWithRecentAction->setIcon(action->icon());
+                openWithRecentAction->setShortcut(action->shortcut());
+                openWithRecentAction->setToolTip(action->toolTip());
+                connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                if (_recentPathsMenu) {
+                    openWithRecentAction->setMenu(_recentPathsMenu);
+                }
+                action = openWithRecentAction;
+            }
+
             if (!action) {
                 // Handle special actions that need custom creation
                 if (actionId == "open") {
@@ -3192,9 +3293,12 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
             }
         }
 
-        btnLayout->setColumnStretch(4, 1);
-        btnLayout->addWidget(topToolBar, 0, 0, 1, 1);
-        btnLayout->addWidget(bottomToolBar, 1, 0, 1, 1);
+        // Layout: Essential toolbar on left, content toolbars stacked on right
+        btnLayout->setColumnStretch(1, 1);
+        btnLayout->setColumnMinimumWidth(1, 400); // Ensure content toolbars have minimum width
+        btnLayout->addWidget(essentialToolBar, 0, 0, 2, 1); // Spans both rows
+        btnLayout->addWidget(topToolBar, 0, 1, 1, 1);
+        btnLayout->addWidget(bottomToolBar, 1, 1, 1, 1);
 
     } else {
         // Single-row mode
@@ -3208,17 +3312,39 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
         // Add actions to toolbar based on order and enabled state
         for (const QString& actionId : actionOrder) {
             if (actionId.startsWith("separator") || actionId == "row_separator") {
-                if (actionId != "row_separator" && toolBar->actions().count() > 0) {
-                    toolBar->addSeparator();
+                if (actionId != "row_separator") {
+                    // Only add separator if there are actions in the toolbar and the last action isn't already a separator
+                    if (toolBar->actions().count() > 0) {
+                        QAction* lastAction = toolBar->actions().last();
+                        if (!lastAction->isSeparator()) {
+                            toolBar->addSeparator();
+                        }
+                    }
                 }
                 continue;
             }
 
-            if (!enabledActions.contains(actionId)) {
+            // Skip disabled actions only if customization is enabled
+            if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
                 continue; // Skip disabled actions
             }
 
             QAction* action = getActionById(actionId);
+
+            // Special handling for open action to add recent files menu
+            if (actionId == "open" && action) {
+                // Create a new action with the recent files menu for the toolbar
+                QAction* openWithRecentAction = new QAction(action->text(), toolBar);
+                openWithRecentAction->setIcon(action->icon());
+                openWithRecentAction->setShortcut(action->shortcut());
+                openWithRecentAction->setToolTip(action->toolTip());
+                connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                if (_recentPathsMenu) {
+                    openWithRecentAction->setMenu(_recentPathsMenu);
+                }
+                action = openWithRecentAction;
+            }
+
             if (!action) {
                 // Handle special actions that need custom creation
                 if (actionId == "open") {
@@ -3262,6 +3388,18 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
             if (action) {
                 try {
                     toolBar->addAction(action);
+
+                    // In two-row mode, add text labels only for essential actions
+                    if (twoRowMode && (actionId == "new" || actionId == "open" || actionId == "save" ||
+                                      actionId == "undo" || actionId == "redo")) {
+                        // Set the toolbar style for this specific action
+                        QWidget* toolButton = toolBar->widgetForAction(action);
+                        if (QToolButton* button = qobject_cast<QToolButton*>(toolButton)) {
+                            button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+                            // Make essential action icons slightly larger
+                            button->setIconSize(QSize(iconSize + 4, iconSize + 4));
+                        }
+                    }
                 } catch (...) {
                     // If adding action fails, skip it
                 }
@@ -3273,6 +3411,322 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
     }
 
     return buttonBar;
+}
+
+void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnLayout) {
+    // This method updates the contents of an existing toolbar widget without replacing it
+    // It uses the same logic as createCustomToolbar but works with an existing widget
+
+    btnLayout->setSpacing(0);
+    toolbarWidget->setContentsMargins(0, 0, 0, 0);
+
+    // Get current settings
+    bool twoRowMode = false;
+    QStringList actionOrder;
+    QStringList enabledActions;
+    bool customizeEnabled = false;
+
+    try {
+        twoRowMode = Appearance::toolbarTwoRowMode();
+        customizeEnabled = Appearance::toolbarCustomizeEnabled();
+        actionOrder = Appearance::toolbarActionOrder();
+        enabledActions = Appearance::toolbarEnabledActions();
+    } catch (...) {
+        // If there's any issue with settings, use safe defaults
+        twoRowMode = false;
+        customizeEnabled = false;
+        actionOrder.clear();
+        enabledActions.clear();
+    }
+
+    // Essential actions that can't be disabled (only for single row mode)
+    QStringList essentialActions;
+    if (!twoRowMode) {
+        essentialActions << "new" << "open" << "save" << "separator1" << "undo" << "redo";
+    }
+
+    // Use custom settings only if customization is enabled, otherwise use defaults
+    if (!customizeEnabled || actionOrder.isEmpty()) {
+        if (twoRowMode) {
+            // Two-row default layout: editing tools on top, playback + view on bottom
+            actionOrder << "separator2" // First separator after essential icons
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
+                       << "align_left" << "equalize" << "align_right" << "separator6"
+                       << "quantize" << "magnet" << "separator7"
+                       << "measure" << "time_signature" << "tempo"
+                       << "row_separator" // Split point for second row
+                       << "separator8" // First separator in second row
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator9"
+                       << "metronome" << "separator10"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator11" << "thru";
+        } else {
+            // Single-row default layout: start after essential actions
+            actionOrder << "separator2" // First separator after essential icons (redo)
+                       << "standard_tool" << "select_left" << "select_right" << "separator3"
+                       << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+                       << "glue" << "scissors" << "delete_overlaps" << "separator5"
+                       << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+                       << "stop" << "record" << "forward" << "forward_marker" << "separator6"
+                       << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
+                       << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                       << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
+                       << "thru" << "separator10" << "measure" << "time_signature" << "tempo";
+        }
+
+        // Enable all non-separator actions by default
+        for (const QString& actionId : actionOrder) {
+            if (!actionId.startsWith("separator") && actionId != "row_separator") {
+                enabledActions << actionId;
+            }
+        }
+    }
+
+    // Only prepend essential actions for single row mode
+    if (!twoRowMode) {
+        QStringList finalActionOrder = essentialActions;
+        finalActionOrder.append(actionOrder);
+        actionOrder = finalActionOrder;
+    }
+
+    // Always enable essential actions
+    for (const QString& actionId : essentialActions) {
+        if (!actionId.startsWith("separator") && !enabledActions.contains(actionId)) {
+            enabledActions << actionId;
+        }
+    }
+
+    int iconSize = Appearance::toolbarIconSize();
+
+    if (twoRowMode) {
+        // Create three separate toolbars: essential (larger), top row, bottom row
+        QToolBar* essentialToolBar = new QToolBar("Essential", toolbarWidget);
+        QToolBar* topToolBar = new QToolBar("Top", toolbarWidget);
+        QToolBar* bottomToolBar = new QToolBar("Bottom", toolbarWidget);
+
+        // Essential toolbar setup (larger icons)
+        int essentialIconSize = iconSize + 8;
+        essentialToolBar->setFloatable(false);
+        essentialToolBar->setContentsMargins(0, 0, 0, 0);
+        essentialToolBar->layout()->setSpacing(3);
+        essentialToolBar->setIconSize(QSize(essentialIconSize, essentialIconSize));
+        essentialToolBar->setStyleSheet("QToolBar { border: 0px }");
+        essentialToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+        // Top toolbar setup
+        topToolBar->setFloatable(false);
+        topToolBar->setContentsMargins(0, 0, 0, 0);
+        topToolBar->layout()->setSpacing(3);
+        topToolBar->setIconSize(QSize(iconSize, iconSize));
+        topToolBar->setStyleSheet("QToolBar { border: 0px }");
+        topToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        topToolBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        // Bottom toolbar setup
+        bottomToolBar->setFloatable(false);
+        bottomToolBar->setContentsMargins(0, 0, 0, 0);
+        bottomToolBar->layout()->setSpacing(3);
+        bottomToolBar->setIconSize(QSize(iconSize, iconSize));
+        bottomToolBar->setStyleSheet("QToolBar { border: 0px }");
+        bottomToolBar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        bottomToolBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+
+        QToolBar* currentToolBar = topToolBar;
+
+        // First, add essential actions to essential toolbar
+        QStringList essentialActionsList;
+        essentialActionsList << "new" << "open" << "save" << "undo" << "redo";
+
+        for (const QString& actionId : essentialActionsList) {
+            QAction* action = getActionById(actionId);
+            if (action) {
+                // Special handling for open action to add recent files menu
+                if (actionId == "open") {
+                    QAction* openWithRecentAction = new QAction(action->text(), essentialToolBar);
+                    openWithRecentAction->setIcon(action->icon());
+                    openWithRecentAction->setShortcut(action->shortcut());
+                    openWithRecentAction->setToolTip(action->toolTip());
+                    connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        openWithRecentAction->setMenu(_recentPathsMenu);
+                    }
+                    action = openWithRecentAction;
+                }
+
+                essentialToolBar->addAction(action);
+
+                // Set text under icon for essential actions
+                QWidget* toolButton = essentialToolBar->widgetForAction(action);
+                if (QToolButton* button = qobject_cast<QToolButton*>(toolButton)) {
+                    button->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+                }
+            }
+        }
+
+        // Add actions to appropriate toolbar
+        for (const QString& actionId : actionOrder) {
+            // Essential actions are already handled above, skip them here
+            if (actionId == "new" || actionId == "open" || actionId == "save" ||
+                actionId == "undo" || actionId == "redo") {
+                continue;
+            }
+
+            if (actionId == "row_separator") {
+                currentToolBar = bottomToolBar;
+                continue;
+            }
+
+            if (actionId.startsWith("separator")) {
+                // Always add the first separator in each row (separator2 and separator8) to separate from essential toolbar
+                if (actionId == "separator2" || actionId == "separator8") {
+                    currentToolBar->addSeparator();
+                } else {
+                    // For other separators, only add if there are actions and the last action isn't already a separator
+                    if (currentToolBar->actions().count() > 0) {
+                        QAction* lastAction = currentToolBar->actions().last();
+                        if (!lastAction->isSeparator()) {
+                            currentToolBar->addSeparator();
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Skip disabled actions only if customization is enabled
+            if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
+                continue; // Skip disabled actions
+            }
+
+            // Use current toolbar for all non-essential actions
+
+            QAction* action = getActionById(actionId);
+
+            // Special handling for open action to add recent files menu (for non-essential open actions)
+            if (actionId == "open" && action) {
+                // Create a new action with the recent files menu for the toolbar
+                QAction* openWithRecentAction = new QAction(action->text(), currentToolBar);
+                openWithRecentAction->setIcon(action->icon());
+                openWithRecentAction->setShortcut(action->shortcut());
+                openWithRecentAction->setToolTip(action->toolTip());
+                connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                if (_recentPathsMenu) {
+                    openWithRecentAction->setMenu(_recentPathsMenu);
+                }
+                action = openWithRecentAction;
+            }
+
+            if (!action) {
+                // Handle special actions that need custom creation
+                if (actionId == "open") {
+                    // Create special open action with recent files menu
+                    action = new QAction(tr("Open..."), currentToolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/load.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        action->setMenu(_recentPathsMenu);
+                    }
+                } else if (actionId == "paste") {
+                    // Create paste action if not found
+                    action = new QAction(tr("Paste"), currentToolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(paste()));
+                }
+            }
+
+            if (action) {
+                try {
+                    currentToolBar->addAction(action);
+                } catch (...) {
+                    // If adding action fails, skip it
+                }
+            }
+        }
+
+        // Layout: Essential toolbar on left, content toolbars stacked on right
+        btnLayout->setColumnStretch(1, 1);
+        btnLayout->setColumnMinimumWidth(1, 400); // Ensure content toolbars have minimum width
+        btnLayout->addWidget(essentialToolBar, 0, 0, 2, 1); // Spans both rows
+        btnLayout->addWidget(topToolBar, 0, 1, 1, 1);
+        btnLayout->addWidget(bottomToolBar, 1, 1, 1, 1);
+
+    } else {
+        // Single-row mode: Create one toolbar
+        QToolBar* toolBar = new QToolBar("Main", toolbarWidget);
+        toolBar->setFloatable(false);
+        toolBar->setContentsMargins(0, 0, 0, 0);
+        toolBar->layout()->setSpacing(3);
+        toolBar->setIconSize(QSize(iconSize, iconSize));
+        toolBar->setStyleSheet("QToolBar { border: 0px }");
+
+        // Add actions to toolbar based on order and enabled state
+        for (const QString& actionId : actionOrder) {
+            if (actionId.startsWith("separator") || actionId == "row_separator") {
+                if (actionId != "row_separator") {
+                    // Only add separator if there are actions in the toolbar and the last action isn't already a separator
+                    if (toolBar->actions().count() > 0) {
+                        QAction* lastAction = toolBar->actions().last();
+                        if (!lastAction->isSeparator()) {
+                            toolBar->addSeparator();
+                        }
+                    }
+                }
+                continue;
+            }
+
+            // Skip disabled actions only if customization is enabled
+            if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
+                continue; // Skip disabled actions
+            }
+
+            QAction* action = getActionById(actionId);
+
+            // Special handling for open action to add recent files menu
+            if (actionId == "open" && action) {
+                // Create a new action with the recent files menu for the toolbar
+                QAction* openWithRecentAction = new QAction(action->text(), toolBar);
+                openWithRecentAction->setIcon(action->icon());
+                openWithRecentAction->setShortcut(action->shortcut());
+                openWithRecentAction->setToolTip(action->toolTip());
+                connect(openWithRecentAction, SIGNAL(triggered()), this, SLOT(load()));
+                if (_recentPathsMenu) {
+                    openWithRecentAction->setMenu(_recentPathsMenu);
+                }
+                action = openWithRecentAction;
+            }
+
+            if (!action) {
+                // Handle special actions that need custom creation
+                if (actionId == "open") {
+                    // Create special open action with recent files menu
+                    action = new QAction(tr("Open..."), toolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/load.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(load()));
+                    if (_recentPathsMenu) {
+                        action->setMenu(_recentPathsMenu);
+                    }
+                } else if (actionId == "paste") {
+                    // Create paste action if not found
+                    action = new QAction(tr("Paste"), toolBar);
+                    Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
+                    connect(action, SIGNAL(triggered()), this, SLOT(paste()));
+                }
+            }
+
+            if (action) {
+                try {
+                    toolBar->addAction(action);
+                } catch (...) {
+                    // If adding action fails, skip it
+                }
+            }
+        }
+
+        btnLayout->setColumnStretch(4, 1);
+        btnLayout->addWidget(toolBar, 0, 0, 1, 1);
+    }
 }
 
 QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
@@ -3499,13 +3953,40 @@ void MainWindow::updateAll() {
     channelWidget->update();
     _trackWidget->update();
     _miscWidget->update();
+}
 
-    // Phase 2: Re-enable toolbar rebuild with safety checks
+void MainWindow::rebuildToolbarFromSettings() {
+    // Dedicated method for rebuilding toolbar when settings change
     if (_toolbarWidget) {
         try {
-            rebuildToolbar();
+            // Clear existing toolbar contents while keeping the widget in place
+            QGridLayout* toolbarLayout = qobject_cast<QGridLayout*>(_toolbarWidget->layout());
+            if (toolbarLayout) {
+                // Remove all child widgets but keep the layout
+                while (toolbarLayout->count() > 0) {
+                    QLayoutItem* item = toolbarLayout->takeAt(0);
+                    if (item) {
+                        if (item->widget()) {
+                            item->widget()->deleteLater();
+                        }
+                        delete item;
+                    }
+                }
+
+                // Now rebuild the toolbar contents directly in the existing widget
+                updateToolbarContents(_toolbarWidget, toolbarLayout);
+
+                // Refresh icons
+                refreshToolbarIcons();
+            } else {
+                // If no layout found, fall back to complete rebuild
+                rebuildToolbar();
+                refreshToolbarIcons();
+            }
         } catch (...) {
-            // If toolbar rebuild fails, just continue
+            // If update fails, fall back to complete rebuild
+            rebuildToolbar();
+            refreshToolbarIcons();
         }
     }
 }
@@ -3514,7 +3995,19 @@ void MainWindow::refreshToolbarIcons() {
     // The individual actions will be refreshed by Appearance::refreshAllIcons()
     // We just need to make sure our toolbar is up to date
     if (_toolbarWidget) {
-        _toolbarWidget->update();
+        try {
+            _toolbarWidget->update();
+
+            // Also refresh any child toolbars
+            QList<QToolBar*> toolbars = _toolbarWidget->findChildren<QToolBar*>();
+            for (QToolBar* toolbar : toolbars) {
+                if (toolbar) {
+                    toolbar->update();
+                }
+            }
+        } catch (...) {
+            // If refresh fails, don't crash - just continue
+        }
     }
 }
 

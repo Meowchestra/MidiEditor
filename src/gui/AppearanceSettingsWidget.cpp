@@ -22,7 +22,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
     setLayout(layout);
 
     // Set minimum size to prevent overlapping elements
-    setMinimumSize(400, 700);
+    setMinimumSize(400, 650);
 
     _channelItems = new QList<NamedColorWidgetItem*>();
     _trackItems = new QList<NamedColorWidgetItem*>();
@@ -93,14 +93,8 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
     connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
     layout->addWidget(strip,7,1,1,1);
 
-    layout->addWidget(new QLabel("Show C3/C6 Range Lines"), 8, 0, 1, 1);
-    QCheckBox *rangeLines = new QCheckBox(this);
-    rangeLines->setChecked(Appearance::showRangeLines());
-    connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
-    layout->addWidget(rangeLines, 8, 1, 1, 1);
-
     // UI Styling options
-    layout->addWidget(new QLabel("Application Style"), 9, 0, 1, 1);
+    layout->addWidget(new QLabel("Application Style"), 8, 0, 1, 1);
     QComboBox *styleCombo = new QComboBox(this);
     QStringList availableStyles = Appearance::availableStyles();
     styleCombo->addItems(availableStyles);
@@ -109,15 +103,13 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget* parent)
         styleCombo->setCurrentIndex(currentIndex);
     }
     connect(styleCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(styleChanged(QString)));
-    layout->addWidget(styleCombo, 9, 1, 1, 1);
+    layout->addWidget(styleCombo, 8, 1, 1, 1);
 
-    layout->addWidget(new QLabel("Toolbar Icon Size"), 10, 0, 1, 1);
-    QSpinBox *iconSize = new QSpinBox(this);
-    iconSize->setMinimum(16);
-    iconSize->setMaximum(32);
-    iconSize->setValue(Appearance::toolbarIconSize());
-    connect(iconSize, SIGNAL(valueChanged(int)), this, SLOT(iconSizeChanged(int)));
-    layout->addWidget(iconSize, 10, 1, 1, 1);
+    layout->addWidget(new QLabel("Show C3/C6 Range Lines"), 9, 0, 1, 1);
+    QCheckBox *rangeLines = new QCheckBox(this);
+    rangeLines->setChecked(Appearance::showRangeLines());
+    connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
+    layout->addWidget(rangeLines, 9, 1, 1, 1);
 }
 
 void AppearanceSettingsWidget::channelColorChanged(int channel, QColor c){
@@ -181,10 +173,7 @@ void AppearanceSettingsWidget::styleChanged(const QString& style){
     update();
 }
 
-void AppearanceSettingsWidget::iconSizeChanged(int size){
-    Appearance::setToolbarIconSize(size);
-    update();
-}
+
 
 NamedColorWidgetItem::NamedColorWidgetItem(int number, QString name, QColor color, QWidget* parent) : QWidget(parent)
 {

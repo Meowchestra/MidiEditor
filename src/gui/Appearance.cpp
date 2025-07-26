@@ -44,6 +44,7 @@ int Appearance::_toolbarIconSize = 20;
 bool Appearance::_ignoreSystemScaling = false;
 bool Appearance::_useRoundedScaling = false;
 bool Appearance::_toolbarTwoRowMode = false;
+bool Appearance::_toolbarCustomizeEnabled = false;
 QStringList Appearance::_toolbarActionOrder = QStringList();
 QStringList Appearance::_toolbarEnabledActions = QStringList();
 
@@ -71,6 +72,7 @@ void Appearance::init(QSettings *settings){
     _ignoreSystemScaling = settings->value("ignore_system_scaling", false).toBool();
     _useRoundedScaling = settings->value("use_rounded_scaling", false).toBool();
     _toolbarTwoRowMode = settings->value("toolbar_two_row_mode", false).toBool();
+    _toolbarCustomizeEnabled = settings->value("toolbar_customize_enabled", false).toBool();
     _toolbarActionOrder = settings->value("toolbar_action_order", QStringList()).toStringList();
     _toolbarEnabledActions = settings->value("toolbar_enabled_actions", QStringList()).toStringList();
 
@@ -216,6 +218,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
     settings->setValue("use_rounded_scaling", _useRoundedScaling);
     settings->setValue("toolbar_two_row_mode", _toolbarTwoRowMode);
+    settings->setValue("toolbar_customize_enabled", _toolbarCustomizeEnabled);
     settings->setValue("toolbar_action_order", _toolbarActionOrder);
     settings->setValue("toolbar_enabled_actions", _toolbarEnabledActions);
 
@@ -691,6 +694,14 @@ void Appearance::setToolbarTwoRowMode(bool twoRows) {
     _toolbarTwoRowMode = twoRows;
 }
 
+bool Appearance::toolbarCustomizeEnabled() {
+    return _toolbarCustomizeEnabled;
+}
+
+void Appearance::setToolbarCustomizeEnabled(bool enabled) {
+    _toolbarCustomizeEnabled = enabled;
+}
+
 QStringList Appearance::toolbarActionOrder() {
     return _toolbarActionOrder;
 }
@@ -730,6 +741,12 @@ void Appearance::applyStyle(){
             "QToolButton:checked { "
             "    background-color: rgba(80, 80, 80, 150); "
             "    border: 1px solid rgba(120, 120, 120, 150); "
+            "} "
+            "QToolBar::separator { "
+            "    background-color: rgba(120, 120, 120, 150); "
+            "    width: 1px; "
+            "    height: 1px; "
+            "    margin: 2px; "
             "}";
         app->setStyleSheet(darkStyleSheet);
     } else {
@@ -738,22 +755,15 @@ void Appearance::applyStyle(){
 }
 
 void Appearance::notifyIconSizeChanged(){
-    // Find the main window and update only the main toolbar icon size
+    // Find the main window and trigger a toolbar rebuild to apply new icon size
     QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
     if (!app) return;
 
     // Find all top-level widgets and look for the main window
     foreach (QWidget* widget, app->topLevelWidgets()) {
         if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
-            // Find only the main toolbar (not channel/track toolbars)
-            // Look for toolbar with name "File" which is the main toolbar
-            QList<QToolBar*> toolbars = widget->findChildren<QToolBar*>();
-            foreach (QToolBar* toolbar, toolbars) {
-                if (toolbar->windowTitle() == "File") {  // This is the main toolbar
-                    toolbar->setIconSize(QSize(_toolbarIconSize, _toolbarIconSize));
-                    break;  // Only update the main toolbar
-                }
-            }
+            // Call the MainWindow's method to rebuild toolbar with new icon size
+            QMetaObject::invokeMethod(widget, "rebuildToolbarFromSettings", Qt::QueuedConnection);
             break;
         }
     }
