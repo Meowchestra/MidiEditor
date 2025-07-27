@@ -3162,6 +3162,9 @@ QWidget* MainWindow::createSimpleCustomToolbar(QWidget* parent) {
     if (_actionMap.contains("pause")) toolBar->addAction(_actionMap["pause"]);
     if (_actionMap.contains("stop")) toolBar->addAction(_actionMap["stop"]);
 
+    // Remove any trailing separators
+    removeTrailingSeparators(toolBar);
+
     btnLayout->setColumnStretch(4, 1);
     btnLayout->addWidget(toolBar, 0, 0, 1, 1);
 
@@ -3509,6 +3512,10 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
             }
         }
 
+        // Remove any trailing separators from content toolbars only (not essential toolbar)
+        removeTrailingSeparators(topToolBar);
+        removeTrailingSeparators(bottomToolBar);
+
         // Layout: Essential toolbar on left, content toolbars stacked on right
         btnLayout->setColumnStretch(1, 1);
         btnLayout->setColumnMinimumWidth(1, 800); // Ensure content toolbars have adequate width for double row
@@ -3621,6 +3628,9 @@ QWidget* MainWindow::createCustomToolbar(QWidget* parent) {
                 }
             }
         }
+
+        // Remove any trailing separators
+        removeTrailingSeparators(toolBar);
 
         btnLayout->setColumnStretch(4, 1);
         btnLayout->addWidget(toolBar, 0, 0, 1, 1);
@@ -3860,6 +3870,10 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
             }
         }
 
+        // Remove any trailing separators from content toolbars only (not essential toolbar)
+        removeTrailingSeparators(topToolBar);
+        removeTrailingSeparators(bottomToolBar);
+
         // Layout: Essential toolbar on left, content toolbars stacked on right
         btnLayout->setColumnStretch(1, 1);
         btnLayout->setColumnMinimumWidth(1, 800); // Ensure content toolbars have adequate width for double row
@@ -3938,6 +3952,9 @@ void MainWindow::updateToolbarContents(QWidget* toolbarWidget, QGridLayout* btnL
                 }
             }
         }
+
+        // Remove any trailing separators
+        removeTrailingSeparators(toolBar);
 
         btnLayout->setColumnStretch(4, 1);
         btnLayout->addWidget(toolBar, 0, 0, 1, 1);
@@ -4388,4 +4405,16 @@ void MainWindow::transposeSelectedNotesOctaveDown() {
 
     file->protocol()->endAction();
     updateAll();
+}
+
+void MainWindow::removeTrailingSeparators(QToolBar* toolbar) {
+    if (!toolbar) return;
+
+    QList<QAction*> actions = toolbar->actions();
+
+    // Remove trailing separators from the end
+    while (!actions.isEmpty() && actions.last()->isSeparator()) {
+        QAction* lastAction = actions.takeLast();
+        toolbar->removeAction(lastAction);
+    }
 }

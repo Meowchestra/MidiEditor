@@ -211,6 +211,7 @@ class MainWindow : public QMainWindow {
     void keyReleaseEvent(QKeyEvent* event);
 
   private:
+    void removeTrailingSeparators(QToolBar* toolbar);
     MatrixWidget* mw_matrixWidget;
     QScrollBar *vert, *hori;
     ChannelListWidget* channelWidget;

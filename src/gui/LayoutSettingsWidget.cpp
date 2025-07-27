@@ -732,16 +732,16 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"tempo", "Tempo", ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
 
     // Movement and editing tools (from MainWindow action map) - disabled by default but available
-    actions << ToolbarActionInfo{"separator10", "--- Separator ---", "", nullptr, false, false, "Separator"};
+    actions << ToolbarActionInfo{"separator10", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"move_all", "Move All Directions", ":/run_environment/graphics/tool/move_up_down_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_lr", "Move Left/Right", ":/run_environment/graphics/tool/move_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_ud", "Move Up/Down", ":/run_environment/graphics/tool/move_up_down.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, false, false, "Tools"};
 
     // Additional useful actions (only include those with icons)
-    actions << ToolbarActionInfo{"separator11", "--- Separator ---", "", nullptr, false, false, "Separator"};
+    actions << ToolbarActionInfo{"separator11", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"panic", "MIDI Panic", ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
-    actions << ToolbarActionInfo{"separator12", "--- Separator ---", "", nullptr, false, false, "Separator"};
+    actions << ToolbarActionInfo{"separator12", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"transpose", "Transpose Selection", ":/run_environment/graphics/tool/transpose.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_up", "Transpose Up", ":/run_environment/graphics/tool/transpose_up.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_down", "Transpose Down", ":/run_environment/graphics/tool/transpose_down.png", nullptr, false, false, "Tools"};
@@ -838,8 +838,7 @@ QStringList LayoutSettingsWidget::getDefaultEnabledActions() {
             << "metronome"
             << "align_left" << "equalize" << "align_right" << "separator9"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-            << "lock"
-            // separator10 disabled by default in customize mode (after lock)
+            << "lock" << "separator10"
             << "quantize" << "magnet" << "separator11"
             // thru and panic disabled by default
             << "separator12"
@@ -929,13 +928,13 @@ void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList& row1Act
                 << "glue" << "scissors" << "delete_overlaps" << "separator4"
                 << "separator5"  // Keep for consistency even though move actions not in default toolbar
                 << "separator6"  // Keep for consistency even though transpose actions not in default toolbar
-                << "align_left" << "equalize" << "align_right" << "separator9"
-                << "separator10" << "quantize" << "magnet" << "separator11"
+                << "align_left" << "equalize" << "align_right" << "separator6"
+                << "quantize" << "magnet" << "separator8"
                 << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view
     row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                << "stop" << "record" << "forward" << "forward_marker" << "separator7"
-                << "separator8" << "metronome" << "separator9" << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                << "lock";
+                << "stop" << "record" << "forward" << "forward_marker" << "separator5"
+                << "metronome" << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+                << "lock" << "separator7";
 }
