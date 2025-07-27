@@ -838,7 +838,8 @@ QStringList LayoutSettingsWidget::getDefaultEnabledActions() {
             << "metronome"
             << "align_left" << "equalize" << "align_right" << "separator9"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-            << "lock" << "separator10"
+            << "lock"
+            // separator10 disabled by default in customize mode (after lock)
             << "quantize" << "magnet" << "separator11"
             // thru and panic disabled by default
             << "separator12"
@@ -929,7 +930,7 @@ void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList& row1Act
                 << "separator5"  // Keep for consistency even though move actions not in default toolbar
                 << "separator6"  // Keep for consistency even though transpose actions not in default toolbar
                 << "align_left" << "equalize" << "align_right" << "separator9"
-                << "quantize" << "magnet" << "separator11"
+                << "separator10" << "quantize" << "magnet" << "separator11"
                 << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view
