@@ -25,6 +25,7 @@
 
 class MidiEvent;
 class MidiTrack;
+class SharedClipboard;
 
 class EventTool : public EditorTool {
 
@@ -41,6 +42,11 @@ public:
 
     static void copyAction();
     static void pasteAction();
+
+    // Shared clipboard methods
+    static bool copyToSharedClipboard();
+    static bool pasteFromSharedClipboard();
+    static bool hasSharedClipboardData();
 
     virtual bool showsSelection();
 

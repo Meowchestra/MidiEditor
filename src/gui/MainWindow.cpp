@@ -42,6 +42,7 @@
 #include <QTabWidget>
 #include <QTextEdit>
 #include <QTextStream>
+#include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QDesktopServices>
@@ -76,6 +77,7 @@
 #include "../tool/ScissorsTool.h"
 #include "../tool/SelectTool.h"
 #include "../tool/Selection.h"
+#include "../tool/SharedClipboard.h"
 #include "../tool/SizeChangeTool.h"
 #include "../tool/StandardTool.h"
 #include "../tool/TempoTool.h"
@@ -125,6 +127,9 @@ MainWindow::MainWindow(QString initFile)
     EventTool::enableMagnet(magnet);
 
     MidiInput::setThruEnabled(_settings->value("thru", false).toBool());
+
+    // Initialize shared clipboard for inter-process copy/paste
+    SharedClipboard::instance()->initialize();
     Metronome::setEnabled(_settings->value("metronome", false).toBool());
     bool loudnessOk;
     Metronome::setLoudness(_settings->value("metronome_loudness", 100).toInt(&loudnessOk));
@@ -1095,6 +1100,9 @@ void MainWindow::closeEvent(QCloseEvent* event) {
     _settings->setValue("quantization", _quantizationGrid);
 
     Appearance::writeSettings(_settings);
+
+    // Cleanup shared clipboard resources
+    SharedClipboard::instance()->cleanup();
 }
 
 void MainWindow::about() {
