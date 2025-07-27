@@ -65,6 +65,12 @@ class MatrixWidget : public PaintWidget {
     int minVisibleMidiTime();
     int maxVisibleMidiTime();
 
+    // View control methods (for interface consistency with AcceleratedMatrixWidget)
+    void setViewport(int startTick, int endTick, int startLine, int endLine);
+    void setLineNameWidth(int width) { lineNameWidth = width; update(); }
+    int getLineNameWidth() const { return lineNameWidth; }
+    QList<GraphicObject*>* getObjects() { return reinterpret_cast<QList<GraphicObject*>*>(objects); }
+
     void setColorsByChannel();
     void setColorsByTracks();
     bool colorsByChannel();

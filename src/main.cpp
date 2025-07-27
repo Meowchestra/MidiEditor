@@ -103,35 +103,6 @@ int main(int argc, char* argv[]) {
     a.setAttribute(Qt::AA_CompressHighFrequencyEvents, true);  // Compress mouse/paint events
     a.setAttribute(Qt::AA_CompressTabletEvents, true);        // Compress tablet events
 
-    // Qt6 RHI backend selection based on user settings
-    QSettings settings(QString("MidiEditor"), QString("NONE"));
-    QString preferredBackend = settings.value("rendering/backend", "auto").toString();
-    bool hardwareAcceleration = settings.value("rendering/hardware_acceleration", true).toBool();
-
-    if (!QApplication::arguments().contains("--no-acceleration") && hardwareAcceleration) {
-        QString backend;
-
-        if (preferredBackend == "auto") {
-            // Auto-select best backend for platform
-            #ifdef Q_OS_WIN
-                backend = "d3d11";  // Best performance on Windows
-            #elif defined(Q_OS_MACOS)
-                backend = "metal";  // Best performance on macOS
-            #else
-                backend = "opengl"; // Most compatible on Linux
-            #endif
-        } else {
-            backend = preferredBackend;
-        }
-
-        qputenv("QSG_RHI_BACKEND", backend.toUtf8());
-        qputenv("QSG_RHI_DEBUG_LAYER", "0");  // Disable debug layer for performance
-        a.setAttribute(Qt::AA_UseOpenGLES, false);  // Use full OpenGL when needed
-    } else {
-        // Force software rendering if acceleration disabled
-        qputenv("QSG_RHI_BACKEND", "software");
-    }
-
 // Use more reliable architecture detection
 #if defined(__ARCH64__) || defined(_WIN64) || defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64) || defined(_M_X64)
     a.setProperty("arch", "64");

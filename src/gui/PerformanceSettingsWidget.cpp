@@ -58,7 +58,7 @@ void PerformanceSettingsWidget::setupUI() {
     connect(ignoreScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::ignoreScalingChanged);
     scalingLayout->addWidget(ignoreScaling, 0, 0, 1, 2);
 
-    QLabel* ignoreDesc = new QLabel(tr("Provides smallest UI but may be hard to read on high DPI displays."), this);
+    QLabel* ignoreDesc = new QLabel(tr("Provides smallest UI but may be hard to read on high DPI displays. (requires restart)"), this);
     ignoreDesc->setWordWrap(true);
     ignoreDesc->setStyleSheet("color: gray; font-size: 10px; margin-left: 10px;");
     scalingLayout->addWidget(ignoreDesc, 1, 0, 1, 2);
@@ -69,7 +69,7 @@ void PerformanceSettingsWidget::setupUI() {
     connect(roundedScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::roundedScalingChanged);
     scalingLayout->addWidget(roundedScaling, 2, 0, 1, 2);
 
-    QLabel* roundedDesc = new QLabel(tr("Integer scaling (100%, 200%) provides sharper text than fractional scaling (125%, 150%)."), this);
+    QLabel* roundedDesc = new QLabel(tr("Integer scaling (100%, 200%) provides sharper text than fractional scaling (125%, 150%). (requires restart)"), this);
     roundedDesc->setWordWrap(true);
     roundedDesc->setStyleSheet("color: gray; font-size: 10px; margin-left: 10px;");
     scalingLayout->addWidget(roundedDesc, 3, 0, 1, 2);
@@ -100,26 +100,16 @@ void PerformanceSettingsWidget::setupUI() {
     // Hardware Acceleration Group
     _hardwareAccelerationGroup = new QGroupBox(tr("Hardware Acceleration"), this);
     QGridLayout* accelLayout = new QGridLayout(_hardwareAccelerationGroup);
-    
-    accelLayout->addWidget(new QLabel(tr("Rendering Backend:"), this), 0, 0);
-    _renderingBackendCombo = new QComboBox(this);
-    _renderingBackendCombo->addItem(tr("Auto (Recommended)"), "auto");
-#ifdef Q_OS_WIN
-    _renderingBackendCombo->addItem(tr("Direct3D 11"), "d3d11");
-#endif
-#ifdef Q_OS_MACOS
-    _renderingBackendCombo->addItem(tr("Metal"), "metal");
-#endif
-    _renderingBackendCombo->addItem(tr("OpenGL"), "opengl");
-    _renderingBackendCombo->addItem(tr("Software (Fallback)"), "software");
-    connect(_renderingBackendCombo, QOverload<const QString&>::of(&QComboBox::currentTextChanged), 
-            this, &PerformanceSettingsWidget::renderingBackendChanged);
-    accelLayout->addWidget(_renderingBackendCombo, 0, 1);
-    
-    _enableHardwareAcceleration = new QCheckBox(tr("Enable hardware acceleration"), this);
-    _enableHardwareAcceleration->setToolTip(tr("Use GPU for rendering when available"));
+
+    _enableHardwareAcceleration = new QCheckBox(tr("Enable GPU acceleration for MIDI events"), this);
+    _enableHardwareAcceleration->setToolTip(tr("Use Qt RHI to automatically select the best graphics API (D3D12/D3D11/Vulkan/OpenGL) for GPU-accelerated MIDI rendering"));
     connect(_enableHardwareAcceleration, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableHardwareAccelerationChanged);
-    accelLayout->addWidget(_enableHardwareAcceleration, 1, 0, 1, 2);
+    accelLayout->addWidget(_enableHardwareAcceleration, 0, 0, 1, 2);
+
+    QLabel* accelDesc = new QLabel(tr("GPU acceleration uses Qt RHI (Rendering Hardware Interface) to automatically select the best graphics API: D3D12/D3D11 on Windows, Vulkan/OpenGL on other platforms, with fallback to software rendering."), this);
+    accelDesc->setWordWrap(true);
+    accelDesc->setStyleSheet("color: gray; font-size: 10px; margin-left: 10px;");
+    accelLayout->addWidget(accelDesc, 1, 0, 1, 2);
 
     _enableAsyncRendering = new QCheckBox(tr("Enable experimental async rendering"), this);
     _enableAsyncRendering->setToolTip(tr("EXPERIMENTAL: Use background thread for rendering (may improve performance)"));
@@ -147,11 +137,6 @@ void PerformanceSettingsWidget::loadSettings() {
     _enableOptimizedComposition->setChecked(_settings->value("rendering/optimized_composition", false).toBool());
     
     // Load hardware acceleration settings
-    QString backend = _settings->value("rendering/backend", "auto").toString();
-    int backendIndex = _renderingBackendCombo->findData(backend);
-    if (backendIndex >= 0) {
-        _renderingBackendCombo->setCurrentIndex(backendIndex);
-    }
     _enableHardwareAcceleration->setChecked(_settings->value("rendering/hardware_acceleration", true).toBool());
     _enableAsyncRendering->setChecked(_settings->value("rendering/async_rendering", false).toBool());
 }
@@ -163,8 +148,6 @@ bool PerformanceSettingsWidget::accept() {
     _settings->setValue("rendering/optimized_composition", _enableOptimizedComposition->isChecked());
     
     // Save hardware acceleration settings
-    QString backend = _renderingBackendCombo->currentData().toString();
-    _settings->setValue("rendering/backend", backend);
     _settings->setValue("rendering/hardware_acceleration", _enableHardwareAcceleration->isChecked());
     _settings->setValue("rendering/async_rendering", _enableAsyncRendering->isChecked());
 
@@ -196,13 +179,8 @@ void PerformanceSettingsWidget::enableOptimizedCompositionChanged(bool enabled) 
     updateInfoLabels();
 }
 
-void PerformanceSettingsWidget::renderingBackendChanged(const QString& backend) {
-    Q_UNUSED(backend)
-    updateInfoLabels();
-}
-
 void PerformanceSettingsWidget::enableHardwareAccelerationChanged(bool enabled) {
-    _renderingBackendCombo->setEnabled(enabled);
+    Q_UNUSED(enabled)
     updateInfoLabels();
 }
 
@@ -224,7 +202,6 @@ void PerformanceSettingsWidget::resetToDefaults() {
     _enableLosslessImageRendering->setChecked(true);
     _enableOptimizedComposition->setChecked(false);
     
-    _renderingBackendCombo->setCurrentIndex(0); // Auto
     _enableHardwareAcceleration->setChecked(true);
     _enableAsyncRendering->setChecked(false);
 
@@ -232,22 +209,16 @@ void PerformanceSettingsWidget::resetToDefaults() {
 }
 
 void PerformanceSettingsWidget::updateInfoLabels() {
-    // Update backend info
-    QString backend = _renderingBackendCombo->currentData().toString();
-    _backendInfoLabel->setText(getBackendDescription(backend));
+    // Update hardware acceleration info
+    if (_enableHardwareAcceleration->isChecked()) {
+        #ifdef Q_OS_WIN
+            _backendInfoLabel->setText(tr("Qt RHI will automatically select D3D12 (best), D3D11, Vulkan, or OpenGL, with fallback to software MatrixWidget if needed."));
+        #else
+            _backendInfoLabel->setText(tr("Qt RHI will automatically select Vulkan (best) or OpenGL, with fallback to software MatrixWidget if needed."));
+        #endif
+    } else {
+        _backendInfoLabel->setText(tr("Will use the original software MatrixWidget. All drawing is done by the CPU using QPainter."));
+    }
 }
 
-QString PerformanceSettingsWidget::getBackendDescription(const QString& backend) const {
-    if (backend == "auto") {
-        return tr("Automatically selects the best rendering backend for your platform.");
-    } else if (backend == "d3d11") {
-        return tr("Uses Direct3D 11 for hardware acceleration on Windows. Provides excellent performance.");
-    } else if (backend == "metal") {
-        return tr("Uses Metal for hardware acceleration on macOS. Optimized for Apple hardware.");
-    } else if (backend == "opengl") {
-        return tr("Uses OpenGL for hardware acceleration. Compatible with most systems but may have lower performance.");
-    } else if (backend == "software") {
-        return tr("Uses software rendering. Provides maximum compatibility but lowest performance.");
-    }
-    return QString();
-}
+// getBackendDescription method removed - no longer needed for real hardware acceleration

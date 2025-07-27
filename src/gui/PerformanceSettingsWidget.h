@@ -54,7 +54,6 @@ private slots:
     void enableOptimizedCompositionChanged(bool enabled);
     
     // Hardware acceleration settings
-    void renderingBackendChanged(const QString& backend);
     void enableHardwareAccelerationChanged(bool enabled);
     void enableAsyncRenderingChanged(bool enabled);
 
@@ -81,7 +80,6 @@ private:
     
     // Hardware acceleration controls
     QGroupBox* _hardwareAccelerationGroup;
-    QComboBox* _renderingBackendCombo;
     QCheckBox* _enableHardwareAcceleration;
     QCheckBox* _enableAsyncRendering;
     QLabel* _backendInfoLabel;

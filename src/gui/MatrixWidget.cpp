@@ -1556,3 +1556,15 @@ QList<QPair<int, int> > MatrixWidget::divs() {
 int MatrixWidget::div() {
     return _div;
 }
+
+// Interface consistency methods for AcceleratedMatrixWidget compatibility
+void MatrixWidget::setViewport(int startTick, int endTick, int startLine, int endLine) {
+    // Update viewport parameters
+    this->startTick = startTick;
+    this->endTick = endTick;
+    this->startLineY = startLine;
+    this->endLineY = endLine;
+
+    // Trigger repaint
+    update();
+}
