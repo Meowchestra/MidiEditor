@@ -247,7 +247,7 @@ QColor *Appearance::defaultColor(int n) {
         // Darker, more muted colors for dark mode (slightly darker shade)
         switch (n) {
         case 0: {
-            color = new QColor(160, 35, 25, 255);
+            color = new QColor(180, 80, 60, 255); // Softer red for better dark mode visibility
             break;
         }
         case 1: {
@@ -283,7 +283,7 @@ QColor *Appearance::defaultColor(int n) {
             break;
         }
         case 9: {
-            color = new QColor(80, 80, 80, 255);
+            color = new QColor(120, 120, 120, 255); // Lighter gray for better visibility against strip grid
             break;
         }
         case 10: {
@@ -291,11 +291,11 @@ QColor *Appearance::defaultColor(int n) {
             break;
         }
         case 11: {
-            color = new QColor(0, 80, 180, 255);
+            color = new QColor(70, 120, 200, 255); // Softer, less harsh blue
             break;
         }
         case 12: {
-            color = new QColor(60, 80, 15, 255);
+            color = new QColor(90, 140, 70, 255); // More pleasant green
             break;
         }
         case 13: {
@@ -311,7 +311,7 @@ QColor *Appearance::defaultColor(int n) {
             break;
         }
         default: {
-            color = new QColor(25, 25, 180, 255);
+            color = new QColor(80, 120, 200, 255); // Softer blue for Track 0
             break;
         }
         }
