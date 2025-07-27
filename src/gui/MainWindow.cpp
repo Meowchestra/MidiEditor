@@ -41,11 +41,11 @@
 #include <QStringList>
 #include <QTabWidget>
 #include <QTextEdit>
-#include <QTextStream>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
 #include <QDesktopServices>
+#include <QKeyEvent>
 
 #include "Appearance.h"
 #include "AboutDialog.h"
@@ -486,7 +486,25 @@ MainWindow::MainWindow(QString initFile)
     currentTweakTarget = new TimeTweakTarget(this);
     selectionNavigator = new SelectionNavigator(this);
 
+    QTimer::singleShot(100, this, SLOT(initializeSharedClipboard()));
     QTimer::singleShot(200, this, SLOT(loadInitFile()));
+}
+
+void MainWindow::initializeSharedClipboard() {
+    // Initialize shared clipboard
+    SharedClipboard::instance()->initialize();
+
+    // Update paste action state to check shared clipboard
+    copiedEventsChanged();
+}
+
+void MainWindow::updatePasteActionState() {
+    // Simple check - enable paste if shared clipboard is available
+    if (_pasteAction && EventTool::copiedEvents->size() == 0) {
+        SharedClipboard* clipboard = SharedClipboard::instance();
+        bool sharedClipboardAvailable = clipboard->initialize();
+        _pasteAction->setEnabled(sharedClipboardAvailable);
+    }
 }
 
 void MainWindow::loadInitFile() {
@@ -546,6 +564,9 @@ void MainWindow::setFile(MidiFile* newFile) {
     updateTrackMenu();
     mw_matrixWidget->update();
     _miscWidget->update();
+
+    // Update paste action state when file changes
+    copiedEventsChanged();
     checkEnableActionsForSelection();
 
     // Clean up the old file after everything has been switched to the new file
@@ -3102,7 +3123,7 @@ QWidget* MainWindow::setupActions(QWidget* parent) {
     connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
     helpMB->addAction(manualAction);
 
-    // Phase 2: Use full custom toolbar with settings integration
+    // Use full custom toolbar with settings integration
     _toolbarWidget = createCustomToolbar(parent);
     return _toolbarWidget;
 }
@@ -4175,8 +4196,16 @@ void MainWindow::toolChanged() {
 }
 
 void MainWindow::copiedEventsChanged() {
-    bool enable = EventTool::copiedEvents->size() > 0;
-    _pasteAction->setEnabled(enable);
+    // If shared clipboard is available, always enable paste
+    // The paste operation itself will handle whether there's data or not
+    SharedClipboard* clipboard = SharedClipboard::instance();
+    bool sharedClipboardAvailable = clipboard->initialize();
+
+    bool enable = EventTool::copiedEvents->size() > 0 || sharedClipboardAvailable;
+
+    if (_pasteAction) {
+        _pasteAction->setEnabled(enable);
+    }
 }
 
 void MainWindow::updateAll() {

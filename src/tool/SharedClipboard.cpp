@@ -26,7 +26,7 @@
 
 #include <QDataStream>
 #include <QDateTime>
-#include <QDebug>
+#include <QIODevice>
 
 // Static member definitions
 SharedClipboard* SharedClipboard::_instance = nullptr;
@@ -65,7 +65,6 @@ bool SharedClipboard::initialize()
     // Create semaphore for synchronization
     _semaphore = new QSystemSemaphore(SEMAPHORE_KEY, 1, QSystemSemaphore::Create);
     if (_semaphore->error() != QSystemSemaphore::NoError) {
-        qWarning() << "SharedClipboard: Failed to create semaphore:" << _semaphore->errorString();
         delete _semaphore;
         _semaphore = nullptr;
         return false;
@@ -73,19 +72,20 @@ bool SharedClipboard::initialize()
 
     // Create shared memory
     _sharedMemory = new QSharedMemory(SHARED_MEMORY_KEY);
-    
+
     // Try to attach to existing shared memory first
-    if (!_sharedMemory->attach()) {
+    bool attached = _sharedMemory->attach();
+
+    if (!attached) {
         // If attach fails, try to create new shared memory
         if (!_sharedMemory->create(MAX_CLIPBOARD_SIZE)) {
-            qWarning() << "SharedClipboard: Failed to create shared memory:" << _sharedMemory->errorString();
             delete _sharedMemory;
             _sharedMemory = nullptr;
             delete _semaphore;
             _semaphore = nullptr;
             return false;
         }
-        
+
         // Initialize the shared memory with empty data
         if (lockMemory()) {
             ClipboardHeader* header = static_cast<ClipboardHeader*>(_sharedMemory->data());
@@ -93,6 +93,13 @@ bool SharedClipboard::initialize()
             header->eventCount = 0;
             header->dataSize = 0;
             header->timestamp = 0;
+            header->sourceProcessId = 0;  // No data yet
+            unlockMemory();
+        }
+    } else {
+        // Check if existing data is valid
+        if (lockMemory()) {
+            ClipboardHeader* header = static_cast<ClipboardHeader*>(_sharedMemory->data());
             unlockMemory();
         }
     }
@@ -117,9 +124,11 @@ bool SharedClipboard::copyEvents(const QList<MidiEvent*>& events, MidiFile* sour
     }
 
     // Check if data fits in shared memory
-    int totalSize = sizeof(ClipboardHeader) + serializedData.size();
-    if (totalSize > _sharedMemory->size()) {
-        qWarning() << "SharedClipboard: Data too large for shared memory";
+    int headerSize = sizeof(ClipboardHeader);
+    int totalSize = headerSize + serializedData.size();
+    int availableSize = _sharedMemory->size();
+
+    if (totalSize > availableSize) {
         unlockMemory();
         return false;
     }
@@ -132,6 +141,7 @@ bool SharedClipboard::copyEvents(const QList<MidiEvent*>& events, MidiFile* sour
     header->eventCount = events.size();
     header->dataSize = serializedData.size();
     header->timestamp = QDateTime::currentMSecsSinceEpoch();
+    header->sourceProcessId = QCoreApplication::applicationPid();
 
     // Write serialized event data
     char* dataPtr = static_cast<char*>(_sharedMemory->data()) + sizeof(ClipboardHeader);
@@ -152,21 +162,24 @@ bool SharedClipboard::pasteEvents(MidiFile* targetFile, QList<MidiEvent*>& paste
     }
 
     ClipboardHeader* header = static_cast<ClipboardHeader*>(_sharedMemory->data());
-    
+
     // Check version compatibility
     if (header->version != CLIPBOARD_VERSION || header->eventCount == 0) {
         unlockMemory();
         return false;
     }
 
-    // Read serialized data
+    // Read serialized data - copy it to ensure data integrity
     char* dataPtr = static_cast<char*>(_sharedMemory->data()) + sizeof(ClipboardHeader);
-    QByteArray serializedData(dataPtr, header->dataSize);
+    QByteArray serializedData;
+    serializedData.resize(header->dataSize);
+    memcpy(serializedData.data(), dataPtr, header->dataSize);
 
     unlockMemory();
 
     // Deserialize events
-    return deserializeEvents(serializedData, targetFile, pastedEvents);
+    bool result = deserializeEvents(serializedData, targetFile, pastedEvents);
+    return result;
 }
 
 bool SharedClipboard::hasData()
@@ -181,6 +194,29 @@ bool SharedClipboard::hasData()
 
     ClipboardHeader* header = static_cast<ClipboardHeader*>(_sharedMemory->data());
     bool hasValidData = (header->version == CLIPBOARD_VERSION && header->eventCount > 0);
+
+    unlockMemory();
+    return hasValidData;
+}
+
+bool SharedClipboard::hasDataFromDifferentProcess()
+{
+    if (!_initialized || !_sharedMemory) {
+        return false;
+    }
+
+    if (!lockMemory()) {
+        return false;
+    }
+
+    ClipboardHeader* header = static_cast<ClipboardHeader*>(_sharedMemory->data());
+    qint64 currentPid = QCoreApplication::applicationPid();
+
+    // Check all conditions for valid cross-process data
+    bool validVersion = (header->version == CLIPBOARD_VERSION);
+    bool hasEvents = (header->eventCount > 0);
+    bool differentProcess = (header->sourceProcessId != 0 && header->sourceProcessId != currentPid);
+    bool hasValidData = validVersion && hasEvents && differentProcess;
 
     unlockMemory();
     return hasValidData;
@@ -232,22 +268,28 @@ QByteArray SharedClipboard::serializeEvents(const QList<MidiEvent*>& events, Mid
         if (offEvent) continue;
 
         // Write event timing
-        stream << event->midiTime();
-        stream << event->channel();
+        int midiTime = event->midiTime();
+        int channel = event->channel();
+        stream << midiTime;
+        stream << channel;
 
         // Write event data
         QByteArray eventData = event->save();
-        stream << eventData.size();
+        int dataSize = eventData.size();
+        stream << dataSize;
         stream.writeRawData(eventData.constData(), eventData.size());
 
         // If this is an OnEvent, also serialize its corresponding OffEvent
         OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
         if (onEvent && onEvent->offEvent()) {
             OffEvent* off = onEvent->offEvent();
-            stream << off->midiTime();
-            stream << off->channel();
+            int offMidiTime = off->midiTime();
+            int offChannel = off->channel();
+            stream << offMidiTime;
+            stream << offChannel;
             QByteArray offData = off->save();
-            stream << offData.size();
+            int offDataSize = offData.size();
+            stream << offDataSize;
             stream.writeRawData(offData.constData(), offData.size());
         }
     }
@@ -255,25 +297,39 @@ QByteArray SharedClipboard::serializeEvents(const QList<MidiEvent*>& events, Mid
     return data;
 }
 
+// Global storage for timing information during deserialization
+static QList<QPair<int, int>> g_originalTimings; // midiTime, channel pairs
+
 bool SharedClipboard::deserializeEvents(const QByteArray& data, MidiFile* targetFile, QList<MidiEvent*>& events)
 {
     QDataStream stream(data);
     stream.setByteOrder(QDataStream::BigEndian);
 
     events.clear();
+    g_originalTimings.clear(); // Clear previous timing data
 
+    int eventIndex = 0;
     while (!stream.atEnd()) {
         int midiTime, channel, dataSize;
-        stream >> midiTime >> channel >> dataSize;
+
+        // Check if we have enough data for the header
+        int available = stream.device()->bytesAvailable();
+        if (available < 12) { // 3 ints = 12 bytes
+            break;
+        }
+
+        // Read the three integers
+        stream >> midiTime;
+        stream >> channel;
+        stream >> dataSize;
 
         if (dataSize <= 0 || dataSize > 1024) { // Sanity check
-            qWarning() << "SharedClipboard: Invalid event data size:" << dataSize;
             return false;
         }
 
         QByteArray eventData(dataSize, 0);
-        if (stream.readRawData(eventData.data(), dataSize) != dataSize) {
-            qWarning() << "SharedClipboard: Failed to read event data";
+        int bytesRead = stream.readRawData(eventData.data(), dataSize);
+        if (bytesRead != dataSize) {
             return false;
         }
 
@@ -286,23 +342,37 @@ bool SharedClipboard::deserializeEvents(const QByteArray& data, MidiFile* target
         // Use track 0 as default, will be reassigned during paste
         MidiTrack* defaultTrack = targetFile->track(0);
         if (!defaultTrack) {
-            qWarning() << "SharedClipboard: No tracks available in target file";
             return false;
         }
 
         MidiEvent* event = MidiEvent::loadMidiEvent(&eventStream, &ok, &endEvent, defaultTrack);
 
         if (ok && event && !endEvent) {
-            event->setMidiTime(midiTime, false);
-            event->setChannel(channel, false);
-            event->setFile(targetFile);
+            // Store the original timing information in global storage
+            g_originalTimings.append(QPair<int, int>(midiTime, channel));
+
+            // Don't try to set properties on deserialized events - they can crash
+            // Just add the event as-is
             events.append(event);
         } else if (event) {
-            delete event; // Clean up failed event
+            try {
+                delete event; // Clean up failed event
+            } catch (...) {
+            }
         }
+
+        eventIndex++;
     }
 
     return !events.isEmpty();
+}
+
+QPair<int, int> SharedClipboard::getOriginalTiming(int index)
+{
+    if (index >= 0 && index < g_originalTimings.size()) {
+        return g_originalTimings[index];
+    }
+    return QPair<int, int>(-1, -1); // Invalid
 }
 
 int SharedClipboard::getCurrentTempo(MidiFile* file, int atTick)
@@ -332,13 +402,17 @@ int SharedClipboard::getCurrentTempo(MidiFile* file, int atTick)
 
 bool SharedClipboard::lockMemory()
 {
-    if (!_semaphore) return false;
-    return _semaphore->acquire();
+    if (!_semaphore) {
+        return false;
+    }
+
+    bool acquired = _semaphore->acquire();
+    return acquired;
 }
 
 void SharedClipboard::unlockMemory()
 {
     if (_semaphore) {
-        _semaphore->release();
+        bool released = _semaphore->release();
     }
 }

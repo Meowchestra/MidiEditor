@@ -162,7 +162,6 @@ void EventTool::changeTick(MidiEvent* event, int shiftX) {
 }
 
 void EventTool::copyAction() {
-
     if (Selection::instance()->selectedEvents().size() > 0) {
         // clear old copied Events
         copiedEvents->clear();
@@ -189,23 +188,25 @@ void EventTool::copyAction() {
                 }
             }
         }
-
-        // Also copy to shared clipboard for inter-process functionality
-        copyToSharedClipboard();
-
         _mainWindow->copiedEventsChanged();
     }
 }
 
 void EventTool::pasteAction() {
+    // Check if shared clipboard has newer data from a different process
+    bool hasSharedData = hasSharedClipboardData();
+    bool hasLocalData = (copiedEvents->size() > 0);
 
-    // First try to paste from shared clipboard (inter-process)
-    if (pasteFromSharedClipboard()) {
-        return;
+    if (hasSharedData) {
+        // Always prefer shared clipboard data (cross-instance) when available
+        if (pasteFromSharedClipboard()) {
+            return;
+        }
     }
 
-    // Fall back to local clipboard if shared clipboard is empty or fails
-    if (copiedEvents->size() == 0) {
+    if (hasLocalData) {
+        // Continue with local clipboard paste logic below
+    } else {
         return;
     }
 
@@ -406,12 +407,18 @@ bool EventTool::copyToSharedClipboard() {
         return false;
     }
 
-    return clipboard->copyEvents(*copiedEvents, sourceFile);
+    bool result = clipboard->copyEvents(*copiedEvents, sourceFile);
+    return result;
 }
 
 bool EventTool::pasteFromSharedClipboard() {
     SharedClipboard* clipboard = SharedClipboard::instance();
-    if (!clipboard->initialize() || !clipboard->hasData()) {
+    if (!clipboard->initialize()) {
+        return false;
+    }
+
+    // Only paste from shared clipboard if data is from a different process
+    if (!clipboard->hasDataFromDifferentProcess()) {
         return false;
     }
 
@@ -424,86 +431,98 @@ bool EventTool::pasteFromSharedClipboard() {
         return false;
     }
 
-    // Begin a new ProtocolAction
-    currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(sharedEvents.count()) + QObject::tr(" events from shared clipboard"));
+    // Now actually paste these events using the same logic as regular paste
+    if (sharedEvents.count() > 0) {
+        // Begin a new ProtocolAction
+        currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(sharedEvents.count()) + QObject::tr(" events from shared clipboard"));
 
-    // Calculate timing adjustments
-    int firstTick = -1;
-    foreach (MidiEvent* event, sharedEvents) {
-        if (event->midiTime() < firstTick || firstTick < 0) {
-            firstTick = event->midiTime();
+        // Get first tick of the shared events (preserve relative timing)
+        int firstTick = -1;
+        foreach (MidiEvent* event, sharedEvents) {
+            if (event->midiTime() < firstTick || firstTick < 0) {
+                firstTick = event->midiTime();
+            }
         }
+
+        if (firstTick < 0)
+            firstTick = 0;
+
+        // Calculate the difference to paste at cursor position
+        int diff = currentFile()->cursorTick() - firstTick;
+
+        // Get current editing context (where to paste)
+        int targetChannel = NewNoteTool::editChannel();
+        MidiTrack* targetTrack = currentFile()->track(NewNoteTool::editTrack());
+        if (!targetTrack) {
+            targetTrack = currentFile()->track(0);
+        }
+
+        if (!targetTrack) {
+            // Clean up events
+            for (MidiEvent* event : sharedEvents) {
+                if (event) delete event;
+            }
+            return false;
+        }
+
+        if (!currentFile()) {
+            // Clean up events
+            for (MidiEvent* event : sharedEvents) {
+                if (event) delete event;
+            }
+            return false;
+        }
+
+        // Clear selection and paste events
+        clearSelection();
+
+        // Use the deserialized events directly - they're already properly constructed
+        int eventIndex = 0;
+        for (MidiEvent* event : sharedEvents) {
+            if (!event) {
+                eventIndex++;
+                continue;
+            }
+
+            try {
+                // Get the original timing information from SharedClipboard
+                QPair<int, int> originalTiming = SharedClipboard::getOriginalTiming(eventIndex);
+                int originalTime = originalTiming.first;
+
+                if (originalTime == -1) {
+                    // Fallback to event's current timing if no stored timing
+                    originalTime = event->midiTime();
+                }
+
+                // Calculate new timing (preserve relative timing, paste at cursor)
+                int newTime = originalTime + diff;
+
+                // Set the event properties safely (timing is already restored in deserializeEvents)
+                event->setFile(currentFile());
+
+                event->setChannel(targetChannel, false);
+
+                event->setTrack(targetTrack, false);
+
+                // Insert into the target channel at the calculated time
+                currentFile()->channel(targetChannel)->insertEvent(event, newTime, false);
+
+                selectEvent(event, false, true, false);
+
+            } catch (...) {
+                delete event;
+            }
+
+            eventIndex++;
+        }
+
+        // Update the selection to show the pasted events
+        Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+
+        currentFile()->protocol()->endAction();
     }
 
-    if (firstTick < 0) {
-        firstTick = 0;
-    }
-
-    // Calculate the difference to paste at cursor position
-    int diff = currentFile()->cursorTick() - firstTick;
-
-    // Process each event similar to regular paste
-    std::set<int> copiedChannels;
-    std::vector<std::pair<ProtocolEntry*, MidiChannel*>> channelCopies;
-
-    // Determine which channels are associated with the pasted events and copy them
-    for (auto event : sharedEvents) {
-        int channelNum = event->channel();
-        if (_pasteChannel == -2) {
-            channelNum = NewNoteTool::editChannel();
-        }
-        if ((_pasteChannel >= 0) && (channelNum < 16)) {
-            channelNum = _pasteChannel;
-        }
-
-        if (copiedChannels.find(channelNum) == copiedChannels.end()) {
-            MidiChannel* channel = currentFile()->channel(channelNum);
-            ProtocolEntry* channelCopy = channel->copy();
-            channelCopies.push_back(std::make_pair(channelCopy, channel));
-            copiedChannels.insert(channelNum);
-        }
-    }
-
-    // Insert events
-    foreach (MidiEvent* event, sharedEvents) {
-        int channelNum = event->channel();
-        if (_pasteChannel == -2) {
-            channelNum = NewNoteTool::editChannel();
-        }
-        if ((_pasteChannel >= 0) && (channelNum < 16)) {
-            channelNum = _pasteChannel;
-        }
-
-        // Get track
-        MidiTrack* track = event->track();
-        if (pasteTrack() == -2) {
-            track = currentFile()->track(NewNoteTool::editTrack());
-        } else if ((pasteTrack() >= 0) && (pasteTrack() < currentFile()->tracks()->size())) {
-            track = currentFile()->track(pasteTrack());
-        } else if (!currentFile()->tracks()->contains(track)) {
-            track = currentFile()->track(0);
-        }
-
-        if ((!track) || (track->file() != currentFile())) {
-            track = currentFile()->track(0);
-        }
-
-        event->setFile(currentFile());
-        event->setChannel(channelNum, false);
-        event->setTrack(track, false);
-        currentFile()->channel(channelNum)->insertEvent(event, event->midiTime() + diff, false);
-        selectEvent(event, false, true, false);
-    }
-
-    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
-
-    // Put the copied channels from before the event insertion onto the protocol stack
-    for (auto channelPair : channelCopies) {
-        ProtocolEntry* channel = channelPair.first;
-        channel->protocol(channel, channelPair.second);
-    }
-
-    currentFile()->protocol()->endAction();
+    // Note: sharedEvents are now owned by the file/channels
     return true;
 }
 
@@ -512,5 +531,6 @@ bool EventTool::hasSharedClipboardData() {
     if (!clipboard->initialize()) {
         return false;
     }
-    return clipboard->hasData();
+    // Only return true if data is from a different process
+    return clipboard->hasDataFromDifferentProcess();
 }

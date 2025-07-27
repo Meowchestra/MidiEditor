@@ -74,6 +74,12 @@ public:
     bool hasData();
 
     /**
+     * @brief Check if shared clipboard has data from a different process
+     * @return true if clipboard contains data from another process
+     */
+    bool hasDataFromDifferentProcess();
+
+    /**
      * @brief Clear the shared clipboard
      */
     void clear();
@@ -82,6 +88,13 @@ public:
      * @brief Cleanup shared memory resources
      */
     void cleanup();
+
+    /**
+     * @brief Get original timing for deserialized events
+     * @param index Event index
+     * @return QPair of (midiTime, channel) or (-1, -1) if invalid
+     */
+    static QPair<int, int> getOriginalTiming(int index);
 
 private:
     explicit SharedClipboard(QObject* parent = nullptr);
@@ -134,6 +147,7 @@ private:
         int eventCount;
         int dataSize;
         qint64 timestamp;  // For detecting stale data
+        qint64 sourceProcessId;  // Process ID that wrote the data
     };
 };
 

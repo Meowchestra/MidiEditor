@@ -67,6 +67,9 @@ class MainWindow : public QMainWindow {
   public slots:
     void updateAll();
     void loadInitFile();
+    void initializeSharedClipboard();
+    void updatePasteActionState();
+
     void matrixSizeChanged(int maxScrollTime, int maxScrollLine, int vX, int vY);
     void play();
     void playStop();
