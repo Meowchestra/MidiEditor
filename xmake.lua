@@ -31,7 +31,9 @@ target("MidiEditor") do
         "QtNetwork",
         "QtXml",
         "QtMultimedia",
-        "QtMultimediaWidgets"
+        "QtMultimediaWidgets",
+        "QtOpenGL",
+        "QtOpenGLWidgets"
     })
 
     -- Add source files, including only the main rtmidi files (not examples/tests)

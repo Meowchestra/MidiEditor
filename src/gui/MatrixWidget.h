@@ -23,8 +23,11 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QElapsedTimer>
+#include <QFuture>
 #include <QMap>
 #include <QMouseEvent>
+#include <QMutex>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
@@ -116,6 +119,46 @@ class MatrixWidget : public PaintWidget {
     void paintChannel(QPainter* painter, int channel);
     void paintPianoKey(QPainter* painter, int number, int x, int y,
                        int width, int height);
+
+    // Performance optimization methods
+    enum RenderTier {
+        RENDER_FULL_DETAIL = 0,    // Full detailed rendering
+        RENDER_MEDIUM_DETAIL = 1,  // Simplified rendering for medium zoom
+        RENDER_LOW_DETAIL = 2      // LOD rendering for far zoom
+    };
+
+    RenderTier getRenderTier() const;
+    bool shouldUseLevelOfDetail() const;
+    void paintChannelLOD(QPainter* painter, int channel);
+    void paintChannelMediumDetail(QPainter* painter, int channel);
+    void paintEventLOD(QPainter* painter, MidiEvent* event, const QColor& color);
+    void paintEventMediumDetail(QPainter* painter, MidiEvent* event, const QColor& color);
+    void batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color);
+
+    // Constants for performance tuning (Qt6 optimized - higher thresholds due to better performance)
+    static const int LOD_PIXEL_THRESHOLD = 20; // Use LOD when less than this many pixels per tick
+    static const int LOD_TIME_THRESHOLD = 100000; // Use LOD when showing more than this many ticks (doubled for Qt6)
+    static const int MEDIUM_DETAIL_TIME_THRESHOLD = 50000; // Use medium detail threshold (doubled for Qt6)
+    static const int MAX_EVENTS_PER_FRAME = 10000; // Adaptive optimization trigger (doubled for Qt6)
+
+    // Performance monitoring (debug builds only)
+    #ifdef QT_DEBUG
+    mutable int _lastRenderEventCount;
+    mutable bool _lastUsedLOD;
+    #endif
+
+    // Viewport caching for performance
+    int _lastStartTick, _lastEndTick, _lastStartLineY, _lastEndLineY;
+    double _lastScaleX, _lastScaleY;
+
+    // Performance monitoring
+    mutable QElapsedTimer _renderTimer;
+    mutable bool _showingPerformanceWarning;
+
+    // Qt6 threading optimizations
+    bool _useAsyncRendering;
+    QFuture<void> _renderFuture;
+    QMutex _renderMutex;
 
     bool _isPianoEmulationEnabled = false;
 

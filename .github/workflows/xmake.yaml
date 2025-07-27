@@ -1,7 +1,7 @@
 name: build with xmake on windows
 on:
   push:
-    branches: [ main ]
+    branches: [ optimize ]
 
 jobs:
   build:

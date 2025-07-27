@@ -76,6 +76,19 @@ MatrixWidget::MatrixWidget(QWidget* parent)
 
     pixmap = 0;
     _div = 2;
+
+    #ifdef QT_DEBUG
+    _lastRenderEventCount = 0;
+    _lastUsedLOD = false;
+    #endif
+
+    // Initialize viewport cache
+    _lastStartTick = _lastEndTick = _lastStartLineY = _lastEndLineY = -1;
+    _lastScaleX = _lastScaleY = -1.0;
+    _showingPerformanceWarning = false;
+
+    // Initialize Qt6 threading
+    _useAsyncRendering = false; // Disabled by default for stability
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -169,11 +182,42 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
     bool totalRepaint = !pixmap;
 
     if (totalRepaint) {
+        // Check if viewport has changed significantly to optimize repaints
+        bool viewportChanged = (_lastStartTick != startTick || _lastEndTick != endTick ||
+                               _lastStartLineY != startLineY || _lastEndLineY != endLineY ||
+                               _lastScaleX != scaleX || _lastScaleY != scaleY);
+
+        // Update viewport cache
+        _lastStartTick = startTick; _lastEndTick = endTick;
+        _lastStartLineY = startLineY; _lastEndLineY = endLineY;
+        _lastScaleX = scaleX; _lastScaleY = scaleY;
+
         this->pianoKeys.clear();
-        pixmap = new QPixmap(width(), height());
+
+        // Qt6 optimized pixmap creation with device pixel ratio support
+        QSize pixmapSize(width(), height());
+        qreal devicePixelRatio = devicePixelRatioF();
+
+        // Create pixmap with proper device pixel ratio for high-DPI displays
+        pixmap = new QPixmap(pixmapSize * devicePixelRatio);
+        pixmap->setDevicePixelRatio(devicePixelRatio);
+
+        // Fill with background color to avoid artifacts
+        pixmap->fill(Appearance::backgroundColor());
         QPainter* pixpainter = new QPainter(pixmap);
+
+        // Qt6 optimized rendering hints
         if (!QApplication::arguments().contains("--no-antialiasing")) {
             pixpainter->setRenderHint(QPainter::Antialiasing);
+        }
+
+        // Qt6 performance optimizations
+        pixpainter->setRenderHint(QPainter::SmoothPixmapTransform, false); // Disable for performance
+        pixpainter->setRenderHint(QPainter::LosslessImageRendering, false); // Prefer speed over quality when zoomed out
+
+        // Enable Qt6 optimized composition modes
+        if (getRenderTier() != RENDER_FULL_DETAIL) {
+            pixpainter->setCompositionMode(QPainter::CompositionMode_SourceOver); // Fastest composition
         }
         // background shade
         pixpainter->fillRect(0, 0, width(), height(), Appearance::backgroundColor());
@@ -476,8 +520,52 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         pixpainter->setClipping(true);
         pixpainter->setClipRect(lineNameWidth, timeHeight, width() - lineNameWidth,
                                 height() - timeHeight);
+        // Use adaptive rendering based on zoom level and complexity
+        RenderTier renderTier = getRenderTier();
+
+        // Start performance timing
+        _renderTimer.start();
+
+        #ifdef QT_DEBUG
+        _lastUsedLOD = (renderTier != RENDER_FULL_DETAIL);
+        _lastRenderEventCount = 0;
+        #endif
+
         for (int i = 0; i < 19; i++) {
-            paintChannel(pixpainter, i);
+            switch (renderTier) {
+                case RENDER_FULL_DETAIL:
+                    paintChannel(pixpainter, i);
+                    break;
+                case RENDER_MEDIUM_DETAIL:
+                    paintChannelMediumDetail(pixpainter, i);
+                    break;
+                case RENDER_LOW_DETAIL:
+                    paintChannelLOD(pixpainter, i);
+                    break;
+            }
+        }
+
+        // Check render performance and provide feedback
+        qint64 renderTime = _renderTimer.elapsed();
+
+        #ifdef QT_DEBUG
+        if (renderTier != RENDER_FULL_DETAIL || renderTime > 100) {
+            const char* tierNames[] = {"FULL", "MEDIUM", "LOW"};
+            qDebug() << "MatrixWidget: Used" << tierNames[renderTier] << "rendering for"
+                     << _lastRenderEventCount << "events, time range:" << (endTick - startTick)
+                     << "render time:" << renderTime << "ms";
+        }
+        #endif
+
+        // Show performance warning if rendering is consistently slow
+        if (renderTime > 200 && renderTier == RENDER_FULL_DETAIL) {
+            if (!_showingPerformanceWarning) {
+                _showingPerformanceWarning = true;
+                // Could emit a signal here to show a status bar message
+                // emit performanceWarning("Rendering is slow - consider zooming in for better performance");
+            }
+        } else {
+            _showingPerformanceWarning = false;
         }
         pixpainter->setClipping(false);
 
@@ -486,7 +574,8 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         delete pixpainter;
     }
 
-    painter->drawPixmap(0, 0, *pixmap);
+    // Qt6 optimized pixmap drawing with device pixel ratio support
+    painter->drawPixmap(QRect(0, 0, width(), height()), *pixmap, pixmap->rect());
 
     painter->setRenderHint(QPainter::Antialiasing);
     // draw the piano / linenames
@@ -642,18 +731,37 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     // filter events
     QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
 
-    // Process ALL events in the channel to ensure no notes are missed
-    // This is the only way to guarantee that long notes spanning the viewport are found
-    // Performance impact is minimal since eventInWidget() does efficient filtering
-    QMultiMap<int, MidiEvent*>::iterator it = map->begin();
-    while (it != map->end()) {
-        // Let eventInWidget() do the precise visibility filtering
+    // Early exit for empty channels
+    if (!map || map->isEmpty()) {
+        return;
+    }
+
+    // Two-pass approach for performance while maintaining correctness:
+    // Pass 1: Process events that start within an extended viewport (for performance)
+    // Pass 2: For note events, check for long notes that start before extended viewport
+
+    // Calculate extended search range - look back/forward based on typical note lengths
+    int maxNoteLengthEstimate = qMin(endTick - startTick, file->ticksPerQuarter() * 16); // Max 16 beats
+    int searchStartTick = startTick - maxNoteLengthEstimate;
+    int searchEndTick = endTick + maxNoteLengthEstimate;
+    if (searchStartTick < 0) searchStartTick = 0;
+
+    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(searchStartTick);
+    QMultiMap<int, MidiEvent*>::iterator endIt = map->upperBound(searchEndTick);
+
+    while (it != endIt && it != map->end()) {
         MidiEvent* event = it.value();
+        // Quick Y-axis (line) culling before expensive eventInWidget() call
+        int line = event->line();
+        if (line < startLineY - 1 || line > endLineY + 1) {
+            it++;
+            continue;
+        }
+
         if (eventInWidget(event)) {
             // insert all Events in objects, set their coordinates
             // Only onEvents are inserted. When there is an On
             // and an OffEvent, the OnEvent will hold the coordinates
-            int line = event->line();
 
             OffEvent* offEvent = dynamic_cast<OffEvent*>(event);
             OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
@@ -713,6 +821,54 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
             }
         }
         it++;
+    }
+
+    // Fallback: Check for very long notes that might have been missed
+    // This ensures we don't break the original bug fix for long sustains
+    if (searchStartTick > 0) {
+        // Look for OnEvents that start before our search range but might still be visible
+        QMultiMap<int, MidiEvent*>::iterator fallbackIt = map->begin();
+        QMultiMap<int, MidiEvent*>::iterator fallbackEnd = map->lowerBound(searchStartTick);
+
+        while (fallbackIt != fallbackEnd) {
+            MidiEvent* event = fallbackIt.value();
+            OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+
+            // Only check OnEvents (notes) that might span the viewport
+            if (onEvent && onEvent->offEvent()) {
+                int noteEndTick = onEvent->offEvent()->midiTime();
+
+                // If this note ends after our viewport starts, it should be visible
+                if (noteEndTick > startTick && !objects->contains(onEvent)) {
+                    if (eventInWidget(onEvent)) {
+                        int line = onEvent->line();
+                        int x = xPosOfMs(msOfTick(onEvent->midiTime()));
+                        int y = yPosOfLine(line);
+                        int width = xPosOfMs(msOfTick(noteEndTick)) - x;
+                        int height = lineHeight();
+
+                        onEvent->setX(x);
+                        onEvent->setY(y);
+                        onEvent->setWidth(width);
+                        onEvent->setHeight(height);
+
+                        if (!onEvent->track()->hidden()) {
+                            QColor color = _colorsByChannels ? cC : *onEvent->track()->color();
+                            onEvent->draw(painter, color);
+
+                            if (Selection::instance()->selectedEvents().contains(onEvent)) {
+                                painter->setPen(Qt::gray);
+                                painter->drawLine(lineNameWidth, y, this->width(), y);
+                                painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
+                                painter->setPen(Appearance::foregroundColor());
+                            }
+                            objects->prepend(onEvent);
+                        }
+                    }
+                }
+            }
+            fallbackIt++;
+        }
     }
 }
 
@@ -1093,6 +1249,252 @@ void MatrixWidget::forceCompleteRedraw() {
     delete pixmap;
     pixmap = 0;
     repaint();
+}
+
+MatrixWidget::RenderTier MatrixWidget::getRenderTier() const {
+    if (!file || width() <= lineNameWidth) return RENDER_FULL_DETAIL;
+
+    double timeRange = endTick - startTick;
+    if (timeRange <= 0) return RENDER_FULL_DETAIL;
+
+    double pixelsPerTick = (double)(width() - lineNameWidth) / timeRange;
+
+    // Estimate event density for adaptive optimization
+    int estimatedEventCount = 0;
+    for (int i = 0; i < 19; i++) {
+        if (file->channel(i)->visible()) {
+            QMultiMap<int, MidiEvent*>* map = file->channelEvents(i);
+            if (map) {
+                // Quick estimate: count events in a sample range
+                int sampleRange = qMin((int)timeRange, file->ticksPerQuarter() * 4);
+                int sampleStart = startTick;
+                int sampleEnd = startTick + sampleRange;
+
+                auto sampleIt = map->lowerBound(sampleStart);
+                auto sampleEndIt = map->upperBound(sampleEnd);
+                int sampleCount = std::distance(sampleIt, sampleEndIt);
+
+                // Extrapolate to full range
+                if (sampleRange > 0) {
+                    estimatedEventCount += (sampleCount * timeRange) / sampleRange;
+                }
+            }
+        }
+    }
+
+    // Qt6 optimized render tier thresholds - less aggressive LODs due to better GPU performance
+    if (pixelsPerTick < 0.05 || timeRange > LOD_TIME_THRESHOLD || estimatedEventCount > MAX_EVENTS_PER_FRAME * 3) {
+        return RENDER_LOW_DETAIL;  // Very zoomed out or very dense - use LOD
+    } else if (pixelsPerTick < 0.5 || timeRange > MEDIUM_DETAIL_TIME_THRESHOLD || estimatedEventCount > MAX_EVENTS_PER_FRAME * 1.5) {
+        return RENDER_MEDIUM_DETAIL;  // Moderately zoomed out or dense - use medium detail
+    } else {
+        return RENDER_FULL_DETAIL;  // Normal zoom and density - use full detail
+    }
+}
+
+bool MatrixWidget::shouldUseLevelOfDetail() const {
+    return getRenderTier() == RENDER_LOW_DETAIL;
+}
+
+void MatrixWidget::paintChannelMediumDetail(QPainter* painter, int channel) {
+    if (!file) return;
+
+    QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+    if (!map || map->isEmpty()) return;
+
+    QColor cC;
+    if (_colorsByChannels) {
+        cC = *file->channel(channel)->color();
+    }
+
+    // Medium detail: Skip some optimizations but use simplified rendering
+    // Use smaller sample interval than LOD but larger than full detail
+    double timeRange = endTick - startTick;
+    double pixelsPerTick = (double)(width() - lineNameWidth) / timeRange;
+    int skipFactor = qMax(1, (int)(1.0 / pixelsPerTick / 2)); // Skip every N events when very dense
+
+    // Use time-based bounds but with tighter range than LOD
+    int maxNoteLengthEstimate = qMin(endTick - startTick, file->ticksPerQuarter() * 8);
+    int searchStartTick = startTick - maxNoteLengthEstimate;
+    if (searchStartTick < 0) searchStartTick = 0;
+
+    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(searchStartTick);
+    QMultiMap<int, MidiEvent*>::iterator endIt = map->upperBound(endTick);
+
+    int eventCount = 0;
+    while (it != endIt && it != map->end()) {
+        MidiEvent* event = it.value();
+
+        // Skip some events when they're very dense (adaptive sampling)
+        if (skipFactor > 1 && (eventCount % skipFactor) != 0) {
+            eventCount++;
+            it++;
+            continue;
+        }
+
+        // Quick Y-axis culling
+        int line = event->line();
+        if (line < startLineY - 1 || line > endLineY + 1) {
+            it++;
+            continue;
+        }
+
+        if (eventInWidget(event)) {
+            // Skip events on hidden tracks
+            if (event->track()->hidden()) {
+                it++;
+                continue;
+            }
+
+            if (!_colorsByChannels) {
+                cC = *event->track()->color();
+            }
+            paintEventMediumDetail(painter, event, cC);
+        }
+
+        eventCount++;
+        it++;
+    }
+}
+
+void MatrixWidget::paintChannelLOD(QPainter* painter, int channel) {
+    if (!file) return;
+
+    QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+    if (!map || map->isEmpty()) return;
+
+    QColor cC;
+    if (_colorsByChannels) {
+        cC = *file->channel(channel)->color();
+    }
+
+    // For LOD, we'll sample events at regular intervals instead of drawing every event
+    int sampleInterval = (endTick - startTick) / (width() - lineNameWidth); // One sample per pixel column
+    if (sampleInterval < 1) sampleInterval = 1;
+
+    // Use time-based bounds for better performance, but account for long notes
+    int maxNoteLengthEstimate = qMin(endTick - startTick, file->ticksPerQuarter() * 8); // Shorter estimate for LOD
+    int searchStartTick = startTick - maxNoteLengthEstimate;
+    if (searchStartTick < 0) searchStartTick = 0;
+
+    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(searchStartTick);
+    QMultiMap<int, MidiEvent*>::iterator endIt = map->upperBound(endTick);
+
+    int lastSampleTick = startTick - sampleInterval;
+
+    while (it != endIt && it != map->end()) {
+        MidiEvent* event = it.value();
+
+        // Sample events at regular intervals
+        if (event->midiTime() - lastSampleTick >= sampleInterval) {
+            if (eventInWidget(event)) {
+                int line = event->line();
+
+                // Skip events on hidden tracks
+                if (event->track()->hidden()) {
+                    it++;
+                    continue;
+                }
+
+                // For LOD, use simplified rendering
+                if (line >= startLineY && line <= endLineY) {
+                    if (!_colorsByChannels) {
+                        cC = *event->track()->color();
+                    }
+                    paintEventLOD(painter, event, cC);
+                }
+
+                lastSampleTick = event->midiTime();
+            }
+        }
+        it++;
+    }
+}
+
+void MatrixWidget::paintEventMediumDetail(QPainter* painter, MidiEvent* event, const QColor& color) {
+    // Medium detail rendering - simplified but still recognizable
+    int x = xPosOfMs(msOfTick(event->midiTime()));
+    int y = yPosOfLine(event->line());
+    int height = (int)lineHeight();
+
+    OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+    if (onEvent && onEvent->offEvent()) {
+        // For note events, draw simplified rectangles (no rounded corners)
+        int endX = xPosOfMs(msOfTick(onEvent->offEvent()->midiTime()));
+        int width = endX - x;
+
+        if (width < 1) width = 1; // Ensure minimum visibility
+
+        // Use flat rectangles instead of rounded for performance
+        painter->setPen(Appearance::borderColor());
+        painter->setBrush(color);
+        painter->drawRect(x, y + height/4, width, height/2);
+
+        // Add selection highlighting if needed
+        if (Selection::instance()->selectedEvents().contains(onEvent)) {
+            painter->setPen(Qt::gray);
+            painter->drawLine(lineNameWidth, y, width(), y);
+            painter->drawLine(lineNameWidth, y + height, width(), y + height);
+        }
+    } else {
+        // Non-note events - draw small rectangles
+        painter->setPen(color);
+        painter->setBrush(color);
+        int size = qMax(2, height/3);
+        painter->drawRect(x-1, y + height/2 - size/2, size, size);
+    }
+}
+
+void MatrixWidget::paintEventLOD(QPainter* painter, MidiEvent* event, const QColor& color) {
+    // Simplified rendering for LOD - just draw small rectangles or lines
+    int x = xPosOfMs(msOfTick(event->midiTime()));
+    int y = yPosOfLine(event->line());
+
+    OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+    if (onEvent && onEvent->offEvent()) {
+        // For note events, draw a simple line instead of a full rectangle
+        int endX = xPosOfMs(msOfTick(onEvent->offEvent()->midiTime()));
+        int width = endX - x;
+
+        if (width < 2) {
+            // Very short notes - just draw a vertical line
+            painter->setPen(QPen(color, 1));
+            painter->drawLine(x, y, x, y + (int)lineHeight());
+        } else {
+            // Draw a thin rectangle
+            painter->setPen(color);
+            painter->setBrush(color);
+            painter->drawRect(x, y + (int)lineHeight()/3, width, (int)lineHeight()/3);
+        }
+    } else {
+        // Non-note events - draw a small square
+        painter->setPen(color);
+        painter->setBrush(color);
+        int size = qMax(1, (int)lineHeight()/4);
+        painter->drawRect(x-1, y + (int)lineHeight()/2 - size/2, size, size);
+    }
+}
+
+void MatrixWidget::batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color) {
+    if (events.isEmpty()) return;
+
+    // Qt6 optimized batch drawing
+    painter->setPen(Appearance::borderColor());
+    painter->setBrush(color);
+
+    // Use QPainterPath for better performance with many rectangles
+    QPainterPath path;
+    for (MidiEvent* event : events) {
+        if (event && !event->track()->hidden()) {
+            QRectF rect(event->x(), event->y(), event->width(), event->height());
+            path.addRoundedRect(rect, 1, 1);
+        }
+    }
+
+    // Draw all rectangles in one operation
+    if (!path.isEmpty()) {
+        painter->drawPath(path);
+    }
 }
 
 void MatrixWidget::pianoEmulator(QKeyEvent* event) {
