@@ -27,6 +27,7 @@
 #include <QDataStream>
 #include <QDateTime>
 #include <QDebug>
+#include <QIODevice>
 
 // Static member definitions
 SharedClipboard* SharedClipboard::_instance = nullptr;
