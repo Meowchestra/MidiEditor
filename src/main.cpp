@@ -103,21 +103,29 @@ int main(int argc, char* argv[]) {
     a.setAttribute(Qt::AA_CompressHighFrequencyEvents, true);  // Compress mouse/paint events
     a.setAttribute(Qt::AA_CompressTabletEvents, true);        // Compress tablet events
 
-    // Qt6 RHI backend selection for optimal performance
-    if (!QApplication::arguments().contains("--no-acceleration")) {
-        // Set preferred RHI backend based on platform
-        #ifdef Q_OS_WIN
-            // Windows: Prefer D3D11 for best performance, fallback to OpenGL
-            qputenv("QSG_RHI_BACKEND", "d3d11");
-            qputenv("QSG_RHI_DEBUG_LAYER", "0");  // Disable debug layer for performance
-        #elif defined(Q_OS_MACOS)
-            // macOS: Use Metal for native performance
-            qputenv("QSG_RHI_BACKEND", "metal");
-        #else
-            // Linux: Use OpenGL (most compatible)
-            qputenv("QSG_RHI_BACKEND", "opengl");
-        #endif
+    // Qt6 RHI backend selection based on user settings
+    QSettings settings(QString("MidiEditor"), QString("NONE"));
+    QString preferredBackend = settings.value("rendering/backend", "auto").toString();
+    bool hardwareAcceleration = settings.value("rendering/hardware_acceleration", true).toBool();
 
+    if (!QApplication::arguments().contains("--no-acceleration") && hardwareAcceleration) {
+        QString backend;
+
+        if (preferredBackend == "auto") {
+            // Auto-select best backend for platform
+            #ifdef Q_OS_WIN
+                backend = "d3d11";  // Best performance on Windows
+            #elif defined(Q_OS_MACOS)
+                backend = "metal";  // Best performance on macOS
+            #else
+                backend = "opengl"; // Most compatible on Linux
+            #endif
+        } else {
+            backend = preferredBackend;
+        }
+
+        qputenv("QSG_RHI_BACKEND", backend.toUtf8());
+        qputenv("QSG_RHI_DEBUG_LAYER", "0");  // Disable debug layer for performance
         a.setAttribute(Qt::AA_UseOpenGLES, false);  // Use full OpenGL when needed
     } else {
         // Force software rendering if acceleration disabled
