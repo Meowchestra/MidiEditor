@@ -99,6 +99,10 @@ int main(int argc, char* argv[]) {
     a.setApplicationName("MeowMidiEditor");
     a.setQuitOnLastWindowClosed(true);
 
+    // Qt6 performance optimizations
+    a.setAttribute(Qt::AA_CompressHighFrequencyEvents, true);  // Compress mouse/paint events
+    a.setAttribute(Qt::AA_CompressTabletEvents, true);        // Compress tablet events
+
 // Use more reliable architecture detection
 #if defined(__ARCH64__) || defined(_WIN64) || defined(__x86_64__) || defined(__x86_64) || defined(__amd64__) || defined(__amd64) || defined(_M_X64)
     a.setProperty("arch", "64");

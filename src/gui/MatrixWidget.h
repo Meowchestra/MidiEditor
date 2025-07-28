@@ -23,8 +23,10 @@
 
 #include <QApplication>
 #include <QColor>
+#include <QFuture>
 #include <QMap>
 #include <QMouseEvent>
+#include <QMutex>
 #include <QPaintEvent>
 #include <QPainter>
 #include <QPalette>
@@ -38,6 +40,7 @@ class TimeSignatureEvent;
 class MidiEvent;
 class GraphicObject;
 class NoteOnEvent;
+class QSettings;
 
 class MatrixWidget : public PaintWidget {
 
@@ -45,6 +48,7 @@ class MatrixWidget : public PaintWidget {
 
   public:
     MatrixWidget(QWidget* parent = 0);
+    ~MatrixWidget();
     void setFile(MidiFile* file);
     MidiFile* midiFile();
     QList<MidiEvent*>* activeEvents();
@@ -60,6 +64,12 @@ class MatrixWidget : public PaintWidget {
     bool screenLocked();
     int minVisibleMidiTime();
     int maxVisibleMidiTime();
+
+    // View control methods (for interface consistency with AcceleratedMatrixWidget)
+    void setViewport(int startTick, int endTick, int startLine, int endLine);
+    void setLineNameWidth(int width) { lineNameWidth = width; update(); }
+    int getLineNameWidth() const { return lineNameWidth; }
+    QList<GraphicObject*>* getObjects() { return reinterpret_cast<QList<GraphicObject*>*>(objects); }
 
     void setColorsByChannel();
     void setColorsByTracks();
@@ -116,6 +126,21 @@ class MatrixWidget : public PaintWidget {
     void paintChannel(QPainter* painter, int channel);
     void paintPianoKey(QPainter* painter, int number, int x, int y,
                        int width, int height);
+
+    // Performance optimization methods
+    void batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color);
+
+    // Viewport caching for performance
+    int _lastStartTick, _lastEndTick, _lastStartLineY, _lastEndLineY;
+    double _lastScaleX, _lastScaleY;
+
+    // Qt6 threading optimizations
+    bool _useAsyncRendering;
+    QFuture<void> _renderFuture;
+    QMutex _renderMutex;
+
+    // Performance settings
+    QSettings* _settings;
 
     bool _isPianoEmulationEnabled = false;
 

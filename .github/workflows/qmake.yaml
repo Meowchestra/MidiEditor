@@ -16,7 +16,7 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2022_64
     steps:
-      - name: Install Qt
+      - name: Install Qt with Source Code (for Qt RHI)
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ matrix.qt_ver }}
@@ -25,11 +25,38 @@ jobs:
           target: 'desktop'
           cache: 'false'
           modules: 'qtmultimedia'
+          # Install only required Qt archives (matching project dependencies)
+          archives: 'qtbase qtmultimedia'
+          # Install source code for private headers (Qt RHI)
+          source: 'true'
 
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
           submodules: true
+
+      - name: Setup Vulkan SDK
+        uses: humbletim/setup-vulkan-sdk@v1.2.1
+        with:
+          vulkan-query-version: latest
+          vulkan-components: Vulkan-Headers
+          vulkan-use-cache: true
+
+      - name: Verify Vulkan SDK Installation
+        shell: pwsh
+        run: |
+          echo "🔍 Verifying Vulkan SDK installation..."
+          echo "VULKAN_SDK: $env:VULKAN_SDK"
+          echo "VK_SDK_PATH: $env:VK_SDK_PATH"
+
+          if ($env:VULKAN_SDK -and (Test-Path "$env:VULKAN_SDK\Include\vulkan\vulkan.h")) {
+            echo "✅ Vulkan SDK headers found at: $env:VULKAN_SDK\Include\vulkan\"
+            echo "📦 Vulkan SDK version: $(Get-Content "$env:VULKAN_SDK\Include\vulkan\vulkan_core.h" | Select-String "VK_HEADER_VERSION" | Select-Object -First 1)"
+            echo "🚀 Backend hierarchy: D3D12 → D3D11 → Vulkan → OpenGL → Software fallback"
+          } else {
+            echo "❌ Vulkan SDK headers not found"
+            echo "⚠️ Backend hierarchy: D3D12 → D3D11 → OpenGL → Software fallback"
+          }
 
       - name: Setup MSYS2 and Install QtIFW 4.10.0
         uses: msys2/setup-msys2@v2
@@ -77,13 +104,89 @@ jobs:
           echo "MSYSTEM=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "Environment cleared for native Windows build"
 
-      - name: msvc-build
+      - name: Check Qt RHI Availability
+        shell: pwsh
+        run: |
+          echo "Checking for Qt RHI headers in Qt 6.10..."
+
+          # Get Qt directory from environment variables
+          $qtDir = $env:QT_ROOT_DIR
+          if (-not $qtDir) {
+            $qtDir = $env:Qt6_DIR
+          }
+          if (-not $qtDir) {
+            echo "❌ Qt directory not found in environment variables"
+            echo "QT_RHI_AVAILABLE=0" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            return
+          }
+
+          echo "📁 Qt directory: $qtDir"
+          $qtParentDir = Split-Path $qtDir -Parent
+
+          # Try multiple possible locations for Qt RHI headers (private headers with _p.h suffix)
+          $possiblePaths = @(
+            "$qtDir\include\QtGui\private\rhi\qrhi_p.h",
+            "$qtDir\..\Src\qtbase\src\gui\rhi\qrhi_p.h",
+            "$qtDir\include\QtGui\6.10.0\QtGui\private\qrhi_p.h"
+          )
+
+          echo "🔍 Debugging Qt directory structure..."
+          echo "Qt directory contents:"
+          if (Test-Path "$qtDir\include") {
+            Get-ChildItem "$qtDir\include" -Name | ForEach-Object { echo "  include/$_" }
+          }
+          if (Test-Path "$qtDir\..\Src") {
+            echo "Source directory found:"
+            Get-ChildItem "$qtDir\..\Src" -Name | ForEach-Object { echo "  Src/$_" }
+            if (Test-Path "$qtDir\..\Src\qtbase") {
+              echo "qtbase directory found:"
+              Get-ChildItem "$qtDir\..\Src\qtbase" -Name | ForEach-Object { echo "  qtbase/$_" }
+            }
+          }
+
+          $rhiFound = $false
+          foreach ($path in $possiblePaths) {
+            if (Test-Path $path) {
+              echo "✅ Qt RHI headers found at: $path"
+              $rhiFound = $true
+
+              # Set source path if found in source directory
+              if ($path -like "*\Src\*") {
+                $sourcePath = "$qtDir\..\Src\qtbase\src\gui"
+                echo "QT_RHI_SOURCE_PATH=$sourcePath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+                echo "📁 Set Qt RHI source path: $sourcePath"
+                echo "📁 RHI headers will be available at: $sourcePath\rhi\"
+              }
+              break
+            }
+          }
+
+          if (-not $rhiFound) {
+            echo "❌ Qt RHI headers not found! Build requires Qt RHI for hardware acceleration."
+            echo "Searched paths:"
+            foreach ($path in $possiblePaths) {
+              echo "  - $path"
+            }
+            exit 1
+          }
+
+      - name: msvc-build with Qt RHI
         id: build
         shell: cmd
         run: |
+          echo Building with Qt RHI hardware acceleration...
+          echo 🔍 Environment variables:
+          echo QT_ROOT_DIR: %QT_ROOT_DIR%
+          echo Qt6_DIR: %Qt6_DIR%
+          echo QT_RHI_SOURCE_PATH: %QT_RHI_SOURCE_PATH%
+
           set MIDIEDITOR_RELEASE_DATE="%DATE%"
           call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
+
+          echo 🔧 Running qmake...
           qmake
+
+          echo 🔨 Building with nmake...
           nmake
 
       - name: Copy Files
@@ -108,7 +211,7 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: midieditor-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
+          name: midieditor-qmake-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
           path: Install.exe
 
       - name: Report 

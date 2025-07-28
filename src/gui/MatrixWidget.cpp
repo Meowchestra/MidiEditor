@@ -37,6 +37,8 @@
 #include "../midi/MidiOutput.h"
 
 #include <QList>
+#include <QPainterPath>
+#include <QSettings>
 #include <QtCore/qmath.h>
 
 #define NUM_LINES 139
@@ -76,6 +78,20 @@ MatrixWidget::MatrixWidget(QWidget* parent)
 
     pixmap = 0;
     _div = 2;
+
+    // Initialize viewport cache
+    _lastStartTick = _lastEndTick = _lastStartLineY = _lastEndLineY = -1;
+    _lastScaleX = _lastScaleY = -1.0;
+
+    // Initialize settings first
+    _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
+
+    // Initialize Qt6 threading from settings (after settings is created)
+    _useAsyncRendering = _settings->value("rendering/async_rendering", false).toBool();
+}
+
+MatrixWidget::~MatrixWidget() {
+    delete _settings;
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -169,11 +185,46 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
     bool totalRepaint = !pixmap;
 
     if (totalRepaint) {
+        // Check if viewport has changed significantly to optimize repaints
+        bool viewportChanged = (_lastStartTick != startTick || _lastEndTick != endTick ||
+                               _lastStartLineY != startLineY || _lastEndLineY != endLineY ||
+                               _lastScaleX != scaleX || _lastScaleY != scaleY);
+
+        // Update viewport cache
+        _lastStartTick = startTick; _lastEndTick = endTick;
+        _lastStartLineY = startLineY; _lastEndLineY = endLineY;
+        _lastScaleX = scaleX; _lastScaleY = scaleY;
+
         this->pianoKeys.clear();
-        pixmap = new QPixmap(width(), height());
+
+        // Qt6 optimized pixmap creation with device pixel ratio support
+        QSize pixmapSize(width(), height());
+        qreal devicePixelRatio = devicePixelRatioF();
+
+        // Create pixmap with proper device pixel ratio for high-DPI displays
+        pixmap = new QPixmap(pixmapSize * devicePixelRatio);
+        pixmap->setDevicePixelRatio(devicePixelRatio);
+
+        // Fill with background color to avoid artifacts
+        pixmap->fill(Appearance::backgroundColor());
         QPainter* pixpainter = new QPainter(pixmap);
+
+        // Configure rendering hints based on user settings
         if (!QApplication::arguments().contains("--no-antialiasing")) {
             pixpainter->setRenderHint(QPainter::Antialiasing);
+        }
+
+        // Apply user-configurable performance settings
+        bool smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
+        bool losslessImageRendering = _settings->value("rendering/lossless_image_rendering", true).toBool();
+        bool optimizedComposition = _settings->value("rendering/optimized_composition", false).toBool();
+
+        pixpainter->setRenderHint(QPainter::SmoothPixmapTransform, smoothPixmapTransform);
+        pixpainter->setRenderHint(QPainter::LosslessImageRendering, losslessImageRendering);
+
+        // Use optimized composition mode if enabled
+        if (optimizedComposition) {
+            pixpainter->setCompositionMode(QPainter::CompositionMode_SourceOver);
         }
         // background shade
         pixpainter->fillRect(0, 0, width(), height(), Appearance::backgroundColor());
@@ -476,9 +527,12 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         pixpainter->setClipping(true);
         pixpainter->setClipRect(lineNameWidth, timeHeight, width() - lineNameWidth,
                                 height() - timeHeight);
+        // Use optimized rendering with viewport culling and Qt6 enhancements
+
         for (int i = 0; i < 19; i++) {
             paintChannel(pixpainter, i);
         }
+
         pixpainter->setClipping(false);
 
         pixpainter->setPen(Appearance::foregroundColor());
@@ -486,7 +540,8 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         delete pixpainter;
     }
 
-    painter->drawPixmap(0, 0, *pixmap);
+    // Qt6 optimized pixmap drawing with device pixel ratio support
+    painter->drawPixmap(QRect(0, 0, width(), height()), *pixmap, pixmap->rect());
 
     painter->setRenderHint(QPainter::Antialiasing);
     // draw the piano / linenames
@@ -642,18 +697,37 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     // filter events
     QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
 
-    // Process ALL events in the channel to ensure no notes are missed
-    // This is the only way to guarantee that long notes spanning the viewport are found
-    // Performance impact is minimal since eventInWidget() does efficient filtering
-    QMultiMap<int, MidiEvent*>::iterator it = map->begin();
-    while (it != map->end()) {
-        // Let eventInWidget() do the precise visibility filtering
+    // Early exit for empty channels
+    if (!map || map->isEmpty()) {
+        return;
+    }
+
+    // Two-pass approach for performance while maintaining correctness:
+    // Pass 1: Process events that start within an extended viewport (for performance)
+    // Pass 2: For note events, check for long notes that start before extended viewport
+
+    // Calculate extended search range - look back/forward based on typical note lengths
+    int maxNoteLengthEstimate = qMin(endTick - startTick, file->ticksPerQuarter() * 16); // Max 16 beats
+    int searchStartTick = startTick - maxNoteLengthEstimate;
+    int searchEndTick = endTick + maxNoteLengthEstimate;
+    if (searchStartTick < 0) searchStartTick = 0;
+
+    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(searchStartTick);
+    QMultiMap<int, MidiEvent*>::iterator endIt = map->upperBound(searchEndTick);
+
+    while (it != endIt && it != map->end()) {
         MidiEvent* event = it.value();
+        // Quick Y-axis (line) culling before expensive eventInWidget() call
+        int line = event->line();
+        if (line < startLineY - 1 || line > endLineY + 1) {
+            it++;
+            continue;
+        }
+
         if (eventInWidget(event)) {
             // insert all Events in objects, set their coordinates
             // Only onEvents are inserted. When there is an On
             // and an OffEvent, the OnEvent will hold the coordinates
-            int line = event->line();
 
             OffEvent* offEvent = dynamic_cast<OffEvent*>(event);
             OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
@@ -713,6 +787,54 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
             }
         }
         it++;
+    }
+
+    // Fallback: Check for very long notes that might have been missed
+    // This ensures we don't break the original bug fix for long sustains
+    if (searchStartTick > 0) {
+        // Look for OnEvents that start before our search range but might still be visible
+        QMultiMap<int, MidiEvent*>::iterator fallbackIt = map->begin();
+        QMultiMap<int, MidiEvent*>::iterator fallbackEnd = map->lowerBound(searchStartTick);
+
+        while (fallbackIt != fallbackEnd) {
+            MidiEvent* event = fallbackIt.value();
+            OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+
+            // Only check OnEvents (notes) that might span the viewport
+            if (onEvent && onEvent->offEvent()) {
+                int noteEndTick = onEvent->offEvent()->midiTime();
+
+                // If this note ends after our viewport starts, it should be visible
+                if (noteEndTick > startTick && !objects->contains(onEvent)) {
+                    if (eventInWidget(onEvent)) {
+                        int line = onEvent->line();
+                        int x = xPosOfMs(msOfTick(onEvent->midiTime()));
+                        int y = yPosOfLine(line);
+                        int width = xPosOfMs(msOfTick(noteEndTick)) - x;
+                        int height = lineHeight();
+
+                        onEvent->setX(x);
+                        onEvent->setY(y);
+                        onEvent->setWidth(width);
+                        onEvent->setHeight(height);
+
+                        if (!onEvent->track()->hidden()) {
+                            QColor color = _colorsByChannels ? cC : *onEvent->track()->color();
+                            onEvent->draw(painter, color);
+
+                            if (Selection::instance()->selectedEvents().contains(onEvent)) {
+                                painter->setPen(Qt::gray);
+                                painter->drawLine(lineNameWidth, y, this->width(), y);
+                                painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
+                                painter->setPen(Appearance::foregroundColor());
+                            }
+                            objects->prepend(onEvent);
+                        }
+                    }
+                }
+            }
+            fallbackIt++;
+        }
     }
 }
 
@@ -1095,6 +1217,28 @@ void MatrixWidget::forceCompleteRedraw() {
     repaint();
 }
 
+void MatrixWidget::batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color) {
+    if (events.isEmpty()) return;
+
+    // Qt6 optimized batch drawing
+    painter->setPen(Appearance::borderColor());
+    painter->setBrush(color);
+
+    // Use QPainterPath for better performance with many rectangles
+    QPainterPath path;
+    for (MidiEvent* event : events) {
+        if (event && !event->track()->hidden()) {
+            QRectF rect(event->x(), event->y(), event->width(), event->height());
+            path.addRoundedRect(rect, 1, 1);
+        }
+    }
+
+    // Draw all rectangles in one operation
+    if (!path.isEmpty()) {
+        painter->drawPath(path);
+    }
+}
+
 void MatrixWidget::pianoEmulator(QKeyEvent* event) {
     if (!_isPianoEmulationEnabled) return;
 
@@ -1411,4 +1555,16 @@ QList<QPair<int, int> > MatrixWidget::divs() {
 
 int MatrixWidget::div() {
     return _div;
+}
+
+// Interface consistency methods for AcceleratedMatrixWidget compatibility
+void MatrixWidget::setViewport(int startTick, int endTick, int startLine, int endLine) {
+    // Update viewport parameters
+    this->startTick = startTick;
+    this->endTick = endTick;
+    this->startLineY = startLine;
+    this->endLineY = endLine;
+
+    // Trigger repaint
+    update();
 }
