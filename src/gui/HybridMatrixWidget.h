@@ -75,6 +75,9 @@ public:
     // Additional MatrixWidget methods
     void setColorsByChannels(bool enabled);
     bool colorsByChannels() const;
+    void setColorsByChannel();
+    void setColorsByTracks();
+    bool colorsByChannel() const;
     void setDiv(int div);
     int div() const;
     void setMeasure(int measure);
@@ -82,14 +85,44 @@ public:
     void setTool(int tool);
     int tool() const;
 
+    // Piano emulation
+    bool getPianoEmulation() const;
+    void setPianoEmulation(bool enabled);
+
+    // View control methods
+    void resetView();
+    void timeMsChanged(int ms, bool ignoreLocked = false);
+
+    // Additional MatrixWidget interface methods needed by MiscWidget and SelectionNavigator
+    QList<MidiEvent*>* velocityEvents();
+    QList<QPair<int, int>> divs();
+    int msOfXPos(int x);
+    int xPosOfMs(int ms);
+    int msOfTick(int tick);
+    int yPosOfLine(int line);
+
+    // Compatibility method for widgets that need MatrixWidget interface
+    MatrixWidget* getMatrixWidget() const;
+
 public slots:
     void updateView();
     void settingsChanged();
+    void calcSizes();
+    void registerRelayout();
+    void scrollXChanged(int scrollPositionX);
+    void scrollYChanged(int scrollPositionY);
+    void takeKeyPressEvent(QKeyEvent* event);
+    void takeKeyReleaseEvent(QKeyEvent* event);
 
 signals:
     void eventClicked(MidiEvent* event);
     void viewportChanged(int startTick, int endTick);
     void accelerationStatusChanged(bool isAccelerated);
+
+    // MatrixWidget signals forwarding
+    void sizeChanged(int maxScrollTime, int maxScrollLine, int valueX, int valueY);
+    void objectListChanged();
+    void scrollChanged(int startMs, int maxMs, int startLine, int maxLine);
 
 protected:
     void resizeEvent(QResizeEvent* event) override;

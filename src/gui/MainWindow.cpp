@@ -19,6 +19,7 @@
 
 #include <QAction>
 #include <QActionGroup>
+#include <QApplication>
 #include <QComboBox>
 #include <QFile>
 #include <QFileDialog>
@@ -55,7 +56,7 @@
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
 #include "LayoutSettingsWidget.h"
-#include "MatrixWidget.h"
+#include "HybridMatrixWidget.h"
 #include "MiscWidget.h"
 #include "NToleQuantizationDialog.h"
 #include "ProtocolWidget.h"
@@ -202,7 +203,7 @@ MainWindow::MainWindow(QString initFile)
     QWidget* matrixArea = new QWidget(leftSplitter);
     leftSplitter->addWidget(matrixArea);
     matrixArea->setContentsMargins(0, 0, 0, 0);
-    mw_matrixWidget = new MatrixWidget(matrixArea);
+    mw_matrixWidget = new HybridMatrixWidget(matrixArea);
     vert = new QScrollBar(Qt::Vertical, matrixArea);
     QGridLayout* matrixAreaLayout = new QGridLayout(matrixArea);
     matrixAreaLayout->setHorizontalSpacing(6);
@@ -244,7 +245,7 @@ MainWindow::MainWindow(QString initFile)
     velocityAreaLayout->setRowStretch(0, 1);
     velocityArea->setLayout(velocityAreaLayout);
 
-    _miscWidget = new MiscWidget(mw_matrixWidget, velocityArea);
+    _miscWidget = new MiscWidget(mw_matrixWidget->getMatrixWidget(), velocityArea);
     _miscWidget->setContentsMargins(0, 0, 0, 0);
     velocityAreaLayout->addWidget(_miscWidget, 0, 1, 1, 1);
 
@@ -580,7 +581,7 @@ MidiFile* MainWindow::getFile() {
     return file;
 }
 
-MatrixWidget* MainWindow::matrixWidget() {
+HybridMatrixWidget* MainWindow::matrixWidget() {
     return mw_matrixWidget;
 }
 

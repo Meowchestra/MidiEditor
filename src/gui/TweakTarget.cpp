@@ -19,7 +19,7 @@
 #include <QList>
 #include <QPair>
 #include "MainWindow.h"
-#include "MatrixWidget.h"
+#include "HybridMatrixWidget.h"
 #include "TweakTarget.h"
 #include "../MidiEvent/ChannelPressureEvent.h"
 #include "../MidiEvent/ControlChangeEvent.h"

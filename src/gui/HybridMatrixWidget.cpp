@@ -94,7 +94,10 @@ void HybridMatrixWidget::setupWidgets() {
     
     // Connect software widget signals (using available MatrixWidget signals)
     connect(_softwareWidget, &MatrixWidget::objectListChanged, this, &HybridMatrixWidget::updateView);
+    connect(_softwareWidget, &MatrixWidget::objectListChanged, this, &HybridMatrixWidget::objectListChanged);
     connect(_softwareWidget, &MatrixWidget::sizeChanged, this, [this]() { updateView(); });
+    connect(_softwareWidget, &MatrixWidget::sizeChanged, this, &HybridMatrixWidget::sizeChanged);
+    connect(_softwareWidget, &MatrixWidget::scrollChanged, this, &HybridMatrixWidget::scrollChanged);
     
     // Setup layout
     QVBoxLayout* layout = new QVBoxLayout(this);
@@ -389,4 +392,111 @@ void HybridMatrixWidget::setTool(int tool) {
 
 int HybridMatrixWidget::tool() const {
     return _tool;
+}
+
+void HybridMatrixWidget::setColorsByChannel() {
+    setColorsByChannels(true);
+}
+
+void HybridMatrixWidget::setColorsByTracks() {
+    setColorsByChannels(false);
+}
+
+bool HybridMatrixWidget::colorsByChannel() const {
+    return _colorsByChannels;
+}
+
+bool HybridMatrixWidget::getPianoEmulation() const {
+    return _softwareWidget->getPianoEmulation();
+}
+
+void HybridMatrixWidget::setPianoEmulation(bool enabled) {
+    _softwareWidget->setPianoEmulation(enabled);
+    // Hardware widget doesn't need piano emulation
+}
+
+void HybridMatrixWidget::resetView() {
+    _softwareWidget->resetView();
+    // Hardware widget doesn't have resetView - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
+    _softwareWidget->timeMsChanged(ms, ignoreLocked);
+    // Hardware widget doesn't have timeMsChanged - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::calcSizes() {
+    _softwareWidget->calcSizes();
+    // Hardware widget doesn't need calcSizes - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::registerRelayout() {
+    _softwareWidget->registerRelayout();
+    // Hardware widget doesn't need registerRelayout - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::scrollXChanged(int scrollPositionX) {
+    _softwareWidget->scrollXChanged(scrollPositionX);
+    // Hardware widget doesn't have scroll methods - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::scrollYChanged(int scrollPositionY) {
+    _softwareWidget->scrollYChanged(scrollPositionY);
+    // Hardware widget doesn't have scroll methods - just update
+    if (_hardwareWidget) {
+        _hardwareWidget->updateView();
+    }
+}
+
+void HybridMatrixWidget::takeKeyPressEvent(QKeyEvent* event) {
+    _softwareWidget->takeKeyPressEvent(event);
+    // Hardware widget doesn't have key event methods - just forward to software
+}
+
+void HybridMatrixWidget::takeKeyReleaseEvent(QKeyEvent* event) {
+    _softwareWidget->takeKeyReleaseEvent(event);
+    // Hardware widget doesn't have key event methods - just forward to software
+}
+
+QList<MidiEvent*>* HybridMatrixWidget::velocityEvents() {
+    return _softwareWidget->velocityEvents();
+}
+
+QList<QPair<int, int>> HybridMatrixWidget::divs() {
+    return _softwareWidget->divs();
+}
+
+int HybridMatrixWidget::msOfXPos(int x) {
+    return _softwareWidget->msOfXPos(x);
+}
+
+int HybridMatrixWidget::xPosOfMs(int ms) {
+    return _softwareWidget->xPosOfMs(ms);
+}
+
+int HybridMatrixWidget::msOfTick(int tick) {
+    return _softwareWidget->msOfTick(tick);
+}
+
+int HybridMatrixWidget::yPosOfLine(int line) {
+    return _softwareWidget->yPosOfLine(line);
+}
+
+MatrixWidget* HybridMatrixWidget::getMatrixWidget() const {
+    return _softwareWidget;
 }

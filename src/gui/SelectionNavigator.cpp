@@ -18,7 +18,7 @@
 
 #include <QtMath>
 #include "MainWindow.h"
-#include "MatrixWidget.h"
+#include "HybridMatrixWidget.h"
 #include "SelectionNavigator.h"
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
@@ -102,7 +102,7 @@ MidiEvent* SelectionNavigator::getFirstSelectedEvent()
 
 bool SelectionNavigator::eventIsInVisibleTimeRange(MidiEvent* event)
 {
-    MatrixWidget* matrixWidget = mainWindow->matrixWidget();
+    HybridMatrixWidget* matrixWidget = mainWindow->matrixWidget();
     int time = event->midiTime();
     return (time >= matrixWidget->minVisibleMidiTime() && time < matrixWidget->maxVisibleMidiTime());
 }
@@ -131,7 +131,7 @@ qreal SelectionNavigator::getDisplayDistanceWeightedByDirection(
     MidiEvent* targetEvent,
     qreal searchAngle)
 {
-    MatrixWidget* matrixWidget = mainWindow->matrixWidget();
+    HybridMatrixWidget* matrixWidget = mainWindow->matrixWidget();
     int originX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(originEvent->midiTime()));
     int originY = matrixWidget->yPosOfLine(originEvent->line());
     int targetX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(targetEvent->midiTime()));

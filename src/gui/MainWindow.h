@@ -25,7 +25,7 @@
 #include <QSettings>
 #include <QStringList>
 
-class MatrixWidget;
+class HybridMatrixWidget;
 class MidiEvent;
 class MidiFile;
 class ChannelListWidget;
@@ -54,7 +54,7 @@ class MainWindow : public QMainWindow {
     MainWindow(QString initFile = "");
     void setFile(MidiFile* f);
     MidiFile* getFile();
-    MatrixWidget* matrixWidget();
+    HybridMatrixWidget* matrixWidget();
     EventWidget* eventWidget();
     void setStartDir(QString dir);
     void setInitFile(const char* file);
@@ -215,7 +215,7 @@ class MainWindow : public QMainWindow {
 
   private:
     void removeTrailingSeparators(QToolBar* toolbar);
-    MatrixWidget* mw_matrixWidget;
+    HybridMatrixWidget* mw_matrixWidget;
     QScrollBar *vert, *hori;
     ChannelListWidget* channelWidget;
     ProtocolWidget* protocolWidget;
