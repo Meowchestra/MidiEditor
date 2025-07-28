@@ -188,6 +188,10 @@ void EventTool::copyAction() {
                 }
             }
         }
+
+        // Also copy to shared clipboard for cross-instance pasting
+        copyToSharedClipboard();
+
         _mainWindow->copiedEventsChanged();
     }
 }
@@ -436,11 +440,16 @@ bool EventTool::pasteFromSharedClipboard() {
         // Begin a new ProtocolAction
         currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(sharedEvents.count()) + QObject::tr(" events from shared clipboard"));
 
-        // Get first tick of the shared events (preserve relative timing)
+        // Get first tick using the original timing information (not deserialized timing)
         int firstTick = -1;
-        foreach (MidiEvent* event, sharedEvents) {
-            if (event->midiTime() < firstTick || firstTick < 0) {
-                firstTick = event->midiTime();
+        for (int i = 0; i < sharedEvents.size(); i++) {
+            QPair<int, int> originalTiming = SharedClipboard::getOriginalTiming(i);
+            int originalTime = originalTiming.first;
+
+            if (originalTime != -1) {
+                if (originalTime < firstTick || firstTick < 0) {
+                    firstTick = originalTime;
+                }
             }
         }
 
