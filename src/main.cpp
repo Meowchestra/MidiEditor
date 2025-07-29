@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
 
     QApplication a(argc, argv);
 
-    a.setApplicationVersion("4.0.0");
+    a.setApplicationVersion("4.1.0");
     a.setApplicationName("MeowMidiEditor");
     a.setQuitOnLastWindowClosed(true);
 

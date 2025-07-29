@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <Installer>
     <Name>MidiEditor</Name>
-    <Version>4.0.0</Version>
+    <Version>4.1.0</Version>
     <Title>MidiEditor</Title>
     <Publisher>Meowchestra</Publisher>
     <ProductUrl>https://github.com/Meowchestra/MidiEditor</ProductUrl>
