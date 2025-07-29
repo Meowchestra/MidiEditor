@@ -113,6 +113,7 @@ public slots:
     void scrollYChanged(int scrollPositionY);
     void takeKeyPressEvent(QKeyEvent* event);
     void takeKeyReleaseEvent(QKeyEvent* event);
+    void timeMsChanged(int ms, bool ignoreLocked = false);
 
 signals:
     void eventClicked(MidiEvent* event);

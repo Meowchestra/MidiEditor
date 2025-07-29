@@ -20,6 +20,7 @@
 #include "MatrixWidget.h"
 #include "AcceleratedMatrixWidget.h"
 #include "../midi/MidiFile.h"
+#include "../midi/MidiPlayer.h"
 #include "../gui/GraphicObject.h"
 
 #include <QStackedWidget>
@@ -55,9 +56,13 @@ HybridMatrixWidget::HybridMatrixWidget(QWidget* parent)
 {
     // Initialize settings
     _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
-    
+
     setupWidgets();
     refreshAccelerationSettings();
+
+    // Connect to PlayerThread for playback scrolling (like MatrixWidget does)
+    connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)),
+            this, SLOT(timeMsChanged(int)));
 }
 
 HybridMatrixWidget::~HybridMatrixWidget() {
@@ -424,10 +429,28 @@ void HybridMatrixWidget::resetView() {
 }
 
 void HybridMatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
+    // Always forward to software widget for scrolling logic
     _softwareWidget->timeMsChanged(ms, ignoreLocked);
-    // Hardware widget doesn't have timeMsChanged - just update
-    if (_hardwareWidget) {
-        _hardwareWidget->updateView();
+
+    // For hardware widget, we need to handle scrolling manually
+    if (_currentlyUsingHardware && _hardwareWidget && _currentFile) {
+        // Use the same scrolling logic as MatrixWidget
+        int x = _softwareWidget->xPosOfMs(ms);
+        bool shouldScroll = (!_softwareWidget->screenLocked() || ignoreLocked) &&
+                           (x < _softwareWidget->getLineNameWidth() ||
+                            ms < _softwareWidget->minVisibleMidiTime() ||
+                            ms > _softwareWidget->maxVisibleMidiTime() ||
+                            x > width() - 100);
+
+        if (shouldScroll) {
+            // Update hardware widget viewport to follow playback
+            int startTick = _currentFile->tick(ms);
+            int endTick = startTick + (_endTick - _startTick); // Keep same range
+            _hardwareWidget->setViewport(startTick, endTick, _startLine, _endLine);
+        } else {
+            // Just update the view without changing viewport
+            _hardwareWidget->updateView();
+        }
     }
 }
 
