@@ -41,6 +41,10 @@ target("MidiEditor") do
     add_includedirs("src/third-party")
     print("Added third-party include directory for D3D12MemAlloc.h")
 
+    -- Include hardware acceleration shaders
+    includes("src/shaders")
+    add_deps("midieditor_shaders")
+
     -- Add Vulkan SDK support if available
     local vulkan_sdk = os.getenv("VULKAN_SDK")
     if vulkan_sdk then

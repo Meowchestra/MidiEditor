@@ -9,7 +9,7 @@
 #include "../tool/NewNoteTool.h"
 #include "../tool/SelectTool.h"
 #include "../tool/Selection.h"
-#include "MatrixWidget.h"
+#include "HybridMatrixWidget.h"
 #include "Appearance.h"
 
 #include "../MidiEvent/ChannelPressureEvent.h"
@@ -21,7 +21,7 @@
 #define LEFT_BORDER_MATRIX_WIDGET 110
 #define WIDTH 7
 
-MiscWidget::MiscWidget(MatrixWidget* mw, QWidget* parent)
+MiscWidget::MiscWidget(HybridMatrixWidget* mw, QWidget* parent)
     : PaintWidget(parent) {
     setRepaintOnMouseMove(true);
     setRepaintOnMousePress(true);

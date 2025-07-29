@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -21,7 +21,7 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
-#include "../gui/MatrixWidget.h"
+#include "../gui/HybridMatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"

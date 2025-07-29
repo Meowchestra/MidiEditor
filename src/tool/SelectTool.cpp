@@ -20,7 +20,7 @@
 #include "Selection.h"
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
-#include "../gui/MatrixWidget.h"
+#include "../gui/HybridMatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"

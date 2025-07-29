@@ -3,7 +3,7 @@
 #include <QInputDialog>
 
 #include "EventTool.h"
-#include "../gui/MatrixWidget.h"
+#include "../gui/HybridMatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"

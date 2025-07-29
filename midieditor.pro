@@ -86,6 +86,8 @@ SOURCES += src/midi/rtmidi/RtMidi.cpp
 CONFIG += static
 FORMS += 
 RESOURCES += resources.qrc
+# Note: Hardware acceleration shaders are compiled via GitHub Actions
+# and included in resources.qrc under /shaders prefix
 # Enhanced architecture detection
 ARCH_FORCE = $$(OVERRIDE_ARCH)
 contains(ARCH_FORCE, 64){

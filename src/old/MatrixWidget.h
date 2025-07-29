@@ -20,7 +20,6 @@
 #define MATRIXWIDGET_H_
 
 #include "PaintWidget.h"
-#include "MatrixRenderData.h"
 
 #include <QApplication>
 #include <QColor>
@@ -50,49 +49,58 @@ class MatrixWidget : public PaintWidget {
   public:
     MatrixWidget(QWidget* parent = 0);
     ~MatrixWidget();
-
-    // NEW: Pure renderer interface - receives data from HybridMatrixWidget
-    void setRenderData(const MatrixRenderData& data);
-
-    // Legacy interface - will be simplified to just pass data to HybridMatrixWidget
     void setFile(MidiFile* file);
     MidiFile* midiFile();
-    // Tool interface methods handled by HybridMatrixWidget
+    QList<MidiEvent*>* activeEvents();
+    QList<MidiEvent*>* velocityEvents();
 
-    // Coordinate methods - now use cached render data
     double lineHeight();
     int lineAtY(int y);
+    int msOfXPos(int x);
     int timeMsOfWidth(int w);
     bool eventInWidget(MidiEvent* event);
     int yPosOfLine(int line);
     void setScreenLocked(bool b);
     bool screenLocked();
-    // Coordinate methods for tools handled by HybridMatrixWidget
+    int minVisibleMidiTime();
+    int maxVisibleMidiTime();
 
-    // Pure renderer - viewport managed through render data only
+    // View control methods (for interface consistency with AcceleratedMatrixWidget)
+    void setViewport(int startTick, int endTick, int startLine, int endLine);
+    void setLineNameWidth(int width) { lineNameWidth = width; update(); }
     int getLineNameWidth() const { return lineNameWidth; }
     QList<GraphicObject*>* getObjects() { return reinterpret_cast<QList<GraphicObject*>*>(objects); }
 
-    // Note: color and piano emulation methods removed - handled by HybridMatrixWidget
+    void setColorsByChannel();
+    void setColorsByTracks();
+    bool colorsByChannel();
 
-    // Note: playNote removed - handled by HybridMatrixWidget
+    bool getPianoEmulation();
+    void setPianoEmulation(bool);
+
+    void playNote(int);
 
     int msOfTick(int tick);
-    int xPosOfMs(int ms);  // Needed for rendering calculations
-    int msOfXPos(int x);   // Needed for rendering calculations
-    // Business logic methods handled by HybridMatrixWidget
+    int xPosOfMs(int ms);
+    QList<QPair<int, int> > divs();
 
   public slots:
-    // Rendering-specific methods
+    void scrollXChanged(int scrollPositionX);
+    void scrollYChanged(int scrollPositionY);
+    void zoomHorIn();
+    void zoomHorOut();
+    void zoomVerIn();
+    void zoomVerOut();
+    void zoomStd();
+    void resetView();
+    void timeMsChanged(int ms, bool ignoreLocked = false);
     void registerRelayout();
-
-  private:
-    void calcSizes();  // Internal method for updating UI areas from render data
-    void forceCompleteRedraw();
-
-    // Async rendering methods
-    void startAsyncRendering();
-    void renderPixmapAsync();
+    void calcSizes();
+    void takeKeyPressEvent(QKeyEvent* event);
+    void takeKeyReleaseEvent(QKeyEvent* event);
+    void setDiv(int div);
+    int div();
+    void forceCompleteRedraw(); // Force complete redraw for theme changes
 
   signals:
     void sizeChanged(int maxScrollTime, int maxScrollLine, int valueX,
@@ -102,20 +110,25 @@ class MatrixWidget : public PaintWidget {
 
   protected:
     void paintEvent(QPaintEvent* event);
+    void mouseMoveEvent(QMouseEvent* event);
     void resizeEvent(QResizeEvent* event);
     void enterEvent(QEvent* event);
     void leaveEvent(QEvent* event);
+    void mousePressEvent(QMouseEvent* event);
     void mouseDoubleClickEvent(QMouseEvent* event);
+    void mouseReleaseEvent(QMouseEvent* event);
+    void keyPressEvent(QKeyEvent* e);
+    void keyReleaseEvent(QKeyEvent* event);
+    void wheelEvent(QWheelEvent* event);
 
   private:
-    // PURE RENDERER: Rendering methods that stay
+    void pianoEmulator(QKeyEvent*);
     void paintChannel(QPainter* painter, int channel);
     void paintPianoKey(QPainter* painter, int number, int x, int y,
                        int width, int height);
 
     // Performance optimization methods
     void batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color);
-    void clearSoftwareCache();
 
     // Viewport caching for performance
     int _lastStartTick, _lastEndTick, _lastStartLineY, _lastEndLineY;
@@ -129,31 +142,35 @@ class MatrixWidget : public PaintWidget {
     // Performance settings
     QSettings* _settings;
 
-    // NEW: Cached render data from HybridMatrixWidget
-    MatrixRenderData* _renderData;
+    bool _isPianoEmulationEnabled = false;
 
-    // Rendering-specific state only
-    MidiFile* file; // Keep for signal connections
-    QPixmap* pixmap; // Pixmap cache for software rendering
-    QRectF ToolArea, PianoArea, TimeLineArea; // UI areas from render data
-    QMap<int, QRect> pianoKeys; // Piano key areas from render data
-
-    // Legacy state for compatibility (from render data)
     int startTick, endTick, startTimeX, endTimeX, startLineY, endLineY,
         lineNameWidth, timeHeight, msOfFirstEventInList;
     double scaleX, scaleY;
+    MidiFile* file;
+
+    QRectF ToolArea, PianoArea, TimeLineArea;
     bool screen_locked;
+    // pixmap is the painted widget (without tools and cursorLines).
+    // it will be zero if it needs to be repainted
+    QPixmap* pixmap;
+
+    // saves all TempoEvents from one before the first shown tick to the
+    // last in the window
+    QList<MidiEvent*>* currentTempoEvents;
+    QList<TimeSignatureEvent*>* currentTimeSignatureEvents;
+
+    // All Events to show in the velocityWidget are saved in velocityObjects
+    QList<MidiEvent *> *objects, *velocityObjects;
+    QList<QPair<int, int> > currentDivs;
+
+    // To play the pianokeys, there is one NoteOnEvent
+    NoteOnEvent* pianoEvent;
+
     bool _colorsByChannels;
     int _div;
 
-    // Event lists from render data
-    QList<MidiEvent *> *objects, *velocityObjects;
-    QList<MidiEvent*>* currentTempoEvents;
-    QList<TimeSignatureEvent*>* currentTimeSignatureEvents;
-    QList<QPair<int, int> > currentDivs;
-
-    // Piano emulation (kept for compatibility)
-    NoteOnEvent* pianoEvent;
+    QMap<int, QRect> pianoKeys;
 
     //here num 0 is key E.
     static const unsigned sharp_strip_mask = (1 << 4) | (1 << 6) | (1 << 9) | (1 << 11) | (1 << 1);

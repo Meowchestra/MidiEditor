@@ -1,4 +1,4 @@
-﻿#include "LayoutSettingsWidget.h"
+#include "LayoutSettingsWidget.h"
 #include "Appearance.h"
 #include <QMainWindow>
 #include <QCheckBox>

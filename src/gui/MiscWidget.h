@@ -21,7 +21,7 @@
 
 #include "PaintWidget.h"
 
-class MatrixWidget;
+class HybridMatrixWidget;
 class MidiEvent;
 class SelectTool;
 
@@ -45,7 +45,7 @@ class MiscWidget : public PaintWidget {
     Q_OBJECT
 
 public:
-    MiscWidget(MatrixWidget* mw, QWidget* parent = 0);
+    MiscWidget(HybridMatrixWidget* mw, QWidget* parent = 0);
 
     static QString modeToString(int mode);
     void setMode(int mode);
@@ -66,7 +66,7 @@ protected:
     void mouseMoveEvent(QMouseEvent* event);
 
 private:
-    MatrixWidget* matrixWidget;
+    HybridMatrixWidget* matrixWidget;
 
     // Mode is SINGLE_MODE or LINE_MODE
     int edit_mode;

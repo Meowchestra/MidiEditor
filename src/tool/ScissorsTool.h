@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *

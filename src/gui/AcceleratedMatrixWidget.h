@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -23,12 +23,16 @@
 #include <QElapsedTimer>
 #include <QTimer>
 #include <QList>
+#include "MatrixRenderData.h"
 
 class MidiFile;
 class MidiEvent;
 class OnEvent;
 class QSettings;
 class GraphicObject;
+
+// Forward declarations for GPU structures
+struct LineVertex;
 
 /**
  * @brief Qt RHI-based hardware-accelerated matrix widget for maximum performance
@@ -48,45 +52,44 @@ signals:
     void fileChanged();
     void eventClicked(MidiEvent* event);
     void viewportChanged(int startTick, int endTick);
+    void accelerationFailed();
+    void hardwareAccelerationFailed(const QString& reason);
 
 public:
     explicit AcceleratedMatrixWidget(QWidget* parent = nullptr);
     ~AcceleratedMatrixWidget();
 
+    // NEW: Pure renderer interface - receives data from HybridMatrixWidget
+    void setRenderData(const MatrixRenderData& data);
+
     // MatrixWidget interface compatibility
     void setFile(MidiFile* file);
     MidiFile* midiFile() const { return _file; }
 
-    // View control (same as MatrixWidget)
-    void setViewport(int startTick, int endTick, int startLine, int endLine);
-    void setLineHeight(double height) { _lineHeight = height; update(); }
-    double lineHeight() const { return _lineHeight; }
-    void setLineNameWidth(int width) { _lineNameWidth = width; update(); }
-    int lineNameWidth() const { return _lineNameWidth; }
+    // View control (setters handled by HybridMatrixWidget)
+    // Pure renderer - viewport managed through render data only
+    double lineHeight() const;
+    int lineNameWidth() const { return _renderData ? _renderData->lineNameWidth : 0; }
 
-    // Selection and interaction (same as MatrixWidget)
+    // Selection and interaction (setters handled by HybridMatrixWidget)
     QList<GraphicObject*>* objects() { return reinterpret_cast<QList<GraphicObject*>*>(&_midiEvents); }
-    void setColorsByChannels(bool enabled) { _colorsByChannels = enabled; update(); }
-    bool colorsByChannels() const { return _colorsByChannels; }
+    bool colorsByChannels() const { return _renderData ? _renderData->colorsByChannels : false; }
 
-    // Additional MatrixWidget compatibility methods
+    // Use render data instead of duplicate business logic
     QList<MidiEvent*>* activeEvents() { return &_midiEvents; }
     QList<MidiEvent*>* velocityEvents() { return &_midiEvents; }
-    int lineAtY(int y) const { return yToLine(y); }
-    int yPosOfLine(int line) const { return static_cast<int>(lineToY(line)); }
+    int lineAtY(int y) const;
+    int yPosOfLine(int line) const;
+    int xPosOfMs(int ms) const;
     bool eventInWidget(MidiEvent* event) const;
 
-    // Additional MatrixWidget interface methods
-    void setScreenLocked(bool locked) { Q_UNUSED(locked) } // Not needed for hardware widget
-    bool screenLocked() const { return false; }
-    int minVisibleMidiTime() const { return _startTick; }
-    int maxVisibleMidiTime() const { return _endTick; }
-    void setDiv(int div) { Q_UNUSED(div) } // Not needed for hardware widget
-    int div() const { return 1; }
-    void setMeasure(int measure) { Q_UNUSED(measure) } // Not needed for hardware widget
-    int measure() const { return 0; }
-    void setTool(int tool) { Q_UNUSED(tool) } // Not needed for hardware widget
-    int tool() const { return 0; }
+    // State access (setters handled by HybridMatrixWidget)
+    bool screenLocked() const;
+    int minVisibleMidiTime() const;
+    int maxVisibleMidiTime() const;
+    int div() const;
+    int measure() const;
+    int tool() const;
 
     // Hardware acceleration status
     bool isHardwareAccelerated() const;
@@ -102,15 +105,75 @@ public:
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
-    void wheelEvent(QWheelEvent* event) override;
+    // User interaction handled by HybridMatrixWidget
 
 public slots:
     // Add slots here if needed in the future
 
 private:
+    // Full rendering pipeline methods
+    void renderFullMatrixContent(QPainter* painter);
+    void renderBackground(QPainter* painter);
+    void renderPianoKeys(QPainter* painter);
+    void renderMidiEvents(QPainter* painter);
+    void renderGridLines(QPainter* painter);
+    void renderTimeline(QPainter* painter);
+    void renderTools(QPainter* painter);
+    void renderCursor(QPainter* painter);
+
+    // Piano key rendering helpers
+    void renderPianoKey(QPainter* painter, int number, int x, int y, int width, int height);
+    QString getNoteNameForMidiNumber(int midiNumber);
+
+    // MIDI event rendering helpers
+    void renderChannelEvents(QPainter* painter, int channel);
+    void renderNoteEvent(QPainter* painter, OnEvent* onEvent, const QColor& color);
+    void renderSingleEvent(QPainter* painter, MidiEvent* event, const QColor& color);
+
+    // Timeline rendering helpers
+    QString formatTimeLabel(int timeMs);
+    void renderMeasures(QPainter* painter);
+
+    // TRUE Qt RHI GPU rendering methods
+    void renderWithGPUShaders(QRhiCommandBuffer* cb);
+    void renderBackgroundGPU(QRhiCommandBuffer* cb);
+    void renderMidiEventsGPU(QRhiCommandBuffer* cb);
+    void renderPianoKeysGPU(QRhiCommandBuffer* cb);
+    void renderTimelineGPU(QRhiCommandBuffer* cb);
+    void renderCursorsGPU(QRhiCommandBuffer* cb);
+    void renderHardwareStatusGPU(QRhiCommandBuffer* cb);
+    void renderRecordingIndicatorGPU(QRhiCommandBuffer* cb);
+    void renderBordersGPU(QRhiCommandBuffer* cb);
+    void renderTextGPU(QRhiCommandBuffer* cb, const QString& text, int x, int y, const QColor& color);
+
+    // Timeline GPU rendering components
+    void renderTimelineBackgroundGPU(QRhiCommandBuffer* cb);
+    void renderTimeMarkersGPU(QRhiCommandBuffer* cb);
+    void renderMeasuresGPU(QRhiCommandBuffer* cb);
+    void renderGridLinesGPU(QRhiCommandBuffer* cb);
+
+    // GPU resource management
+    bool createGPUResources();
+    void destroyGPUResources();
+    bool createShaderPipelines();
+    bool createVertexBuffers();
+    bool createFontAtlas();
+    void updateUniformBuffer();
+    bool uploadLineData(QVector<LineVertex>& lines, const QString& context);
+
+    // Shader creation helpers
+    QRhiGraphicsPipeline* createMidiEventPipeline();
+    QRhiGraphicsPipeline* createBackgroundPipeline();
+    QRhiGraphicsPipeline* createLinePipeline();
+    QRhiGraphicsPipeline* createTextPipeline();
+    QRhiGraphicsPipeline* createPianoPipeline();
+
+    // Shader compilation utilities
+    QShader loadShader(const QString& filename);
+    QShader createBasicVertexShader();
+    QShader createBasicFragmentShader();
+    bool compileShaders();
+
     // Platform-specific implementation
     class PlatformImpl;
     PlatformImpl* _impl;
@@ -119,14 +182,7 @@ private:
     MidiFile* _file;
     QSettings* _settings;
 
-    // View parameters (same as MatrixWidget)
-    int _startTick, _endTick;
-    int _startLine, _endLine;
-    double _lineHeight;
-    int _lineNameWidth;
-    bool _colorsByChannels;
-
-    // Selection and objects (same as MatrixWidget)
+    // Event data for rendering (populated from render data)
     QList<MidiEvent*> _midiEvents;
     QList<GraphicObject*> _objects;
 
@@ -136,9 +192,65 @@ private:
         float r, g, b, a;
     };
     QVector<EventVertex> _eventVertices;
+    QString _backendName;
+
+    // TRUE RHI GPU RESOURCES
+    std::unique_ptr<QRhiBuffer> _vertexBuffer;
+    std::unique_ptr<QRhiBuffer> _indexBuffer;
+    std::unique_ptr<QRhiBuffer> _uniformBuffer;
+    std::unique_ptr<QRhiShaderResourceBindings> _shaderBindings;
+    std::unique_ptr<QRhiGraphicsPipeline> _pipeline;
+    std::unique_ptr<QRhiSampler> _sampler;
+
+    // Shader programs for different rendering tasks
+    std::unique_ptr<QRhiGraphicsPipeline> _midiEventPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> _backgroundPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> _linePipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> _textPipeline;
+    std::unique_ptr<QRhiGraphicsPipeline> _pianoPipeline;
+
+    // GPU buffers for different geometry types
+    std::unique_ptr<QRhiBuffer> _midiEventVertexBuffer;
+    std::unique_ptr<QRhiBuffer> _midiEventInstanceBuffer;
+    std::unique_ptr<QRhiBuffer> _lineVertexBuffer;
+    std::unique_ptr<QRhiBuffer> _backgroundVertexBuffer;
+    std::unique_ptr<QRhiBuffer> _textInstanceBuffer;
+    std::unique_ptr<QRhiBuffer> _pianoKeyBuffer;
+    std::unique_ptr<QRhiShaderResourceBindings> _textShaderBindings;
+
+    // Font atlas for GPU text rendering
+    std::unique_ptr<QRhiTexture> _fontAtlasTexture;
+    QHash<QChar, QRectF> _fontAtlasMap;
+
+    // GPU data caching for performance optimization
+    struct CachedGPUData {
+        QVector<float> midiEventInstances;
+        QVector<float> pianoKeyData;
+        QVector<float> lineVertices;
+        int lastStartTick = -1;
+        int lastEndTick = -1;
+        int lastStartLine = -1;
+        int lastEndLine = -1;
+        bool isDirty = true;
+    } _cachedGPUData;
+
+    // NEW: Cached render data from HybridMatrixWidget
+    MatrixRenderData* _renderData;
+
+    // Frame rate limiting
+    QElapsedTimer _frameTimer;
+    qint64 _targetFrameTime;
 
     // Update event data for rendering
     void updateEventData();
+    void clearGPUCache();
+    bool validateGPUResources();
+    bool recreateGPUResources();
+    bool validateRenderData(const MatrixRenderData& data);
+
+private slots:
+    // Handle appearance/theme changes
+    void onAppearanceChanged();
 
     // Color calculation for events
     QColor getEventColor(MidiEvent* event) const;

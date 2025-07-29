@@ -21,7 +21,7 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
-#include "../gui/MatrixWidget.h"
+#include "../gui/HybridMatrixWidget.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 #include "Selection.h"
@@ -104,10 +104,8 @@ void EventMoveTool::draw(QPainter* painter) {
                 painter->drawRoundedRect(event->x() - shiftX, event->y() - customShiftY,
                                          event->width(), event->height(), 1, 1);
                 painter->setPen(Qt::gray);
-                painter->drawLine(event->x() - shiftX, 0, event->x() - shiftX,
-                                  matrixWidget->height());
-                painter->drawLine(event->x() + event->width() - shiftX, 0,
-                                  event->x() + event->width() - shiftX, matrixWidget->height());
+                painter->drawLine(event->x() - shiftX, 0, event->x() - shiftX, matrixWidget->height());
+                painter->drawLine(event->x() + event->width() - shiftX, 0, event->x() + event->width() - shiftX, matrixWidget->height());
                 painter->setPen(Qt::black);
             }
         }

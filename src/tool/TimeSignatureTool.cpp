@@ -1,7 +1,7 @@
 #include "TimeSignatureTool.h"
 
 #include "EventTool.h"
-#include "../gui/MatrixWidget.h"
+#include "../gui/HybridMatrixWidget.h"
 #include "../gui/TimeSignatureDialog.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"

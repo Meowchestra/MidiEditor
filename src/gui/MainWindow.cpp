@@ -245,7 +245,7 @@ MainWindow::MainWindow(QString initFile)
     velocityAreaLayout->setRowStretch(0, 1);
     velocityArea->setLayout(velocityAreaLayout);
 
-    _miscWidget = new MiscWidget(mw_matrixWidget->getMatrixWidget(), velocityArea);
+    _miscWidget = new MiscWidget(mw_matrixWidget, velocityArea);
     _miscWidget->setContentsMargins(0, 0, 0, 0);
     velocityAreaLayout->addWidget(_miscWidget, 0, 1, 1, 1);
 

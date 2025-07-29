@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -91,7 +91,7 @@ void PerformanceSettingsWidget::setupUI() {
     qualityLayout->addWidget(_enableLosslessImageRendering, 1, 0, 1, 2);
     
     _enableOptimizedComposition = new QCheckBox(tr("Use optimized composition mode"), this);
-    _enableOptimizedComposition->setToolTip(tr("Uses faster composition for better performance"));
+    _enableOptimizedComposition->setToolTip(tr("Uses faster composition for better performance. Software rendering only."));
     connect(_enableOptimizedComposition, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableOptimizedCompositionChanged);
     qualityLayout->addWidget(_enableOptimizedComposition, 2, 0, 1, 2);
     
@@ -112,7 +112,7 @@ void PerformanceSettingsWidget::setupUI() {
     accelLayout->addWidget(accelDesc, 1, 0, 1, 2);
 
     _enableAsyncRendering = new QCheckBox(tr("Enable experimental async rendering"), this);
-    _enableAsyncRendering->setToolTip(tr("EXPERIMENTAL: Use background thread for rendering (may improve performance)"));
+    _enableAsyncRendering->setToolTip(tr("EXPERIMENTAL: Use background thread for rendering (may improve performance). Software rendering only."));
     connect(_enableAsyncRendering, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableAsyncRenderingChanged);
     accelLayout->addWidget(_enableAsyncRendering, 2, 0, 1, 2);
 
@@ -135,10 +135,13 @@ void PerformanceSettingsWidget::loadSettings() {
     _enableSmoothPixmapTransform->setChecked(_settings->value("rendering/smooth_pixmap_transform", true).toBool());
     _enableLosslessImageRendering->setChecked(_settings->value("rendering/lossless_image_rendering", true).toBool());
     _enableOptimizedComposition->setChecked(_settings->value("rendering/optimized_composition", false).toBool());
-    
-    // Load hardware acceleration settings
-    _enableHardwareAcceleration->setChecked(_settings->value("rendering/hardware_acceleration", true).toBool());
+
+    // Load hardware acceleration settings (default to software rendering for stability)
+    _enableHardwareAcceleration->setChecked(_settings->value("rendering/hardware_acceleration", false).toBool());
     _enableAsyncRendering->setChecked(_settings->value("rendering/async_rendering", false).toBool());
+
+    // Apply the enable/disable logic for software-only options
+    enableHardwareAccelerationChanged(_enableHardwareAcceleration->isChecked());
 }
 
 bool PerformanceSettingsWidget::accept() {
@@ -180,7 +183,14 @@ void PerformanceSettingsWidget::enableOptimizedCompositionChanged(bool enabled) 
 }
 
 void PerformanceSettingsWidget::enableHardwareAccelerationChanged(bool enabled) {
-    Q_UNUSED(enabled)
+    // Enable/disable software-only options based on hardware acceleration setting
+    bool usingSoftware = !enabled;
+
+    // Only async rendering and optimized composition are software-only
+    // Just gray them out when hardware acceleration is enabled, don't uncheck them
+    _enableAsyncRendering->setEnabled(usingSoftware);
+    _enableOptimizedComposition->setEnabled(usingSoftware);
+
     updateInfoLabels();
 }
 
@@ -201,8 +211,9 @@ void PerformanceSettingsWidget::resetToDefaults() {
     _enableSmoothPixmapTransform->setChecked(true);
     _enableLosslessImageRendering->setChecked(true);
     _enableOptimizedComposition->setChecked(false);
-    
-    _enableHardwareAcceleration->setChecked(true);
+
+    // Default to software rendering for stability
+    _enableHardwareAcceleration->setChecked(false);
     _enableAsyncRendering->setChecked(false);
 
     updateInfoLabels();

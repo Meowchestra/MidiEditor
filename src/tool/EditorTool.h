@@ -23,7 +23,7 @@
 
 #include "Tool.h"
 
-class MatrixWidget;
+class HybridMatrixWidget;
 class MainWindow;
 
 /**
@@ -141,7 +141,7 @@ public:
     virtual ProtocolEntry* copy();
 
     virtual void reloadState(ProtocolEntry* entry);
-    static void setMatrixWidget(MatrixWidget* w);
+    static void setMatrixWidget(HybridMatrixWidget* w);
     static void setMainWindow(MainWindow* mw);
 
     bool pointInRect(int x, int y, int x_start, int y_start, int x_end, int y_end);
@@ -150,7 +150,7 @@ protected:
     bool etool_selected;
     int mouseX, mouseY;
     bool mouseIn;
-    static MatrixWidget* matrixWidget;
+    static HybridMatrixWidget* matrixWidget;
     static MainWindow* _mainWindow;
 };
 

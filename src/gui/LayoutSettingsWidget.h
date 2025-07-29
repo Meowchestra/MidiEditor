@@ -1,4 +1,4 @@
-﻿#ifndef LAYOUTSETTINGSWIDGET_H
+#ifndef LAYOUTSETTINGSWIDGET_H
 #define LAYOUTSETTINGSWIDGET_H
 
 #include "SettingsWidget.h"

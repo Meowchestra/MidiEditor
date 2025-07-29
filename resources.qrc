@@ -76,4 +76,16 @@
         <file>run_environment/graphics/tool/tempo.png</file>
         <file>run_environment/graphics/tool/measure.png</file>
     </qresource>
+    <qresource prefix="/shaders">
+        <file>src/shaders/compiled/midi_event.vert.qsb</file>
+        <file>src/shaders/compiled/midi_event.frag.qsb</file>
+        <file>src/shaders/compiled/background.vert.qsb</file>
+        <file>src/shaders/compiled/background.frag.qsb</file>
+        <file>src/shaders/compiled/line.vert.qsb</file>
+        <file>src/shaders/compiled/line.frag.qsb</file>
+        <file>src/shaders/compiled/text.vert.qsb</file>
+        <file>src/shaders/compiled/text.frag.qsb</file>
+        <file>src/shaders/compiled/piano.vert.qsb</file>
+        <file>src/shaders/compiled/piano.frag.qsb</file>
+    </qresource>
 </RCC>

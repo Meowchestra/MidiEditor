@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -22,12 +22,20 @@
 #include <QWidget>
 #include <QStackedWidget>
 #include <QSettings>
+#include <QEnterEvent>
+#include "MatrixRenderData.h"
+#include <QApplication>
+#include <functional>
+#include "MatrixRenderData.h"
 
 class MatrixWidget;
 class AcceleratedMatrixWidget;
 class MidiFile;
 class MidiEvent;
 class GraphicObject;
+class NoteOnEvent;
+class TempoChangeEvent;
+class TimeSignatureEvent;
 
 /**
  * @brief Hybrid widget that manages both software and hardware-accelerated matrix rendering
@@ -53,7 +61,7 @@ public:
     // View control
     void setViewport(int startTick, int endTick, int startLine, int endLine);
     void setLineHeight(double height);
-    double lineHeight() const;
+    // Note: lineHeight() declared below in coordinate methods section
     
     // Hardware acceleration control
     bool isHardwareAccelerated() const;
@@ -72,13 +80,22 @@ public:
     int getLineNameWidth() const;
     QList<GraphicObject*>* getObjects();
 
+    // Missing coordinate methods
+    int lineAtY(int y);
+    int yPosOfLine(int line);
+
+    // Missing file method
+    MidiFile* midiFile();
+
+    // Missing piano method
+    void playNote(int line);
+
     // Additional MatrixWidget methods
     void setColorsByChannels(bool enabled);
     bool colorsByChannels() const;
     void setColorsByChannel();
     void setColorsByTracks();
     bool colorsByChannel() const;
-    void setDiv(int div);
     int div() const;
     void setMeasure(int measure);
     int measure() const;
@@ -89,30 +106,83 @@ public:
     bool getPianoEmulation() const;
     void setPianoEmulation(bool enabled);
 
-    // View control methods
-    void resetView();
-    void timeMsChanged(int ms, bool ignoreLocked = false);
 
-    // Additional MatrixWidget interface methods needed by MiscWidget and SelectionNavigator
-    QList<MidiEvent*>* velocityEvents();
-    QList<QPair<int, int>> divs();
+
+    // Core business logic methods (moved from MatrixWidget)
+    QList<MidiEvent*>* velocityEvents() { return _velocityObjects; }
+    QList<MidiEvent*>* activeEvents() { return _objects; }
+    QList<QPair<int, int>> divs() { return _currentDivs; }
+
+    // UI Areas (moved from MatrixWidget)
+    QRectF toolArea() const { return _toolArea; }
+    QRectF pianoArea() const { return _pianoArea; }
+    QRectF timeLineArea() const { return _timeLineArea; }
+    QMap<int, QRect> pianoKeys() const { return _pianoKeys; }
+
+    // Coordinate conversion methods (business logic)
     int msOfXPos(int x);
     int xPosOfMs(int ms);
     int msOfTick(int tick);
     int yPosOfLine(int line);
+    int lineAtY(int y);
+    double lineHeight() const;  // Calculated line height based on viewport
+    double getStoredLineHeight() const;  // Stored line height value
+    int timeMsOfWidth(int w);
+    bool eventInWidget(MidiEvent* event);
 
-    // Compatibility method for widgets that need MatrixWidget interface
-    MatrixWidget* getMatrixWidget() const;
+    // UI methods for tools
+    void setCursor(const QCursor& cursor) { QWidget::setCursor(cursor); }
+
+
+
+    // Piano emulation
+    void playNote(int note);
+
+    // Tool interaction (business logic for both renderers)
+    void handleToolPress(QMouseEvent* event);
+    void handleToolRelease(QMouseEvent* event);
+    void handleToolMove(QMouseEvent* event);
+    void handleToolEnter();
+    void handleToolExit();
+
+    // Additional methods from MatrixWidget
+    void forceCompleteRedraw();
 
 public slots:
+    // Scroll and zoom methods (must be slots for signal connections)
+    void scrollXChanged(int scrollPositionX);
+    void scrollYChanged(int scrollPositionY);
+    void zoomHorIn();
+    void zoomHorOut();
+    void zoomVerIn();
+    void zoomVerOut();
+    void zoomStd();
+    void resetView();
+    void timeMsChanged(int ms, bool ignoreLocked = false);
+    void registerRelayout();
+    void setDiv(int div);
+
     void updateView();
     void settingsChanged();
     void calcSizes();
-    void registerRelayout();
     void scrollXChanged(int scrollPositionX);
     void scrollYChanged(int scrollPositionY);
     void takeKeyPressEvent(QKeyEvent* event);
     void takeKeyReleaseEvent(QKeyEvent* event);
+    void timeMsChanged(int ms); // Player thread connection for playback scrolling
+
+protected:
+    // Event handling (business logic, then forward to renderers)
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
+    void enterEvent(QEnterEvent* event) override;
+    void leaveEvent(QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
 
 signals:
     void eventClicked(MidiEvent* event);
@@ -124,13 +194,7 @@ signals:
     void objectListChanged();
     void scrollChanged(int startMs, int maxMs, int startLine, int maxLine);
 
-protected:
-    void resizeEvent(QResizeEvent* event) override;
-    void paintEvent(QPaintEvent* event) override;
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
-    void wheelEvent(QWheelEvent* event) override;
+// Duplicate protected section removed
 
 private slots:
     void onAcceleratedWidgetFailed();
@@ -141,13 +205,28 @@ private:
     void switchToSoftwareRendering();
     void switchToHardwareRendering();
     bool canUseHardwareAcceleration() const;
-    void syncWidgetStates();
+    void syncActiveWidget();
     void forwardSignals();
+
+    // Business logic helper methods (moved from MatrixWidget)
+    void updateEventLists();
+    void updateEventListsForChannel(int channel);
+    void processEventForDisplay(MidiEvent* event);
+    void updateDivisions();
+    void updateTempoEvents();
+    void updateTimeSignatureEvents();
+    void pianoEmulator(QKeyEvent* event);
+    void calculateViewportBounds();
+    void calculatePianoKeys();
+    void emitSizeChanged();
+    void timeMsChangedInternal(int ms, bool ignoreLocked); // Internal implementation
     
     // Widget management
     QStackedWidget* _stackedWidget;
     MatrixWidget* _softwareWidget;
     AcceleratedMatrixWidget* _hardwareWidget;
+
+
     
     // State
     QSettings* _settings;
@@ -156,19 +235,45 @@ private:
     bool _currentlyUsingHardware;
     MidiFile* _currentFile;
     
-    // View state synchronization
+    // Core business logic state (moved from MatrixWidget)
     int _startTick, _endTick, _startLine, _endLine;
+    int _startTimeX, _endTimeX, _startLineY, _endLineY;
+    int _timeHeight, _msOfFirstEventInList;
     double _lineHeight;
     int _lineNameWidth;
+    double _scaleX, _scaleY;
+    bool _screenLocked;
 
     // Additional state for MatrixWidget compatibility
     bool _colorsByChannels;
     int _div;
     int _measure;
     int _tool;
+    bool _pianoEmulationEnabled;
+
+    // Mouse state for rendering
+    int _mouseX, _mouseY;
+    bool _mouseOver;
+
+    // Event management
+    QList<MidiEvent*>* _objects;
+    QList<MidiEvent*>* _velocityObjects;
+    QList<MidiEvent*>* _currentTempoEvents;
+    QList<class TimeSignatureEvent*>* _currentTimeSignatureEvents;
+    QList<QPair<int, int>> _currentDivs;
+
+    // Piano emulation
+    class NoteOnEvent* _pianoEvent;
+    QMap<int, QRect> _pianoKeys;
+
+    // UI Areas (moved from MatrixWidget)
+    QRectF _toolArea, _pianoArea, _timeLineArea;
 
     // Performance monitoring
     QString _lastPerformanceInfo;
+
+    // Cached render data to avoid recreation
+    MatrixRenderData _cachedRenderData;
 };
 
 #endif // HYBRIDMATRIXWIDGET_H
