@@ -38,7 +38,7 @@ function(compile_shader SHADER_NAME)
     # Compile vertex shader (modern desktop targets: GLSL 460 + HLSL 68)
     add_custom_command(
         OUTPUT ${QSB_VERT}
-        COMMAND ${QSB_TOOL} --glsl "460" --hlsl 68 -o ${QSB_VERT} ${GLSL_VERT}
+        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 68 -o ${QSB_VERT} ${GLSL_VERT}
         DEPENDS ${GLSL_VERT}
         COMMENT "Compiling vertex shader: ${SHADER_NAME}.vert (GLSL 460 + HLSL 68)"
     )
@@ -46,7 +46,7 @@ function(compile_shader SHADER_NAME)
     # Compile fragment shader (modern desktop targets: GLSL 460 + HLSL 68)
     add_custom_command(
         OUTPUT ${QSB_FRAG}
-        COMMAND ${QSB_TOOL} --glsl "460" --hlsl 68 -o ${QSB_FRAG} ${GLSL_FRAG}
+        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 68 -o ${QSB_FRAG} ${GLSL_FRAG}
         DEPENDS ${GLSL_FRAG}
         COMMENT "Compiling fragment shader: ${SHADER_NAME}.frag (GLSL 460 + HLSL 68)"
     )

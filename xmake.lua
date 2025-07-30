@@ -41,9 +41,15 @@ target("MidiEditor") do
     add_includedirs("src/third-party")
     print("Added third-party include directory for D3D12MemAlloc.h")
 
-    -- Include hardware acceleration shaders
-    includes("src/shaders")
-    add_deps("midieditor_shaders")
+    -- Hardware acceleration shaders (uses pre-compiled .qsb files from GitHub Actions)
+    local compiled_shaders_dir = "src/shaders/compiled"
+    local has_compiled_shaders = os.isdir(compiled_shaders_dir)
+
+    if not has_compiled_shaders then
+        print("Warning: No compiled shaders found at " .. compiled_shaders_dir)
+        print("Hardware acceleration will use fallback rendering.")
+        print("Run GitHub Actions 'Compile Shaders' workflow to generate shaders")
+    end
 
     -- Add Vulkan SDK support if available
     local vulkan_sdk = os.getenv("VULKAN_SDK")
@@ -103,6 +109,8 @@ target("MidiEditor") do
     -- Add only the main rtmidi header files
     add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")
+
+    -- Note: Compiled shaders are embedded via main resources.qrc under /shaders prefix
 
     if is_arch("x64", "x86_64") then
         add_defines("__ARCH64__")
@@ -226,7 +234,7 @@ target("installer") do
             end
             os.runv("chmod", {
                 "+x", path.join(target:installdir(), "bin", target:deps()["MidiEditor"]:filename())})
-            os.iorunv("fakeroot", {"dpkg-deb", "--build", target:installdir()})
+            os.runv("fakeroot", {"dpkg-deb", "--build", target:installdir()})
         end)
     end
 end
