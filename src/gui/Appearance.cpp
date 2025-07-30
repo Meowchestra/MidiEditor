@@ -16,6 +16,7 @@
 #include "../tool/ToolButton.h"
 #include "ProtocolWidget.h"
 #include "MatrixWidget.h"
+#include "HybridMatrixWidget.h"
 #include "AppearanceSettingsWidget.h"
 #include "MidiSettingsWidget.h"
 #include "TrackListWidget.h"
@@ -1378,11 +1379,11 @@ void Appearance::refreshColors() {
     // Reapply styling for theme changes
     applyStyle();
 
-    // Update MatrixWidgets with crash protection
+    // Update HybridMatrixWidgets with crash protection
     foreach (QWidget* widget, app->topLevelWidgets()) {
         if (widget->isVisible()) {
-            QList<MatrixWidget*> matrixWidgets = widget->findChildren<MatrixWidget*>();
-            foreach (MatrixWidget* matrixWidget, matrixWidgets) {
+            QList<HybridMatrixWidget*> matrixWidgets = widget->findChildren<HybridMatrixWidget*>();
+            foreach (HybridMatrixWidget* matrixWidget, matrixWidgets) {
                 if (matrixWidget && matrixWidget->isVisible()) {
                     try {
                         // Simple update first

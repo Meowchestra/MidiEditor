@@ -41,8 +41,29 @@
 #include <QPainterPath>
 #include <QSettings>
 #include <QtCore/qmath.h>
-#include <QtConcurrent>
-#include <QFuture>
+#include <QThreadPool>
+#include <QRunnable>
+#include <QMutexLocker>
+#include <QThread>
+
+
+// QRunnable implementation for async rendering
+class MatrixRenderTask : public QRunnable {
+public:
+    MatrixRenderTask(MatrixWidget* widget) : _widget(widget) {
+        setAutoDelete(true); // Automatically delete when finished
+    }
+
+    void run() override {
+        if (_widget) {
+            _widget->renderPixmapAsync();
+            _widget->_renderingInProgress.storeRelaxed(0); // Mark as finished
+        }
+    }
+
+private:
+    MatrixWidget* _widget;
+};
 
 MatrixWidget::MatrixWidget(QWidget* parent)
     : PaintWidget(parent) {
@@ -81,8 +102,7 @@ MatrixWidget::MatrixWidget(QWidget* parent)
     setFocusPolicy(Qt::ClickFocus);
     setRepaintOnMouseMove(false);
 
-    // NOTE: EditorTool::setMatrixWidget() is called by HybridMatrixWidget
-    // Tools use HybridMatrixWidget for business logic, but MatrixWidget for rendering
+
     setRepaintOnMousePress(false);
     setRepaintOnMouseRelease(false);
 
@@ -95,23 +115,24 @@ MatrixWidget::MatrixWidget(QWidget* parent)
 
     // Initialize Qt6 threading from settings (after settings is created)
     _useAsyncRendering = _settings->value("rendering/async_rendering", false).toBool();
-
-    // Initialize async rendering if enabled
-    if (_useAsyncRendering) {
-        qDebug() << "MatrixWidget: Async rendering enabled";
-    }
+    _renderingInProgress.storeRelaxed(0); // Initialize as not rendering
 }
 
 MatrixWidget::~MatrixWidget() {
     // Wait for async rendering to complete before destroying
-    if (_renderFuture.isRunning()) {
-        _renderFuture.waitForFinished();
+    if (_useAsyncRendering) {
+        // Wait for any running rendering tasks to complete
+        while (_renderingInProgress.loadRelaxed() != 0) {
+            QThread::msleep(10); // Wait 10ms and check again
+        }
+        // Wait for thread pool to finish any remaining tasks
+        QThreadPool::globalInstance()->waitForDone(5000); // 5 second timeout
     }
 
     // Clear cache before destruction (good practice)
     clearSoftwareCache();
 
-    // Note: event lists are owned by HybridMatrixWidget, don't delete them
+
     delete _settings;
     delete _renderData;
 }
@@ -168,7 +189,7 @@ void MatrixWidget::setRenderData(const MatrixRenderData& data) {
     delete pixmap;
     pixmap = 0;
 
-    // Trigger repaint
+
     update();
 }
 
@@ -181,11 +202,15 @@ bool MatrixWidget::screenLocked() {
 }
 
 void MatrixWidget::paintEvent(QPaintEvent* event) {
-
-    if (!file || !_renderData || !objects || !velocityObjects || !currentTempoEvents || !currentTimeSignatureEvents)
+    // Handle startup case when no file is loaded yet - just like original MatrixWidget
+    if (!file) {
+        // Original MatrixWidget just returns early, showing default widget background
+        // There should always be a default file created by MainWindow after 200ms
         return;
+    }
 
     QPainter* painter = new QPainter(this);
+
     QFont font = painter->font();
     font.setPixelSize(12);
     painter->setFont(font);
@@ -194,6 +219,12 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
     bool totalRepaint = !pixmap;
 
     if (totalRepaint) {
+
+        if (!_renderData) {
+            delete painter;
+            return;
+        }
+
         // Check if viewport has changed significantly to optimize repaints
         bool viewportChanged = (_lastStartTick != _renderData->startTick || _lastEndTick != _renderData->endTick ||
                                _lastStartLineY != _renderData->startLineY || _lastEndLineY != _renderData->endLineY ||
@@ -207,8 +238,11 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         // Handle async rendering if enabled
         if (_useAsyncRendering && viewportChanged) {
             // Wait for any previous async rendering to complete
-            if (_renderFuture.isRunning()) {
-                _renderFuture.waitForFinished();
+            if (_renderingInProgress.loadRelaxed() != 0) {
+                // Previous rendering still in progress, wait for it
+                while (_renderingInProgress.loadRelaxed() != 0) {
+                    QThread::msleep(1); // Brief wait
+                }
             }
 
             // Start async rendering in background thread
@@ -1037,33 +1071,36 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
 }
 
 void MatrixWidget::setFile(MidiFile* f) {
+    // Pure renderer - stores file reference for coordinate calculations
+
     file = f;
 
-    // CRITICAL: Clear cached data when file changes to prevent stale rendering
+
     clearSoftwareCache();
 
-    // Connect signals for rendering updates
-    if (file && file->protocol()) {
+    if (file) {
+        // Connect signals for rendering updates (this is the only thing we should do)
         connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(registerRelayout()));
         connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
+    } else {
+        // Clear event lists when no file
+        objects = nullptr;
+        velocityObjects = nullptr;
+        currentTempoEvents = nullptr;
+        currentTimeSignatureEvents = nullptr;
     }
+}
 
-    // Just trigger a repaint with current render data
-    calcSizes();
+void MatrixWidget::scrollXChanged(int scrollPositionX) {
+    // Interface compatibility - scrolling handled by HybridMatrixWidget
+}
+
+void MatrixWidget::scrollYChanged(int scrollPositionY) {
+    // Interface compatibility - scrolling handled by HybridMatrixWidget
 }
 
 void MatrixWidget::calcSizes() {
-    if (_renderData) {
-        ToolArea = _renderData->toolArea;
-        PianoArea = _renderData->pianoArea;
-        TimeLineArea = _renderData->timeLineArea;
-    } else {
-        // Fallback when no render data available
-        ToolArea = QRectF(110, 50, width() - 110, height() - 50);
-        PianoArea = QRectF(0, 50, 110, height() - 50);
-        TimeLineArea = QRectF(110, 0, width() - 110, 50);
-    }
-    repaint();
+    // Interface compatibility - size calculations handled by HybridMatrixWidget
 }
 
 MidiFile* MatrixWidget::midiFile() {
@@ -1073,7 +1110,7 @@ MidiFile* MatrixWidget::midiFile() {
 
 void MatrixWidget::resizeEvent(QResizeEvent* event) {
     QWidget::resizeEvent(event);  // Properly handle the resize event
-    calcSizes();
+    // Interface compatibility - resizing handled by HybridMatrixWidget
 }
 
 
@@ -1106,10 +1143,12 @@ void MatrixWidget::forceCompleteRedraw() {
 }
 
 void MatrixWidget::startAsyncRendering() {
-    // Start async rendering in background thread
-    _renderFuture = QtConcurrent::run([this]() {
-        renderPixmapAsync();
-    });
+    // Mark rendering as in progress
+    _renderingInProgress.storeRelaxed(1);
+
+    // Create and start async rendering task using QThreadPool
+    MatrixRenderTask* task = new MatrixRenderTask(this);
+    QThreadPool::globalInstance()->start(task);
 }
 
 void MatrixWidget::renderPixmapAsync() {
@@ -1271,16 +1310,7 @@ int MatrixWidget::lineAtY(int y) {
     return (y - _renderData->timeHeight) / lh + _renderData->startLineY;
 }
 
-double MatrixWidget::lineHeight() {
-    if (!_renderData) return 0;
-    if (_renderData->endLineY - _renderData->startLineY == 0) return 0;
-    return (double)(height() - _renderData->timeHeight) / (double)(_renderData->endLineY - _renderData->startLineY);
-}
-
-int MatrixWidget::yPosOfLine(int line) {
-    if (!_renderData) return 0;
-    return _renderData->timeHeight + (line - _renderData->startLineY) * lineHeight();
-}
+// Duplicate method definitions removed - already defined above
 
 
 
@@ -1294,7 +1324,7 @@ void MatrixWidget::mouseDoubleClickEvent(QMouseEvent* event) {
 }
 
 void MatrixWidget::clearSoftwareCache() {
-    // CRITICAL: Clear all cached data to prevent stale rendering when file changes
+
 
     // Clear pixmap cache
     if (pixmap) {
@@ -1312,8 +1342,6 @@ void MatrixWidget::clearSoftwareCache() {
     _lastEndLineY = -1;
     _lastScaleX = -1.0;
     _lastScaleY = -1.0;
-
-    qDebug() << "MatrixWidget: Software rendering cache cleared";
 }
 
 void MatrixWidget::registerRelayout() {

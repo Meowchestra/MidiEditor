@@ -31,9 +31,6 @@ class OnEvent;
 class QSettings;
 class GraphicObject;
 
-// Forward declarations for GPU structures
-struct LineVertex;
-
 /**
  * @brief Qt RHI-based hardware-accelerated matrix widget for maximum performance
  *
@@ -61,6 +58,7 @@ public:
 
     // NEW: Pure renderer interface - receives data from HybridMatrixWidget
     void setRenderData(const MatrixRenderData& data);
+    MatrixRenderData* getRenderData() const { return _renderData; }
 
     // MatrixWidget interface compatibility
     void setFile(MidiFile* file);
@@ -102,6 +100,9 @@ public:
     void updateView();
     QList<GraphicObject*>* getObjects() { return &_objects; }
 
+    // GPU cache management (public for HybridMatrixWidget access)
+    void clearGPUCache();
+
 protected:
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
@@ -134,44 +135,28 @@ private:
     QString formatTimeLabel(int timeMs);
     void renderMeasures(QPainter* painter);
 
-    // TRUE Qt RHI GPU rendering methods
-    void renderWithGPUShaders(QRhiCommandBuffer* cb);
-    void renderBackgroundGPU(QRhiCommandBuffer* cb);
-    void renderMidiEventsGPU(QRhiCommandBuffer* cb);
-    void renderPianoKeysGPU(QRhiCommandBuffer* cb);
-    void renderTimelineGPU(QRhiCommandBuffer* cb);
-    void renderCursorsGPU(QRhiCommandBuffer* cb);
-    void renderHardwareStatusGPU(QRhiCommandBuffer* cb);
-    void renderRecordingIndicatorGPU(QRhiCommandBuffer* cb);
-    void renderBordersGPU(QRhiCommandBuffer* cb);
-    void renderTextGPU(QRhiCommandBuffer* cb, const QString& text, int x, int y, const QColor& color);
+    // Qt RHI GPU rendering methods (implemented in PlatformImpl)
+    // These methods are now private implementation details
 
-    // Timeline GPU rendering components
-    void renderTimelineBackgroundGPU(QRhiCommandBuffer* cb);
-    void renderTimeMarkersGPU(QRhiCommandBuffer* cb);
-    void renderMeasuresGPU(QRhiCommandBuffer* cb);
-    void renderGridLinesGPU(QRhiCommandBuffer* cb);
-
-    // GPU resource management
+    // GPU resource management (implemented in PlatformImpl)
     bool createGPUResources();
     void destroyGPUResources();
     bool createShaderPipelines();
     bool createVertexBuffers();
     bool createFontAtlas();
     void updateUniformBuffer();
-    bool uploadLineData(QVector<LineVertex>& lines, const QString& context);
 
-    // Shader creation helpers
-    QRhiGraphicsPipeline* createMidiEventPipeline();
-    QRhiGraphicsPipeline* createBackgroundPipeline();
-    QRhiGraphicsPipeline* createLinePipeline();
-    QRhiGraphicsPipeline* createTextPipeline();
-    QRhiGraphicsPipeline* createPianoPipeline();
+    // Shader creation helpers (implemented in PlatformImpl)
+    bool createMidiEventPipeline();
+    bool createBackgroundPipeline();
+    bool createLinePipeline();
+    bool createTextPipeline();
+    bool createPianoPipeline();
 
-    // Shader compilation utilities
-    QShader loadShader(const QString& filename);
-    QShader createBasicVertexShader();
-    QShader createBasicFragmentShader();
+    // Shader compilation utilities (implemented in PlatformImpl)
+    bool loadShader(const QString& filename);
+    bool createBasicVertexShader();
+    bool createBasicFragmentShader();
     bool compileShaders();
 
     // Platform-specific implementation
@@ -194,33 +179,8 @@ private:
     QVector<EventVertex> _eventVertices;
     QString _backendName;
 
-    // TRUE RHI GPU RESOURCES
-    std::unique_ptr<QRhiBuffer> _vertexBuffer;
-    std::unique_ptr<QRhiBuffer> _indexBuffer;
-    std::unique_ptr<QRhiBuffer> _uniformBuffer;
-    std::unique_ptr<QRhiShaderResourceBindings> _shaderBindings;
-    std::unique_ptr<QRhiGraphicsPipeline> _pipeline;
-    std::unique_ptr<QRhiSampler> _sampler;
-
-    // Shader programs for different rendering tasks
-    std::unique_ptr<QRhiGraphicsPipeline> _midiEventPipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> _backgroundPipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> _linePipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> _textPipeline;
-    std::unique_ptr<QRhiGraphicsPipeline> _pianoPipeline;
-
-    // GPU buffers for different geometry types
-    std::unique_ptr<QRhiBuffer> _midiEventVertexBuffer;
-    std::unique_ptr<QRhiBuffer> _midiEventInstanceBuffer;
-    std::unique_ptr<QRhiBuffer> _lineVertexBuffer;
-    std::unique_ptr<QRhiBuffer> _backgroundVertexBuffer;
-    std::unique_ptr<QRhiBuffer> _textInstanceBuffer;
-    std::unique_ptr<QRhiBuffer> _pianoKeyBuffer;
-    std::unique_ptr<QRhiShaderResourceBindings> _textShaderBindings;
-
-    // Font atlas for GPU text rendering
-    std::unique_ptr<QRhiTexture> _fontAtlasTexture;
-    QHash<QChar, QRectF> _fontAtlasMap;
+    // Qt RHI GPU resources are now managed by PlatformImpl
+    // This avoids exposing Qt RHI private headers in the public header
 
     // GPU data caching for performance optimization
     struct CachedGPUData {
@@ -234,7 +194,7 @@ private:
         bool isDirty = true;
     } _cachedGPUData;
 
-    // NEW: Cached render data from HybridMatrixWidget
+    // Cached render data from HybridMatrixWidget
     MatrixRenderData* _renderData;
 
     // Frame rate limiting
@@ -243,14 +203,12 @@ private:
 
     // Update event data for rendering
     void updateEventData();
-    void clearGPUCache();
     bool validateGPUResources();
     bool recreateGPUResources();
     bool validateRenderData(const MatrixRenderData& data);
 
 private slots:
-    // Handle appearance/theme changes
-    void onAppearanceChanged();
+    // Note: Appearance change handling removed (static class, no signals)
 
     // Color calculation for events
     QColor getEventColor(MidiEvent* event) const;

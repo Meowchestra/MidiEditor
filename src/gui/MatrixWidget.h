@@ -24,8 +24,8 @@
 
 #include <QApplication>
 #include <QColor>
-#include <QFuture>
 #include <QMap>
+#include <QAtomicInt>
 #include <QMouseEvent>
 #include <QMutex>
 #include <QPaintEvent>
@@ -42,10 +42,13 @@ class MidiEvent;
 class GraphicObject;
 class NoteOnEvent;
 class QSettings;
+class MatrixRenderTask; // Forward declaration for friend class
 
 class MatrixWidget : public PaintWidget {
 
     Q_OBJECT
+    friend class HybridMatrixWidget; // Allow access to private methods
+    friend class MatrixRenderTask; // Allow access to async rendering members
 
   public:
     MatrixWidget(QWidget* parent = 0);
@@ -85,6 +88,8 @@ class MatrixWidget : public PaintWidget {
   public slots:
     // Rendering-specific methods
     void registerRelayout();
+    void scrollXChanged(int scrollPositionX);
+    void scrollYChanged(int scrollPositionY);
 
   private:
     void calcSizes();  // Internal method for updating UI areas from render data
@@ -121,15 +126,15 @@ class MatrixWidget : public PaintWidget {
     int _lastStartTick, _lastEndTick, _lastStartLineY, _lastEndLineY;
     double _lastScaleX, _lastScaleY;
 
-    // Qt6 threading optimizations
+    // Qt6 threading optimizations using QThreadPool
     bool _useAsyncRendering;
-    QFuture<void> _renderFuture;
     QMutex _renderMutex;
+    QAtomicInt _renderingInProgress; // Thread-safe flag for rendering state
 
     // Performance settings
     QSettings* _settings;
 
-    // NEW: Cached render data from HybridMatrixWidget
+    // Cached render data from HybridMatrixWidget
     MatrixRenderData* _renderData;
 
     // Rendering-specific state only

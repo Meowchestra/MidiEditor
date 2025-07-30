@@ -20,6 +20,7 @@
 #include "MatrixWidget.h"
 #include "AcceleratedMatrixWidget.h"
 #include "../midi/MidiFile.h"
+#include "../protocol/Protocol.h"
 #include "../midi/MidiPlayer.h"
 #include "../midi/MidiOutput.h"
 #include "../midi/PlayerThread.h"
@@ -43,10 +44,10 @@
 #include <QWheelEvent>
 #include <QKeyEvent>
 #include <QEnterEvent>
-#include <QDebug>
 #include <QtMath>
 
-// Business logic constants (shared by both renderers) - from old MatrixWidget
+// Matrix constants - only used by HybridMatrixWidget (business logic)
+// Child widgets receive these values via render data
 #define NUM_LINES 139
 #define PIXEL_PER_S 100
 #define PIXEL_PER_LINE 11
@@ -62,14 +63,14 @@ HybridMatrixWidget::HybridMatrixWidget(QWidget* parent)
     , _hardwareAccelerationAvailable(false)
     , _currentlyUsingHardware(false)
     , _currentFile(nullptr)
-    , _startTick(0)
-    , _endTick(1000)
+    , _startTick(0)  // Will be set properly when file is loaded, like original
+    , _endTick(0)    // Will be set properly when file is loaded, like original
     , _startLine(0)
     , _endLine(127)
     , _startTimeX(0)
     , _endTimeX(0)
     , _startLineY(50)
-    , _endLineY(0)
+    , _endLineY(0)  // Match original MatrixWidget exactly
     , _timeHeight(50)
     , _msOfFirstEventInList(0)
     , _lineHeight(10.0)
@@ -91,6 +92,8 @@ HybridMatrixWidget::HybridMatrixWidget(QWidget* parent)
     , _currentTimeSignatureEvents(new QList<TimeSignatureEvent*>())
     , _pianoEvent(new NoteOnEvent(0, 100, 0, 0))
     , _currentDivs()  // Initialize empty list
+    , _initializing(true)  // Mark as initializing
+    , _constructorComplete(false)  // Mark constructor as not complete
 {
     // Initialize settings
     _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
@@ -99,25 +102,86 @@ HybridMatrixWidget::HybridMatrixWidget(QWidget* parent)
     setMouseTracking(true);
     setFocusPolicy(Qt::ClickFocus);
 
-    // CRITICAL: Set this widget as the matrix widget for tools
+
     EditorTool::setMatrixWidget(this);
 
-    // Initialize business logic (now just calculates viewport since data is already allocated)
+    // Initialize areas with default values (like original MatrixWidget)
+    _toolArea = QRectF(_lineNameWidth, _timeHeight, 800 - _lineNameWidth, 600 - _timeHeight);
+    _pianoArea = QRectF(0, _timeHeight, _lineNameWidth, 600 - _timeHeight);
+    _timeLineArea = QRectF(_lineNameWidth, 0, 800 - _lineNameWidth, _timeHeight);
+
+
+
+    // Initialize business logic (will be updated when file is loaded)
     calculateViewportBounds();
 
     setupWidgets();
-    refreshAccelerationSettings();
 
-    // CRITICAL: Sync widgets with initial data
-    syncActiveWidget();
+
+    if (_hardwareWidget) {
+        try {
+            bool hardwareInitialized = _hardwareWidget->initialize();
+
+            if (hardwareInitialized && _hardwareWidget->isHardwareAccelerated()) {
+                _hardwareAccelerationAvailable = true;
+            } else {
+                _hardwareAccelerationAvailable = false;
+            }
+        } catch (...) {
+            _hardwareAccelerationAvailable = false;
+        }
+    }
+
+    // Check user preference, but only use hardware if it's actually available
+    bool userWantsHardware = _settings->value("rendering/hardware_acceleration", false).toBool();
+
+
+    if (userWantsHardware && _hardwareAccelerationAvailable) {
+        _currentlyUsingHardware = true;
+        _hardwareAccelerationEnabled = true;
+    } else {
+        _currentlyUsingHardware = false;
+        _hardwareAccelerationEnabled = false;
+    }
+
+
 
     // Connect to player thread for playback scrolling (critical for playback!)
     connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)),
             this, SLOT(timeMsChanged(int)));
 
-    // Set this HybridMatrixWidget as the matrix widget for editor tools
-    // Tools now work directly with the business logic hub
+    setMouseTracking(true);
+    setFocusPolicy(Qt::ClickFocus);
+
     EditorTool::setMatrixWidget(this);
+    connectWidgetSignals();
+
+
+    if (_currentlyUsingHardware && _hardwareWidget) {
+        try {
+            _stackedWidget->setCurrentWidget(_hardwareWidget);
+        } catch (const std::exception& e) {
+            // Fallback to software
+            _currentlyUsingHardware = false;
+            _stackedWidget->setCurrentWidget(_softwareWidget);
+        } catch (...) {
+            // Fallback to software
+            _currentlyUsingHardware = false;
+            _stackedWidget->setCurrentWidget(_softwareWidget);
+        }
+    } else {
+        try {
+            _stackedWidget->setCurrentWidget(_softwareWidget);
+        } catch (const std::exception& e) {
+            // Handle exception silently
+        } catch (...) {
+            // Handle exception silently
+        }
+    }
+
+    // Mark initialization as complete
+    _initializing = false;
+    _constructorComplete = true;
 }
 
 HybridMatrixWidget::~HybridMatrixWidget() {
@@ -140,60 +204,57 @@ HybridMatrixWidget::~HybridMatrixWidget() {
 void HybridMatrixWidget::setupWidgets() {
     // Create stacked widget to hold both rendering widgets
     _stackedWidget = new QStackedWidget(this);
-    
+
     // Create software rendering widget (always available)
     _softwareWidget = new MatrixWidget(this);
+
     _stackedWidget->addWidget(_softwareWidget);
-    
+
     // Try to create hardware rendering widget
     _hardwareWidget = new AcceleratedMatrixWidget(this);
+
     _stackedWidget->addWidget(_hardwareWidget);
 
-    // Check if hardware acceleration actually initialized
-    if (_hardwareWidget->isHardwareAccelerated()) {
-        _hardwareAccelerationAvailable = true;
-        qDebug() << "HybridMatrixWidget: Hardware acceleration available";
 
-        // Connect hardware widget signals
-        connect(_hardwareWidget, &AcceleratedMatrixWidget::fileChanged,
-                this, &HybridMatrixWidget::updateView);
-        connect(_hardwareWidget, &AcceleratedMatrixWidget::viewportChanged,
-                this, &HybridMatrixWidget::onViewportChanged);
-        connect(_hardwareWidget, &AcceleratedMatrixWidget::hardwareAccelerationFailed,
-                this, &HybridMatrixWidget::onAcceleratedWidgetFailed);
-    } else {
-        qWarning() << "HybridMatrixWidget: Hardware acceleration failed to initialize";
-        _hardwareAccelerationAvailable = false;
-        // Keep the widget but it will show empty/clear background
-    }
-    
-    // Connect software widget signals (using available MatrixWidget signals)
-    connect(_softwareWidget, &MatrixWidget::objectListChanged, this, &HybridMatrixWidget::updateView);
-    connect(_softwareWidget, &MatrixWidget::objectListChanged, this, &HybridMatrixWidget::objectListChanged);
-    connect(_softwareWidget, &MatrixWidget::sizeChanged, this, [this]() { updateView(); });
-    connect(_softwareWidget, &MatrixWidget::sizeChanged, this, &HybridMatrixWidget::sizeChanged);
-    connect(_softwareWidget, &MatrixWidget::scrollChanged, this, &HybridMatrixWidget::scrollChanged);
-    
+
     // Setup layout
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     layout->addWidget(_stackedWidget);
     setLayout(layout);
-    
-    // Try to start with hardware acceleration (default enabled)
-    refreshAccelerationSettings();
+
+    // Note: refreshAccelerationSettings() will be called by constructor
 }
 
-void HybridMatrixWidget::refreshAccelerationSettings() {
-    // Default to software rendering for stability
-    bool enabled = _settings->value("rendering/hardware_acceleration", false).toBool();
-    setHardwareAcceleration(enabled);
+void HybridMatrixWidget::connectWidgetSignals() {
+    // Connect hardware widget signals (always connect, even if hardware acceleration fails)
+    if (_hardwareWidget) {
+
+        connect(_hardwareWidget, &AcceleratedMatrixWidget::viewportChanged,
+                this, &HybridMatrixWidget::onViewportChanged);
+        connect(_hardwareWidget, &AcceleratedMatrixWidget::hardwareAccelerationFailed,
+                this, &HybridMatrixWidget::onAcceleratedWidgetFailed);
+    }
+
+    // Connect software widget signals - FORWARD ONLY, no updateView calls
+    connect(_softwareWidget, &MatrixWidget::objectListChanged, this, &HybridMatrixWidget::objectListChanged);
+    connect(_softwareWidget, &MatrixWidget::sizeChanged, this, &HybridMatrixWidget::sizeChanged);
+    connect(_softwareWidget, &MatrixWidget::scrollChanged, this, &HybridMatrixWidget::scrollChanged);
 }
+
+
 
 void HybridMatrixWidget::setHardwareAcceleration(bool enabled) {
+    // This method is called when user explicitly changes the setting
+
+    // Save user preference to QSettings
+    _settings->setValue("rendering/hardware_acceleration", enabled);
+
+    // Update current state
     _hardwareAccelerationEnabled = enabled;
-    
-    if (enabled && canUseHardwareAcceleration()) {
+
+    // Switch to the requested renderer (if available)
+    if (enabled && _hardwareAccelerationAvailable) {
         switchToHardwareRendering();
     } else {
         switchToSoftwareRendering();
@@ -214,13 +275,20 @@ bool HybridMatrixWidget::canUseHardwareAcceleration() const {
 }
 
 void HybridMatrixWidget::switchToSoftwareRendering() {
+    // CRITICAL: Don't call switching methods during initialization
+    if (_initializing) {
+        return;
+    }
+
     if (!_softwareWidget) {
-        qWarning() << "HybridMatrixWidget: Software widget not available";
+        return;
+    }
+
+    if (!_stackedWidget) {
         return;
     }
 
     if (_currentlyUsingHardware) {
-        qDebug() << "HybridMatrixWidget: Switching to software rendering";
         _currentlyUsingHardware = false;
         emit accelerationStatusChanged(false);
 
@@ -230,25 +298,53 @@ void HybridMatrixWidget::switchToSoftwareRendering() {
         }
     }
 
-    _stackedWidget->setCurrentWidget(_softwareWidget);
+    try {
+        _stackedWidget->setCurrentWidget(_softwareWidget);
+    } catch (const std::exception& e) {
+        return;
+    } catch (...) {
+        return;
+    }
 
-    // CRITICAL: Clear software cache to ensure fresh rendering
-    _softwareWidget->clearSoftwareCache();
+    try {
+        // CRITICAL: Clear software cache to ensure fresh rendering
+        _softwareWidget->clearSoftwareCache();
+    } catch (const std::exception& e) {
+        return;
+    } catch (...) {
+        return;
+    }
 
-    // Only sync the active widget (software)
-    syncActiveWidget();
+    try {
+        _currentlyUsingHardware = false;
+        emit accelerationStatusChanged(false);
+    } catch (...) {
+        return;
+    }
+
+    // CRITICAL: Ensure software widget has current file when switching to it
+    if (_currentFile) {
+        _softwareWidget->setFile(_currentFile);
+    }
+
+    // REMOVED: syncActiveWidget calls that cause infinite loops
+    // Child widgets manage their own state - no sync needed
 
     _lastPerformanceInfo = "Software rendering (QPainter)";
 }
 
 void HybridMatrixWidget::switchToHardwareRendering() {
+    // CRITICAL: Don't call switching methods during initialization
+    if (_initializing) {
+        return;
+    }
+
     if (!_hardwareWidget || !canUseHardwareAcceleration()) {
         switchToSoftwareRendering();
         return;
     }
 
     if (!_currentlyUsingHardware) {
-        qDebug() << "HybridMatrixWidget: Switching to hardware rendering";
         _currentlyUsingHardware = true;
         emit accelerationStatusChanged(true);
 
@@ -263,8 +359,10 @@ void HybridMatrixWidget::switchToHardwareRendering() {
     // CRITICAL: Clear GPU cache to ensure fresh rendering
     _hardwareWidget->clearGPUCache();
 
-    // Only sync the active widget (hardware)
-    syncActiveWidget();
+    // CRITICAL: Ensure hardware widget has current file when switching to it
+    if (!_initializing && _currentFile) {
+        _hardwareWidget->setFile(_currentFile);
+    }
 
     // Get actual backend name from AcceleratedMatrixWidget
     QString backendName = _hardwareWidget->backendName();
@@ -279,67 +377,117 @@ void HybridMatrixWidget::switchToHardwareRendering() {
     }
 }
 
-void HybridMatrixWidget::syncActiveWidget() {
-    // Update cached render data structure with all necessary information
-    _cachedRenderData.startTick = _startTick;
-    _cachedRenderData.endTick = _endTick;
-    _cachedRenderData.startLine = _startLine;
-    _cachedRenderData.endLine = _endLine;
-    _cachedRenderData.startTimeX = _startTimeX;
-    _cachedRenderData.endTimeX = _endTimeX;
-    _cachedRenderData.startLineY = _startLineY;
-    _cachedRenderData.endLineY = _endLineY;
-    _cachedRenderData.timeHeight = _timeHeight;
-    _cachedRenderData.lineNameWidth = _lineNameWidth;
-    _cachedRenderData.scaleX = _scaleX;
-    _cachedRenderData.scaleY = _scaleY;
-    _cachedRenderData.lineHeight = _lineHeight;  // Use stored value for render data
-    _cachedRenderData.objects = _objects;
-    _cachedRenderData.velocityObjects = _velocityObjects;
-    _cachedRenderData.tempoEvents = _currentTempoEvents;
-    _cachedRenderData.timeSignatureEvents = _currentTimeSignatureEvents;
-    _cachedRenderData.divs = _currentDivs;
-    _cachedRenderData.msOfFirstEventInList = _msOfFirstEventInList;
-    _cachedRenderData.colorsByChannels = _colorsByChannels;
-    _cachedRenderData.screenLocked = _screenLocked;
-    _cachedRenderData.pianoEmulationEnabled = _pianoEmulationEnabled;
-    _cachedRenderData.div = _div;
-    _cachedRenderData.measure = _measure;
-    _cachedRenderData.tool = _tool;
-    _cachedRenderData.toolArea = _toolArea;
-    _cachedRenderData.pianoArea = _pianoArea;
-    _cachedRenderData.timeLineArea = _timeLineArea;
+// Sync HybridMatrixWidget's viewport with the active child widget
+void HybridMatrixWidget::syncViewportFromActiveWidget() {
+    if (!_currentFile) {
+        return;
+    }
 
-    // Populate shared constants
-    _cachedRenderData.numLines = NUM_LINES;
-    _cachedRenderData.pixelPerS = PIXEL_PER_S;
-    _cachedRenderData.pixelPerLine = PIXEL_PER_LINE;
-    _cachedRenderData.pixelPerEvent = PIXEL_PER_EVENT;
-    _cachedRenderData.pianoKeys = _pianoKeys;
-
-    // Populate mouse state for rendering
-    _cachedRenderData.mouseX = _mouseX;
-    _cachedRenderData.mouseY = _mouseY;
-    _cachedRenderData.mouseOver = _mouseOver;
-
-    // Populate file reference
-    _cachedRenderData.file = _currentFile;
-
-    // Only sync the currently active widget
     if (_currentlyUsingHardware && _hardwareWidget) {
-        _hardwareWidget->setRenderData(_cachedRenderData);
-        if (_currentFile) {
-            _hardwareWidget->setFile(_currentFile);
+        // Get viewport from hardware widget's render data
+        MatrixRenderData* renderData = _hardwareWidget->getRenderData();
+        if (renderData) {
+            _startTimeX = renderData->startTimeX;
+            _endTimeX = renderData->endTimeX;
+            _startLineY = renderData->startLineY;
+            _endLineY = renderData->endLineY;
+            _scaleX = renderData->scaleX;
+            _scaleY = renderData->scaleY;
         }
     } else if (_softwareWidget) {
-        _softwareWidget->setRenderData(_cachedRenderData);
-        if (_currentFile) {
-            _softwareWidget->setFile(_currentFile);
-        }
+        // Get viewport from software widget
+        _startTimeX = _softwareWidget->startTimeX;
+        _endTimeX = _softwareWidget->endTimeX;
+        _startLineY = _softwareWidget->startLineY;
+        _endLineY = _softwareWidget->endLineY;
+        _scaleX = _softwareWidget->scaleX;
+        _scaleY = _softwareWidget->scaleY;
     }
+
+    // Update business logic state
+    calculateViewportBounds();
+
+    // Note: Event lists are managed by HybridMatrixWidget's own business logic
+    // They are populated in the constructor and updated when needed
+}
+
+// Create render data for widget switching (not constant syncing)
+MatrixRenderData HybridMatrixWidget::createRenderData() {
+    MatrixRenderData data;
+
+    // Populate viewport data
+    data.startTick = _startTick;
+    data.endTick = _endTick;
+    data.startLine = _startLine;
+    data.endLine = _endLine;
+    data.startTimeX = _startTimeX;
+    data.endTimeX = _endTimeX;
+    data.startLineY = _startLineY;
+    data.endLineY = _endLineY;
+    data.timeHeight = _timeHeight;
+    data.lineNameWidth = _lineNameWidth;
+    data.scaleX = _scaleX;
+    data.scaleY = _scaleY;
+    data.lineHeight = _lineHeight;
+
+    // CRITICAL: Only populate event lists when actually needed (lazy evaluation)
+    // Check if viewport has changed significantly since last event list update
+    static int lastStartTick = -1, lastEndTick = -1, lastStartLineY = -1, lastEndLineY = -1;
+    bool viewportChanged = (lastStartTick != _startTick || lastEndTick != _endTick ||
+                           lastStartLineY != _startLineY || lastEndLineY != _endLineY);
+
+    if (viewportChanged || !_objects || _objects->isEmpty()) {
+        // Update event lists only when viewport changes significantly
+        updateEventLists();
+        lastStartTick = _startTick; lastEndTick = _endTick;
+        lastStartLineY = _startLineY; lastEndLineY = _endLineY;
+    }
+
+    // Populate event lists (now populated only when needed)
+    data.objects = _objects;
+    data.velocityObjects = _velocityObjects;
+    data.tempoEvents = _currentTempoEvents;
+    data.timeSignatureEvents = _currentTimeSignatureEvents;
+    data.divs = _currentDivs;
+    data.msOfFirstEventInList = _msOfFirstEventInList;
+
+    // Populate settings
+    data.colorsByChannels = _colorsByChannels;
+    data.screenLocked = _screenLocked;
+    data.pianoEmulationEnabled = _pianoEmulationEnabled;
+    data.div = _div;
+    data.measure = _measure;
+    data.tool = _tool;
+
+    // Populate UI areas
+    data.toolArea = _toolArea;
+    data.pianoArea = _pianoArea;
+    data.timeLineArea = _timeLineArea;
+    data.pianoKeys = _pianoKeys;
+
+    // Populate constants
+    data.numLines = NUM_LINES;
+    data.pixelPerS = PIXEL_PER_S;
+    data.pixelPerLine = PIXEL_PER_LINE;
+    data.pixelPerEvent = PIXEL_PER_EVENT;
+
+    // Populate mouse state
+    data.mouseX = _mouseX;
+    data.mouseY = _mouseY;
+    data.mouseOver = _mouseOver;
+
+    // Populate file reference
+    data.file = _currentFile;
+
+    return data;
 }
 
 void HybridMatrixWidget::setFile(MidiFile* file) {
+    // CRITICAL: Don't allow setFile() to be called during construction
+    if (_initializing || !_constructorComplete) {
+        return;
+    }
+
     // Disconnect from previous file's protocol if any
     if (_currentFile && _currentFile->protocol()) {
         disconnect(_currentFile->protocol(), nullptr, this, nullptr);
@@ -347,26 +495,83 @@ void HybridMatrixWidget::setFile(MidiFile* file) {
 
     _currentFile = file;
 
-    if (file) {
-        // Initialize viewport for new file
-        _startTimeX = 0;
-        _endTimeX = qMin(10000, file->maxTime()); // Show first 10 seconds or entire file
-        _startLineY = 50; // Center around middle C
-        _endLineY = 77;
-
-        // CRITICAL: Connect to protocol signals like old MatrixWidget
-        if (file->protocol()) {
-            connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(registerRelayout()));
-            connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(updateView()));
-        }
-
-        calculateViewportBounds();
-        calcSizes();
+    // Connect to protocol signals for HybridMatrixWidget-specific functionality
+    if (file && file->protocol()) {
+        connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(registerRelayout()));
+        connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
     }
 
-    // File is set through syncActiveWidget() - no need for duplicate calls
-    syncActiveWidget();
-    updateView();
+    // CRITICAL: Initialize viewport FIRST like original MatrixWidget (BEFORE setting child widgets)
+    if (file) {
+        // Initialize scales like original MatrixWidget
+        _scaleX = 1;
+        _scaleY = 1;
+
+        // Initialize viewport like original MatrixWidget
+        _startTimeX = 0;
+        _endTimeX = qMin(10000, file->maxTime());
+        _startLineY = 50; // Roughly vertically center on Middle C
+
+        calcSizes(); // This will call scrollXChanged/scrollYChanged to set proper bounds
+
+        // Smart positioning: scroll down to see events (like original MatrixWidget)
+        int maxNote = -1;
+        int totalEvents = 0;
+        for (int channel = 0; channel < 16; channel++) {
+            QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+            QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(0);
+            while (it != map->end()) {
+                NoteOnEvent* onev = dynamic_cast<NoteOnEvent*>(it.value());
+                if (onev) {
+                    totalEvents++;
+                    // Use eventInWidget() if viewport is properly set, otherwise use simple line check
+                    bool shouldConsider = false;
+                    if (width() > 0 && height() > 0) {
+                        shouldConsider = eventInWidget(onev);
+                    } else {
+                        // Fallback: just check if it's a reasonable note range
+                        shouldConsider = (onev->line() >= 20 && onev->line() <= 108); // Reasonable piano range
+                    }
+
+                    if (shouldConsider) {
+                        if (onev->line() < maxNote || maxNote < 0) {
+                            maxNote = onev->line();
+                        }
+                    }
+                }
+                it++;
+            }
+        }
+
+        if (maxNote - 5 > 0) {
+            _startLineY = maxNote - 5;
+        }
+
+        // Second calcSizes() call after positioning (like original)
+        calcSizes(); // This already calls calculateViewportBounds(), so no need to call it again
+    }
+
+    // NOW set file on child widgets AFTER viewport is fully initialized
+    if (_softwareWidget) {
+        _softwareWidget->setFile(_currentFile);
+
+        // CRITICAL: Set render data on software widget after setting file AND after viewport is initialized
+        MatrixRenderData data = createRenderData();
+        _softwareWidget->setRenderData(data);
+    }
+    if (_hardwareWidget) {
+        _hardwareWidget->setFile(_currentFile);
+
+        // CRITICAL: Set render data on hardware widget after setting file AND after viewport is initialized
+        MatrixRenderData data = createRenderData();
+        _hardwareWidget->setRenderData(data);
+    }
+
+    if (file) {
+        syncViewportFromActiveWidget();
+    }
+
+    smartUpdate(); // Non-critical update for file loading
 }
 
 MidiFile* HybridMatrixWidget::midiFile() const {
@@ -379,16 +584,16 @@ void HybridMatrixWidget::setViewport(int startTick, int endTick, int startLine, 
     _startLine = startLine;
     _endLine = endLine;
 
-    // Viewport data is passed through syncActiveWidget() -> setRenderData()
-    // No need to call setViewport() directly on widgets
-    syncActiveWidget();
+    // Child widgets will access viewport data directly from parent when needed
+    // No need to copy data - they can access parent's viewport variables directly
+
     emit viewportChanged(startTick, endTick);
 }
 
 void HybridMatrixWidget::setLineHeight(double height) {
     _lineHeight = height;
-    // Line height is passed through render data - no need to call widgets directly
-    syncActiveWidget();
+    // Child widgets will access this through parent getter methods
+    update();
 }
 
 double HybridMatrixWidget::getStoredLineHeight() const {
@@ -403,23 +608,9 @@ QString HybridMatrixWidget::getPerformanceInfo() const {
     return _lastPerformanceInfo;
 }
 
-void HybridMatrixWidget::updateView() {
-    // CRITICAL: Always sync active widget before updating view
-    syncActiveWidget();
 
-    if (_currentlyUsingHardware && _hardwareWidget) {
-        _hardwareWidget->updateView();
-    } else if (_softwareWidget) {
-        _softwareWidget->update();
-    }
-}
-
-void HybridMatrixWidget::settingsChanged() {
-    refreshAccelerationSettings();
-}
 
 void HybridMatrixWidget::onAcceleratedWidgetFailed() {
-    qWarning() << "HybridMatrixWidget: Hardware acceleration failed, falling back to software rendering";
     switchToSoftwareRendering();
 }
 
@@ -429,18 +620,13 @@ void HybridMatrixWidget::onViewportChanged(int startTick, int endTick) {
 
 
 
-void HybridMatrixWidget::resizeEvent(QResizeEvent* event) {
-    QWidget::resizeEvent(event);
-    calcSizes();
-}
-
 // Event handling optimized for business logic
 
 // Forward all MatrixWidget methods for complete interface compatibility
 void HybridMatrixWidget::setScreenLocked(bool locked) {
     _screenLocked = locked;
-    // Screen lock state is passed through render data - no need to call widgets directly
-    syncActiveWidget();
+    // Child widgets will access this through parent getter methods
+    update();
 }
 
 bool HybridMatrixWidget::screenLocked() {
@@ -457,8 +643,8 @@ int HybridMatrixWidget::maxVisibleMidiTime() {
 
 void HybridMatrixWidget::setLineNameWidth(int width) {
     _lineNameWidth = width;
-    // Line name width is passed through render data - no need to call widgets directly
-    syncActiveWidget();
+    // Child widgets will access this through parent getter methods
+    calcSizes(); // Recalculate areas like original MatrixWidget
 }
 
 int HybridMatrixWidget::getLineNameWidth() const {
@@ -472,8 +658,8 @@ QList<GraphicObject*>* HybridMatrixWidget::getObjects() {
 
 void HybridMatrixWidget::setColorsByChannels(bool enabled) {
     _colorsByChannels = enabled;
-    // Color information is passed through render data - no need to call widgets directly
-    syncActiveWidget();
+    // Child widgets will access this through parent getter methods
+    update();
 }
 
 bool HybridMatrixWidget::colorsByChannels() const {
@@ -523,8 +709,8 @@ bool HybridMatrixWidget::getPianoEmulation() const {
 void HybridMatrixWidget::setPianoEmulation(bool enabled) {
     _pianoEmulationEnabled = enabled;
     // Piano emulation is handled by HybridMatrixWidget business logic
-    // State is passed through render data - no need to call widgets directly
-    syncActiveWidget();
+    // Child widgets will access this through parent getter methods
+    update();
 }
 
 void HybridMatrixWidget::resetView() {
@@ -546,16 +732,14 @@ void HybridMatrixWidget::resetView() {
 
     // Recalculate sizes and update display
     calcSizes();
-    updateView();
-}
 
-void HybridMatrixWidget::timeMsChanged(int ms) {
-    // Player thread slot - always respect screen lock
-    timeMsChangedInternal(ms, false);
+    // Force a complete repaint (like original)
+    registerRelayout();
+    update();
 }
 
 void HybridMatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
-    // Public interface for manual calls
+    // Public interface for manual calls - default parameter handled by header
     timeMsChangedInternal(ms, ignoreLocked);
 }
 
@@ -567,61 +751,67 @@ void HybridMatrixWidget::timeMsChangedInternal(int ms, bool ignoreLocked) {
     if ((!_screenLocked || ignoreLocked) && (x < _lineNameWidth || ms < _startTimeX || ms > _endTimeX || x > width() - 100)) {
         // Return if the last tick is already shown
         if (_currentFile->maxTime() <= _endTimeX && ms >= _startTimeX) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for smooth playback cursor
             return;
         }
 
-        // Sets the new position and updates
+        // Sets the new position and repaints
         emit scrollChanged(ms, (_currentFile->maxTime() - _endTimeX + _startTimeX), _startLineY,
-                          128 - (_endLineY - _startLineY)); // NUM_LINES = 128
+                          NUM_LINES - (_endLineY - _startLineY)); // Like original MatrixWidget
     } else {
-        updateView();
+        smartRepaint(); // CRITICAL: Immediate update for smooth playback cursor
     }
 }
 
 void HybridMatrixWidget::calcSizes() {
+    // CRITICAL: Don't calculate sizes during initialization
+    if (_initializing) {
+        return;
+    }
+
     if (!_currentFile || _scaleX <= 0 || _scaleY <= 0) return;
 
-    // Calculate end times based on current scale and widget size
-    _endTimeX = _startTimeX + ((width() - _lineNameWidth) * 1000) / (PIXEL_PER_S * _scaleX);
-    _endLineY = _startLineY + (height() - _timeHeight) / (_scaleY * PIXEL_PER_LINE);
-
-    // Clamp to valid ranges
-    if (_endTimeX > _currentFile->maxTime()) {
-        _endTimeX = _currentFile->maxTime();
-    }
-    if (_endLineY > 128) {
-        _endLineY = 128;
+    // CRITICAL: Ensure widget has valid size before calculating viewport
+    if (width() <= 0 || height() <= 0) {
+        return;
     }
 
-    // Calculate UI areas (moved from MatrixWidget)
+    // Calculate UI areas first (lightweight operation)
     _toolArea = QRectF(_lineNameWidth, _timeHeight, width() - _lineNameWidth, height() - _timeHeight);
     _pianoArea = QRectF(0, _timeHeight, _lineNameWidth, height() - _timeHeight);
     _timeLineArea = QRectF(_lineNameWidth, 0, width() - _lineNameWidth, _timeHeight);
 
-    // Calculate piano keys (moved from MatrixWidget)
+    // Calculate piano keys (lightweight operation)
     calculatePianoKeys();
 
-    calculateViewportBounds();
-    syncActiveWidget();
+    // Update viewport bounds like original MatrixWidget (lightweight)
+    scrollXChanged(_startTimeX);
+    scrollYChanged(_startLineY);
+
+    // Emit size changed signal like original MatrixWidget
     emitSizeChanged();
 }
 
 void HybridMatrixWidget::registerRelayout() {
-    // Tell active widget to invalidate its cached rendering
+    // CRITICAL: Don't relayout during initialization
+    if (_initializing) {
+        return;
+    }
+
+    // Tell active widget to invalidate its cached rendering - NO updateView call
     if (_currentlyUsingHardware && _hardwareWidget) {
         // Hardware widget doesn't need explicit relayout - it updates on next render
     } else if (_softwareWidget) {
         _softwareWidget->registerRelayout();
     }
-    updateView();
+    // REMOVED: updateView() call that causes infinite loops
 }
 
 void HybridMatrixWidget::takeKeyPressEvent(QKeyEvent* event) {
     // Handle tool key events
     if (Tool::currentTool()) {
         if (Tool::currentTool()->pressKey(event->key())) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for responsive tool feedback
         }
     }
 
@@ -633,7 +823,7 @@ void HybridMatrixWidget::takeKeyReleaseEvent(QKeyEvent* event) {
     // Handle tool key events
     if (Tool::currentTool()) {
         if (Tool::currentTool()->releaseKey(event->key())) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for responsive tool feedback
         }
     }
 }
@@ -681,14 +871,17 @@ void HybridMatrixWidget::scrollXChanged(int scrollPositionX) {
         _endTimeX = _currentFile->maxTime();
     }
 
-    calculateViewportBounds();
-    syncActiveWidget();
-    updateView();
+    // Update tick values from time values (like original MatrixWidget)
+    _startTick = _currentFile->tick(_startTimeX);
+    _endTick = _currentFile->tick(_endTimeX);
+
+    registerRelayout();
+    smartRepaint(); // CRITICAL: Immediate update for responsive scrolling
 
     // Emit scroll changed signal like old MatrixWidget
     if (_currentFile) {
         int maxScrollTime = _currentFile->maxTime() - (_endTimeX - _startTimeX);
-        int maxScrollLine = 128 - (_endLineY - _startLineY);
+        int maxScrollLine = NUM_LINES - (_endLineY - _startLineY);
         emit scrollChanged(_startTimeX, maxScrollTime, _startLineY, maxScrollLine);
     }
 }
@@ -704,23 +897,22 @@ void HybridMatrixWidget::scrollYChanged(int scrollPositionY) {
     double linesInWidget = space / lineSpace;
     _endLineY = _startLineY + linesInWidget;
 
-    if (_endLineY > 128) { // MIDI has 128 lines (0-127)
-        int d = _endLineY - 128;
-        _endLineY = 128;
+    if (_endLineY > NUM_LINES) { // Use NUM_LINES like original MatrixWidget
+        int d = _endLineY - NUM_LINES;
+        _endLineY = NUM_LINES;
         _startLineY -= d;
         if (_startLineY < 0) {
             _startLineY = 0;
         }
     }
 
-    calculateViewportBounds();
-    syncActiveWidget();
-    updateView();
+    registerRelayout();
+    smartRepaint(); // CRITICAL: Immediate update for responsive scrolling
 
     // Emit scroll changed signal like old MatrixWidget
     if (_currentFile) {
         int maxScrollTime = _currentFile->maxTime() - (_endTimeX - _startTimeX);
-        int maxScrollLine = 128 - (_endLineY - _startLineY);
+        int maxScrollLine = NUM_LINES - (_endLineY - _startLineY);
         emit scrollChanged(_startTimeX, maxScrollTime, _startLineY, maxScrollLine);
     }
 }
@@ -747,7 +939,8 @@ int HybridMatrixWidget::lineAtY(int y) {
 }
 
 double HybridMatrixWidget::lineHeight() const {
-    if (_endLineY - _startLineY == 0) return 0;
+    // Handle initialization case where endLineY = 0 (like original MatrixWidget)
+    if (_endLineY <= _startLineY) return 0;
     return (double)(height() - _timeHeight) / (double)(_endLineY - _startLineY);
 }
 
@@ -763,14 +956,7 @@ int HybridMatrixWidget::timeMsOfWidth(int w) {
 
 
 
-// Missing visibility methods
-int HybridMatrixWidget::minVisibleMidiTime() {
-    return _startTick;
-}
-
-int HybridMatrixWidget::maxVisibleMidiTime() {
-    return _endTick;
-}
+// Duplicate methods removed - already defined above
 
 // Missing file method
 MidiFile* HybridMatrixWidget::midiFile() {
@@ -838,7 +1024,16 @@ bool HybridMatrixWidget::eventInWidget(MidiEvent* event) {
 }
 
 void HybridMatrixWidget::calculateViewportBounds() {
-    if (!_currentFile) return;
+    if (!_currentFile) {
+        // Initialize with default values when no file is loaded - match original exactly
+        // Note: Original doesn't set startTick/endTick until file is loaded and rendering happens
+        _startLine = _startLineY;
+        _endLine = _endLineY;  // Keep as 0 like original MatrixWidget
+        _msOfFirstEventInList = 0;
+
+        // Note: Don't modify _endLineY or ticks here - they get set properly during file loading like original
+        return;
+    }
 
     // Calculate line bounds
     _startLine = _startLineY;
@@ -850,10 +1045,12 @@ void HybridMatrixWidget::calculateViewportBounds() {
     _startTick = _currentFile->tick(_startTimeX, _endTimeX, &_currentTempoEvents,
                                    &_endTick, &_msOfFirstEventInList);
 
-    // Update other event lists
-    updateEventLists();
+    // Only update lightweight event lists (tempo, time signature, divisions)
     updateDivisions();
     updateTimeSignatureEvents();
+
+    // CRITICAL: Don't call updateEventLists() here - it should happen during rendering
+    // The original MatrixWidget processes MIDI events on-demand in paintChannel(), not pre-calculated
 }
 
 void HybridMatrixWidget::updateEventLists() {
@@ -1091,17 +1288,6 @@ void HybridMatrixWidget::zoomStd() {
     _scaleX = 1.0;
     _scaleY = 1.0;
     calcSizes();
-    syncActiveWidget();
-    updateView();
-}
-
-
-
-void HybridMatrixWidget::playNote(int note) {
-    if (!_pianoEvent) return;
-    _pianoEvent->setNote(note);
-    _pianoEvent->setChannel(MidiOutput::standardChannel(), false);
-    MidiPlayer::play(_pianoEvent);
 }
 
 void HybridMatrixWidget::pianoEmulator(QKeyEvent* event) {
@@ -1156,7 +1342,7 @@ void HybridMatrixWidget::emitSizeChanged() {
     if (!_currentFile) return;
 
     int maxScrollTime = _currentFile->maxTime() - (_endTimeX - _startTimeX);
-    int maxScrollLine = 128 - (_endLineY - _startLineY);
+    int maxScrollLine = NUM_LINES - (_endLineY - _startLineY);
 
     emit sizeChanged(maxScrollTime, maxScrollLine, _startTimeX, _startLineY);
 }
@@ -1164,18 +1350,17 @@ void HybridMatrixWidget::emitSizeChanged() {
 void HybridMatrixWidget::forceCompleteRedraw() {
     // Force complete redraw on active widget only
     if (_currentlyUsingHardware && _hardwareWidget) {
-        _hardwareWidget->updateView(); // Hardware widget doesn't need pixmap invalidation
+        _hardwareWidget->update(); // Hardware widget doesn't need pixmap invalidation
     } else if (_softwareWidget) {
         _softwareWidget->forceCompleteRedraw();
     }
-    updateView();
+    smartRepaint(); // CRITICAL: Immediate update for complete redraw
 }
 
 void HybridMatrixWidget::setDiv(int div) {
     _div = div;
     updateDivisions();
-    syncActiveWidget();
-    updateView();
+    update();
 }
 
 
@@ -1184,7 +1369,7 @@ void HybridMatrixWidget::setDiv(int div) {
 void HybridMatrixWidget::handleToolPress(QMouseEvent* event) {
     if (!MidiPlayer::isPlaying() && Tool::currentTool()) {
         if (Tool::currentTool()->press(event->buttons() == Qt::LeftButton)) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for tool feedback
         }
     }
 }
@@ -1193,11 +1378,11 @@ void HybridMatrixWidget::handleToolRelease(QMouseEvent*) {
     // Event parameter not needed - tools use EditorTool::mouseX/mouseY for position
     if (!MidiPlayer::isPlaying() && Tool::currentTool()) {
         if (Tool::currentTool()->release()) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for tool feedback
         }
     } else if (Tool::currentTool()) {
         if (Tool::currentTool()->releaseOnly()) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for tool feedback
         }
     }
 }
@@ -1205,14 +1390,14 @@ void HybridMatrixWidget::handleToolRelease(QMouseEvent*) {
 void HybridMatrixWidget::handleToolMove(QMouseEvent* event) {
     if (!MidiPlayer::isPlaying() && Tool::currentTool()) {
         Tool::currentTool()->move(event->x(), event->y());
-        updateView();
+        smartRepaint(); // CRITICAL: Immediate update for tool feedback
     }
 }
 
 void HybridMatrixWidget::handleToolEnter() {
     if (Tool::currentTool()) {
         Tool::currentTool()->enter();
-        updateView();
+        smartUpdate(); // Non-critical update for tool enter
     }
 }
 
@@ -1227,31 +1412,14 @@ void HybridMatrixWidget::mouseMoveEvent(QMouseEvent* event) {
 
     // Update rendering to show hover effects (only if not playing for performance)
     if (!MidiPlayer::isPlaying()) {
-        syncActiveWidget();
-        updateView();
+        smartRepaint(); // CRITICAL: Immediate update for mouse feedback
     }
-}
-
-void HybridMatrixWidget::enterEvent(QEnterEvent* event) {
-    Q_UNUSED(event);
-    _mouseOver = true;
-    handleToolEnter();
-    syncActiveWidget();
-    updateView();
-}
-
-void HybridMatrixWidget::leaveEvent(QEvent* event) {
-    Q_UNUSED(event);
-    _mouseOver = false;
-    handleToolExit();
-    syncActiveWidget();
-    updateView();
 }
 
 void HybridMatrixWidget::handleToolExit() {
     if (Tool::currentTool()) {
         Tool::currentTool()->exit();
-        updateView();
+        smartUpdate(); // Non-critical update for tool exit
     }
 }
 
@@ -1291,7 +1459,7 @@ void HybridMatrixWidget::mouseReleaseEvent(QMouseEvent* event) {
     } else if (Tool::currentTool()) {
         // Handle global tool release (like old MatrixWidget)
         if (!MidiPlayer::isPlaying() && Tool::currentTool()->releaseOnly()) {
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for tool feedback
         }
     }
 }
@@ -1307,7 +1475,7 @@ void HybridMatrixWidget::mouseDoubleClickEvent(QMouseEvent* event) {
         int ms = msOfXPos(event->x());
         if (_currentFile) {
             _currentFile->setCursorTick(_currentFile->tick(ms));
-            updateView();
+            smartRepaint(); // CRITICAL: Immediate update for cursor positioning
         }
     }
 }
@@ -1405,4 +1573,61 @@ void HybridMatrixWidget::keyReleaseEvent(QKeyEvent* event) {
     takeKeyReleaseEvent(event);
 }
 
-// enterEvent and leaveEvent methods moved above to avoid duplication
+// CRITICAL: Mouse event handlers from original MatrixWidget (removing duplicates)
+// Note: These are the main implementations - duplicates removed
+
+void HybridMatrixWidget::resizeEvent(QResizeEvent* event) {
+    QWidget::resizeEvent(event);
+
+    // CRITICAL: Handle resize exactly like original MatrixWidget
+    // Only recalculate UI areas and viewport bounds - don't recreate event data
+    calcSizes();
+}
+
+void HybridMatrixWidget::enterEvent(QEnterEvent* event) {
+    Q_UNUSED(event);
+    _mouseOver = true;
+
+    // CRITICAL: Handle tool enter like original MatrixWidget
+    handleToolEnter();
+}
+
+void HybridMatrixWidget::leaveEvent(QEvent* event) {
+    Q_UNUSED(event);
+    _mouseOver = false;
+
+    // CRITICAL: Handle tool exit like original MatrixWidget
+    handleToolExit();
+}
+
+void HybridMatrixWidget::paintEvent(QPaintEvent* event) {
+    // CRITICAL: HybridMatrixWidget doesn't paint itself - children handle their own painting
+    // Just call the base class to handle any widget-level painting
+    QWidget::paintEvent(event);
+}
+
+// Helper method for mouse area checking
+bool HybridMatrixWidget::mouseInRect(const QRectF& rect) {
+    return rect.contains(_mouseX, _mouseY);
+}
+
+// Smart update methods that handle both software and hardware rendering
+void HybridMatrixWidget::smartUpdate() {
+    // Async update - for non-critical updates
+    if (_currentlyUsingHardware && _hardwareWidget) {
+        _hardwareWidget->update(); // Hardware widget uses OpenGL, not Qt painting
+    } else if (_softwareWidget) {
+        _softwareWidget->update(); // Software widget uses Qt painting
+    }
+    // Don't call update() on HybridMatrixWidget itself - it just forwards to children
+}
+
+void HybridMatrixWidget::smartRepaint() {
+    // Immediate update - for real-time updates
+    if (_currentlyUsingHardware && _hardwareWidget) {
+        _hardwareWidget->update(); // Hardware widget doesn't have repaint() - use update()
+    } else if (_softwareWidget) {
+        _softwareWidget->repaint(); // Software widget can use immediate repaint()
+    }
+    // Don't call repaint() on HybridMatrixWidget itself - it just forwards to children
+}

@@ -1,4 +1,4 @@
-/*
+﻿/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -23,10 +23,9 @@
 #include <QStackedWidget>
 #include <QSettings>
 #include <QEnterEvent>
-#include "MatrixRenderData.h"
 #include <QApplication>
 #include <functional>
-#include "MatrixRenderData.h"
+#include "MatrixRenderData.h" // For widget switching data transfer
 
 class MatrixWidget;
 class AcceleratedMatrixWidget;
@@ -65,8 +64,10 @@ public:
     
     // Hardware acceleration control
     bool isHardwareAccelerated() const;
+    bool canUseHardwareAcceleration() const;
+    bool getHardwareAccelerationEnabled() const { return _hardwareAccelerationEnabled; }
     void setHardwareAcceleration(bool enabled);
-    void refreshAccelerationSettings();
+    // REMOVED: refreshAccelerationSettings() - replaced with direct setting management
     
     // Performance information
     QString getPerformanceInfo() const;
@@ -80,15 +81,8 @@ public:
     int getLineNameWidth() const;
     QList<GraphicObject*>* getObjects();
 
-    // Missing coordinate methods
-    int lineAtY(int y);
-    int yPosOfLine(int line);
-
     // Missing file method
     MidiFile* midiFile();
-
-    // Missing piano method
-    void playNote(int line);
 
     // Additional MatrixWidget methods
     void setColorsByChannels(bool enabled);
@@ -148,6 +142,20 @@ public:
     // Additional methods from MatrixWidget
     void forceCompleteRedraw();
 
+protected:
+    // CRITICAL: Mouse and keyboard event handling (moved from MatrixWidget)
+    void paintEvent(QPaintEvent* event) override;
+    void mouseMoveEvent(QMouseEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+    void enterEvent(QEnterEvent* event) override;  // Qt6 uses QEnterEvent
+    void leaveEvent(QEvent* event) override;
+    void mousePressEvent(QMouseEvent* event) override;
+    void mouseDoubleClickEvent(QMouseEvent* event) override;
+    void mouseReleaseEvent(QMouseEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+    void keyReleaseEvent(QKeyEvent* event) override;
+    void wheelEvent(QWheelEvent* event) override;
+
 public slots:
     // Scroll and zoom methods (must be slots for signal connections)
     void scrollXChanged(int scrollPositionX);
@@ -162,27 +170,11 @@ public slots:
     void registerRelayout();
     void setDiv(int div);
 
-    void updateView();
-    void settingsChanged();
+    // REMOVED: updateView() method that caused infinite loops
+    // REMOVED: settingsChanged() - replaced with direct setting management
     void calcSizes();
-    void scrollXChanged(int scrollPositionX);
-    void scrollYChanged(int scrollPositionY);
     void takeKeyPressEvent(QKeyEvent* event);
     void takeKeyReleaseEvent(QKeyEvent* event);
-    void timeMsChanged(int ms); // Player thread connection for playback scrolling
-
-protected:
-    // Event handling (business logic, then forward to renderers)
-    void mousePressEvent(QMouseEvent* event) override;
-    void mouseReleaseEvent(QMouseEvent* event) override;
-    void mouseMoveEvent(QMouseEvent* event) override;
-    void mouseDoubleClickEvent(QMouseEvent* event) override;
-    void wheelEvent(QWheelEvent* event) override;
-    void keyPressEvent(QKeyEvent* event) override;
-    void keyReleaseEvent(QKeyEvent* event) override;
-    void enterEvent(QEnterEvent* event) override;
-    void leaveEvent(QEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
 
 signals:
     void eventClicked(MidiEvent* event);
@@ -202,10 +194,11 @@ private slots:
 
 private:
     void setupWidgets();
+    void connectWidgetSignals();
     void switchToSoftwareRendering();
     void switchToHardwareRendering();
-    bool canUseHardwareAcceleration() const;
-    void syncActiveWidget();
+    void syncViewportFromActiveWidget(); // Sync viewport from active child widget
+    MatrixRenderData createRenderData(); // Create render data for widget switching
     void forwardSignals();
 
     // Business logic helper methods (moved from MatrixWidget)
@@ -220,6 +213,13 @@ private:
     void calculatePianoKeys();
     void emitSizeChanged();
     void timeMsChangedInternal(int ms, bool ignoreLocked); // Internal implementation
+
+    // Helper methods for mouse interaction
+    bool mouseInRect(const QRectF& rect);
+
+    // Smart update methods that handle both software and hardware rendering
+    void smartUpdate();      // Async update - for non-critical updates
+    void smartRepaint();     // Immediate update - for real-time updates
     
     // Widget management
     QStackedWidget* _stackedWidget;
@@ -272,8 +272,11 @@ private:
     // Performance monitoring
     QString _lastPerformanceInfo;
 
-    // Cached render data to avoid recreation
-    MatrixRenderData _cachedRenderData;
+    // Initialization state
+    bool _initializing;
+    bool _constructorComplete;
+
+    // REMOVED: _cachedRenderData - using direct access pattern instead
 };
 
 #endif // HYBRIDMATRIXWIDGET_H
