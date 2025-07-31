@@ -22,22 +22,25 @@
 #include "MidiEvent.h"
 
 class ChannelPressureEvent : public MidiEvent {
-
 public:
-    ChannelPressureEvent(int channel, int value, MidiTrack* track);
-    ChannelPressureEvent(ChannelPressureEvent& other);
+    ChannelPressureEvent(int channel, int value, MidiTrack *track);
+
+    ChannelPressureEvent(ChannelPressureEvent &other);
 
     virtual int line();
 
     QString toMessage();
+
     QByteArray save();
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     QString typeString();
 
     int value();
+
     void setValue(int v);
 
 private:

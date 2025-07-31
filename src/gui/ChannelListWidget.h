@@ -19,10 +19,7 @@
 #ifndef CHANNELLISTWIDGET_H_
 #define CHANNELLISTWIDGET_H_
 
-#include <QColor>
-#include <QList>
 #include <QListWidget>
-#include <QPaintEvent>
 #include <QResizeEvent>
 #include <QWidget>
 
@@ -34,50 +31,56 @@ class ChannelListWidget;
 class ColoredWidget;
 
 class ChannelListItem : public QWidget {
-
     Q_OBJECT
 
 public:
-    ChannelListItem(int channel, ChannelListWidget* parent);
+    ChannelListItem(int channel, ChannelListWidget *parent);
+
     void onBeforeUpdate();
 
 signals:
     void selectInstrumentClicked(int channel);
+
     void channelStateChanged();
 
 public slots:
     void toggleVisibility(bool visible);
+
     void toggleAudibility(bool audible);
+
     void toggleSolo(bool solo);
+
     void instrument();
 
 private:
-    QLabel* instrumentLabel;
-    ChannelListWidget* channelList;
+    QLabel *instrumentLabel;
+    ChannelListWidget *channelList;
     int channel;
-    ColoredWidget* colored;
+    ColoredWidget *colored;
     QAction *visibleAction, *loudAction, *soloAction;
 };
 
 class ChannelListWidget : public QListWidget {
-
     Q_OBJECT
 
 public:
-    ChannelListWidget(QWidget* parent = 0);
-    void setFile(MidiFile* f);
-    MidiFile* midiFile();
+    ChannelListWidget(QWidget *parent = 0);
+
+    void setFile(MidiFile *f);
+
+    MidiFile *midiFile();
 
 signals:
     void channelStateChanged();
+
     void selectInstrumentClicked(int channel);
 
 public slots:
     void update();
 
 private:
-    MidiFile* file;
-    QList<ChannelListItem*> items;
+    MidiFile *file;
+    QList<ChannelListItem *> items;
 };
 
 #endif

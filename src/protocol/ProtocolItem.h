@@ -31,12 +31,11 @@ class ProtocolEntry;
  * on calling release().
  */
 class ProtocolItem {
-
 public:
     /**
 		 * \brief Creates a new ProtocolItem.
 		 */
-    ProtocolItem(ProtocolEntry* oldObj, ProtocolEntry* newObj);
+    ProtocolItem(ProtocolEntry *oldObj, ProtocolEntry *newObj);
 
     /**
 		 * \brief reloads the state of oldObj on newObj.
@@ -46,7 +45,7 @@ public:
 		 * information needed to load the state of the new Object to the old
 		 * Object.
 		 */
-    ProtocolItem* release();
+    ProtocolItem *release();
 
 private:
     /**

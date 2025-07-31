@@ -8,29 +8,33 @@ class MidiEvent;
 class EventWidget;
 
 class Selection : public ProtocolEntry {
-
 public:
-    Selection(MidiFile* file);
-    Selection(Selection& other);
+    Selection(MidiFile *file);
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    Selection(Selection &other);
 
-    virtual MidiFile* file();
+    virtual ProtocolEntry *copy();
 
-    static Selection* instance();
-    static void setFile(MidiFile* file);
+    virtual void reloadState(ProtocolEntry *entry);
 
-    QList<MidiEvent*>& selectedEvents();
-    void setSelection(QList<MidiEvent*> selections);
+    virtual MidiFile *file();
+
+    static Selection *instance();
+
+    static void setFile(MidiFile *file);
+
+    QList<MidiEvent *> &selectedEvents();
+
+    void setSelection(QList<MidiEvent *> selections);
+
     void clearSelection();
 
-    static EventWidget* _eventWidget;
+    static EventWidget *_eventWidget;
 
 private:
-    QList<MidiEvent*> _selectedEvents;
-    static Selection* _selectionInstance;
-    MidiFile* _file;
+    QList<MidiEvent *> _selectedEvents;
+    static Selection *_selectionInstance;
+    MidiFile *_file;
 };
 
 #endif

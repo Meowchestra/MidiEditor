@@ -26,7 +26,6 @@ class MidiEvent;
 class SelectTool;
 
 #include <QList>
-#include <QPair>
 
 #define SINGLE_MODE 0
 #define LINE_MODE 1
@@ -41,32 +40,39 @@ class SelectTool;
 #define MiscModeEnd 6
 
 class MiscWidget : public PaintWidget {
-
     Q_OBJECT
 
 public:
-    MiscWidget(HybridMatrixWidget* mw, QWidget* parent = 0);
+    MiscWidget(HybridMatrixWidget *mw, QWidget *parent = 0);
 
     static QString modeToString(int mode);
+
     void setMode(int mode);
+
     void setEditMode(int mode);
 
 public slots:
     void setChannel(int);
+
     void setControl(int ctrl);
 
 protected:
-    void paintEvent(QPaintEvent* event);
-    void keyPressEvent(QKeyEvent* e);
-    void keyReleaseEvent(QKeyEvent* event);
+    void paintEvent(QPaintEvent *event);
 
-    void mouseReleaseEvent(QMouseEvent* event);
-    void mousePressEvent(QMouseEvent* event);
-    void leaveEvent(QEvent* event);
-    void mouseMoveEvent(QMouseEvent* event);
+    void keyPressEvent(QKeyEvent *e);
+
+    void keyReleaseEvent(QKeyEvent *event);
+
+    void mouseReleaseEvent(QMouseEvent *event);
+
+    void mousePressEvent(QMouseEvent *event);
+
+    void leaveEvent(QEvent *event);
+
+    void mouseMoveEvent(QMouseEvent *event);
 
 private:
-    HybridMatrixWidget* matrixWidget;
+    HybridMatrixWidget *matrixWidget;
 
     // Mode is SINGLE_MODE or LINE_MODE
     int edit_mode;
@@ -76,25 +82,36 @@ private:
 
     void resetState();
 
-    QList<QPair<int, int> > getTrack(QList<MidiEvent*>* accordingEvents = 0);
+    QList<QPair<int, int> > getTrack(QList<MidiEvent *> *accordingEvents = 0);
+
     void computeMinMax();
-    QPair<int, int> processEvent(MidiEvent* e, bool* ok);
+
+    QPair<int, int> processEvent(MidiEvent *e, bool *ok);
+
     double interpolate(QList<QPair<int, int> > track, int x);
+
     int tickOfXPos(int x);
+
     int xPosOfTick(int tick);
+
     int tickOfMs(int ms);
+
     int msOfTick(int tick);
+
     int msOfXPos(int x);
+
     int xPosOfMs(int ms);
+
     int value(double y);
-    bool filter(MidiEvent* e);
+
+    bool filter(MidiEvent *e);
 
     int _max, _default;
 
     // single
     int dragY;
     bool dragging;
-    SelectTool* _dummyTool;
+    SelectTool *_dummyTool;
     int trackIndex;
 
     // free hand

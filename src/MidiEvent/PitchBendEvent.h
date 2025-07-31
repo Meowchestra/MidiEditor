@@ -22,20 +22,24 @@
 #include "MidiEvent.h"
 
 class PitchBendEvent : public MidiEvent {
-
 public:
-    PitchBendEvent(int channel, int val, MidiTrack* track);
-    PitchBendEvent(PitchBendEvent& other);
+    PitchBendEvent(int channel, int val, MidiTrack *track);
+
+    PitchBendEvent(PitchBendEvent &other);
 
     virtual int line();
+
     int value();
+
     void setValue(int v);
 
     QString toMessage();
+
     QByteArray save();
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     QString typeString();
 

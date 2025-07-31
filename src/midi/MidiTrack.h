@@ -29,48 +29,56 @@ class MidiFile;
 class QColor;
 
 class MidiTrack : public QObject, public ProtocolEntry {
-
     Q_OBJECT
 
 public:
-    MidiTrack(MidiFile* file);
-    MidiTrack(MidiTrack& other);
+    MidiTrack(MidiFile *file);
+
+    MidiTrack(MidiTrack &other);
+
     virtual ~MidiTrack();
 
     QString name();
+
     void setName(QString name);
 
     int number();
+
     void setNumber(int number);
 
-    void setNameEvent(TextEvent* nameEvent);
-    TextEvent* nameEvent();
+    void setNameEvent(TextEvent *nameEvent);
 
-    MidiFile* file();
+    TextEvent *nameEvent();
+
+    MidiFile *file();
 
     void assignChannel(int ch);
+
     int assignedChannel();
 
     void setHidden(bool hidden);
+
     bool hidden();
 
     void setMuted(bool muted);
+
     bool muted();
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual ProtocolEntry *copy();
 
-    QColor* color();
+    virtual void reloadState(ProtocolEntry *entry);
 
-    MidiTrack* copyToFile(MidiFile* file);
+    QColor *color();
+
+    MidiTrack *copyToFile(MidiFile *file);
 
 signals:
     void trackChanged();
 
 private:
     int _number;
-    TextEvent* _nameEvent;
-    MidiFile* _file;
+    TextEvent *_nameEvent;
+    MidiFile *_file;
     bool _hidden, _muted;
 
     int _assignedChannel;

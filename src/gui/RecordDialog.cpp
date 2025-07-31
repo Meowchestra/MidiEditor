@@ -21,45 +21,38 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QGridLayout>
-#include <QLabel>
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSettings>
 
-#include "../MidiEvent/ChannelPressureEvent.h"
-#include "../MidiEvent/ControlChangeEvent.h"
 #include "../MidiEvent/KeyPressureEvent.h"
 #include "../MidiEvent/MidiEvent.h"
-#include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/OnEvent.h"
-#include "../MidiEvent/ProgChangeEvent.h"
 #include "../MidiEvent/TempoChangeEvent.h"
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/SysExEvent.h"
-#include "../MidiEvent/UnknownEvent.h"
 #include "../midi/MidiChannel.h"
-#include "../midi/MidiFile.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "../protocol/Protocol.h"
 #include "../tool/NewNoteTool.h"
 
-RecordDialog::RecordDialog(MidiFile* file, QMultiMap<int, MidiEvent*> data, QSettings* settings,
-                           QWidget* parent)
+RecordDialog::RecordDialog(MidiFile *file, QMultiMap<int, MidiEvent *> data, QSettings *settings,
+                           QWidget *parent)
     : QDialog(parent) {
     _data = data;
     _file = file;
     _settings = settings;
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
     setWindowTitle(tr("Add ") + QString::number(data.size()) + tr(" recorded Events"));
     // track
-    QLabel* tracklabel = new QLabel(tr("Add to track: "), this);
+    QLabel *tracklabel = new QLabel(tr("Add to track: "), this);
     layout->addWidget(tracklabel, 1, 0, 1, 1);
     _trackBox = new QComboBox(this);
     _trackBox->addItem(tr("Same as selected for new events"));
@@ -74,7 +67,7 @@ RecordDialog::RecordDialog(MidiFile* file, QMultiMap<int, MidiEvent*> data, QSet
     _trackBox->setCurrentIndex(oldTrack);
 
     // channel
-    QLabel* channellabel = new QLabel(tr("Add tochannel: "), this);
+    QLabel *channellabel = new QLabel(tr("Add tochannel: "), this);
     layout->addWidget(channellabel, 2, 0, 1, 1);
     _channelBox = new QComboBox(this);
     _channelBox->addItem(tr("Same as selected for new events"));
@@ -87,7 +80,7 @@ RecordDialog::RecordDialog(MidiFile* file, QMultiMap<int, MidiEvent*> data, QSet
     layout->addWidget(_channelBox, 2, 1, 1, 3);
 
     // ignore types
-    QLabel* ignorelabel = new QLabel(tr("Select events to add:"), this);
+    QLabel *ignorelabel = new QLabel(tr("Select events to add:"), this);
     layout->addWidget(ignorelabel, 3, 0, 1, 4);
 
     addTypes = new QListWidget(this);
@@ -106,17 +99,16 @@ RecordDialog::RecordDialog(MidiFile* file, QMultiMap<int, MidiEvent*> data, QSet
     layout->addWidget(addTypes, 12, 0, 1, 4);
 
     // buttons
-    QPushButton* cancel = new QPushButton(tr("Cancel"), this);
+    QPushButton *cancel = new QPushButton(tr("Cancel"), this);
     layout->addWidget(cancel, 13, 0, 1, 2);
     connect(cancel, SIGNAL(clicked()), this, SLOT(cancel()));
 
-    QPushButton* ok = new QPushButton(tr("Ok"), this);
+    QPushButton *ok = new QPushButton(tr("Ok"), this);
     layout->addWidget(ok, 13, 2, 1, 2);
     connect(ok, SIGNAL(clicked()), this, SLOT(enter()));
 }
 
 void RecordDialog::enter() {
-
     int channel = _channelBox->currentIndex();
     bool ownChannel = false;
     if (channel < 2) {
@@ -129,7 +121,7 @@ void RecordDialog::enter() {
         channel = channel - 2;
     }
 
-    MidiTrack* track = 0;
+    MidiTrack *track = 0;
     int trackIndex = _trackBox->currentIndex();
     if (trackIndex == 0) {
         track = _file->track(NewNoteTool::editTrack());
@@ -145,7 +137,7 @@ void RecordDialog::enter() {
     // ignore events
     QList<int> ignoredLines;
     for (int i = 0; i < addTypes->count(); i++) {
-        QListWidgetItem* item = addTypes->item(i);
+        QListWidgetItem *item = addTypes->item(i);
         if (item->checkState() == Qt::Unchecked) {
             int line = item->data(Qt::UserRole).toInt();
             ignoredLines.append(line);
@@ -156,7 +148,7 @@ void RecordDialog::enter() {
         _file->protocol()->startNewAction(tr("Added recorded events"));
 
         // first enlarge the file ( last event + 1000 ms)
-        QMultiMap<int, MidiEvent*>::iterator it = _data.end();
+        QMultiMap<int, MidiEvent *>::iterator it = _data.end();
         it--;
         int minLength = it.key() + 1000;
         if (minLength > _file->maxTime()) {
@@ -165,16 +157,15 @@ void RecordDialog::enter() {
 
         it = _data.begin();
         while (it != _data.end()) {
-
             int currentChannel = it.value()->channel();
             if (!ownChannel) {
                 currentChannel = channel;
             }
 
             // check whether to add event or not
-            MidiEvent* toCheck = it.value();
+            MidiEvent *toCheck = it.value();
 
-            OffEvent* off = dynamic_cast<OffEvent*>(toCheck);
+            OffEvent *off = dynamic_cast<OffEvent *>(toCheck);
             if (off) {
                 toCheck = off->onEvent();
             }
@@ -188,28 +179,28 @@ void RecordDialog::enter() {
             bool ignoreEvent = ignoredLines.contains(l);
 
             // set channels
-            TempoChangeEvent* tempo = dynamic_cast<TempoChangeEvent*>(toCheck);
+            TempoChangeEvent *tempo = dynamic_cast<TempoChangeEvent *>(toCheck);
             if (tempo) {
                 currentChannel = 17;
             }
 
-            TimeSignatureEvent* time = dynamic_cast<TimeSignatureEvent*>(toCheck);
+            TimeSignatureEvent *time = dynamic_cast<TimeSignatureEvent *>(toCheck);
             if (time) {
                 currentChannel = 18;
             }
 
-            TextEvent* text = dynamic_cast<TextEvent*>(toCheck);
+            TextEvent *text = dynamic_cast<TextEvent *>(toCheck);
             if (text) {
                 currentChannel = 16;
             }
 
-            SysExEvent *sysEx = dynamic_cast<SysExEvent*>(toCheck);
+            SysExEvent *sysEx = dynamic_cast<SysExEvent *>(toCheck);
             if (sysEx) {
                 currentChannel = 16;
             }
 
             if (!ignoreEvent) {
-                MidiEvent* toAdd = it.value();
+                MidiEvent *toAdd = it.value();
                 toAdd->setFile(_file);
                 toAdd->setChannel(currentChannel, false);
                 toAdd->setTrack(track, false);
@@ -223,28 +214,27 @@ void RecordDialog::enter() {
 }
 
 void RecordDialog::cancel() {
-
     QMessageBox msgBox(this);
     msgBox.setWindowTitle(tr("Cancel?"));
     msgBox.setIcon(QMessageBox::Question);
     msgBox.setText(tr("Do you really want to cancel? The recorded events will be lost."));
-    QPushButton* connectButton = msgBox.addButton(tr("Yes"),
-                                 QMessageBox::ActionRole);
+    QPushButton *connectButton = msgBox.addButton(tr("Yes"),
+                                                  QMessageBox::ActionRole);
     msgBox.addButton(tr("No"), QMessageBox::ActionRole);
 
     msgBox.exec();
 
     if (msgBox.clickedButton() == connectButton) {
         // delete events
-        foreach (MidiEvent* event, _data) {
+        foreach(MidiEvent* event, _data) {
             delete event;
         }
         hide();
     }
 }
 
-void RecordDialog::addListItem(QListWidget* w, QString title, int line, bool enabled) {
-    QListWidgetItem* item = new QListWidgetItem(w);
+void RecordDialog::addListItem(QListWidget *w, QString title, int line, bool enabled) {
+    QListWidgetItem *item = new QListWidgetItem(w);
     item->setText(title);
     QVariant v(line);
     item->setData(Qt::UserRole, v);

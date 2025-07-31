@@ -39,7 +39,6 @@ class MainWindow;
  * on this Widget.
  */
 class EditorTool : public Tool {
-
 public:
     /**
 		 * \brief creates a new EditorTool.
@@ -49,12 +48,12 @@ public:
     /**
 		 * \brief creates a new EditorTool copying &other.
 		 */
-    EditorTool(EditorTool& other);
+    EditorTool(EditorTool &other);
 
     /**
 		 * \brief draws the EditorTools data to painter.
 		 */
-    virtual void draw(QPainter* painter);
+    virtual void draw(QPainter *painter);
 
     /**
 		 * \brief this method is called when the mouse is clicked above the
@@ -138,11 +137,13 @@ public:
 
     virtual void buttonClick();
 
-    virtual ProtocolEntry* copy();
+    virtual ProtocolEntry *copy();
 
-    virtual void reloadState(ProtocolEntry* entry);
-    static void setMatrixWidget(HybridMatrixWidget* w);
-    static void setMainWindow(MainWindow* mw);
+    virtual void reloadState(ProtocolEntry *entry);
+
+    static void setMatrixWidget(HybridMatrixWidget *w);
+
+    static void setMainWindow(MainWindow *mw);
 
     bool pointInRect(int x, int y, int x_start, int y_start, int x_end, int y_end);
 
@@ -150,8 +151,8 @@ protected:
     bool etool_selected;
     int mouseX, mouseY;
     bool mouseIn;
-    static HybridMatrixWidget* matrixWidget;
-    static MainWindow* _mainWindow;
+    static HybridMatrixWidget *matrixWidget;
+    static MainWindow *_mainWindow;
 };
 
 #endif

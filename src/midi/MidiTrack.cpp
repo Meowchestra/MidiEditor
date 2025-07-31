@@ -23,7 +23,7 @@
 #include "MidiChannel.h"
 #include "MidiFile.h"
 
-MidiTrack::MidiTrack(MidiFile* file)
+MidiTrack::MidiTrack(MidiFile *file)
     : ProtocolEntry() {
     _number = 0;
     _nameEvent = 0;
@@ -33,9 +33,9 @@ MidiTrack::MidiTrack(MidiFile* file)
     _assignedChannel = -1;
 }
 
-MidiTrack::MidiTrack(MidiTrack& other)
+MidiTrack::MidiTrack(MidiTrack &other)
     : QObject()
-    , ProtocolEntry(other) {
+      , ProtocolEntry(other) {
     _number = other._number;
     _nameEvent = other._nameEvent;
     _file = other._file;
@@ -46,7 +46,7 @@ MidiTrack::MidiTrack(MidiTrack& other)
 MidiTrack::~MidiTrack() {
 }
 
-MidiFile* MidiTrack::file() {
+MidiFile *MidiTrack::file() {
     return _file;
 }
 
@@ -58,7 +58,6 @@ QString MidiTrack::name() {
 }
 
 void MidiTrack::setName(QString name) {
-
     if (!_nameEvent) {
         _nameEvent = new TextEvent(16, this);
         _nameEvent->setType(TextEvent::TRACKNAME);
@@ -74,16 +73,16 @@ int MidiTrack::number() {
 }
 
 void MidiTrack::setNumber(int number) {
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _number = number;
     protocol(toCopy, this);
 }
 
-void MidiTrack::setNameEvent(TextEvent* nameEvent) {
+void MidiTrack::setNameEvent(TextEvent *nameEvent) {
     if ((_nameEvent) && (_nameEvent->type() == TextEvent::TRACKNAME)) {
         _nameEvent->setType(TextEvent::TEXT);
     }
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _nameEvent = nameEvent;
     if (_nameEvent) {
         _nameEvent->setType(TextEvent::TRACKNAME);
@@ -92,16 +91,16 @@ void MidiTrack::setNameEvent(TextEvent* nameEvent) {
     emit trackChanged();
 }
 
-TextEvent* MidiTrack::nameEvent() {
+TextEvent *MidiTrack::nameEvent() {
     return _nameEvent;
 }
 
-ProtocolEntry* MidiTrack::copy() {
+ProtocolEntry *MidiTrack::copy() {
     return new MidiTrack(*this);
 }
 
-void MidiTrack::reloadState(ProtocolEntry* entry) {
-    MidiTrack* other = dynamic_cast<MidiTrack*>(entry);
+void MidiTrack::reloadState(ProtocolEntry *entry) {
+    MidiTrack *other = dynamic_cast<MidiTrack *>(entry);
     if (!other) {
         return;
     }
@@ -115,7 +114,7 @@ void MidiTrack::reloadState(ProtocolEntry* entry) {
 }
 
 void MidiTrack::setHidden(bool hidden) {
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _hidden = hidden;
     protocol(toCopy, this);
     emit trackChanged();
@@ -126,7 +125,7 @@ bool MidiTrack::hidden() {
 }
 
 void MidiTrack::setMuted(bool muted) {
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _muted = muted;
     protocol(toCopy, this);
     emit trackChanged();
@@ -136,15 +135,13 @@ bool MidiTrack::muted() {
     return _muted;
 }
 
-QColor* MidiTrack::color()
-{
+QColor *MidiTrack::color() {
     return Appearance::trackColor(number());
 }
 
-MidiTrack* MidiTrack::copyToFile(MidiFile* file) {
-
+MidiTrack *MidiTrack::copyToFile(MidiFile *file) {
     file->addTrack();
-    MidiTrack* newTrack = file->tracks()->last();
+    MidiTrack *newTrack = file->tracks()->last();
     newTrack->setName(this->name());
 
     file->registerCopiedTrack(this, newTrack, this->file());

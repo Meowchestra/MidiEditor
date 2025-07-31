@@ -34,7 +34,7 @@ public:
 
 class TimeTweakTarget : public TweakTarget {
 public:
-    TimeTweakTarget(MainWindow* mainWindow);
+    TimeTweakTarget(MainWindow *mainWindow);
     void smallDecrease();
     void smallIncrease();
     void mediumDecrease();
@@ -43,13 +43,13 @@ public:
     void largeIncrease();
 
 protected:
-    MainWindow* mainWindow;
+    MainWindow *mainWindow;
     void offset(int amount);
 };
 
 class StartTimeTweakTarget : public TweakTarget {
 public:
-    StartTimeTweakTarget(MainWindow* mainWindow);
+    StartTimeTweakTarget(MainWindow *mainWindow);
     void smallDecrease();
     void smallIncrease();
     void mediumDecrease();
@@ -58,13 +58,13 @@ public:
     void largeIncrease();
 
 protected:
-    MainWindow* mainWindow;
+    MainWindow *mainWindow;
     void offset(int amount);
 };
 
 class EndTimeTweakTarget : public TweakTarget {
 public:
-    EndTimeTweakTarget(MainWindow* mainWindow);
+    EndTimeTweakTarget(MainWindow *mainWindow);
     void smallDecrease();
     void smallIncrease();
     void mediumDecrease();
@@ -73,13 +73,13 @@ public:
     void largeIncrease();
 
 protected:
-    MainWindow* mainWindow;
+    MainWindow *mainWindow;
     void offset(int amount);
 };
 
 class NoteTweakTarget : public TweakTarget {
 public:
-    NoteTweakTarget(MainWindow* mainWindow);
+    NoteTweakTarget(MainWindow *mainWindow);
     void smallDecrease();
     void smallIncrease();
     void mediumDecrease();
@@ -88,13 +88,13 @@ public:
     void largeIncrease();
 
 protected:
-    MainWindow* mainWindow;
+    MainWindow *mainWindow;
     void offset(int amount);
 };
 
 class ValueTweakTarget : public TweakTarget {
 public:
-    ValueTweakTarget(MainWindow* mainWindow);
+    ValueTweakTarget(MainWindow *mainWindow);
     void smallDecrease();
     void smallIncrease();
     void mediumDecrease();
@@ -103,7 +103,7 @@ public:
     void largeIncrease();
 
 protected:
-    MainWindow* mainWindow;
+    MainWindow *mainWindow;
     void offset(int amount, int pitchBendAmount, int tempoAmount);
 };
 

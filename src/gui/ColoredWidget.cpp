@@ -2,18 +2,15 @@
 #include "Appearance.h"
 
 #include <QPainter>
-#include <QPaintEvent>
 
-ColoredWidget::ColoredWidget(QColor color, QWidget* parent)
-    : QWidget(parent)
-{
+ColoredWidget::ColoredWidget(QColor color, QWidget *parent)
+    : QWidget(parent) {
     _color = color;
     setFixedWidth(30);
     setContentsMargins(0, 0, 0, 0);
 }
 
-void ColoredWidget::paintEvent(QPaintEvent* event)
-{
+void ColoredWidget::paintEvent(QPaintEvent *event) {
     QPainter p;
     int l = width() - 1;
     int x = 0;

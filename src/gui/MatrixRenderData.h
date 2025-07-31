@@ -22,7 +22,6 @@
 #include <QList>
 #include <QRectF>
 #include <QMap>
-#include <QRect>
 
 class MidiEvent;
 class TimeSignatureEvent;
@@ -36,11 +35,11 @@ struct MatrixRenderData {
     double scaleX, scaleY, lineHeight;
 
     // Event lists
-    QList<MidiEvent*>* objects;
-    QList<MidiEvent*>* velocityObjects;
-    QList<MidiEvent*>* tempoEvents;
-    QList<TimeSignatureEvent*>* timeSignatureEvents;
-    QList<QPair<int, int>> divs;
+    QList<MidiEvent *> *objects;
+    QList<MidiEvent *> *velocityObjects;
+    QList<MidiEvent *> *tempoEvents;
+    QList<TimeSignatureEvent *> *timeSignatureEvents;
+    QList<QPair<int, int> > divs;
     int msOfFirstEventInList;
 
     // State
@@ -61,7 +60,7 @@ struct MatrixRenderData {
     bool mouseOver;
 
     // File reference for coordinate calculations
-    class MidiFile* file;
+    class MidiFile *file;
 };
 
 #endif // MATRIXRENDERDATA_H

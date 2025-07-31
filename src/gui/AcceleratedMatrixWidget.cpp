@@ -38,7 +38,6 @@
 #include "../tool/Selection.h"
 
 #include <QApplication>
-#include <QThread>
 #include <QTime>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -49,9 +48,6 @@
 
 #include <QSettings>
 #include <QPaintEvent>
-#include <QResizeEvent>
-#include <QMouseEvent>
-#include <QWheelEvent>
 #include <QPainter>
 #include <memory>
 
@@ -118,6 +114,7 @@ struct LineVertex {
 // Full Qt RHI implementation - hardware acceleration enabled
 class AcceleratedMatrixWidget::PlatformImpl {
     friend class AcceleratedMatrixWidget;
+
 private:
     std::unique_ptr<QRhi> _rhi;
     QString _backendName;
@@ -163,9 +160,9 @@ private:
 
     // GPU data caching structure
     struct {
-        QVector<float> midiEventInstances;
-        QVector<float> pianoKeyData;
-        QVector<float> lineVertices;
+        QList<float> midiEventInstances;
+        QList<float> pianoKeyData;
+        QList<float> lineVertices;
         bool isDirty = true;
         int lastStartTick = -1;
         int lastEndTick = -1;
@@ -174,11 +171,11 @@ private:
     } _cachedGPUData;
 
     // Platform-specific resources
-    QVulkanInstance* _vulkanInstance;
-    QOffscreenSurface* _offscreenSurface;
+    QVulkanInstance *_vulkanInstance;
+    QOffscreenSurface *_offscreenSurface;
 
     // Widget reference for size
-    AcceleratedMatrixWidget* _widget;
+    AcceleratedMatrixWidget *_widget;
 
 public:
     PlatformImpl() : _initialized(false), _needsUpdate(false), _vulkanInstance(nullptr), _offscreenSurface(nullptr), _widget(nullptr) {}
@@ -189,7 +186,7 @@ public:
     QString getBackendName() const { return _backendName; }
     bool isInitialized() const { return _initialized; }
 
-    bool initialize(AcceleratedMatrixWidget* widget) {
+    bool initialize(AcceleratedMatrixWidget *widget) {
         _widget = widget;
 
         // Try to initialize Qt RHI with best available backend
@@ -213,7 +210,7 @@ public:
         return true;
     }
 
-    void render(AcceleratedMatrixWidget* widget) {
+    void render(AcceleratedMatrixWidget *widget) {
         if (!_rhi || !_initialized || !_renderTarget) {
             // Hardware acceleration has failed - emit signal for permanent fallback
             static bool failureSignalEmitted = false;
@@ -224,7 +221,6 @@ public:
             // Don't render anything - let HybridMatrixWidget handle the fallback
             return;
         }
-
 
 
         // Update vertex buffer if needed
@@ -240,8 +236,6 @@ public:
         // Copy result to widget
         copyRenderTextureToWidget(widget);
     }
-
-
 
     void cleanup() {
         // Clean up Qt RHI resources in proper order
@@ -284,12 +278,12 @@ public:
     QString backendName() const {
         return _backendName;
     }
-    
+
     bool isHardwareAccelerated() const {
         return _initialized && _rhi != nullptr;
     }
 
-    void updateEventData(const QVector<AcceleratedMatrixWidget::EventVertex>& vertices) {
+    void updateEventData(const QVector<AcceleratedMatrixWidget::EventVertex> &vertices) {
         _eventVertices = vertices;
         _needsUpdate = true;
     }
@@ -320,14 +314,14 @@ public:
 
         // Create render texture
         _renderTexture.reset(_rhi->newTexture(QRhiTexture::RGBA8, QSize(width, height), 1,
-                                            QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+                                              QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
         if (!_renderTexture->create()) {
             return false;
         }
 
         // Create render target
         QRhiTextureRenderTargetDescription rtDesc;
-        rtDesc.setColorAttachments({ _renderTexture.get() });
+        rtDesc.setColorAttachments({_renderTexture.get()});
         _renderTarget.reset(_rhi->newTextureRenderTarget(rtDesc));
 
         // Create render pass descriptor
@@ -349,7 +343,7 @@ public:
         const int floatsPerVertex = 8; // x, y, width, height, r, g, b, a
 
         _vertexBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
-                                          maxEvents * verticesPerRect * floatsPerVertex * sizeof(float)));
+                                            maxEvents * verticesPerRect * floatsPerVertex * sizeof(float)));
         if (!_vertexBuffer->create()) {
             return false;
         }
@@ -361,8 +355,8 @@ public:
         // Create uniform buffer for projection matrix and viewport info
         struct UniformData {
             float projectionMatrix[16]; // 4x4 matrix
-            float viewportSize[2];      // width, height
-            float padding[2];           // Alignment padding
+            float viewportSize[2]; // width, height
+            float padding[2]; // Alignment padding
         };
 
         _uniformBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::UniformBuffer, sizeof(UniformData)));
@@ -376,8 +370,7 @@ public:
     bool createShaderResourceBindings() {
         _srb.reset(_rhi->newShaderResourceBindings());
         _srb->setBindings({
-            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage,
-                                                   _uniformBuffer.get())
+            QRhiShaderResourceBinding::uniformBuffer(0, QRhiShaderResourceBinding::VertexStage | QRhiShaderResourceBinding::FragmentStage, _uniformBuffer.get())
         });
         if (!_srb->create()) {
             return false;
@@ -395,7 +388,7 @@ public:
 
     QShader createVertexShader() {
         // Simple vertex shader for rectangle rendering
-        const char* vertexShaderSource = R"(
+        const char *vertexShaderSource = R"(
 #version 440
 layout(location = 0) in vec4 positionSize; // x, y, width, height
 layout(location = 1) in vec4 color;
@@ -426,14 +419,12 @@ void main() {
 }
 )";
 
-        // For now, return an empty shader - Qt RHI requires pre-compiled shaders
-        // TODO: Implement proper shader compilation or use pre-compiled shaders
         return QShader();
     }
 
     QShader createFragmentShader() {
         // Simple fragment shader for solid color rendering
-        const char* fragmentShaderSource = R"(
+        const char *fragmentShaderSource = R"(
 #version 440
 layout(location = 0) in vec4 fragColor;
 layout(location = 0) out vec4 outColor;
@@ -443,8 +434,6 @@ void main() {
 }
 )";
 
-        // For now, return an empty shader - Qt RHI requires pre-compiled shaders
-        // TODO: Implement proper shader compilation or use pre-compiled shaders
         return QShader();
     }
 
@@ -484,27 +473,27 @@ void main() {
         // We'll work directly with resource update batches
 
         // Get resource update batch for GPU data updates
-        QRhiResourceUpdateBatch* resourceUpdates = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *resourceUpdates = _rhi->nextResourceUpdateBatch();
         if (!resourceUpdates) {
             return;
         }
-
-        // Qt 6.10 Simplified Approach: For now, we'll disable complex GPU rendering
-        // and focus on getting the basic structure to compile
-        // TODO: Implement proper Qt 6.10 RHI rendering in a future update
-
-        // Note: In Qt 6.10, resource updates are handled differently
-        // Resource update batches are submitted during command buffer execution
-        // For now, we'll skip this to allow compilation
-
-        // For now, we'll skip the complex rendering and just update the texture
-        // This allows the code to compile while maintaining the structure
-
-        // Note: Complex GPU rendering temporarily disabled for Qt 6.10 compatibility
-        // The basic structure is preserved for future implementation
     }
 
-    void renderWithGPUShaders(QRhiCommandBuffer* cb) {
+    // Qt 6.10 Simplified Approach: For now, we'll disable complex GPU rendering
+    // and focus on getting the basic structure to compile
+    // TODO: Implement proper Qt 6.10 RHI rendering in a future update
+
+    // Note: In Qt 6.10, resource updates are handled differently
+    // Resource update batches are submitted during command buffer execution
+    // For now, we'll skip this to allow compilation
+
+    // For now, we'll skip the complex rendering and just update the texture
+    // This allows the code to compile while maintaining the structure
+
+    // Note: Complex GPU rendering temporarily disabled for Qt 6.10 compatibility
+    // The basic structure is preserved for future implementation
+
+    void renderWithGPUShaders(QRhiCommandBuffer *cb) {
         // TRUE HARDWARE ACCELERATION: Render everything using GPU shaders
 
         // Start performance timing
@@ -550,7 +539,7 @@ void main() {
         renderBordersGPU(cb);
     }
 
-    void renderFullMatrixContent(QPainter* painter) {
+    void renderFullMatrixContent(QPainter *painter) {
         // Complete rendering pipeline matching MatrixWidget exactly
         if (!_widget->_renderData || !_widget->_renderData->file) return;
 
@@ -560,7 +549,7 @@ void main() {
             return;
         }
 
-        TempoChangeEvent* ev = dynamic_cast<TempoChangeEvent*>(_widget->_renderData->tempoEvents->at(0));
+        TempoChangeEvent *ev = dynamic_cast<TempoChangeEvent *>(_widget->_renderData->tempoEvents->at(0));
         if (!ev) {
             painter->fillRect(0, 0, _widget->width(), _widget->height(), Appearance::errorColor());
             return;
@@ -589,9 +578,9 @@ void main() {
         painter->drawText(_widget->width() - 100, 15, QString("HW: %1").arg(_backendName));
     }
 
-    void renderBackground(QPainter* painter) {
+    void renderBackground(QPainter *painter) {
         // Render background exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Fill main background
         painter->fillRect(0, 0, _widget->width(), _widget->height(), Appearance::backgroundColor());
@@ -605,8 +594,7 @@ void main() {
             numLines -= (data->endLineY - 127);
         }
         if (numLines > 0) {
-            painter->fillRect(0, data->timeHeight, data->lineNameWidth - 10,
-                             numLines * data->lineHeight, Appearance::pianoWhiteKeyColor());
+            painter->fillRect(0, data->timeHeight, data->lineNameWidth - 10, numLines * data->lineHeight, Appearance::pianoWhiteKeyColor());
         }
 
         // Render line backgrounds with COMPLETE strip highlighting system like old MatrixWidget
@@ -620,7 +608,7 @@ void main() {
 
                 // Check for C3/C6 range lines if enabled (like old MatrixWidget)
                 if (Appearance::showRangeLines()) {
-                    if (i == 79 || i == 43) {  // C3 or C6 lines
+                    if (i == 79 || i == 43) { // C3 or C6 lines
                         isRangeLine = true;
                     }
                 }
@@ -634,11 +622,11 @@ void main() {
                         break;
                     case Appearance::onSharp:
                         // Highlight sharp/flat notes - exact logic from old MatrixWidget
-                        {
-                            const unsigned int sharp_strip_mask = 0b101010110101; // Sharp notes mask
-                            isHighlighted = !((1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask);
-                        }
-                        break;
+                    {
+                        const unsigned int sharp_strip_mask = 0b101010110101; // Sharp notes mask
+                        isHighlighted = !((1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask);
+                    }
+                    break;
                     case Appearance::onEven:
                         // Highlight even lines - exact logic from old MatrixWidget
                         isHighlighted = (static_cast<unsigned int>(i) % 2);
@@ -650,7 +638,7 @@ void main() {
 
                 // Apply colors exactly like old MatrixWidget
                 if (isRangeLine) {
-                    c = Appearance::rangeLineColor();  // Range line color (C3/C6)
+                    c = Appearance::rangeLineColor(); // Range line color (C3/C6)
                 } else if (isHighlighted) {
                     c = Appearance::stripHighlightColor();
                 } else {
@@ -666,14 +654,13 @@ void main() {
             }
 
             // Draw line background
-            painter->fillRect(data->lineNameWidth, startLine,
-                            _widget->width() - data->lineNameWidth, data->lineHeight, c);
+            painter->fillRect(data->lineNameWidth, startLine, _widget->width() - data->lineNameWidth, data->lineHeight, c);
         }
     }
 
-    void renderPianoKeys(QPainter* painter) {
+    void renderPianoKeys(QPainter *painter) {
         // Render piano keys and special line names exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         for (int line = data->startLineY; line <= data->endLineY; line++) {
             int y = data->timeHeight + (line - data->startLineY) * data->lineHeight;
@@ -735,14 +722,12 @@ void main() {
         }
     }
 
-    void renderPianoKey(QPainter* painter, int number, int x, int y, int width, int height) {
+    void renderPianoKey(QPainter *painter, int number, int x, int y, int width, int height) {
         // Render individual piano key exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Check if mouse is over this key for highlighting
-        bool inRect = (data->mouseOver &&
-                      data->mouseX >= x && data->mouseX <= x + width &&
-                      data->mouseY >= y && data->mouseY <= y + height);
+        bool inRect = (data->mouseOver && data->mouseX >= x && data->mouseX <= x + width && data->mouseY >= y && data->mouseY <= y + height);
 
         if (inRect) {
             // Highlight the current line
@@ -778,15 +763,15 @@ void main() {
 
     QString getNoteNameForMidiNumber(int midiNumber) {
         // Convert MIDI number to note name (C, C#, D, etc.)
-        static const char* noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+        static const char *noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
         int octave = (midiNumber / 12) - 1;
         int note = midiNumber % 12;
         return QString("%1%2").arg(noteNames[note]).arg(octave);
     }
 
-    void renderMidiEvents(QPainter* painter) {
+    void renderMidiEvents(QPainter *painter) {
         // Render MIDI events exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->file) return;
 
         // Process all visible channels
@@ -796,20 +781,19 @@ void main() {
         }
     }
 
-    void renderChannelEvents(QPainter* painter, int channel) {
+    void renderChannelEvents(QPainter *painter, int channel) {
         // Render events for a specific channel
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->file) return;
 
-        QMultiMap<int, MidiEvent*>* eventMap = data->file->channelEvents(channel);
-        QList<MidiEvent*> eventsList;
+        QMultiMap<int, MidiEvent *> *eventMap = data->file->channelEvents(channel);
+        QList<MidiEvent *> eventsList;
         if (eventMap) {
-            for (auto it = eventMap->lowerBound(data->startTick);
-                 it != eventMap->upperBound(data->endTick); ++it) {
+            for (auto it = eventMap->lowerBound(data->startTick); it != eventMap->upperBound(data->endTick); ++it) {
                 eventsList.append(it.value());
             }
         }
-        QList<MidiEvent*>* events = &eventsList;
+        QList<MidiEvent *> *events = &eventsList;
 
         if (!events) return;
 
@@ -817,7 +801,7 @@ void main() {
         QColor baseColor = *data->file->channel(channel)->color();
 
         // Render each event
-        for (MidiEvent* event : *events) {
+        for (MidiEvent *event: *events) {
             if (!_widget->eventInWidget(event)) continue;
             if (event->track()->hidden()) continue;
 
@@ -827,7 +811,7 @@ void main() {
                 eventColor = *event->track()->color();
             }
 
-            OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
             if (onEvent && onEvent->offEvent()) {
                 renderNoteEvent(painter, onEvent, eventColor);
             } else {
@@ -838,10 +822,10 @@ void main() {
         delete events;
     }
 
-    void renderNoteEvent(QPainter* painter, OnEvent* onEvent, const QColor& color) {
+    void renderNoteEvent(QPainter *painter, OnEvent *onEvent, const QColor &color) {
         // Render note event (on/off pair) exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
-        OffEvent* offEvent = onEvent->offEvent();
+        MatrixRenderData *data = _widget->_renderData;
+        OffEvent *offEvent = onEvent->offEvent();
         if (!offEvent) return;
 
         // Calculate note rectangle
@@ -860,7 +844,7 @@ void main() {
         QColor noteColor = color;
         if (data->colorsByChannels) {
             // Adjust color based on velocity
-            NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(onEvent);
+            NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(onEvent);
             if (noteOnEvent) {
                 int velocity = noteOnEvent->velocity();
                 int alpha = qBound(50, (velocity * 255) / 127, 255);
@@ -877,7 +861,7 @@ void main() {
 
         // Draw velocity bar if enabled (using default true for now)
         if (true) {
-            NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(onEvent);
+            NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(onEvent);
             if (noteOnEvent) {
                 int velocityHeight = (height * noteOnEvent->velocity()) / 127;
                 QColor velocityColor = noteColor.darker(150);
@@ -894,9 +878,9 @@ void main() {
         }
     }
 
-    void renderSingleEvent(QPainter* painter, MidiEvent* event, const QColor& color) {
+    void renderSingleEvent(QPainter *painter, MidiEvent *event, const QColor &color) {
         // Render single event (control change, program change, etc.)
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         int x = _widget->xPosOfMs(data->file->msOfTick(event->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
         int y = _widget->yPosOfLine(event->line());
@@ -905,19 +889,19 @@ void main() {
         // Draw event marker
         painter->setPen(color);
         painter->setBrush(color);
-        painter->drawEllipse(x - 2, y + height/2 - 2, 4, 4);
+        painter->drawEllipse(x - 2, y + height / 2 - 2, 4, 4);
 
         // Add event to objects list for tool interaction - like old MatrixWidget
         _widget->_renderData->objects->prepend(event);
     }
 
-    void renderGridLines(QPainter* painter) {
+    void renderGridLines(QPainter *painter) {
         // Render grid lines and divisions exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Draw measure and beat divisions
         painter->setPen(Appearance::measureLineColor());
-        for (const auto& div : data->divs) {
+        for (const auto &div: data->divs) {
             int x = div.first;
             if (x >= data->lineNameWidth && x < _widget->width()) {
                 painter->drawLine(x, data->timeHeight, x, _widget->height());
@@ -932,9 +916,9 @@ void main() {
         }
     }
 
-    void renderTimeline(QPainter* painter) {
+    void renderTimeline(QPainter *painter) {
         // Render timeline exactly like MatrixWidget with complex time calculation
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Paint measures and timeline background (like MatrixWidget)
         painter->fillRect(0, 0, _widget->width(), data->timeHeight, Appearance::systemWindowColor());
@@ -986,14 +970,14 @@ void main() {
         painter->setClipping(false);
     }
 
-    void renderMeasures(QPainter* painter) {
+    void renderMeasures(QPainter *painter) {
         // Render measures exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->timeSignatureEvents || data->timeSignatureEvents->isEmpty()) return;
 
         int measure = 1;
         int tick = 0;
-        TimeSignatureEvent* currentEvent = data->timeSignatureEvents->at(0);
+        TimeSignatureEvent *currentEvent = data->timeSignatureEvents->at(0);
         int i = 0;
 
         while (tick < data->endTick) {
@@ -1046,7 +1030,7 @@ void main() {
                 QPen dashPen = QPen(Appearance::timelineGridColor(), 1, Qt::DashLine);
                 painter->setPen(dashPen);
 
-                for (const QPair<int, int>& div : data->divs) {
+                for (const QPair<int, int> &div: data->divs) {
                     int xDiv = div.first;
                     int divTick = div.second;
 
@@ -1067,9 +1051,9 @@ void main() {
         return QString("%1:%2").arg(minutes).arg(seconds, 2, 10, QChar('0'));
     }
 
-    void renderTools(QPainter* painter) {
+    void renderTools(QPainter *painter) {
         // Render tool-specific overlays exactly like old MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Tool drawing with clipping (like old MatrixWidget)
         if (Tool::currentTool()) {
@@ -1080,15 +1064,13 @@ void main() {
         }
     }
 
-    void renderCursor(QPainter* painter) {
+    void renderCursor(QPainter *painter) {
         // Render all cursor types exactly like MatrixWidget
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->file) return;
 
         // 1. Mouse cursor in timeline area (like old MatrixWidget)
-        if (data->mouseOver &&
-            data->mouseX >= data->timeLineArea.x() && data->mouseX <= data->timeLineArea.x() + data->timeLineArea.width() &&
-            data->mouseY >= data->timeLineArea.y() && data->mouseY <= data->timeLineArea.y() + data->timeLineArea.height()) {
+        if (data->mouseOver && data->mouseX >= data->timeLineArea.x() && data->mouseX <= data->timeLineArea.x() + data->timeLineArea.width() && data->mouseY >= data->timeLineArea.y() && data->mouseY <= data->timeLineArea.y() + data->timeLineArea.height()) {
             painter->setPen(Appearance::playbackCursorColor());
             painter->drawLine(data->mouseX, 0, data->mouseX, _widget->height());
         }
@@ -1111,9 +1093,7 @@ void main() {
 
             // Draw cursor triangle at top (like old MatrixWidget)
             QPolygon triangle;
-            triangle << QPoint(x - 8, data->timeHeight / 2 + 2)
-                    << QPoint(x + 8, data->timeHeight / 2 + 2)
-                    << QPoint(x, data->timeHeight - 2);
+            triangle << QPoint(x - 8, data->timeHeight / 2 + 2) << QPoint(x + 8, data->timeHeight / 2 + 2) << QPoint(x, data->timeHeight - 2);
 
             if (Appearance::shouldUseDarkMode()) {
                 painter->setBrush(QBrush(Appearance::cursorTriangleColor(), Qt::SolidPattern));
@@ -1130,9 +1110,7 @@ void main() {
             int x = _widget->xPosOfMs(data->file->msOfTick(data->file->pauseTick(), data->tempoEvents, data->msOfFirstEventInList));
 
             QPolygon triangle;
-            triangle << QPoint(x - 8, data->timeHeight / 2 + 2)
-                    << QPoint(x + 8, data->timeHeight / 2 + 2)
-                    << QPoint(x, data->timeHeight - 2);
+            triangle << QPoint(x - 8, data->timeHeight / 2 + 2) << QPoint(x + 8, data->timeHeight / 2 + 2) << QPoint(x, data->timeHeight - 2);
 
             painter->setBrush(QBrush(Qt::red, Qt::SolidPattern));
             painter->drawPolygon(triangle);
@@ -1143,7 +1121,7 @@ void main() {
     }
 
     // TRUE Qt RHI GPU RENDERING IMPLEMENTATION
-    void renderBackgroundGPU(QRhiCommandBuffer* cb) {
+    void renderBackgroundGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU BACKGROUND RENDERING with gradient shader
         if (!_backgroundPipeline) return;
 
@@ -1156,7 +1134,7 @@ void main() {
         }
 
         // Bind background vertex buffer (full-screen quad)
-        QRhiCommandBuffer::VertexInput vertexBinding = { _backgroundVertexBuffer.get(), 0 };
+        QRhiCommandBuffer::VertexInput vertexBinding = {_backgroundVertexBuffer.get(), 0};
         cb->setVertexInput(0, 1, &vertexBinding);
 
         // Update uniform buffer with full structure including colors
@@ -1164,13 +1142,11 @@ void main() {
 
         // Render full-screen quad with gradient shader
         cb->draw(4); // 4 vertices for triangle strip quad
-
-
     }
 
-    void renderMidiEventsGPU(QRhiCommandBuffer* cb) {
+    void renderMidiEventsGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU INSTANCED RENDERING for maximum performance with caching
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data || !data->file || !_midiEventPipeline) return;
 
         // CRITICAL: Additional null pointer checks for nested data
@@ -1179,10 +1155,7 @@ void main() {
         }
 
         // Check if viewport has changed and invalidate cache if needed
-        if (_cachedGPUData.lastStartTick != data->startTick ||
-            _cachedGPUData.lastEndTick != data->endTick ||
-            _cachedGPUData.lastStartLine != data->startLineY ||
-            _cachedGPUData.lastEndLine != data->endLineY) {
+        if (_cachedGPUData.lastStartTick != data->startTick || _cachedGPUData.lastEndTick != data->endTick || _cachedGPUData.lastStartLine != data->startLineY || _cachedGPUData.lastEndLine != data->endLineY) {
             _cachedGPUData.isDirty = true;
             _cachedGPUData.lastStartTick = data->startTick;
             _cachedGPUData.lastEndTick = data->endTick;
@@ -1201,7 +1174,7 @@ void main() {
         // Use cached data if available and not dirty
         if (!_cachedGPUData.isDirty && !_cachedGPUData.midiEventInstances.isEmpty()) {
             // Reconstruct instances from cached data
-            const float* cachedData = _cachedGPUData.midiEventInstances.constData();
+            const float *cachedData = _cachedGPUData.midiEventInstances.constData();
             int numInstances = _cachedGPUData.midiEventInstances.size() / 8; // 8 floats per instance
             instances.reserve(numInstances);
 
@@ -1217,105 +1190,102 @@ void main() {
                 instance.a = cachedData[i * 8 + 7];
                 instances.append(instance);
             }
-
-
         } else {
             // Generate new GPU data
             instances.reserve(10000); // Pre-allocate for performance
 
-        // Process all visible channels and create GPU instances
-        for (int channel = 0; channel < 16; channel++) {
-            // CRITICAL: Null pointer checks for channel access
-            MidiChannel* channelObj = data->file->channel(channel);
-            if (!channelObj || !channelObj->visible()) continue;
+            // Process all visible channels and create GPU instances
+            for (int channel = 0; channel < 16; channel++) {
+                // CRITICAL: Null pointer checks for channel access
+                MidiChannel *channelObj = data->file->channel(channel);
+                if (!channelObj || !channelObj->visible()) continue;
 
-            QMultiMap<int, MidiEvent*>* eventMap = data->file->channelEvents(channel);
-            QList<MidiEvent*> eventsList;
-            if (eventMap) {
-                for (auto it = eventMap->lowerBound(data->startTick);
-                     it != eventMap->upperBound(data->endTick); ++it) {
-                    eventsList.append(it.value());
-                }
-            }
-            QList<MidiEvent*>* events = &eventsList;
-
-            if (!events) continue;
-
-            QColor baseColor = *data->file->channel(channel)->color();
-
-            for (MidiEvent* event : *events) {
-                if (!_widget->eventInWidget(event) || event->track()->hidden()) continue;
-
-                QColor eventColor = data->colorsByChannels ? baseColor : *event->track()->color();
-
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
-                if (onEvent && onEvent->offEvent()) {
-                    // Create GPU instance for note event
-                    int startX = _widget->xPosOfMs(data->file->msOfTick(onEvent->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
-                    int endX = _widget->xPosOfMs(data->file->msOfTick(onEvent->offEvent()->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
-                    int y = _widget->yPosOfLine(onEvent->line());
-                    int height = _widget->lineHeight();
-
-                    if (endX - startX < 2) endX = startX + 2;
-
-                    // Apply velocity-based alpha for visual feedback
-                    float velocityAlpha = eventColor.alphaF();
-                    NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(onEvent);
-                    if (noteOnEvent) {
-                        velocityAlpha = (noteOnEvent->velocity() / 127.0f) * eventColor.alphaF();
-                    }
-
-                    MidiEventInstance instance;
-                    instance.x = startX;
-                    instance.y = y;
-                    instance.width = endX - startX;
-                    instance.height = height;
-                    instance.r = eventColor.redF();
-                    instance.g = eventColor.greenF();
-                    instance.b = eventColor.blueF();
-                    instance.a = velocityAlpha;
-
-                    instances.append(instance);
-
-                    // Add to velocity objects for velocity editor (like old MatrixWidget)
-                    if (!_widget->_renderData->velocityObjects->contains(onEvent)) {
-                        onEvent->setX(startX);
-                        _widget->_renderData->velocityObjects->append(onEvent);
-                    }
-                } else {
-                    // Single event (control change, tempo, time signature, etc.)
-                    int x = _widget->xPosOfMs(data->file->msOfTick(event->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
-                    int y = _widget->yPosOfLine(event->line());
-                    int height = _widget->lineHeight();
-
-                    // Create GPU instance for single event (small rectangle/marker)
-                    MidiEventInstance instance;
-                    instance.x = x - 2;
-                    instance.y = y;
-                    instance.width = 4;  // Small marker width
-                    instance.height = height;
-                    instance.r = eventColor.redF();
-                    instance.g = eventColor.greenF();
-                    instance.b = eventColor.blueF();
-                    instance.a = eventColor.alphaF();
-
-                    instances.append(instance);
-
-                    // Add event to objects list for tool interaction
-                    _widget->_renderData->objects->prepend(event);
-
-                    // Add to velocity objects if not an off event (like old MatrixWidget)
-                    OffEvent* offEvent = dynamic_cast<OffEvent*>(event);
-                    if (!offEvent && event->midiTime() >= data->startTick && event->midiTime() <= data->endTick &&
-                        !_widget->_renderData->velocityObjects->contains(event)) {
-                        event->setX(x);
-                        _widget->_renderData->velocityObjects->append(event);
+                QMultiMap<int, MidiEvent *> *eventMap = data->file->channelEvents(channel);
+                QList<MidiEvent *> eventsList;
+                if (eventMap) {
+                    for (auto it = eventMap->lowerBound(data->startTick); it != eventMap->upperBound(data->endTick); ++
+                         it) {
+                        eventsList.append(it.value());
                     }
                 }
-            }
+                QList<MidiEvent *> *events = &eventsList;
 
-            delete events;
-        }
+                if (!events) continue;
+
+                QColor baseColor = *data->file->channel(channel)->color();
+
+                for (MidiEvent *event: *events) {
+                    if (!_widget->eventInWidget(event) || event->track()->hidden()) continue;
+
+                    QColor eventColor = data->colorsByChannels ? baseColor : *event->track()->color();
+
+                    OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
+                    if (onEvent && onEvent->offEvent()) {
+                        // Create GPU instance for note event
+                        int startX = _widget->xPosOfMs(data->file->msOfTick(onEvent->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
+                        int endX = _widget->xPosOfMs(data->file->msOfTick(onEvent->offEvent()->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
+                        int y = _widget->yPosOfLine(onEvent->line());
+                        int height = _widget->lineHeight();
+
+                        if (endX - startX < 2) endX = startX + 2;
+
+                        // Apply velocity-based alpha for visual feedback
+                        float velocityAlpha = eventColor.alphaF();
+                        NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(onEvent);
+                        if (noteOnEvent) {
+                            velocityAlpha = (noteOnEvent->velocity() / 127.0f) * eventColor.alphaF();
+                        }
+
+                        MidiEventInstance instance;
+                        instance.x = startX;
+                        instance.y = y;
+                        instance.width = endX - startX;
+                        instance.height = height;
+                        instance.r = eventColor.redF();
+                        instance.g = eventColor.greenF();
+                        instance.b = eventColor.blueF();
+                        instance.a = velocityAlpha;
+
+                        instances.append(instance);
+
+                        // Add to velocity objects for velocity editor (like old MatrixWidget)
+                        if (!_widget->_renderData->velocityObjects->contains(onEvent)) {
+                            onEvent->setX(startX);
+                            _widget->_renderData->velocityObjects->append(onEvent);
+                        }
+                    } else {
+                        // Single event (control change, tempo, time signature, etc.)
+                        int x = _widget->xPosOfMs(data->file->msOfTick(event->midiTime(), data->tempoEvents, data->msOfFirstEventInList));
+                        int y = _widget->yPosOfLine(event->line());
+                        int height = _widget->lineHeight();
+
+                        // Create GPU instance for single event (small rectangle/marker)
+                        MidiEventInstance instance;
+                        instance.x = x - 2;
+                        instance.y = y;
+                        instance.width = 4; // Small marker width
+                        instance.height = height;
+                        instance.r = eventColor.redF();
+                        instance.g = eventColor.greenF();
+                        instance.b = eventColor.blueF();
+                        instance.a = eventColor.alphaF();
+
+                        instances.append(instance);
+
+                        // Add event to objects list for tool interaction
+                        _widget->_renderData->objects->prepend(event);
+
+                        // Add to velocity objects if not an off event (like old MatrixWidget)
+                        OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
+                        if (!offEvent && event->midiTime() >= data->startTick && event->midiTime() <= data->endTick && !_widget->_renderData->velocityObjects->contains(event)) {
+                            event->setX(x);
+                            _widget->_renderData->velocityObjects->append(event);
+                        }
+                    }
+                }
+
+                delete events;
+            }
         } // End of else block for cache generation
 
         if (instances.isEmpty()) return;
@@ -1325,7 +1295,7 @@ void main() {
             _cachedGPUData.midiEventInstances.clear();
             _cachedGPUData.midiEventInstances.reserve(instances.size() * 8);
 
-            for (const MidiEventInstance& instance : instances) {
+            for (const MidiEventInstance &instance: instances) {
                 _cachedGPUData.midiEventInstances.append(instance.x);
                 _cachedGPUData.midiEventInstances.append(instance.y);
                 _cachedGPUData.midiEventInstances.append(instance.width);
@@ -1337,7 +1307,6 @@ void main() {
             }
 
             _cachedGPUData.isDirty = false;
-
         }
 
         // CRITICAL: Validate buffer size before upload to prevent GPU memory corruption
@@ -1347,10 +1316,9 @@ void main() {
         }
 
         // Upload instance data to GPU buffer
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_midiEventInstanceBuffer.get(), 0,
-                                  instances.size() * sizeof(MidiEventInstance),
-                                  instances.constData());
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_midiEventInstanceBuffer.get(), 0, instances.size() * sizeof(MidiEventInstance),
+                                   instances.constData());
 
         // Set up rendering pipeline
         cb->setGraphicsPipeline(_midiEventPipeline.get());
@@ -1362,8 +1330,7 @@ void main() {
 
         // Bind vertex buffers
         QRhiCommandBuffer::VertexInput vertexBindings[] = {
-            { _midiEventVertexBuffer.get(), 0 },
-            { _midiEventInstanceBuffer.get(), 0 }
+            {_midiEventVertexBuffer.get(), 0}, {_midiEventInstanceBuffer.get(), 0}
         };
         cb->setVertexInput(0, 2, vertexBindings);
 
@@ -1372,21 +1339,19 @@ void main() {
 
         // Render all instances in a single draw call (MASSIVE performance gain)
         cb->drawIndexed(6, instances.size()); // 6 vertices per quad, N instances
-
-
     }
 
-    void renderPianoKeysGPU(QRhiCommandBuffer* cb) {
+    void renderPianoKeysGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU piano key rendering with geometry generation
         if (!_pianoPipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data) return;
 
         // Prepare piano key data for GPU (optimized to 4 vertex attributes)
         struct PianoKeyData {
-            float x, y, width, height;  // Key geometry
-            float r, g, b, keyType;     // Key color (RGB) + keyType packed in alpha
+            float x, y, width, height; // Key geometry
+            float r, g, b, keyType; // Key color (RGB) + keyType packed in alpha
         };
 
         QVector<PianoKeyData> pianoKeys;
@@ -1405,9 +1370,7 @@ void main() {
                 bool isBlackKey = (note == 1 || note == 3 || note == 6 || note == 8 || note == 10);
 
                 // Check if mouse is over this key for highlighting
-                bool inRect = (data->mouseOver &&
-                              data->mouseX >= x && data->mouseX <= x + width &&
-                              data->mouseY >= y && data->mouseY <= y + height);
+                bool inRect = (data->mouseOver && data->mouseX >= x && data->mouseX <= x + width && data->mouseY >= y && data->mouseY <= y + height);
 
                 QColor keyColor;
                 if (isBlackKey) {
@@ -1435,7 +1398,7 @@ void main() {
         // Create piano key buffer if needed
         if (!_pianoKeyBuffer) {
             _pianoKeyBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
-                                                 sizeof(PianoKeyData) * 128)); // 128 keys max
+                                                  sizeof(PianoKeyData) * 128)); // 128 keys max
             if (!_pianoKeyBuffer->create()) {
                 return;
             }
@@ -1448,10 +1411,9 @@ void main() {
         }
 
         // Upload piano key data to GPU
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_pianoKeyBuffer.get(), 0,
-                                  pianoKeys.size() * sizeof(PianoKeyData),
-                                  pianoKeys.constData());
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_pianoKeyBuffer.get(), 0, pianoKeys.size() * sizeof(PianoKeyData),
+                                   pianoKeys.constData());
 
         // Set up piano key rendering pipeline
         cb->setGraphicsPipeline(_pianoPipeline.get());
@@ -1463,22 +1425,20 @@ void main() {
 
         // Bind vertex buffers for instanced rendering (like MIDI events)
         QRhiCommandBuffer::VertexInput vertexBindings[] = {
-            { _midiEventVertexBuffer.get(), 0 }, // Base quad vertices
-            { _pianoKeyBuffer.get(), 0 }         // Piano key instance data
+            {_midiEventVertexBuffer.get(), 0}, // Base quad vertices
+            {_pianoKeyBuffer.get(), 0} // Piano key instance data
         };
         cb->setVertexInput(0, 2, vertexBindings, _indexBuffer.get(), 0, QRhiCommandBuffer::IndexUInt16);
 
         // Render all piano keys with instanced rendering
         cb->drawIndexed(6, pianoKeys.size()); // 6 indices per quad, N instances
-
-
     }
 
-    void renderTimelineGPU(QRhiCommandBuffer* cb) {
+    void renderTimelineGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU timeline rendering with line primitives AND text rendering
         if (!_linePipeline || !_textPipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->file) return;
 
         // STEP 1: Render timeline background using background pipeline
@@ -1492,15 +1452,13 @@ void main() {
 
         // STEP 4: Render grid lines using line pipeline
         renderGridLinesGPU(cb);
-
-
     }
 
-    void renderTimelineBackgroundGPU(QRhiCommandBuffer* cb) {
+    void renderTimelineBackgroundGPU(QRhiCommandBuffer *cb) {
         // Render timeline background area using GPU quad
         if (!_backgroundPipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Create timeline background quad
         struct TimelineVertex {
@@ -1508,27 +1466,25 @@ void main() {
         };
 
         TimelineVertex timelineQuad[] = {
-            { (float)data->lineNameWidth, 0.0f, 0.0f, 0.0f },
-            { (float)_widget->width(), 0.0f, 1.0f, 0.0f },
-            { (float)data->lineNameWidth, (float)data->timeHeight, 0.0f, 1.0f },
-            { (float)_widget->width(), (float)data->timeHeight, 1.0f, 1.0f }
+            {(float) data->lineNameWidth, 0.0f, 0.0f, 0.0f}, {(float) _widget->width(), 0.0f, 1.0f, 0.0f},
+            {(float) data->lineNameWidth, (float) data->timeHeight, 0.0f, 1.0f},
+            {(float) _widget->width(), (float) data->timeHeight, 1.0f, 1.0f}
         };
 
         // Upload timeline quad to GPU
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_backgroundVertexBuffer.get(), 0,
-                                  sizeof(timelineQuad), timelineQuad);
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_backgroundVertexBuffer.get(), 0, sizeof(timelineQuad), timelineQuad);
 
         // Render timeline background
         cb->setGraphicsPipeline(_backgroundPipeline.get());
-        QRhiCommandBuffer::VertexInput vertexBinding = { _backgroundVertexBuffer.get(), 0 };
+        QRhiCommandBuffer::VertexInput vertexBinding = {_backgroundVertexBuffer.get(), 0};
         cb->setVertexInput(0, 1, &vertexBinding);
         cb->draw(4);
     }
 
-    void renderTimeMarkersGPU(QRhiCommandBuffer* cb) {
+    void renderTimeMarkersGPU(QRhiCommandBuffer *cb) {
         // Render time markers and labels using GPU text rendering
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
         // Calculate time intervals for labels (same logic as old MatrixWidget)
         int numbers = (_widget->width() - data->lineNameWidth) / 80;
@@ -1569,14 +1525,14 @@ void main() {
         }
     }
 
-    void renderMeasuresGPU(QRhiCommandBuffer* cb) {
+    void renderMeasuresGPU(QRhiCommandBuffer *cb) {
         // Render measures using GPU (converted from QPainter version)
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->timeSignatureEvents || data->timeSignatureEvents->isEmpty()) return;
 
         int measure = 1;
         int tick = 0;
-        TimeSignatureEvent* currentEvent = data->timeSignatureEvents->at(0);
+        TimeSignatureEvent *currentEvent = data->timeSignatureEvents->at(0);
         int i = 0;
 
         while (tick < data->endTick) {
@@ -1604,26 +1560,23 @@ void main() {
         }
     }
 
-    void renderGridLinesGPU(QRhiCommandBuffer* cb) {
+    void renderGridLinesGPU(QRhiCommandBuffer *cb) {
         // Render grid lines using GPU line rendering
         if (!_linePipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
 
-        // Use global LineVertex structure
-        QVector<LineVertex> lines;
+        QList<LineVertex> lines;
         lines.reserve(1000);
 
         // Add measure lines
-        for (const QPair<int, int>& div : data->divs) {
+        for (const QPair<int, int> &div: data->divs) {
             int x = div.first;
             if (x >= data->lineNameWidth && x < _widget->width()) {
                 QColor lineColor = Appearance::measureLineColor();
 
-                lines.append({ (float)x, (float)data->timeHeight,
-                              lineColor.redF(), lineColor.greenF(), lineColor.blueF(), lineColor.alphaF() });
-                lines.append({ (float)x, (float)_widget->height(),
-                              lineColor.redF(), lineColor.greenF(), lineColor.blueF(), lineColor.alphaF() });
+                lines.append({(float) x, (float) data->timeHeight, lineColor.redF(), lineColor.greenF(), lineColor.blueF(), lineColor.alphaF()});
+                lines.append({(float) x, (float) _widget->height(), lineColor.redF(), lineColor.greenF(), lineColor.blueF(),lineColor.alphaF() });
             }
         }
 
@@ -1632,41 +1585,34 @@ void main() {
         for (int line = data->startLineY; line <= data->endLineY; line++) {
             int y = data->timeHeight + (line - data->startLineY) * data->lineHeight;
 
-            lines.append({ (float)data->lineNameWidth, (float)y,
-                          gridColor.redF(), gridColor.greenF(), gridColor.blueF(), 0.3f });
-            lines.append({ (float)_widget->width(), (float)y,
-                          gridColor.redF(), gridColor.greenF(), gridColor.blueF(), 0.3f });
+            lines.append({(float) data->lineNameWidth, (float) y, gridColor.redF(), gridColor.greenF(), gridColor.blueF(), 0.3f});
+            lines.append({(float) _widget->width(), (float) y, gridColor.redF(), gridColor.greenF(), gridColor.blueF(), 0.3f});
         }
 
         // Upload line data with size validation
         if (!uploadLineData(lines, "grid lines")) return;
 
         cb->setGraphicsPipeline(_linePipeline.get());
-        QRhiCommandBuffer::VertexInput vertexBinding = { _lineVertexBuffer.get(), 0 };
+        QRhiCommandBuffer::VertexInput vertexBinding = {_lineVertexBuffer.get(), 0};
         cb->setVertexInput(0, 1, &vertexBinding);
         cb->draw(lines.size());
     }
 
-    void renderCursorsGPU(QRhiCommandBuffer* cb) {
+    void renderCursorsGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU cursor rendering with line primitives
         if (!_linePipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data->file) return;
 
         // Use global LineVertex structure
         QVector<LineVertex> cursorLines;
 
         // 1. Mouse cursor in timeline area
-        if (data->mouseOver &&
-            data->mouseX >= data->timeLineArea.x() && data->mouseX <= data->timeLineArea.x() + data->timeLineArea.width() &&
-            data->mouseY >= data->timeLineArea.y() && data->mouseY <= data->timeLineArea.y() + data->timeLineArea.height()) {
-
+        if (data->mouseOver && data->mouseX >= data->timeLineArea.x() && data->mouseX <= data->timeLineArea.x() + data->timeLineArea.width() && data->mouseY >= data->timeLineArea.y() && data->mouseY <= data->timeLineArea.y() + data->timeLineArea.height()) {
             QColor cursorColor = Appearance::playbackCursorColor();
-            cursorLines.append({ (float)data->mouseX, 0.0f,
-                               cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF() });
-            cursorLines.append({ (float)data->mouseX, (float)_widget->height(),
-                               cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF() });
+            cursorLines.append({(float) data->mouseX, 0.0f, cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF()});
+            cursorLines.append({(float) data->mouseX, (float) _widget->height(), cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF()});
         }
 
         // 2. Playback cursor during playback
@@ -1674,10 +1620,8 @@ void main() {
             int x = _widget->xPosOfMs(MidiPlayer::timeMs());
             if (x >= data->lineNameWidth) {
                 QColor cursorColor = Appearance::playbackCursorColor();
-                cursorLines.append({ (float)x, 0.0f,
-                                   cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF() });
-                cursorLines.append({ (float)x, (float)_widget->height(),
-                                   cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF() });
+                cursorLines.append({(float) x, 0.0f, cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF()});
+                cursorLines.append({(float) x, (float) _widget->height(), cursorColor.redF(), cursorColor.greenF(), cursorColor.blueF(), cursorColor.alphaF()});
             }
         }
 
@@ -1687,8 +1631,8 @@ void main() {
             int x = _widget->xPosOfMs(data->file->msOfTick(currentTick, data->tempoEvents, data->msOfFirstEventInList));
 
             // Dark gray cursor line
-            cursorLines.append({ (float)x, 0.0f, 0.4f, 0.4f, 0.4f, 1.0f });
-            cursorLines.append({ (float)x, (float)_widget->height(), 0.4f, 0.4f, 0.4f, 1.0f });
+            cursorLines.append({(float) x, 0.0f, 0.4f, 0.4f, 0.4f, 1.0f});
+            cursorLines.append({(float) x, (float) _widget->height(), 0.4f, 0.4f, 0.4f, 1.0f});
         }
 
         // 4. Pause cursor
@@ -1696,8 +1640,8 @@ void main() {
             int x = _widget->xPosOfMs(data->file->msOfTick(data->file->pauseTick(), data->tempoEvents, data->msOfFirstEventInList));
 
             // Red pause cursor line
-            cursorLines.append({ (float)x, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f });
-            cursorLines.append({ (float)x, (float)_widget->height(), 1.0f, 0.0f, 0.0f, 1.0f });
+            cursorLines.append({(float) x, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f});
+            cursorLines.append({(float) x, (float) _widget->height(), 1.0f, 0.0f, 0.0f, 1.0f});
         }
 
         // Upload cursor line data with size validation
@@ -1712,16 +1656,14 @@ void main() {
         }
 
         // Bind line vertex buffer
-        QRhiCommandBuffer::VertexInput vertexBinding = { _lineVertexBuffer.get(), 0 };
+        QRhiCommandBuffer::VertexInput vertexBinding = {_lineVertexBuffer.get(), 0};
         cb->setVertexInput(0, 1, &vertexBinding);
 
         // Render all cursor lines
         cb->draw(cursorLines.size());
-
-
     }
 
-    void renderHardwareStatusGPU(QRhiCommandBuffer* cb) {
+    void renderHardwareStatusGPU(QRhiCommandBuffer *cb) {
         // TRUE GPU text rendering using font atlas
         if (!_textPipeline || !_fontAtlasTexture) return;
 
@@ -1730,22 +1672,22 @@ void main() {
         renderTextGPU(cb, statusText, _widget->width() - 200, 15, Qt::yellow);
 
         // Render performance info
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (data && data->objects) {
             QString perfText = QString("%1 events").arg(data->objects->size());
             renderTextGPU(cb, perfText, _widget->width() - 200, 35, Qt::white);
         }
     }
 
-    void renderTextGPU(QRhiCommandBuffer* cb, const QString& text, int x, int y, const QColor& color) {
+    void renderTextGPU(QRhiCommandBuffer *cb, const QString &text, int x, int y, const QColor &color) {
         // TRUE GPU text rendering using font atlas and instanced rendering
         if (!_textPipeline || !_fontAtlasTexture || text.isEmpty()) return;
 
         // Prepare text instance data
         struct TextInstance {
-            float x, y, width, height;  // Position and size
-            float r, g, b, a;           // Color
-            float u1, v1, u2, v2;       // UV coordinates in font atlas
+            float x, y, width, height; // Position and size
+            float r, g, b, a; // Color
+            float u1, v1, u2, v2; // UV coordinates in font atlas
         };
 
         QVector<TextInstance> textInstances;
@@ -1754,7 +1696,7 @@ void main() {
         int currentX = x;
         const int fontSize = 12;
 
-        for (QChar ch : text) {
+        for (QChar ch: text) {
             if (!_fontAtlasMap.contains(ch)) continue;
 
             QRectF uvRect = _fontAtlasMap[ch];
@@ -1784,25 +1726,24 @@ void main() {
         // Create text instance buffer if needed
         if (!_textInstanceBuffer) {
             _textInstanceBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
-                                                     sizeof(TextInstance) * 1000)); // 1000 chars max
+                                                      sizeof(TextInstance) * 1000)); // 1000 chars max
             if (!_textInstanceBuffer->create()) {
                 return;
             }
         }
 
         // Upload text instance data to GPU
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_textInstanceBuffer.get(), 0,
-                                  textInstances.size() * sizeof(TextInstance),
-                                  textInstances.constData());
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_textInstanceBuffer.get(), 0, textInstances.size() * sizeof(TextInstance),
+                                   textInstances.constData());
 
         // Set up text rendering pipeline
         cb->setGraphicsPipeline(_textPipeline.get());
 
         // Bind vertex buffers (quad vertices + text instances)
         QRhiCommandBuffer::VertexInput vertexBindings[] = {
-            { _backgroundVertexBuffer.get(), 0 }, // Reuse quad vertices
-            { _textInstanceBuffer.get(), 0 }
+            {_backgroundVertexBuffer.get(), 0}, // Reuse quad vertices
+            {_textInstanceBuffer.get(), 0}
         };
         cb->setVertexInput(0, 2, vertexBindings, _indexBuffer.get(), 0, QRhiCommandBuffer::IndexUInt16);
 
@@ -1813,8 +1754,6 @@ void main() {
 
         // Render all text characters in single instanced draw call
         cb->drawIndexed(6, textInstances.size()); // 6 vertices per quad, N instances
-
-
     }
 
     void updateUniformBuffer() {
@@ -1895,13 +1834,12 @@ void main() {
         uniformData.recordingIndicatorColor[3] = recordingColor.alphaF();
 
         // Update the uniform buffer
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
         batch->updateDynamicBuffer(_uniformBuffer.get(), 0, sizeof(uniformData), &uniformData);
         _rhi->finish();
     }
 
-    bool uploadLineData(QVector<LineVertex>& lines, const QString& context) {
-        // CRITICAL: Validate line buffer size before upload
+    bool uploadLineData(QList<LineVertex> &lines, const QString &context) {
         const int maxLines = 1000; // Must match buffer creation size (4 floats per vertex, 2 vertices per line)
         const int maxVertices = maxLines * 2; // 2 vertices per line
 
@@ -1912,17 +1850,16 @@ void main() {
         if (lines.isEmpty()) return false;
 
         // Upload line data to GPU buffer
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_lineVertexBuffer.get(), 0,
-                                  lines.size() * sizeof(LineVertex), lines.constData());
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_lineVertexBuffer.get(), 0, lines.size() * sizeof(LineVertex), lines.constData());
         return true;
     }
 
-    void renderRecordingIndicatorGPU(QRhiCommandBuffer* cb) {
+    void renderRecordingIndicatorGPU(QRhiCommandBuffer *cb) {
         // Render MIDI recording indicator exactly like old MatrixWidget
         if (!MidiInput::recording()) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data) return;
 
         // Create recording indicator circle using MIDI event pipeline (reuse for circle)
@@ -1934,7 +1871,7 @@ void main() {
         QColor recordingColor = Appearance::recordingIndicatorColor();
 
         MidiEventInstance circle;
-        circle.x = _widget->width() - 20;  // Position like old MatrixWidget
+        circle.x = _widget->width() - 20; // Position like old MatrixWidget
         circle.y = data->timeHeight + 5;
         circle.width = 15;
         circle.height = 15;
@@ -1944,7 +1881,7 @@ void main() {
         circle.a = recordingColor.alphaF();
 
         // Upload circle data to GPU
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
         batch->updateDynamicBuffer(_midiEventInstanceBuffer.get(), 0, sizeof(circle), &circle);
 
         // Render recording indicator using MIDI event pipeline
@@ -1952,23 +1889,20 @@ void main() {
             cb->setGraphicsPipeline(_midiEventPipeline.get());
 
             QRhiCommandBuffer::VertexInput vertexBindings[] = {
-                { _midiEventVertexBuffer.get(), 0 },
-                { _midiEventInstanceBuffer.get(), 0 }
+                {_midiEventVertexBuffer.get(), 0}, {_midiEventInstanceBuffer.get(), 0}
             };
             cb->setVertexInput(0, 2, vertexBindings, _indexBuffer.get(), 0, QRhiCommandBuffer::IndexUInt16);
 
             // Render single circle instance
             cb->drawIndexed(6, 1); // 6 vertices per quad, 1 instance
-
-
         }
     }
 
-    void renderBordersGPU(QRhiCommandBuffer* cb) {
+    void renderBordersGPU(QRhiCommandBuffer *cb) {
         // Render widget borders exactly like old MatrixWidget
         if (!_linePipeline) return;
 
-        MatrixRenderData* data = _widget->_renderData;
+        MatrixRenderData *data = _widget->_renderData;
         if (!data) return;
 
         // Use global LineVertex structure
@@ -1977,27 +1911,21 @@ void main() {
         QVector<LineVertex> borderLines;
 
         // Bottom border line (like old MatrixWidget)
-        borderLines.append({ (float)data->lineNameWidth, (float)(_widget->height() - 1),
-                           borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF() });
-        borderLines.append({ (float)(_widget->width() - 1), (float)(_widget->height() - 1),
-                           borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF() });
+        borderLines.append({(float) data->lineNameWidth, (float) (_widget->height() - 1), borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF()});
+        borderLines.append({(float) (_widget->width() - 1), (float) (_widget->height() - 1), borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF()});
 
         // Right border line (like old MatrixWidget)
-        borderLines.append({ (float)(_widget->width() - 1), 2.0f,
-                           borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF() });
-        borderLines.append({ (float)(_widget->width() - 1), (float)(_widget->height() - 1),
-                           borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF() });
+        borderLines.append({(float) (_widget->width() - 1), 2.0f, borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF()});
+        borderLines.append({(float) (_widget->width() - 1), (float) (_widget->height() - 1), borderColor.redF(), borderColor.greenF(), borderColor.blueF(), borderColor.alphaF()});
 
         // Upload border lines with size validation
         if (!uploadLineData(borderLines, "border lines")) return;
 
         // Render border lines
         cb->setGraphicsPipeline(_linePipeline.get());
-        QRhiCommandBuffer::VertexInput vertexBinding = { _lineVertexBuffer.get(), 0 };
+        QRhiCommandBuffer::VertexInput vertexBinding = {_lineVertexBuffer.get(), 0};
         cb->setVertexInput(0, 1, &vertexBinding);
         cb->draw(borderLines.size());
-
-
     }
 
     // TRUE RHI GPU RESOURCE MANAGEMENT
@@ -2040,46 +1968,45 @@ void main() {
 
         // MIDI Event vertex buffer (for instanced rendering) - base quad vertices
         _midiEventVertexBuffer.reset(_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
-                                                    sizeof(float) * 4 * 4)); // 4 vertices, 4 floats each
+                                                     sizeof(float) * 4 * 4)); // 4 vertices, 4 floats each
         if (!_midiEventVertexBuffer->create()) {
             return false;
         }
 
         // Initialize MIDI event quad vertices (unit quad for instancing)
         float midiEventVertices[] = {
-            0.0f, 0.0f, 0.0f, 0.0f,  // bottom-left (position + texcoord)
-            1.0f, 0.0f, 1.0f, 0.0f,  // bottom-right
-            0.0f, 1.0f, 0.0f, 1.0f,  // top-left
-            1.0f, 1.0f, 1.0f, 1.0f   // top-right
+            0.0f, 0.0f, 0.0f, 0.0f, // bottom-left (position + texcoord)
+            1.0f, 0.0f, 1.0f, 0.0f, // bottom-right
+            0.0f, 1.0f, 0.0f, 1.0f, // top-left
+            1.0f, 1.0f, 1.0f, 1.0f // top-right
         };
 
         // MIDI Event instance buffer (position, size, color per event)
         _midiEventInstanceBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
-                                                      sizeof(float) * 8 * 10000)); // 8 floats per instance
+                                                       sizeof(float) * 8 * 10000)); // 8 floats per instance
         if (!_midiEventInstanceBuffer->create()) {
             return false;
         }
 
         // Line vertex buffer (for grid lines, cursors, etc.)
-        _lineVertexBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer,
-                                               sizeof(float) * 4 * 1000)); // 1k lines max
+        _lineVertexBuffer.reset(_rhi->newBuffer(QRhiBuffer::Dynamic, QRhiBuffer::VertexBuffer, sizeof(float) * 4 * 1000)); // 1k lines max
         if (!_lineVertexBuffer->create()) {
             return false;
         }
 
         // Background quad vertex buffer
         _backgroundVertexBuffer.reset(_rhi->newBuffer(QRhiBuffer::Immutable, QRhiBuffer::VertexBuffer,
-                                                     sizeof(float) * 4 * 4)); // 4 vertices, 4 floats each
+                                                      sizeof(float) * 4 * 4)); // 4 vertices, 4 floats each
         if (!_backgroundVertexBuffer->create()) {
             return false;
         }
 
         // Initialize background quad (full screen)
         float backgroundVertices[] = {
-            -1.0f, -1.0f, 0.0f, 1.0f,  // bottom-left
-             1.0f, -1.0f, 1.0f, 1.0f,  // bottom-right
-            -1.0f,  1.0f, 0.0f, 0.0f,  // top-left
-             1.0f,  1.0f, 1.0f, 0.0f   // top-right
+            -1.0f, -1.0f, 0.0f, 1.0f, // bottom-left
+            1.0f, -1.0f, 1.0f, 1.0f, // bottom-right
+            -1.0f, 1.0f, 0.0f, 0.0f, // top-left
+            1.0f, 1.0f, 1.0f, 0.0f // top-right
         };
 
         // CRITICAL: Create index buffer for quad rendering
@@ -2090,8 +2017,8 @@ void main() {
 
         // Initialize index buffer for quad (2 triangles)
         quint16 indices[] = {
-            0, 1, 2,  // First triangle
-            2, 1, 3   // Second triangle
+            0, 1, 2, // First triangle
+            2, 1, 3 // Second triangle
         };
 
         // CRITICAL: Create uniform buffer for shader parameters with dynamic colors
@@ -2173,7 +2100,7 @@ void main() {
         uniformData.recordingIndicatorColor[2] = recordingColor.blueF();
         uniformData.recordingIndicatorColor[3] = recordingColor.alphaF();
 
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
         batch->uploadStaticBuffer(_backgroundVertexBuffer.get(), backgroundVertices);
         batch->uploadStaticBuffer(_midiEventVertexBuffer.get(), midiEventVertices);
         batch->uploadStaticBuffer(_indexBuffer.get(), indices);
@@ -2239,38 +2166,32 @@ void main() {
         return true;
     }
 
-    QRhiGraphicsPipeline* createMidiEventPipeline() {
+    QRhiGraphicsPipeline *createMidiEventPipeline() {
         // Create pipeline for rendering MIDI events as instanced rectangles
-        QRhiGraphicsPipeline* pipeline = _rhi->newGraphicsPipeline();
+        QRhiGraphicsPipeline *pipeline = _rhi->newGraphicsPipeline();
 
         // Vertex shader for MIDI events (instanced rendering)
         QShader vs = QShader::fromSerialized(QByteArray::fromBase64(
             // This would be a compiled SPIR-V shader for instanced rectangle rendering
             // For now, using a placeholder - real implementation needs proper shaders
-            "placeholder_vertex_shader_data"
-        ));
+            "placeholder_vertex_shader_data"));
 
         // Fragment shader for MIDI events
-        QShader fs = QShader::fromSerialized(QByteArray::fromBase64(
-            "placeholder_fragment_shader_data"
-        ));
+        QShader fs = QShader::fromSerialized(QByteArray::fromBase64("placeholder_fragment_shader_data"));
 
-        pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
+        pipeline->setShaderStages({{QRhiShaderStage::Vertex, vs}, {QRhiShaderStage::Fragment, fs}});
 
         // Vertex input layout for instanced rendering
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({
-            { 4 * sizeof(float) }, // Per-vertex data (position)
-            { 8 * sizeof(float), QRhiVertexInputBinding::PerInstance } // Per-instance data
+            {4 * sizeof(float)}, // Per-vertex data (position)
+            {8 * sizeof(float), QRhiVertexInputBinding::PerInstance} // Per-instance data
         });
         inputLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float2, 0 }, // vertex position
-            { 0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float) }, // vertex texcoord
-            { 1, 2, QRhiVertexInputAttribute::Float4, 0 }, // instance position/size
-            { 1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float) } // instance color
+            {0, 0, QRhiVertexInputAttribute::Float2, 0}, // vertex position
+            {0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float)}, // vertex texcoord
+            {1, 2, QRhiVertexInputAttribute::Float4, 0}, // instance position/size
+            {1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float)} // instance color
         });
 
         pipeline->setVertexInputLayout(inputLayout);
@@ -2282,8 +2203,8 @@ void main() {
         }
 
         // Create and set render pass descriptor
-        QRhiTextureRenderTarget* rt = _rhi->newTextureRenderTarget({ _renderTexture.get() });
-        QRhiRenderPassDescriptor* rp = rt->newCompatibleRenderPassDescriptor();
+        QRhiTextureRenderTarget *rt = _rhi->newTextureRenderTarget({_renderTexture.get()});
+        QRhiRenderPassDescriptor *rp = rt->newCompatibleRenderPassDescriptor();
         rt->setRenderPassDescriptor(rp);
         rt->create();
         pipeline->setRenderPassDescriptor(rp);
@@ -2296,27 +2217,24 @@ void main() {
         return pipeline;
     }
 
-    QRhiGraphicsPipeline* createLinePipeline() {
+    QRhiGraphicsPipeline *createLinePipeline() {
         // Create pipeline for rendering lines (grid, cursors, etc.)
-        QRhiGraphicsPipeline* pipeline = _rhi->newGraphicsPipeline();
+        QRhiGraphicsPipeline *pipeline = _rhi->newGraphicsPipeline();
 
         // Load line shaders (placeholder for now)
         QShader vs = loadShader(":/shaders/line.vert.qsb");
         QShader fs = loadShader(":/shaders/line.frag.qsb");
 
-        pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
+        pipeline->setShaderStages({{QRhiShaderStage::Vertex, vs}, {QRhiShaderStage::Fragment, fs}});
 
         // Vertex input layout for lines
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({
-            { 6 * sizeof(float) } // position (2) + color (4)
+            {6 * sizeof(float)} // position (2) + color (4)
         });
         inputLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float2, 0 }, // position
-            { 0, 1, QRhiVertexInputAttribute::Float4, 2 * sizeof(float) } // color
+            {0, 0, QRhiVertexInputAttribute::Float2, 0}, // position
+            {0, 1, QRhiVertexInputAttribute::Float4, 2 * sizeof(float)} // color
         });
 
         pipeline->setVertexInputLayout(inputLayout);
@@ -2327,7 +2245,7 @@ void main() {
         blend.enable = true;
         blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
         blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        pipeline->setTargetBlends({ blend });
+        pipeline->setTargetBlends({blend});
 
         // CRITICAL: Set shader resource bindings for uniform buffer access
         if (_shaderBindings) {
@@ -2335,8 +2253,8 @@ void main() {
         }
 
         // Create render pass descriptor
-        QRhiTextureRenderTarget* rt = _rhi->newTextureRenderTarget({ _renderTexture.get() });
-        QRhiRenderPassDescriptor* rp = rt->newCompatibleRenderPassDescriptor();
+        QRhiTextureRenderTarget *rt = _rhi->newTextureRenderTarget({_renderTexture.get()});
+        QRhiRenderPassDescriptor *rp = rt->newCompatibleRenderPassDescriptor();
         rt->setRenderPassDescriptor(rp);
         rt->create();
         pipeline->setRenderPassDescriptor(rp);
@@ -2349,27 +2267,24 @@ void main() {
         return pipeline;
     }
 
-    QRhiGraphicsPipeline* createBackgroundPipeline() {
+    QRhiGraphicsPipeline *createBackgroundPipeline() {
         // Create pipeline for background rendering
-        QRhiGraphicsPipeline* pipeline = _rhi->newGraphicsPipeline();
+        QRhiGraphicsPipeline *pipeline = _rhi->newGraphicsPipeline();
 
         // Load background shaders (placeholder for now)
         QShader vs = loadShader(":/shaders/background.vert.qsb");
         QShader fs = loadShader(":/shaders/background.frag.qsb");
 
-        pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
+        pipeline->setShaderStages({{QRhiShaderStage::Vertex, vs}, {QRhiShaderStage::Fragment, fs}});
 
         // Vertex input layout for full-screen quad
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({
-            { 4 * sizeof(float) } // position (2) + texcoord (2)
+            {4 * sizeof(float)} // position (2) + texcoord (2)
         });
         inputLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float2, 0 }, // position
-            { 0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float) } // texcoord
+            {0, 0, QRhiVertexInputAttribute::Float2, 0}, // position
+            {0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float)} // texcoord
         });
 
         pipeline->setVertexInputLayout(inputLayout);
@@ -2381,8 +2296,8 @@ void main() {
         }
 
         // Create render pass descriptor
-        QRhiTextureRenderTarget* rt = _rhi->newTextureRenderTarget({ _renderTexture.get() });
-        QRhiRenderPassDescriptor* rp = rt->newCompatibleRenderPassDescriptor();
+        QRhiTextureRenderTarget *rt = _rhi->newTextureRenderTarget({_renderTexture.get()});
+        QRhiRenderPassDescriptor *rp = rt->newCompatibleRenderPassDescriptor();
         rt->setRenderPassDescriptor(rp);
         rt->create();
         pipeline->setRenderPassDescriptor(rp);
@@ -2395,31 +2310,28 @@ void main() {
         return pipeline;
     }
 
-    QRhiGraphicsPipeline* createTextPipeline() {
+    QRhiGraphicsPipeline *createTextPipeline() {
         // Create pipeline for GPU text rendering with font atlas
-        QRhiGraphicsPipeline* pipeline = _rhi->newGraphicsPipeline();
+        QRhiGraphicsPipeline *pipeline = _rhi->newGraphicsPipeline();
 
         // Load text shaders (placeholder for now)
         QShader vs = loadShader(":/shaders/text.vert.qsb");
         QShader fs = loadShader(":/shaders/text.frag.qsb");
 
-        pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
+        pipeline->setShaderStages({{QRhiShaderStage::Vertex, vs}, {QRhiShaderStage::Fragment, fs}});
 
         // Vertex input layout for instanced text rendering
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({
-            { 4 * sizeof(float) }, // Per-vertex data (position + texcoord)
-            { 12 * sizeof(float), QRhiVertexInputBinding::PerInstance } // Per-instance data
+            {4 * sizeof(float)}, // Per-vertex data (position + texcoord)
+            {12 * sizeof(float), QRhiVertexInputBinding::PerInstance} // Per-instance data
         });
         inputLayout.setAttributes({
-            { 0, 0, QRhiVertexInputAttribute::Float2, 0 }, // vertex position
-            { 0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float) }, // vertex texcoord
-            { 1, 2, QRhiVertexInputAttribute::Float4, 0 }, // instance position/size
-            { 1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float) }, // instance color
-            { 1, 4, QRhiVertexInputAttribute::Float4, 8 * sizeof(float) } // instance UV
+            {0, 0, QRhiVertexInputAttribute::Float2, 0}, // vertex position
+            {0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float)}, // vertex texcoord
+            {1, 2, QRhiVertexInputAttribute::Float4, 0}, // instance position/size
+            {1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float)}, // instance color
+            {1, 4, QRhiVertexInputAttribute::Float4, 8 * sizeof(float)} // instance UV
         });
 
         pipeline->setVertexInputLayout(inputLayout);
@@ -2432,12 +2344,12 @@ void main() {
         blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
         blend.srcAlpha = QRhiGraphicsPipeline::One;
         blend.dstAlpha = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        pipeline->setTargetBlends({ blend });
+        pipeline->setTargetBlends({blend});
 
         // Create shader resource bindings for font atlas
         if (!_sampler) {
             _sampler.reset(_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
-                                           QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
+                                            QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
             if (!_sampler->create()) {
                 delete pipeline;
                 return nullptr;
@@ -2457,8 +2369,8 @@ void main() {
         pipeline->setShaderResourceBindings(_textShaderBindings.get());
 
         // Create render pass descriptor
-        QRhiTextureRenderTarget* rt = _rhi->newTextureRenderTarget({ _renderTexture.get() });
-        QRhiRenderPassDescriptor* rp = rt->newCompatibleRenderPassDescriptor();
+        QRhiTextureRenderTarget *rt = _rhi->newTextureRenderTarget({_renderTexture.get()});
+        QRhiRenderPassDescriptor *rp = rt->newCompatibleRenderPassDescriptor();
         rt->setRenderPassDescriptor(rp);
         rt->create();
         pipeline->setRenderPassDescriptor(rp);
@@ -2471,32 +2383,29 @@ void main() {
         return pipeline;
     }
 
-    QRhiGraphicsPipeline* createPianoPipeline() {
+    QRhiGraphicsPipeline *createPianoPipeline() {
         // Create pipeline for GPU piano key rendering with geometry generation
-        QRhiGraphicsPipeline* pipeline = _rhi->newGraphicsPipeline();
+        QRhiGraphicsPipeline *pipeline = _rhi->newGraphicsPipeline();
 
         // Load piano shaders (placeholder for now)
         QShader vs = loadShader(":/shaders/piano.vert.qsb");
         QShader fs = loadShader(":/shaders/piano.frag.qsb");
 
-        pipeline->setShaderStages({
-            { QRhiShaderStage::Vertex, vs },
-            { QRhiShaderStage::Fragment, fs }
-        });
+        pipeline->setShaderStages({{QRhiShaderStage::Vertex, vs}, {QRhiShaderStage::Fragment, fs}});
 
         // Vertex input layout for instanced piano key rendering (optimized to 4 attributes)
         QRhiVertexInputLayout inputLayout;
         inputLayout.setBindings({
-            { 4 * sizeof(float), QRhiVertexInputBinding::PerVertex },   // Base quad vertices
-            { 8 * sizeof(float), QRhiVertexInputBinding::PerInstance }  // Piano key instance data (optimized)
+            {4 * sizeof(float), QRhiVertexInputBinding::PerVertex}, // Base quad vertices
+            {8 * sizeof(float), QRhiVertexInputBinding::PerInstance} // Piano key instance data (optimized)
         });
         inputLayout.setAttributes({
             // Base quad vertices (binding 0)
-            { 0, 0, QRhiVertexInputAttribute::Float2, 0 },                    // position
-            { 0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float) },    // texCoord
+            {0, 0, QRhiVertexInputAttribute::Float2, 0}, // position
+            {0, 1, QRhiVertexInputAttribute::Float2, 2 * sizeof(float)}, // texCoord
             // Piano key instance data (binding 1) - keyType packed in color alpha
-            { 1, 2, QRhiVertexInputAttribute::Float4, 0 },                    // keyData (x,y,w,h)
-            { 1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float) }     // keyColor (r,g,b,keyType)
+            {1, 2, QRhiVertexInputAttribute::Float4, 0}, // keyData (x,y,w,h)
+            {1, 3, QRhiVertexInputAttribute::Float4, 4 * sizeof(float)} // keyColor (r,g,b,keyType)
         });
 
         pipeline->setVertexInputLayout(inputLayout);
@@ -2507,7 +2416,7 @@ void main() {
         blend.enable = true;
         blend.srcColor = QRhiGraphicsPipeline::SrcAlpha;
         blend.dstColor = QRhiGraphicsPipeline::OneMinusSrcAlpha;
-        pipeline->setTargetBlends({ blend });
+        pipeline->setTargetBlends({blend});
 
         // CRITICAL: Set shader resource bindings for uniform buffer access
         if (_shaderBindings) {
@@ -2515,8 +2424,8 @@ void main() {
         }
 
         // Create render pass descriptor
-        QRhiTextureRenderTarget* rt = _rhi->newTextureRenderTarget({ _renderTexture.get() });
-        QRhiRenderPassDescriptor* rp = rt->newCompatibleRenderPassDescriptor();
+        QRhiTextureRenderTarget *rt = _rhi->newTextureRenderTarget({_renderTexture.get()});
+        QRhiRenderPassDescriptor *rp = rt->newCompatibleRenderPassDescriptor();
         rt->setRenderPassDescriptor(rp);
         rt->create();
         pipeline->setRenderPassDescriptor(rp);
@@ -2529,13 +2438,11 @@ void main() {
         return pipeline;
     }
 
-    QShader loadShader(const QString& filename) {
+    QShader loadShader(const QString &filename) {
         // SHADER LOADING PRIORITY:
         // 1. PRIMARY: Pre-compiled shaders from main Qt resources (GitHub Actions)
         // 2. FALLBACK: Locally compiled shaders from build directory
         // 3. EMERGENCY: Basic shader fallback (disables GPU rendering)
-
-        qDebug() << "Loading shader:" << filename;
 
         // 1. Try to load from main Qt resources (primary path)
         QFile resourceFile(filename);
@@ -2543,10 +2450,7 @@ void main() {
             QByteArray data = resourceFile.readAll();
             QShader shader = QShader::fromSerialized(data);
             if (shader.isValid()) {
-                qDebug() << "✓ Loaded pre-compiled shader from resources:" << filename;
                 return shader;
-            } else {
-                qWarning() << "✗ Invalid shader data in resources:" << filename;
             }
         }
 
@@ -2558,55 +2462,29 @@ void main() {
             QByteArray data = localFile.readAll();
             QShader shader = QShader::fromSerialized(data);
             if (shader.isValid()) {
-                qDebug() << "✓ Loaded locally compiled shader:" << localPath;
                 return shader;
-            } else {
-                qWarning() << "✗ Invalid locally compiled shader:" << localPath;
             }
         }
 
         // 3. Emergency fallback (disables GPU rendering for this pipeline)
-        qWarning() << "✗ Failed to load any compiled shader, using emergency fallback for:" << filename;
-        qWarning() << "  Hardware acceleration will be disabled for this shader pipeline";
-        qWarning() << "  Run GitHub Actions workflow or compile shaders locally";
-
         if (filename.contains("vert")) {
             return createBasicVertexShader();
         } else if (filename.contains("frag")) {
             return createBasicFragmentShader();
         }
 
-        qWarning() << "Unknown shader type for:" << filename;
         return QShader();
     }
 
     QShader createBasicVertexShader() {
-        // Create a basic vertex shader that works with our vertex layout
-        // This is a temporary solution until proper shader compilation is implemented
-
-        // For now, return an empty shader - this will cause pipeline creation to fail
-        // but won't crash the application
-        qWarning() << "Basic vertex shader creation not implemented - GPU rendering will be disabled";
         return QShader();
     }
 
     QShader createBasicFragmentShader() {
-        // Create a basic fragment shader
-        // This is a temporary solution until proper shader compilation is implemented
-
-        qWarning() << "Basic fragment shader creation not implemented - GPU rendering will be disabled";
         return QShader();
     }
 
     bool compileShaders() {
-        // Compile all shaders needed for rendering
-        // In a real implementation, this would compile GLSL to SPIR-V
-        // and create .qsb files for Qt RHI
-
-        qDebug() << "Compiling shaders for hardware acceleration...";
-
-        // For now, return true as placeholder
-        // Real implementation needs qsb tool integration
         return true;
     }
 
@@ -2618,7 +2496,6 @@ void main() {
         // Create font atlas texture
         _fontAtlasTexture.reset(_rhi->newTexture(QRhiTexture::RGBA8, QSize(atlasSize, atlasSize)));
         if (!_fontAtlasTexture->create()) {
-            qWarning() << "Failed to create font atlas texture";
             return false;
         }
 
@@ -2638,7 +2515,7 @@ void main() {
 
         // Pack common characters into atlas
         QString chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-                       "!@#$%^&*()_+-=[]{}|;':\",./<>? \n\t";
+                "!@#$%^&*()_+-=[]{}|;':\",./<>? \n\t";
 
         int x = 0, y = 0;
         int lineHeight = fm.height();
@@ -2646,7 +2523,7 @@ void main() {
 
         _fontAtlasMap.clear();
 
-        for (QChar ch : chars) {
+        for (QChar ch: chars) {
             QRect charRect = fm.boundingRect(ch);
             int charWidth = fm.horizontalAdvance(ch);
 
@@ -2655,7 +2532,6 @@ void main() {
                 x = 0;
                 y += lineHeight;
                 if (y + lineHeight > atlasSize) {
-                    qWarning() << "Font atlas too small for all characters";
                     break;
                 }
             }
@@ -2664,12 +2540,7 @@ void main() {
             atlasPainter.drawText(x, y + fm.ascent(), ch);
 
             // Store character UV coordinates
-            QRectF uvRect(
-                (float)x / atlasSize,
-                (float)y / atlasSize,
-                (float)charWidth / atlasSize,
-                (float)lineHeight / atlasSize
-            );
+            QRectF uvRect((float) x / atlasSize, (float) y / atlasSize, (float) charWidth / atlasSize, (float) lineHeight / atlasSize);
             _fontAtlasMap[ch] = uvRect;
 
             x += charWidth + 1; // Add 1 pixel padding
@@ -2679,21 +2550,18 @@ void main() {
         atlasPainter.end();
 
         // Upload atlas to GPU
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
         batch->uploadTexture(_fontAtlasTexture.get(), atlasImage);
         _rhi->finish();
-
-        qDebug() << "Font atlas created:" << _fontAtlasMap.size() << "characters,"
-                 << "size:" << maxWidth << "x" << (y + lineHeight);
 
         return true;
     }
 
-    void copyRenderTextureToWidget(AcceleratedMatrixWidget* widget) {
+    void copyRenderTextureToWidget(AcceleratedMatrixWidget *widget) {
         if (!_renderTexture || !widget) return;
 
         // Read back from GPU texture and display on widget
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
         QRhiReadbackDescription readback(_renderTexture.get());
         QRhiReadbackResult result;
 
@@ -2702,10 +2570,7 @@ void main() {
 
         // Convert to QPixmap and display
         if (!result.data.isEmpty()) {
-            QImage image(reinterpret_cast<const uchar*>(result.data.constData()),
-                        _renderTexture->pixelSize().width(),
-                        _renderTexture->pixelSize().height(),
-                        QImage::Format_RGBA8888);
+            QImage image(reinterpret_cast<const uchar *>(result.data.constData()), _renderTexture->pixelSize().width(), _renderTexture->pixelSize().height(), QImage::Format_RGBA8888);
 
             QPainter widgetPainter(widget);
             widgetPainter.drawImage(widget->rect(), image);
@@ -2719,7 +2584,7 @@ void main() {
         QVector<float> vertexData;
         vertexData.reserve(_eventVertices.size() * 8); // 8 floats per vertex
 
-        for (const auto& vertex : _eventVertices) {
+        for (const auto &vertex: _eventVertices) {
             vertexData.append(vertex.x);
             vertexData.append(vertex.y);
             vertexData.append(vertex.width);
@@ -2731,10 +2596,8 @@ void main() {
         }
 
         // Upload to GPU buffer
-        QRhiResourceUpdateBatch* batch = _rhi->nextResourceUpdateBatch();
-        batch->updateDynamicBuffer(_vertexBuffer.get(), 0,
-                                 vertexData.size() * sizeof(float),
-                                 vertexData.constData());
+        QRhiResourceUpdateBatch *batch = _rhi->nextResourceUpdateBatch();
+        batch->updateDynamicBuffer(_vertexBuffer.get(), 0, vertexData.size() * sizeof(float), vertexData.constData());
         // Note: Resource updates are submitted during frame rendering
     }
 
@@ -2743,6 +2606,8 @@ void main() {
         // Hierarchy: D3D12 → D3D11 → Vulkan → OpenGL → Software fallback
 
 #ifdef Q_OS_WIN
+#include <QtGui/private/qrhid3d12_p.h>
+#include <QtGui/private/qrhid3d11_p.h>
         // Windows: D3D12 → D3D11 → Vulkan → OpenGL
         if (tryD3D12()) return true;
         if (tryD3D11()) return true;
@@ -2775,23 +2640,13 @@ void main() {
 
         // Check if instanced rendering is supported (required for MIDI events and piano keys)
         if (!_rhi->isFeatureSupported(QRhi::Instancing)) {
-            qWarning() << "Backend" << _backendName << "doesn't support instanced rendering";
             hasRequiredFeatures = false;
         }
 
-        // Note: DynamicUniformBuffer feature check removed in Qt 6.10
-        // Dynamic uniform buffers are assumed to be supported in modern backends
-
         // Check texture support for font atlas
         if (!_rhi->isFeatureSupported(QRhi::NPOTTextureRepeat)) {
-            qWarning() << "Backend" << _backendName << "has limited texture support";
-            // This is not critical, just log it
+            // This is not critical, just continue
         }
-
-        // Note: resourceLimits() removed in Qt 6.10
-        // Resource limits are now handled internally by Qt RHI
-
-        // Resource limit checks removed in Qt 6.10 - limits are handled internally
 
         if (!hasRequiredFeatures) {
             return false;
@@ -2803,7 +2658,7 @@ void main() {
     bool tryD3D12() {
         QRhiD3D12InitParams params;
         params.enableDebugLayer = false;
-        
+
         _rhi.reset(QRhi::create(QRhi::D3D12, &params));
         if (_rhi) {
             _backendName = "D3D12";
@@ -2815,7 +2670,7 @@ void main() {
     bool tryD3D11() {
         QRhiD3D11InitParams params;
         params.enableDebugLayer = false;
-        
+
         _rhi.reset(QRhi::create(QRhi::D3D11, &params));
         if (_rhi) {
             _backendName = "D3D11";
@@ -2829,7 +2684,7 @@ void main() {
     bool tryVulkan() {
         // Create Vulkan instance
         _vulkanInstance = new QVulkanInstance();
-        _vulkanInstance->setLayers({ "VK_LAYER_KHRONOS_validation" });
+        _vulkanInstance->setLayers({"VK_LAYER_KHRONOS_validation"});
         if (!_vulkanInstance->create()) {
             delete _vulkanInstance;
             _vulkanInstance = nullptr;
@@ -2838,13 +2693,13 @@ void main() {
 
         QRhiVulkanInitParams params;
         params.inst = _vulkanInstance;
-        
+
         _rhi.reset(QRhi::create(QRhi::Vulkan, &params));
         if (_rhi) {
             _backendName = "Vulkan";
             return true;
         }
-        
+
         delete _vulkanInstance;
         _vulkanInstance = nullptr;
         return false;
@@ -2864,13 +2719,13 @@ void main() {
         QRhiGles2InitParams params;
         // Note: Qt 6.10 QRhiGles2InitParams doesn't have surface member
         // The surface is managed internally by Qt RHI
-        
+
         _rhi.reset(QRhi::create(QRhi::OpenGLES2, &params));
         if (_rhi) {
             _backendName = "OpenGL";
             return true;
         }
-        
+
         delete _offscreenSurface;
         _offscreenSurface = nullptr;
         return false;
@@ -2882,34 +2737,44 @@ void main() {
 class AcceleratedMatrixWidget::PlatformImpl {
 private:
     bool _initialized;
-    AcceleratedMatrixWidget* _widget;
+    AcceleratedMatrixWidget *_widget;
 
 public:
-    PlatformImpl() : _initialized(false), _widget(nullptr) {}
-    virtual ~PlatformImpl() {}
+    PlatformImpl() : _initialized(false), _widget(nullptr) {
+    }
 
-    bool initialize(AcceleratedMatrixWidget* widget) {
+    virtual ~PlatformImpl() {
+    }
+
+    bool initialize(AcceleratedMatrixWidget *widget) {
         _widget = widget;
         _initialized = false; // Always fail to force software fallback
         return false;
     }
 
     bool isInitialized() const { return false; }
-    void render(AcceleratedMatrixWidget* widget) { Q_UNUSED(widget); }
-    void resize(int width, int height) { Q_UNUSED(width); Q_UNUSED(height); }
-    void updateEventData(const QVector<float>& vertices) { Q_UNUSED(vertices); }
-    void destroyGPUResources() {}
+    void render(AcceleratedMatrixWidget *widget) { Q_UNUSED(widget); }
+
+    void resize(int width, int height) {
+        Q_UNUSED(width);
+        Q_UNUSED(height);
+    }
+
+    void updateEventData(const QVector<float> &vertices) { Q_UNUSED(vertices); }
+
+    void destroyGPUResources() {
+    }
 };
 #endif
 
 // AcceleratedMatrixWidget implementation
-AcceleratedMatrixWidget::AcceleratedMatrixWidget(QWidget* parent)
-    : QWidget(parent)
-    , _impl(new PlatformImpl())
-    , _file(nullptr)
-    , _settings(new QSettings())
-    , _renderData(nullptr)
-    , _targetFrameTime(16) // 60 FPS limit (16ms per frame)
+AcceleratedMatrixWidget::AcceleratedMatrixWidget(QWidget *parent)
+    : QWidget(parent),
+      _impl(new PlatformImpl()),
+      _file(nullptr),
+      _settings(new QSettings()),
+      _renderData(nullptr),
+      _targetFrameTime(16) // 60 FPS limit (16ms per frame)
 {
     setAttribute(Qt::WA_OpaquePaintEvent);
     setFocusPolicy(Qt::StrongFocus);
@@ -2929,7 +2794,7 @@ AcceleratedMatrixWidget::~AcceleratedMatrixWidget() {
 }
 
 // NEW: Pure renderer interface - receives data from HybridMatrixWidget
-void AcceleratedMatrixWidget::setRenderData(const MatrixRenderData& data) {
+void AcceleratedMatrixWidget::setRenderData(const MatrixRenderData &data) {
     // CRITICAL: Validate render data to prevent crashes
     if (!validateRenderData(data)) {
         return;
@@ -2970,7 +2835,7 @@ bool AcceleratedMatrixWidget::initialize() {
     return true;
 }
 
-void AcceleratedMatrixWidget::paintEvent(QPaintEvent* event) {
+void AcceleratedMatrixWidget::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event);
 
     // CRITICAL: Frame rate limiting to prevent excessive GPU usage
@@ -3000,7 +2865,7 @@ void AcceleratedMatrixWidget::paintEvent(QPaintEvent* event) {
     }
 }
 
-void AcceleratedMatrixWidget::resizeEvent(QResizeEvent* event) {
+void AcceleratedMatrixWidget::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
 
     // Update platform implementation size
@@ -3011,12 +2876,9 @@ void AcceleratedMatrixWidget::resizeEvent(QResizeEvent* event) {
         // Recreate render texture with new size
         QSize newSize = event->size() * devicePixelRatio();
         if (_impl->_renderTexture->pixelSize() != newSize) {
-
             // Recreate render texture
-            _impl->_renderTexture.reset(_impl->_rhi->newTexture(QRhiTexture::RGBA8, newSize, 1,
-                                                 QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
+            _impl->_renderTexture.reset(_impl->_rhi->newTexture(QRhiTexture::RGBA8, newSize, 1, QRhiTexture::RenderTarget | QRhiTexture::UsedAsTransferSource));
             if (!_impl->_renderTexture->create()) {
-                qWarning() << "Failed to recreate render texture on resize";
                 return;
             }
 
@@ -3054,7 +2916,7 @@ void AcceleratedMatrixWidget::resizeEvent(QResizeEvent* event) {
                 uniformData.backgroundColor[2] = bgColor.blueF();
                 uniformData.backgroundColor[3] = bgColor.alphaF();
 
-                QRhiResourceUpdateBatch* batch = _impl->_rhi->nextResourceUpdateBatch();
+                QRhiResourceUpdateBatch *batch = _impl->_rhi->nextResourceUpdateBatch();
                 batch->updateDynamicBuffer(_impl->_uniformBuffer.get(), 0, sizeof(uniformData), &uniformData);
                 _impl->_rhi->finish();
             }
@@ -3071,7 +2933,7 @@ bool AcceleratedMatrixWidget::isHardwareAccelerated() const {
 }
 
 // Complete MatrixWidget compatibility methods
-void AcceleratedMatrixWidget::setFile(MidiFile* file) {
+void AcceleratedMatrixWidget::setFile(MidiFile *file) {
     // CRITICAL: AcceleratedMatrixWidget is now a pure renderer - it should NOT do initialization
     // All initialization is handled by HybridMatrixWidget
     // This method just stores the file reference for coordinate calculations
@@ -3098,13 +2960,13 @@ void AcceleratedMatrixWidget::setFile(MidiFile* file) {
     emit fileChanged();
 }
 
-bool AcceleratedMatrixWidget::eventInWidget(MidiEvent* event) const {
+bool AcceleratedMatrixWidget::eventInWidget(MidiEvent *event) const {
     if (!event || !_file || !_renderData) return false;
 
     // Use same complex logic as MatrixWidget for consistency
-    OnEvent* on = dynamic_cast<OnEvent*>(event);
+    OnEvent *on = dynamic_cast<OnEvent *>(event);
     if (on && on->offEvent()) {
-        OffEvent* off = on->offEvent();
+        OffEvent *off = on->offEvent();
 
         int offLine = off->line();
         int offTick = off->midiTime();
@@ -3135,8 +2997,7 @@ bool AcceleratedMatrixWidget::eventInWidget(MidiEvent* event) const {
         // For non-note events, use simple bounds check
         int eventTick = event->midiTime();
         int eventLine = event->line();
-        return (eventTick >= _renderData->startTick && eventTick <= _renderData->endTick &&
-                eventLine >= _renderData->startLineY && eventLine <= _renderData->endLineY);
+        return (eventTick >= _renderData->startTick && eventTick <= _renderData->endTick && eventLine >= _renderData->startLineY && eventLine <= _renderData->endLineY);
     }
 }
 
@@ -3187,9 +3048,7 @@ void AcceleratedMatrixWidget::clearGPUCache() {
 }
 
 bool AcceleratedMatrixWidget::validateGPUResources() {
-    // CRITICAL: Validate that all GPU resources are still valid
     if (!_impl || !_impl->_rhi) {
-        qWarning() << "RHI context lost";
         return false;
     }
 
@@ -3197,14 +3056,12 @@ bool AcceleratedMatrixWidget::validateGPUResources() {
     if (!_impl->_rhi->isDeviceLost()) {
         // Device is still valid, check individual resources
         if (!_impl->_renderTexture || !_impl->_uniformBuffer || !_impl->_midiEventVertexBuffer) {
-            qWarning() << "GPU resources are null";
             return false;
         }
 
         // Resources exist and device is valid
         return true;
     } else {
-        qWarning() << "GPU device lost - resources invalid";
         return false;
     }
 }
@@ -3251,21 +3108,16 @@ void AcceleratedMatrixWidget::updateUniformBuffer() {
 }
 
 bool AcceleratedMatrixWidget::recreateGPUResources() {
-    // CRITICAL: Attempt to recreate GPU resources after context loss
-    qDebug() << "Attempting to recreate GPU resources...";
-
     // Clean up invalid resources
     if (_impl) {
         _impl->destroyGPUResources();
 
         // Try to reinitialize
         if (!_impl->initialize(this)) {
-            qWarning() << "Failed to reinitialize GPU resources";
             return false;
         }
     }
 
-    qDebug() << "Successfully recreated GPU resources";
     return true;
 }
 
@@ -3306,7 +3158,7 @@ bool AcceleratedMatrixWidget::createPianoPipeline() {
 }
 
 // Shader compilation utilities (delegate to PlatformImpl)
-bool AcceleratedMatrixWidget::loadShader(const QString& filename) {
+bool AcceleratedMatrixWidget::loadShader(const QString &filename) {
     if (_impl) {
         return _impl->loadShader(filename).isValid(); // loadShader returns QShader, check if valid
     }
@@ -3334,28 +3186,22 @@ bool AcceleratedMatrixWidget::compileShaders() {
     return false;
 }
 
-bool AcceleratedMatrixWidget::validateRenderData(const MatrixRenderData& data) {
-    // CRITICAL: Validate render data to prevent crashes and incorrect rendering
-
+bool AcceleratedMatrixWidget::validateRenderData(const MatrixRenderData &data) {
     // Check basic validity
     if (data.startTick < 0 || data.endTick < data.startTick) {
-        qWarning() << "Invalid tick range:" << data.startTick << "to" << data.endTick;
         return false;
     }
 
     if (data.startLineY < 0) {
-        qWarning() << "Invalid startLineY:" << data.startLineY;
         return false;
     }
 
     // Allow endLineY = 0 during initialization (matches original MatrixWidget behavior)
     if (data.endLineY != 0 && data.endLineY < data.startLineY) {
-        qWarning() << "Invalid line range:" << data.startLineY << "to" << data.endLineY;
         return false;
     }
 
     if (data.lineHeight <= 0 || data.pixelPerS <= 0) {
-        qWarning() << "Invalid dimensions: lineHeight=" << data.lineHeight << "pixelPerS=" << data.pixelPerS;
         return false;
     }
 
@@ -3364,18 +3210,15 @@ bool AcceleratedMatrixWidget::validateRenderData(const MatrixRenderData& data) {
     int lineRange = data.endLineY - data.startLineY;
 
     if (tickRange > 10000000) { // 10M ticks max
-        qWarning() << "Tick range too large:" << tickRange << "(max 10M)";
         return false;
     }
 
     if (lineRange > 1000) { // 1000 lines max
-        qWarning() << "Line range too large:" << lineRange << "(max 1000)";
         return false;
     }
 
     // Validate object lists (can be null, but if present should be valid)
     if (data.objects && data.objects->size() > 100000) { // 100k events max
-        qWarning() << "Too many MIDI events:" << data.objects->size() << "(max 100k)";
         return false;
     }
 
@@ -3392,9 +3235,9 @@ void AcceleratedMatrixWidget::updateEventData() {
     if (!_file || !_renderData) return;
 
     // Get all MIDI events from the file using render data
-    QList<MidiEvent*> eventsListLocal;
+    QList<MidiEvent *> eventsListLocal;
     for (int channel = 0; channel < 16; channel++) {
-        QMultiMap<int, MidiEvent*>* eventMap = _file->channelEvents(channel);
+        QMultiMap<int, MidiEvent *> *eventMap = _file->channelEvents(channel);
         if (eventMap) {
             for (auto it = eventMap->lowerBound(_renderData->startTick);
                  it != eventMap->upperBound(_renderData->endTick); ++it) {
@@ -3402,14 +3245,14 @@ void AcceleratedMatrixWidget::updateEventData() {
             }
         }
     }
-    QList<MidiEvent*>* eventsList = &eventsListLocal;
+    QList<MidiEvent *> *eventsList = &eventsListLocal;
     if (!eventsList) return;
 
-    for (MidiEvent* event : *eventsList) {
+    for (MidiEvent *event: *eventsList) {
         if (!eventInWidget(event)) continue;
 
         // Only render note events (OnEvents)
-        OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+        OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
         if (!onEvent) continue;
 
         // Calculate position and size
@@ -3442,28 +3285,25 @@ void AcceleratedMatrixWidget::updateEventData() {
         _eventVertices.append(vertex);
     }
 
-    // CRITICAL: Delete the event list to prevent memory leak
-    delete eventsList;
-
     // Notify the rendering implementation that data has changed
     _impl->updateEventData(_eventVertices);
 }
 
-QColor AcceleratedMatrixWidget::getEventColor(MidiEvent* event) const {
+QColor AcceleratedMatrixWidget::getEventColor(MidiEvent *event) const {
     if (!event || !_renderData) return Qt::white;
 
     if (_renderData->colorsByChannels) {
         // Color by MIDI channel
         int channel = event->channel();
-        QColor* colorPtr = Appearance::channelColor(channel);
+        QColor *colorPtr = Appearance::channelColor(channel);
         return colorPtr ? *colorPtr : Qt::white;
     } else {
         // Color by track
-        MidiTrack* track = event->track();
+        MidiTrack *track = event->track();
         if (!track) return Qt::white;
 
-        int trackIndex = 0; // TODO: Get actual track index
-        QColor* colorPtr = Appearance::trackColor(trackIndex);
+        int trackIndex = 0;
+        QColor *colorPtr = Appearance::trackColor(trackIndex);
         return colorPtr ? *colorPtr : Qt::white;
     }
 }
@@ -3483,15 +3323,13 @@ int AcceleratedMatrixWidget::yPosOfLine(int line) const {
 double AcceleratedMatrixWidget::lineHeight() const {
     if (!_renderData) return 0;
     if (_renderData->endLineY - _renderData->startLineY == 0) return 0;
-    return (double)(height() - _renderData->timeHeight) / (double)(_renderData->endLineY - _renderData->startLineY);
+    return (double) (height() - _renderData->timeHeight) / (double) (_renderData->endLineY - _renderData->startLineY);
 }
 
 int AcceleratedMatrixWidget::xPosOfMs(int ms) const {
     if (!_renderData) return 0;
-    if (_renderData->endTimeX <= _renderData->startTimeX || width() <= _renderData->lineNameWidth)
-        return _renderData->lineNameWidth;
-    return _renderData->lineNameWidth + (ms - _renderData->startTimeX) * (width() - _renderData->lineNameWidth) /
-           (_renderData->endTimeX - _renderData->startTimeX);
+    if (_renderData->endTimeX <= _renderData->startTimeX || width() <= _renderData->lineNameWidth) return _renderData-> lineNameWidth;
+    return _renderData->lineNameWidth + (ms - _renderData->startTimeX) * (width() - _renderData->lineNameWidth) / (_renderData->endTimeX - _renderData->startTimeX);
 }
 
 bool AcceleratedMatrixWidget::screenLocked() const {

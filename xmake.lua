@@ -135,7 +135,6 @@ target("MidiEditor") do
     elseif is_plat("macosx") then
         add_defines("__MACOSX_CORE__")
         add_frameworks("CoreMidi", "CoreAudio", "CoreFoundation")
-        -- TODO: icons
         add_installfiles("midieditor.icns")
     end
     

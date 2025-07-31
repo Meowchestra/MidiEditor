@@ -28,20 +28,19 @@ class NoteOnEvent;
 class MidiFile;
 
 class TransposeDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file, QWidget* parent = 0);
+    TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *file, QWidget *parent = 0);
 
 public slots:
     void accept();
 
 private:
-    QList<NoteOnEvent*> _toTranspose;
-    QSpinBox* _valueBox;
+    QList<NoteOnEvent *> _toTranspose;
+    QSpinBox *_valueBox;
     QRadioButton *_up, *_down;
-    MidiFile* _file;
+    MidiFile *_file;
 };
 
 #endif

@@ -17,7 +17,6 @@
  */
 
 #include "ProtocolWidget.h"
-#include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 #include "../protocol/ProtocolStep.h"
@@ -29,9 +28,8 @@
 #define LINE_HEIGHT 20
 #define BORDER 2
 
-ProtocolWidget::ProtocolWidget(QWidget* parent)
-    : QListWidget(parent)
-{
+ProtocolWidget::ProtocolWidget(QWidget *parent)
+    : QListWidget(parent) {
     file = 0;
     setSelectionMode(QAbstractItemView::NoSelection);
     protocolHasChanged = false;
@@ -41,8 +39,7 @@ ProtocolWidget::ProtocolWidget(QWidget* parent)
     connect(this, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(stepClicked(QListWidgetItem*)));
 }
 
-void ProtocolWidget::setFile(MidiFile* f)
-{
+void ProtocolWidget::setFile(MidiFile *f) {
     if (file != NULL)
         file->protocol()->disconnect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(protocolChanged()));
     file = f;
@@ -52,17 +49,13 @@ void ProtocolWidget::setFile(MidiFile* f)
     update();
 }
 
-void ProtocolWidget::protocolChanged()
-{
+void ProtocolWidget::protocolChanged() {
     protocolHasChanged = true;
     update();
 }
 
-void ProtocolWidget::update()
-{
-
+void ProtocolWidget::update() {
     if (protocolHasChanged) {
-
         clear();
 
         if (!file) {
@@ -80,10 +73,10 @@ void ProtocolWidget::update()
         QFont currentFont;
         currentFont.setBold(true);
 
-        QListWidgetItem* firstToRedo = 0;
+        QListWidgetItem *firstToRedo = 0;
 
         for (int i = 0; i < stepsBack + stepsForward; i++) {
-            ProtocolStep* step;
+            ProtocolStep *step;
             QColor bg = Appearance::foregroundColor(); // Qt::black for light mode
             QFont f = undoFont;
             if (i < stepsBack) {
@@ -98,7 +91,7 @@ void ProtocolWidget::update()
             }
 
             // construct item
-            QListWidgetItem* item = new QListWidgetItem(step->description());
+            QListWidgetItem *item = new QListWidgetItem(step->description());
             item->setSizeHint(QSize(0, 30));
             item->setFont(f);
             if (step->image()) {
@@ -136,9 +129,7 @@ void ProtocolWidget::update()
     QListWidget::update();
 }
 
-void ProtocolWidget::stepClicked(QListWidgetItem* item)
-{
-
+void ProtocolWidget::stepClicked(QListWidgetItem *item) {
     if (!file) {
         return;
     }
@@ -150,7 +141,7 @@ void ProtocolWidget::stepClicked(QListWidgetItem* item)
     int stepsBack = file->protocol()->stepsBack();
     int stepsForward = file->protocol()->stepsForward();
 
-    ProtocolStep* step;
+    ProtocolStep *step;
     if (num < stepsBack) {
         step = file->protocol()->undoStep(num);
     } else {
@@ -160,8 +151,7 @@ void ProtocolWidget::stepClicked(QListWidgetItem* item)
     file->protocol()->goTo(step);
 }
 
-void ProtocolWidget::refreshColors()
-{
+void ProtocolWidget::refreshColors() {
     // Force protocol to refresh with new colors
     protocolHasChanged = true;
     update();

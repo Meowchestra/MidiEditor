@@ -34,7 +34,6 @@
 #include "../gui/HybridMatrixWidget.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
-#include "../midi/MidiPlayer.h"
 #include "../protocol/Protocol.h"
 #include "StandardTool.h"
 
@@ -52,24 +51,24 @@ NewNoteTool::NewNoteTool()
     setToolTipText(QObject::tr("Create new Events"));
 }
 
-NewNoteTool::NewNoteTool(NewNoteTool& other)
+NewNoteTool::NewNoteTool(NewNoteTool &other)
     : EventTool(other) {
     return;
 }
 
-ProtocolEntry* NewNoteTool::copy() {
+ProtocolEntry *NewNoteTool::copy() {
     return new NewNoteTool(*this);
 }
 
-void NewNoteTool::reloadState(ProtocolEntry* entry) {
-    NewNoteTool* other = dynamic_cast<NewNoteTool*>(entry);
+void NewNoteTool::reloadState(ProtocolEntry *entry) {
+    NewNoteTool *other = dynamic_cast<NewNoteTool *>(entry);
     if (!other) {
         return;
     }
     EventTool::reloadState(entry);
 }
 
-void NewNoteTool::draw(QPainter* painter) {
+void NewNoteTool::draw(QPainter *painter) {
     int currentX = rasteredX(mouseX);
     if (inDrag) {
         if (line <= 127) {
@@ -112,15 +111,14 @@ bool NewNoteTool::release() {
     rasteredX(currentX, &endTick);
     rasteredX(xPos, &startTick);
 
-    MidiTrack* track = file()->track(_track);
+    MidiTrack *track = file()->track(_track);
     if (currentX - xPos > 2 || line > 127) {
-
         // note
         if (line >= 0 && line <= 127) {
             currentProtocol()->startNewAction(QObject::tr("Create note"), image());
 
-            NoteOnEvent* on = file()->channel(_channel)->insertNote(127 - line,
-                              startTick, endTick, 100, track);
+            NoteOnEvent *on = file()->channel(_channel)->insertNote(127 - line,
+                                                                    startTick, endTick, 100, track);
             selectEvent(on, true, true);
             currentProtocol()->endAction();
 
@@ -132,13 +130,11 @@ bool NewNoteTool::release() {
 
             return true;
         } else {
+            MidiTrack *generalTrack = file()->track(0);
 
-            MidiTrack* generalTrack = file()->track(0);
-
-            MidiEvent* event;
+            MidiEvent *event;
             // prog
             if (line == MidiEvent::PROG_CHANGE_LINE) {
-
                 currentProtocol()->startNewAction(QObject::tr("Create Program Change Event"),
                                                   image());
 
@@ -148,7 +144,6 @@ bool NewNoteTool::release() {
                 file()->channel(_channel)->insertEvent(event, startTick);
                 selectEvent(event, true, true);
                 currentProtocol()->endAction();
-
             } else if (line == MidiEvent::TIME_SIGNATURE_EVENT_LINE) {
                 currentProtocol()->startNewAction(QObject::tr("Create Time Signature Event"),
                                                   image());
@@ -218,7 +213,7 @@ bool NewNoteTool::release() {
             } else if (line == MidiEvent::TEXT_EVENT_LINE) {
                 currentProtocol()->startNewAction(QObject::tr("Create Text Event"), image());
                 event = new TextEvent(16, track);
-                TextEvent* textEvent = (TextEvent*)event;
+                TextEvent *textEvent = (TextEvent *) event;
                 textEvent->setText("New Text Event");
                 textEvent->setType(TextEvent::getTypeForNewEvents());
                 int startMs = matrixWidget->msOfXPos(xPos);

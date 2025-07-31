@@ -3,56 +3,54 @@
 #include <QMainWindow>
 #include <QCheckBox>
 #include <QIcon>
-#include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
-#include <QDrag>
 #include <QApplication>
 #include <QTimer>
 #include <QFile>
-#include <QTextStream>
+#include <QGroupBox>
 
 // DraggableListWidget implementation
-DraggableListWidget::DraggableListWidget(QWidget* parent) : QListWidget(parent) {
+DraggableListWidget::DraggableListWidget(QWidget *parent) : QListWidget(parent) {
     setDragDropMode(QAbstractItemView::InternalMove);
     setDefaultDropAction(Qt::MoveAction);
     setSelectionMode(QAbstractItemView::SingleSelection);
     setDropIndicatorShown(true); // Show drop indicator for better UX
 }
 
-void DraggableListWidget::dragEnterEvent(QDragEnterEvent* event) {
+void DraggableListWidget::dragEnterEvent(QDragEnterEvent *event) {
     // Accept drops from this list or other DraggableListWidget instances
-    if (event->source() == this || qobject_cast<DraggableListWidget*>(event->source())) {
+    if (event->source() == this || qobject_cast<DraggableListWidget *>(event->source())) {
         event->acceptProposedAction();
     } else {
         event->ignore();
     }
 }
 
-void DraggableListWidget::dragMoveEvent(QDragMoveEvent* event) {
+void DraggableListWidget::dragMoveEvent(QDragMoveEvent *event) {
     // Accept drops from this list or other DraggableListWidget instances
-    if (event->source() == this || qobject_cast<DraggableListWidget*>(event->source())) {
+    if (event->source() == this || qobject_cast<DraggableListWidget *>(event->source())) {
         event->acceptProposedAction();
     } else {
         event->ignore();
     }
 }
 
-void DraggableListWidget::dropEvent(QDropEvent* event) {
-    DraggableListWidget* sourceList = qobject_cast<DraggableListWidget*>(event->source());
+void DraggableListWidget::dropEvent(QDropEvent *event) {
+    DraggableListWidget *sourceList = qobject_cast<DraggableListWidget *>(event->source());
     if (event->source() == this || sourceList) {
         if (sourceList && sourceList != this) {
             // Cross-list drop: manually handle the move
-            QListWidgetItem* draggedItem = sourceList->currentItem();
+            QListWidgetItem *draggedItem = sourceList->currentItem();
             if (draggedItem) {
                 // Clone the item
-                ToolbarActionItem* originalItem = static_cast<ToolbarActionItem*>(draggedItem);
-                ToolbarActionItem* newItem = new ToolbarActionItem(originalItem->actionInfo, this);
+                ToolbarActionItem *originalItem = static_cast<ToolbarActionItem *>(draggedItem);
+                ToolbarActionItem *newItem = new ToolbarActionItem(originalItem->actionInfo, this);
                 newItem->setFlags(originalItem->flags());
                 newItem->setCheckState(originalItem->checkState());
 
                 // Find drop position based on cursor position
-                QListWidgetItem* targetItem = itemAt(event->pos());
+                QListWidgetItem *targetItem = itemAt(event->position().toPoint());
                 int dropIndex;
 
                 // Simple approach: always drop at the end of the list
@@ -84,9 +82,8 @@ void DraggableListWidget::startDrag(Qt::DropActions supportedActions) {
 }
 
 // ToolbarActionItem implementation
-ToolbarActionItem::ToolbarActionItem(const ToolbarActionInfo& info, QListWidget* parent)
+ToolbarActionItem::ToolbarActionItem(const ToolbarActionInfo &info, QListWidget *parent)
     : QListWidgetItem(parent), actionInfo(info) {
-
     updateDisplay();
 }
 
@@ -96,7 +93,7 @@ void ToolbarActionItem::updateDisplay() {
         displayText += " (Essential)";
     }
     setText(displayText);
-    
+
     // Set icon if available
     if (!actionInfo.iconPath.isEmpty()) {
         setIcon(Appearance::adjustIconForDarkMode(actionInfo.iconPath));
@@ -104,9 +101,8 @@ void ToolbarActionItem::updateDisplay() {
 }
 
 // LayoutSettingsWidget implementation
-LayoutSettingsWidget::LayoutSettingsWidget(QWidget* parent)
+LayoutSettingsWidget::LayoutSettingsWidget(QWidget *parent)
     : SettingsWidget("Customize Toolbar", parent), _twoRowMode(false) {
-
     // Initialize update timer for debouncing
     _updateTimer = new QTimer(this);
     _updateTimer->setSingleShot(true);
@@ -125,7 +121,7 @@ LayoutSettingsWidget::LayoutSettingsWidget(QWidget* parent)
 }
 
 void LayoutSettingsWidget::setupUI() {
-    QVBoxLayout* mainLayout = new QVBoxLayout(this);
+    QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(10, 5, 10, 10);
     mainLayout->setSpacing(10);
 
@@ -136,9 +132,9 @@ void LayoutSettingsWidget::setupUI() {
     mainLayout->addWidget(_enableCustomizeCheckbox);
 
     // Row mode selection
-    QGroupBox* rowModeGroup = new QGroupBox("Toolbar Layout", this);
+    QGroupBox *rowModeGroup = new QGroupBox("Toolbar Layout", this);
     rowModeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    QVBoxLayout* rowModeLayout = new QVBoxLayout(rowModeGroup);
+    QVBoxLayout *rowModeLayout = new QVBoxLayout(rowModeGroup);
 
     _singleRowRadio = new QRadioButton("Single row (compact)", rowModeGroup);
     _doubleRowRadio = new QRadioButton("Double row (larger icons with text)", rowModeGroup);
@@ -152,8 +148,8 @@ void LayoutSettingsWidget::setupUI() {
     mainLayout->addWidget(rowModeGroup);
 
     // Toolbar Icon Size
-    QHBoxLayout* iconSizeLayout = new QHBoxLayout();
-    QLabel* iconSizeLabel = new QLabel("Toolbar Icon Size:", this);
+    QHBoxLayout *iconSizeLayout = new QHBoxLayout();
+    QLabel *iconSizeLabel = new QLabel("Toolbar Icon Size:", this);
     iconSizeLayout->addWidget(iconSizeLabel);
 
     _iconSizeSpinBox = new QSpinBox(this);
@@ -170,36 +166,36 @@ void LayoutSettingsWidget::setupUI() {
     // Create container for customization options (initially hidden)
     _customizationWidget = new QWidget(this);
     _customizationWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-    QVBoxLayout* customizationLayout = new QVBoxLayout(_customizationWidget);
+    QVBoxLayout *customizationLayout = new QVBoxLayout(_customizationWidget);
     customizationLayout->setContentsMargins(0, 0, 0, 0);
 
     // Actions list - split for two-row mode
-    QLabel* actionsLabel = new QLabel("Toolbar Actions (drag to reorder):", _customizationWidget);
+    QLabel *actionsLabel = new QLabel("Toolbar Actions (drag to reorder):", _customizationWidget);
     customizationLayout->addWidget(actionsLabel);
 
     // Create horizontal layout for split view
     _actionsLayout = new QHBoxLayout();
 
     // Left side - main actions list
-    QVBoxLayout* leftLayout = new QVBoxLayout();
-    QLabel* firstRowLabel = new QLabel("Row 1:", _customizationWidget);
+    QVBoxLayout *leftLayout = new QVBoxLayout();
+    QLabel *firstRowLabel = new QLabel("Row 1:", _customizationWidget);
     firstRowLabel->setStyleSheet("font-weight: bold;");
     leftLayout->addWidget(firstRowLabel);
 
     _actionsList = new DraggableListWidget(_customizationWidget);
-    _actionsList->setObjectName("Row1List");  // Set object name for debug identification
+    _actionsList->setObjectName("Row1List"); // Set object name for debug identification
     _actionsList->setMinimumHeight(300);
     connect(_actionsList, SIGNAL(itemsReordered()), this, SLOT(itemsReordered()));
     leftLayout->addWidget(_actionsList);
 
     // Right side - second row (initially hidden)
-    QVBoxLayout* rightLayout = new QVBoxLayout();
+    QVBoxLayout *rightLayout = new QVBoxLayout();
     _secondRowLabel = new QLabel("Row 2:", _customizationWidget);
     _secondRowLabel->setStyleSheet("font-weight: bold;");
     rightLayout->addWidget(_secondRowLabel);
 
     _secondRowList = new DraggableListWidget(_customizationWidget);
-    _secondRowList->setObjectName("Row2List");  // Set object name for debug identification
+    _secondRowList->setObjectName("Row2List"); // Set object name for debug identification
     _secondRowList->setMinimumHeight(300);
     connect(_secondRowList, SIGNAL(itemsReordered()), this, SLOT(itemsReordered()));
     rightLayout->addWidget(_secondRowList);
@@ -278,7 +274,7 @@ void LayoutSettingsWidget::saveSettings() {
 
         // Add Row 1 actions
         for (int i = 0; i < _actionsList->count(); ++i) {
-            ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_actionsList->item(i));
+            ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_actionsList->item(i));
             actionOrder << item->actionInfo.id;
             bool isEnabled = (item->checkState() == Qt::Checked || item->actionInfo.essential);
             if (isEnabled) {
@@ -292,7 +288,7 @@ void LayoutSettingsWidget::saveSettings() {
 
             // Add Row 2 actions
             for (int i = 0; i < _secondRowList->count(); ++i) {
-                ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_secondRowList->item(i));
+                ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_secondRowList->item(i));
                 actionOrder << item->actionInfo.id;
                 if (item->checkState() == Qt::Checked || item->actionInfo.essential) {
                     enabledActions << item->actionInfo.id;
@@ -310,10 +306,10 @@ void LayoutSettingsWidget::saveSettings() {
 
 void LayoutSettingsWidget::triggerToolbarUpdate() {
     // Trigger toolbar rebuild immediately when user makes changes
-    
+
     try {
-        QWidget* widget = this;
-        while (widget && !qobject_cast<QMainWindow*>(widget)) {
+        QWidget *widget = this;
+        while (widget && !qobject_cast<QMainWindow *>(widget)) {
             widget = widget->parentWidget();
         }
         if (widget) {
@@ -368,14 +364,14 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
     }
 
     // Populate Row 1
-    for (const QString& actionId : row1Actions) {
-        for (ToolbarActionInfo& info : _availableActions) {
+    for (const QString &actionId: row1Actions) {
+        for (ToolbarActionInfo &info: _availableActions) {
             if (info.id == actionId) {
-                info.enabled = enabledActions.isEmpty() ?
-                    (defaultEnabledActions.contains(actionId) || info.essential) :
-                    (enabledActions.contains(actionId) || info.essential);
+                info.enabled = enabledActions.isEmpty()
+                                   ? (defaultEnabledActions.contains(actionId) || info.essential)
+                                   : (enabledActions.contains(actionId) || info.essential);
 
-                ToolbarActionItem* item = new ToolbarActionItem(info, _actionsList);
+                ToolbarActionItem *item = new ToolbarActionItem(info, _actionsList);
                 item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
                 item->setCheckState(info.enabled ? Qt::Checked : Qt::Unchecked);
                 break;
@@ -385,14 +381,14 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
 
     // Populate Row 2 (if in two-row mode)
     if (_twoRowMode) {
-        for (const QString& actionId : row2Actions) {
-            for (ToolbarActionInfo& info : _availableActions) {
+        for (const QString &actionId: row2Actions) {
+            for (ToolbarActionInfo &info: _availableActions) {
                 if (info.id == actionId) {
-                    info.enabled = enabledActions.isEmpty() ?
-                        (defaultEnabledActions.contains(actionId) || info.essential) :
-                        (enabledActions.contains(actionId) || info.essential);
+                    info.enabled = enabledActions.isEmpty()
+                                       ? (defaultEnabledActions.contains(actionId) || info.essential)
+                                       : (enabledActions.contains(actionId) || info.essential);
 
-                    ToolbarActionItem* item = new ToolbarActionItem(info, _secondRowList);
+                    ToolbarActionItem *item = new ToolbarActionItem(info, _secondRowList);
                     item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
                     item->setCheckState(info.enabled ? Qt::Checked : Qt::Unchecked);
                     break;
@@ -408,7 +404,6 @@ void LayoutSettingsWidget::populateActionsList(bool forceRepopulation) {
     connect(_actionsList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
     connect(_secondRowList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
 }
-
 
 
 void LayoutSettingsWidget::customizeToolbarToggled(bool customizeToolbarEnabled) {
@@ -503,19 +498,18 @@ void LayoutSettingsWidget::rowModeChanged() {
 }
 
 void LayoutSettingsWidget::redistributeActions() {
-
     // Collect all current actions and their states
     QMap<QString, bool> actionStates;
 
     // Collect from Row 1
     for (int i = 0; i < _actionsList->count(); ++i) {
-        ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_actionsList->item(i));
+        ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_actionsList->item(i));
         actionStates[item->actionInfo.id] = (item->checkState() == Qt::Checked) || item->actionInfo.essential;
     }
 
     // Collect from Row 2 (if visible)
     for (int i = 0; i < _secondRowList->count(); ++i) {
-        ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_secondRowList->item(i));
+        ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_secondRowList->item(i));
         actionStates[item->actionInfo.id] = (item->checkState() == Qt::Checked) || item->actionInfo.essential;
     }
 
@@ -538,7 +532,7 @@ void LayoutSettingsWidget::redistributeActions() {
         getDefaultRowDistribution(row1DefaultActions, row2DefaultActions);
 
         // Distribute actions
-        for (const QString& actionId : orderToUse) {
+        for (const QString &actionId: orderToUse) {
             if (row1DefaultActions.contains(actionId)) {
                 row1Actions << actionId;
             } else if (row2DefaultActions.contains(actionId)) {
@@ -547,10 +541,10 @@ void LayoutSettingsWidget::redistributeActions() {
         }
 
         // Populate Row 1
-        for (const QString& actionId : row1Actions) {
-            for (ToolbarActionInfo& info : _availableActions) {
+        for (const QString &actionId: row1Actions) {
+            for (ToolbarActionInfo &info: _availableActions) {
                 if (info.id == actionId) {
-                    ToolbarActionItem* item = new ToolbarActionItem(info, _actionsList);
+                    ToolbarActionItem *item = new ToolbarActionItem(info, _actionsList);
                     item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
                     bool enabled = actionStates.contains(actionId) ? actionStates[actionId] : info.essential;
                     item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
@@ -560,10 +554,10 @@ void LayoutSettingsWidget::redistributeActions() {
         }
 
         // Populate Row 2
-        for (const QString& actionId : row2Actions) {
-            for (ToolbarActionInfo& info : _availableActions) {
+        for (const QString &actionId: row2Actions) {
+            for (ToolbarActionInfo &info: _availableActions) {
                 if (info.id == actionId) {
-                    ToolbarActionItem* item = new ToolbarActionItem(info, _secondRowList);
+                    ToolbarActionItem *item = new ToolbarActionItem(info, _secondRowList);
                     item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
                     bool enabled = actionStates.contains(actionId) ? actionStates[actionId] : info.essential;
                     item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
@@ -573,10 +567,10 @@ void LayoutSettingsWidget::redistributeActions() {
         }
     } else {
         // Single-row mode: put all actions in Row 1
-        for (const QString& actionId : orderToUse) {
-            for (ToolbarActionInfo& info : _availableActions) {
+        for (const QString &actionId: orderToUse) {
+            for (ToolbarActionInfo &info: _availableActions) {
                 if (info.id == actionId) {
-                    ToolbarActionItem* item = new ToolbarActionItem(info, _actionsList);
+                    ToolbarActionItem *item = new ToolbarActionItem(info, _actionsList);
                     item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
                     bool enabled = actionStates.contains(actionId) ? actionStates[actionId] : info.essential;
                     item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
@@ -585,7 +579,6 @@ void LayoutSettingsWidget::redistributeActions() {
             }
         }
     }
-
 }
 
 void LayoutSettingsWidget::actionEnabledChanged() {
@@ -596,8 +589,8 @@ void LayoutSettingsWidget::actionEnabledChanged() {
     }
 }
 
-void LayoutSettingsWidget::itemCheckStateChanged(QListWidgetItem* item) {
-    ToolbarActionItem* actionItem = static_cast<ToolbarActionItem*>(item);
+void LayoutSettingsWidget::itemCheckStateChanged(QListWidgetItem *item) {
+    ToolbarActionItem *actionItem = static_cast<ToolbarActionItem *>(item);
     if (actionItem) {
         actionItem->actionInfo.enabled = (item->checkState() == Qt::Checked);
         // Only save if customization is enabled (user is actively customizing)
@@ -705,14 +698,14 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
 
     // Additional tools - these were in the original toolbar, so enable by default
     actions << ToolbarActionInfo{"separator5", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"metronome", "Metronome", ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"metronome", "Metronome", ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback" };
     actions << ToolbarActionInfo{"align_left", "Align Left", ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"equalize", "Equalize", ":/run_environment/graphics/tool/equalize.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"align_right", "Align Right", ":/run_environment/graphics/tool/align_right.png", nullptr, true, false, "Tools"};
 
     // Zoom actions
     actions << ToolbarActionInfo{"separator6", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"zoom_hor_in", "Zoom Horizontal In", ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_hor_in", "Zoom Horizontal In", ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false,"View"};
     actions << ToolbarActionInfo{"zoom_hor_out", "Zoom Horizontal Out", ":/run_environment/graphics/tool/zoom_hor_out.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"zoom_ver_in", "Zoom Vertical In", ":/run_environment/graphics/tool/zoom_ver_in.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"zoom_ver_out", "Zoom Vertical Out", ":/run_environment/graphics/tool/zoom_ver_out.png", nullptr, true, false, "View"};
@@ -754,14 +747,13 @@ QIcon LayoutSettingsWidget::icon() {
 }
 
 void LayoutSettingsWidget::refreshIcons() {
-
     // Temporarily disconnect itemChanged signals to prevent cascade during theme changes
     disconnect(_actionsList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
     disconnect(_secondRowList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
 
     // Refresh all icons in both action lists when theme changes
     for (int i = 0; i < _actionsList->count(); ++i) {
-        ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_actionsList->item(i));
+        ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_actionsList->item(i));
         if (item) {
             item->updateDisplay(); // This will call adjustIconForDarkMode
         }
@@ -769,7 +761,7 @@ void LayoutSettingsWidget::refreshIcons() {
 
     // Also refresh icons in the second row list
     for (int i = 0; i < _secondRowList->count(); ++i) {
-        ToolbarActionItem* item = static_cast<ToolbarActionItem*>(_secondRowList->item(i));
+        ToolbarActionItem *item = static_cast<ToolbarActionItem *>(_secondRowList->item(i));
         if (item) {
             item->updateDisplay(); // This will call adjustIconForDarkMode
         }
@@ -778,12 +770,9 @@ void LayoutSettingsWidget::refreshIcons() {
     // Reconnect the signals after refreshing
     connect(_actionsList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
     connect(_secondRowList, SIGNAL(itemChanged(QListWidgetItem*)), this, SLOT(itemCheckStateChanged(QListWidgetItem*)));
-
-
 }
 
 void LayoutSettingsWidget::iconSizeChanged(int size) {
-
     // CRITICAL FIX: If customize is enabled but lists are empty, repopulate them
     if (_enableCustomizeCheckbox->isChecked() && _actionsList->count() == 0) {
         populateActionsList(true); // Force repopulation
@@ -809,19 +798,19 @@ QStringList LayoutSettingsWidget::getComprehensiveActionOrder() {
     // Single source of truth for action order - optimized for single-row flow
     QStringList order;
     order << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
-          << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-          << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
-          << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
-          << "transpose" << "transpose_up" << "transpose_down" << "separator6"
-          << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-          << "stop" << "record" << "forward" << "forward_marker" << "separator7"
-          << "metronome"
-          << "align_left" << "equalize" << "align_right" << "separator9"
-          << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-          << "lock" << "separator10"
-          << "quantize" << "magnet" << "separator11"
-          << "thru" << "panic" << "separator12"
-          << "measure" << "time_signature" << "tempo";
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
+            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
+            << "transpose" << "transpose_up" << "transpose_down" << "separator6"
+            << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator7"
+            << "metronome"
+            << "align_left" << "equalize" << "align_right" << "separator9"
+            << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+            << "lock" << "separator10"
+            << "quantize" << "magnet" << "separator11"
+            << "thru" << "panic" << "separator12"
+            << "measure" << "time_signature" << "tempo";
     return order;
 }
 
@@ -846,27 +835,27 @@ QStringList LayoutSettingsWidget::getDefaultEnabledActions() {
     return enabled;
 }
 
-void LayoutSettingsWidget::getDefaultRowDistribution(QStringList& row1Actions, QStringList& row2Actions) {
+void LayoutSettingsWidget::getDefaultRowDistribution(QStringList &row1Actions, QStringList &row2Actions) {
     // Single source of truth for how actions are distributed between rows
     row1Actions.clear();
     row2Actions.clear();
 
     // Row 1: Editing and tool actions
     row1Actions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
-                << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-                << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
-                << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
-                << "transpose" << "transpose_up" << "transpose_down" << "separator6"
-                << "align_left" << "equalize" << "align_right" << "separator9"
-                << "quantize" << "magnet" << "separator11"
-                << "measure" << "time_signature" << "tempo";
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
+            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
+            << "transpose" << "transpose_up" << "transpose_down" << "separator6"
+            << "align_left" << "equalize" << "align_right" << "separator9"
+            << "quantize" << "magnet" << "separator11"
+            << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view actions
     row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                << "stop" << "record" << "forward" << "forward_marker" << "separator7"
-                << "metronome"
-                << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                << "lock" << "separator10" << "thru" << "panic";
+            << "stop" << "record" << "forward" << "forward_marker" << "separator7"
+            << "metronome"
+            << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+            << "lock" << "separator10" << "thru" << "panic";
 }
 
 QStringList LayoutSettingsWidget::getEssentialActionIds() {
@@ -901,14 +890,14 @@ QStringList LayoutSettingsWidget::getDefaultToolbarOrder() {
     // This is what users see when customization is disabled
     QStringList order;
     order << "standard_tool" << "select_left" << "select_right" << "separator2"
-          << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-          << "glue" << "scissors" << "delete_overlaps" << "separator4"
-          << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-          << "stop" << "record" << "forward" << "forward_marker" << "separator5"
-          << "metronome" << "align_left" << "equalize" << "align_right" << "separator6"
-          << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-          << "lock" << "separator7" << "quantize" << "magnet" << "separator8"
-          << "measure" << "time_signature" << "tempo";
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+            << "glue" << "scissors" << "delete_overlaps" << "separator4"
+            << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator5"
+            << "metronome" << "align_left" << "equalize" << "align_right" << "separator6"
+            << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+            << "lock" << "separator7" << "quantize" << "magnet" << "separator8"
+            << "measure" << "time_signature" << "tempo";
     return order;
 }
 
@@ -917,24 +906,24 @@ QStringList LayoutSettingsWidget::getDefaultToolbarEnabledActions() {
     return getDefaultToolbarOrder();
 }
 
-void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList& row1Actions, QStringList& row2Actions) {
+void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList &row1Actions, QStringList &row2Actions) {
     // Default toolbar row distribution - simpler than comprehensive
     row1Actions.clear();
     row2Actions.clear();
 
     // Row 1: Editing tools
     row1Actions << "standard_tool" << "select_left" << "select_right" << "separator2"
-                << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-                << "glue" << "scissors" << "delete_overlaps" << "separator4"
-                << "separator5"  // Keep for consistency even though move actions not in default toolbar
-                << "separator6"  // Keep for consistency even though transpose actions not in default toolbar
-                << "align_left" << "equalize" << "align_right" << "separator6"
-                << "quantize" << "magnet" << "separator8"
-                << "measure" << "time_signature" << "tempo";
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
+            << "glue" << "scissors" << "delete_overlaps" << "separator4"
+            << "separator5" // Keep for consistency even though move actions not in default toolbar
+            << "separator6" // Keep for consistency even though transpose actions not in default toolbar
+            << "align_left" << "equalize" << "align_right" << "separator6"
+            << "quantize" << "magnet" << "separator8"
+            << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view
     row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-                << "stop" << "record" << "forward" << "forward_marker" << "separator5"
-                << "metronome" << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-                << "lock" << "separator7";
+            << "stop" << "record" << "forward" << "forward_marker" << "separator5"
+            << "metronome" << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
+            << "lock" << "separator7";
 }

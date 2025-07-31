@@ -24,20 +24,25 @@
 class MidiEvent;
 
 class EventMoveTool : public EventTool {
-
 public:
     EventMoveTool(bool upDown, bool leftRight);
-    EventMoveTool(EventMoveTool& other);
 
-    ProtocolEntry* copy();
-    void reloadState(ProtocolEntry* entry);
+    EventMoveTool(EventMoveTool &other);
+
+    ProtocolEntry *copy();
+
+    void reloadState(ProtocolEntry *entry);
 
     void setDirections(bool upDown, bool leftRight);
 
-    void draw(QPainter* painter);
+    void draw(QPainter *painter);
+
     bool press(bool leftClick);
+
     bool release();
+
     bool move(int mouseX, int mouseY);
+
     bool releaseOnly();
 
     bool showsSelection();

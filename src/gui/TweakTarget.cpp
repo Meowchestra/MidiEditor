@@ -17,7 +17,6 @@
  */
 
 #include <QList>
-#include <QPair>
 #include "MainWindow.h"
 #include "HybridMatrixWidget.h"
 #include "TweakTarget.h"
@@ -34,8 +33,7 @@
 #include "../protocol/Protocol.h"
 #include "../tool/Selection.h"
 
-static int getDivNumberForTime(QList<QPair<int, int> > divs, int time)
-{
+static int getDivNumberForTime(QList<QPair<int, int> > divs, int time) {
     for (int divNumber = divs.size() - 1; divNumber >= 0; divNumber--) {
         if (divs.at(divNumber).second <= time) return divNumber;
     }
@@ -43,8 +41,7 @@ static int getDivNumberForTime(QList<QPair<int, int> > divs, int time)
     return 0;
 }
 
-static int getTimeOneDivEarlier(QList<QPair<int, int> > divs, int time)
-{
+static int getTimeOneDivEarlier(QList<QPair<int, int> > divs, int time) {
     int divNumber = getDivNumberForTime(divs, time);
     int divStartTime = divs.at(divNumber).second;
     int previousDivStartTime;
@@ -59,8 +56,7 @@ static int getTimeOneDivEarlier(QList<QPair<int, int> > divs, int time)
     return previousDivStartTime + (time - divStartTime);
 }
 
-static int getTimeOneDivLater(QList<QPair<int, int> > divs, int time)
-{
+static int getTimeOneDivLater(QList<QPair<int, int> > divs, int time) {
     int divNumber = getDivNumberForTime(divs, time);
     int divStartTime = divs.at(divNumber).second;
     int nextDivStartTime;
@@ -75,31 +71,29 @@ static int getTimeOneDivLater(QList<QPair<int, int> > divs, int time)
     return nextDivStartTime + (time - divStartTime);
 }
 
-TimeTweakTarget::TimeTweakTarget(MainWindow* mainWindow)
-{
+TimeTweakTarget::TimeTweakTarget(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void TimeTweakTarget::offset(int amount)
-{
-    MidiFile* file = mainWindow->getFile();
+void TimeTweakTarget::offset(int amount) {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int newTime = e->midiTime() + amount;
 
                 if (newTime >= 0) {
                     e->setMidiTime(newTime);
 
-                    OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+                    OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                     if (onEvent) {
-                        MidiEvent* offEvent = onEvent->offEvent();
+                        MidiEvent *offEvent = onEvent->offEvent();
                         offEvent->setMidiTime(offEvent->midiTime() + amount);
                     }
                 }
@@ -110,47 +104,42 @@ void TimeTweakTarget::offset(int amount)
     }
 }
 
-void TimeTweakTarget::smallDecrease()
-{
+void TimeTweakTarget::smallDecrease() {
     offset(-1);
 }
 
-void TimeTweakTarget::smallIncrease()
-{
+void TimeTweakTarget::smallIncrease() {
     offset(1);
 }
 
-void TimeTweakTarget::mediumDecrease()
-{
+void TimeTweakTarget::mediumDecrease() {
     offset(-10);
 }
 
-void TimeTweakTarget::mediumIncrease()
-{
+void TimeTweakTarget::mediumIncrease() {
     offset(10);
 }
 
-void TimeTweakTarget::largeDecrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void TimeTweakTarget::largeDecrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int time = e->midiTime();
                 int newTime = getTimeOneDivEarlier(divs, time);
                 if (newTime >= 0) {
                     e->setMidiTime(newTime);
 
-                    OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+                    OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                     if (onEvent) {
-                        MidiEvent* offEvent = onEvent->offEvent();
+                        MidiEvent *offEvent = onEvent->offEvent();
                         int newOffTime = offEvent->midiTime() + (newTime - time);
                         offEvent->setMidiTime(newOffTime);
                     }
@@ -162,26 +151,25 @@ void TimeTweakTarget::largeDecrease()
     }
 }
 
-void TimeTweakTarget::largeIncrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void TimeTweakTarget::largeIncrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int time = e->midiTime();
                 int newTime = getTimeOneDivLater(divs, time);
                 e->setMidiTime(newTime);
 
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+                OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                 if (onEvent) {
-                    MidiEvent* offEvent = onEvent->offEvent();
+                    MidiEvent *offEvent = onEvent->offEvent();
                     int newOffTime = offEvent->midiTime() + (newTime - time);
                     offEvent->setMidiTime(newOffTime);
                 }
@@ -192,23 +180,21 @@ void TimeTweakTarget::largeIncrease()
     }
 }
 
-StartTimeTweakTarget::StartTimeTweakTarget(MainWindow* mainWindow)
-{
+StartTimeTweakTarget::StartTimeTweakTarget(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void StartTimeTweakTarget::offset(int amount)
-{
-    MidiFile* file = mainWindow->getFile();
+void StartTimeTweakTarget::offset(int amount) {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int newTime = e->midiTime() + amount;
                 if (newTime >= 0) e->setMidiTime(newTime);
             }
@@ -218,39 +204,34 @@ void StartTimeTweakTarget::offset(int amount)
     }
 }
 
-void StartTimeTweakTarget::smallDecrease()
-{
+void StartTimeTweakTarget::smallDecrease() {
     offset(-1);
 }
 
-void StartTimeTweakTarget::smallIncrease()
-{
+void StartTimeTweakTarget::smallIncrease() {
     offset(1);
 }
 
-void StartTimeTweakTarget::mediumDecrease()
-{
+void StartTimeTweakTarget::mediumDecrease() {
     offset(-10);
 }
 
-void StartTimeTweakTarget::mediumIncrease()
-{
+void StartTimeTweakTarget::mediumIncrease() {
     offset(10);
 }
 
-void StartTimeTweakTarget::largeDecrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void StartTimeTweakTarget::largeDecrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int newTime = getTimeOneDivEarlier(divs, e->midiTime());
                 if (newTime >= 0) e->setMidiTime(newTime);
             }
@@ -260,25 +241,24 @@ void StartTimeTweakTarget::largeDecrease()
     }
 }
 
-void StartTimeTweakTarget::largeIncrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void StartTimeTweakTarget::largeIncrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach(MidiEvent* e, selectedEvents) {
                 int newTime = getTimeOneDivLater(divs, e->midiTime());
                 e->setMidiTime(newTime);
 
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+                OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                 if (onEvent) {
-                    MidiEvent* offEvent = onEvent->offEvent();
+                    MidiEvent *offEvent = onEvent->offEvent();
                     if (newTime > offEvent->midiTime()) offEvent->setMidiTime(newTime);
                 }
             }
@@ -288,26 +268,24 @@ void StartTimeTweakTarget::largeIncrease()
     }
 }
 
-EndTimeTweakTarget::EndTimeTweakTarget(MainWindow* mainWindow)
-{
+EndTimeTweakTarget::EndTimeTweakTarget(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void EndTimeTweakTarget::offset(int amount)
-{
-    MidiFile* file = mainWindow->getFile();
+void EndTimeTweakTarget::offset(int amount) {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
 
-            foreach (MidiEvent* e, selectedEvents) {
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+            foreach(MidiEvent* e, selectedEvents) {
+                OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                 if (onEvent) {
-                    MidiEvent* offEvent = onEvent->offEvent();
+                    MidiEvent *offEvent = onEvent->offEvent();
                     int newTime = offEvent->midiTime() + amount;
                     if (newTime >= 0) {
                         offEvent->setMidiTime(newTime);
@@ -324,42 +302,37 @@ void EndTimeTweakTarget::offset(int amount)
     }
 }
 
-void EndTimeTweakTarget::smallDecrease()
-{
+void EndTimeTweakTarget::smallDecrease() {
     offset(-1);
 }
 
-void EndTimeTweakTarget::smallIncrease()
-{
+void EndTimeTweakTarget::smallIncrease() {
     offset(1);
 }
 
-void EndTimeTweakTarget::mediumDecrease()
-{
+void EndTimeTweakTarget::mediumDecrease() {
     offset(-10);
 }
 
-void EndTimeTweakTarget::mediumIncrease()
-{
+void EndTimeTweakTarget::mediumIncrease() {
     offset(10);
 }
 
-void EndTimeTweakTarget::largeDecrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void EndTimeTweakTarget::largeDecrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+            foreach(MidiEvent* e, selectedEvents) {
+                OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                 if (onEvent) {
-                    MidiEvent* offEvent = onEvent->offEvent();
+                    MidiEvent *offEvent = onEvent->offEvent();
                     int newTime = getTimeOneDivEarlier(divs, offEvent->midiTime());
                     if (newTime >= 0) {
                         offEvent->setMidiTime(newTime);
@@ -376,22 +349,21 @@ void EndTimeTweakTarget::largeDecrease()
     }
 }
 
-void EndTimeTweakTarget::largeIncrease()
-{
-    MidiFile* file = mainWindow->getFile();
+void EndTimeTweakTarget::largeIncrease() {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
-            foreach (MidiEvent* e, selectedEvents) {
-                OnEvent* onEvent = dynamic_cast<OnEvent*>(e);
+            foreach(MidiEvent* e, selectedEvents) {
+                OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
                 if (onEvent) {
-                    MidiEvent* offEvent = onEvent->offEvent();
+                    MidiEvent *offEvent = onEvent->offEvent();
                     int newTime = getTimeOneDivLater(divs, offEvent->midiTime());
                     offEvent->setMidiTime(newTime);
                 } else {
@@ -405,24 +377,22 @@ void EndTimeTweakTarget::largeIncrease()
     }
 }
 
-NoteTweakTarget::NoteTweakTarget(MainWindow* mainWindow)
-{
+NoteTweakTarget::NoteTweakTarget(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void NoteTweakTarget::offset(int amount)
-{
-    MidiFile* file = mainWindow->getFile();
+void NoteTweakTarget::offset(int amount) {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
 
-            foreach (MidiEvent* e, selectedEvents) {
-                NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(e);
+            foreach(MidiEvent* e, selectedEvents) {
+                NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(e);
                 if (noteOnEvent) {
                     int newNote = noteOnEvent->note() + amount;
                     if (newNote >= 0) noteOnEvent->setNote(newNote);
@@ -434,85 +404,77 @@ void NoteTweakTarget::offset(int amount)
     }
 }
 
-void NoteTweakTarget::smallDecrease()
-{
+void NoteTweakTarget::smallDecrease() {
     offset(-1);
 }
 
-void NoteTweakTarget::smallIncrease()
-{
+void NoteTweakTarget::smallIncrease() {
     offset(1);
 }
 
-void NoteTweakTarget::mediumDecrease()
-{
+void NoteTweakTarget::mediumDecrease() {
     offset(-12);
 }
 
 
-void NoteTweakTarget::mediumIncrease()
-{
+void NoteTweakTarget::mediumIncrease() {
     offset(12);
 }
 
-void NoteTweakTarget::largeDecrease()
-{
+void NoteTweakTarget::largeDecrease() {
     offset(-12);
 }
 
-void NoteTweakTarget::largeIncrease()
-{
+void NoteTweakTarget::largeIncrease() {
     offset(12);
 }
 
-ValueTweakTarget::ValueTweakTarget(MainWindow* mainWindow)
-{
+ValueTweakTarget::ValueTweakTarget(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void ValueTweakTarget::offset(int amount, int pitchBendAmount, int tempoAmount)
-{
-    MidiFile* file = mainWindow->getFile();
+void ValueTweakTarget::offset(int amount, int pitchBendAmount, int tempoAmount) {
+    MidiFile *file = mainWindow->getFile();
 
     if (file) {
-        QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+        QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
 
         if (selectedEvents.size() > 0) {
-            Protocol* protocol = file->protocol();
+            Protocol *protocol = file->protocol();
             protocol->startNewAction("Tweak");
 
-            foreach (MidiEvent* e, selectedEvents) {
-                NoteOnEvent* noteOnEvent = dynamic_cast<NoteOnEvent*>(e);
+            foreach(MidiEvent* e, selectedEvents) {
+                NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(e);
                 if (noteOnEvent) {
                     int newVelocity = noteOnEvent->velocity() + amount;
                     if (newVelocity >= 0) noteOnEvent->setVelocity(newVelocity);
                 }
 
-                ControlChangeEvent* controlChangeEvent = dynamic_cast<ControlChangeEvent*>(e);
+                ControlChangeEvent *controlChangeEvent = dynamic_cast<ControlChangeEvent *>(e);
                 if (controlChangeEvent) {
                     int newValue = controlChangeEvent->value() + amount;
                     if (newValue >= 0) controlChangeEvent->setValue(newValue);
                 }
 
-                PitchBendEvent* pitchBendEvent = dynamic_cast<PitchBendEvent*>(e);
+                PitchBendEvent *pitchBendEvent = dynamic_cast<PitchBendEvent *>(e);
                 if (pitchBendEvent) {
                     int newValue = pitchBendEvent->value() + pitchBendAmount;
                     if (newValue >= 0) pitchBendEvent->setValue(newValue);
                 }
 
-                KeyPressureEvent* keyPressureEvent = dynamic_cast<KeyPressureEvent*>(e);
+                KeyPressureEvent *keyPressureEvent = dynamic_cast<KeyPressureEvent *>(e);
                 if (keyPressureEvent) {
                     int newValue = keyPressureEvent->value() + amount;
                     if (newValue >= 0) keyPressureEvent->setValue(newValue);
                 }
 
-                ChannelPressureEvent* channelPressureEvent = dynamic_cast<ChannelPressureEvent*>(e);
+                ChannelPressureEvent *channelPressureEvent = dynamic_cast<ChannelPressureEvent *>(e);
                 if (channelPressureEvent) {
                     int newValue = channelPressureEvent->value() + amount;
                     if (newValue >= 0) channelPressureEvent->setValue(newValue);
                 }
 
-                TempoChangeEvent* tempoChangeEvent = dynamic_cast<TempoChangeEvent*>(e);
+                TempoChangeEvent *tempoChangeEvent = dynamic_cast<TempoChangeEvent *>(e);
                 if (tempoChangeEvent) {
                     int newBeatsPerQuarter = tempoChangeEvent->beatsPerQuarter() + tempoAmount;
                     if (newBeatsPerQuarter >= 0) tempoChangeEvent->setBeats(newBeatsPerQuarter);
@@ -524,32 +486,26 @@ void ValueTweakTarget::offset(int amount, int pitchBendAmount, int tempoAmount)
     }
 }
 
-void ValueTweakTarget::smallDecrease()
-{
+void ValueTweakTarget::smallDecrease() {
     offset(-1, -1, -1);
 }
 
-void ValueTweakTarget::smallIncrease()
-{
+void ValueTweakTarget::smallIncrease() {
     offset(1, 1, 1);
 }
 
-void ValueTweakTarget::mediumDecrease()
-{
+void ValueTweakTarget::mediumDecrease() {
     offset(-10, -25, -10);
 }
 
-void ValueTweakTarget::mediumIncrease()
-{
+void ValueTweakTarget::mediumIncrease() {
     offset(10, 25, 10);
 }
 
-void ValueTweakTarget::largeDecrease()
-{
+void ValueTweakTarget::largeDecrease() {
     offset(-10, -500, -50);
 }
 
-void ValueTweakTarget::largeIncrease()
-{
+void ValueTweakTarget::largeIncrease() {
     offset(10, 500, 50);
 }

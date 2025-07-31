@@ -40,7 +40,6 @@ class NoteOnEvent;
  * 4. Working across all tracks and channels (like Cubase scissors)
  */
 class ScissorsTool : public EventTool {
-
 public:
     /**
      * \brief Creates a new ScissorsTool.
@@ -50,12 +49,12 @@ public:
     /**
      * \brief Creates a new ScissorsTool copying &other.
      */
-    ScissorsTool(ScissorsTool& other);
+    ScissorsTool(ScissorsTool &other);
 
     /**
      * \brief Draws the tool's visual feedback (red vertical line).
      */
-    void draw(QPainter* painter);
+    void draw(QPainter *painter);
 
     /**
      * \brief Handles mouse press events.
@@ -70,12 +69,12 @@ public:
     /**
      * \brief Creates a copy of this tool for the protocol system.
      */
-    ProtocolEntry* copy();
+    ProtocolEntry *copy();
 
     /**
      * \brief Reloads the tool's state from a protocol entry.
      */
-    void reloadState(ProtocolEntry* entry);
+    void reloadState(ProtocolEntry *entry);
 
     /**
      * \brief Returns whether this tool shows selection.
@@ -93,14 +92,14 @@ private:
      * \param splitTick The tick position where to split
      * \return List of NoteOnEvents that need to be split
      */
-    QList<NoteOnEvent*> findNotesToSplit(int splitTick);
+    QList<NoteOnEvent *> findNotesToSplit(int splitTick);
 
     /**
      * \brief Splits a single note at the given position.
      * \param note The note to split
      * \param splitTick The tick position where to split
      */
-    void splitNote(NoteOnEvent* note, int splitTick);
+    void splitNote(NoteOnEvent *note, int splitTick);
 
     /**
      * \brief Checks if a note spans across the given tick position.
@@ -108,7 +107,7 @@ private:
      * \param tick The tick position to check
      * \return True if the note spans across the tick position
      */
-    bool noteSpansAcrossTick(NoteOnEvent* note, int tick);
+    bool noteSpansAcrossTick(NoteOnEvent *note, int tick);
 
     int _splitTick; ///< The tick position where the split will occur
 };

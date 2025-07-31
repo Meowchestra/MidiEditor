@@ -20,7 +20,6 @@
 #define DELETEOVERLAPSTOOL_H_
 
 #include "EventTool.h"
-#include <QList>
 
 class MidiEvent;
 class NoteOnEvent;
@@ -38,12 +37,11 @@ class NoteOnEvent;
  * This is similar to the functionality found in Cubase and other DAWs.
  */
 class DeleteOverlapsTool : public EventTool {
-
 public:
     enum OverlapMode {
-        MONO_MODE,      // Delete overlaps on same pitch only
-        POLY_MODE,      // Delete all overlaps regardless of pitch
-        DOUBLES_MODE    // Delete exact duplicates only
+        MONO_MODE, // Delete overlaps on same pitch only
+        POLY_MODE, // Delete all overlaps regardless of pitch
+        DOUBLES_MODE // Delete exact duplicates only
     };
 
     /**
@@ -54,12 +52,12 @@ public:
     /**
      * \brief Creates a new DeleteOverlapsTool copying &other.
      */
-    DeleteOverlapsTool(DeleteOverlapsTool& other);
+    DeleteOverlapsTool(DeleteOverlapsTool &other);
 
     /**
      * \brief Draws the tool's visual feedback.
      */
-    void draw(QPainter* painter);
+    void draw(QPainter *painter);
 
     /**
      * \brief Handles mouse press events.
@@ -74,12 +72,12 @@ public:
     /**
      * \brief Creates a copy of this tool for the protocol system.
      */
-    ProtocolEntry* copy();
+    ProtocolEntry *copy();
 
     /**
      * \brief Reloads the tool's state from a protocol entry.
      */
-    void reloadState(ProtocolEntry* entry);
+    void reloadState(ProtocolEntry *entry);
 
     /**
      * \brief Returns whether this tool shows selection.
@@ -101,14 +99,14 @@ private:
      * \param respectChannels If true, only process overlaps within the same channel
      * \param respectTracks If true, only process overlaps within the same track
      */
-    void deleteOverlapsMono(const QList<NoteOnEvent*>& notes, bool respectChannels = true, bool respectTracks = true);
+    void deleteOverlapsMono(const QList<NoteOnEvent *> &notes, bool respectChannels = true, bool respectTracks = true);
 
     /**
      * \brief Makes the part monophonic by deleting all overlaps (poly mode).
      * \param notes List of notes to process
      * \param respectTracks If true, only process overlaps within the same track
      */
-    void deleteOverlapsPoly(const QList<NoteOnEvent*>& notes, bool respectTracks = true);
+    void deleteOverlapsPoly(const QList<NoteOnEvent *> &notes, bool respectTracks = true);
 
     /**
      * \brief Deletes exact duplicate notes (doubles mode).
@@ -116,7 +114,7 @@ private:
      * \param respectChannels If true, only process duplicates within the same channel
      * \param respectTracks If true, only process duplicates within the same track
      */
-    void deleteDoubles(const QList<NoteOnEvent*>& notes, bool respectChannels = true, bool respectTracks = true);
+    void deleteDoubles(const QList<NoteOnEvent *> &notes, bool respectChannels = true, bool respectTracks = true);
 
     /**
      * \brief Checks if two notes overlap in time.
@@ -124,7 +122,7 @@ private:
      * \param note2 Second note
      * \return True if the notes overlap
      */
-    bool notesOverlap(NoteOnEvent* note1, NoteOnEvent* note2);
+    bool notesOverlap(NoteOnEvent *note1, NoteOnEvent *note2);
 
     /**
      * \brief Checks if two notes are exact duplicates.
@@ -134,19 +132,19 @@ private:
      * \param respectTracks If true, notes must be on same track to be considered duplicates
      * \return True if the notes are duplicates
      */
-    bool notesAreDuplicates(NoteOnEvent* note1, NoteOnEvent* note2, bool respectChannels = true, bool respectTracks = true);
+    bool notesAreDuplicates(NoteOnEvent *note1, NoteOnEvent *note2, bool respectChannels = true, bool respectTracks = true);
 
     /**
      * \brief Removes a note from the MIDI file.
      * \param note Note to remove
      */
-    void removeNote(NoteOnEvent* note);
+    void removeNote(NoteOnEvent *note);
 
     /**
      * \brief Helper method to process poly overlaps for a group of notes.
      * \param notes List of notes to process
      */
-    void processPolyOverlaps(const QList<NoteOnEvent*>& notes);
+    void processPolyOverlaps(const QList<NoteOnEvent *> &notes);
 };
 
 #endif

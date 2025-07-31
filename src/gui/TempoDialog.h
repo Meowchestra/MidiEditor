@@ -9,11 +9,10 @@
 #include "../midi/MidiFile.h"
 
 class TempoDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    TempoDialog(MidiFile *file, int startTick, int endTick=-1, QWidget* parent = 0);
+    TempoDialog(MidiFile *file, int startTick, int endTick = -1, QWidget *parent = 0);
 
 public slots:
     void accept();

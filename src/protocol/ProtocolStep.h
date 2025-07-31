@@ -19,7 +19,6 @@
 #ifndef PROTOCOLSTEP_H_
 #define PROTOCOLSTEP_H_
 
-#include <QStack>
 #include <QString>
 
 class ProtocolItem;
@@ -41,12 +40,11 @@ class QImage;
  *
  */
 class ProtocolStep {
-
 public:
     /**
 		 * \brief creates a new ProtocolStep with the given description.
 		 */
-    ProtocolStep(QString description, QImage* img = 0);
+    ProtocolStep(QString description, QImage *img = 0);
 
     /**
 		 * \brief deletes the ProtocolStep.
@@ -59,7 +57,7 @@ public:
 		 * Every item added with addItem() will be released on the call of
 		 * releaseStep()
 		 */
-    void addItem(ProtocolItem* item);
+    void addItem(ProtocolItem *item);
 
     /**
 		 * \brief returns the number of items on the stack.
@@ -74,7 +72,7 @@ public:
     /**
 		 * \brief returns the steps Image.
 		 */
-    QImage* image();
+    QImage *image();
 
     /**
 		 * \brief releases the ProtocolStep.
@@ -84,7 +82,7 @@ public:
 		 * ProtocolStep.releaseStep() from the undo stack, you can write the
 		 * returned ProtoclStep onto the redo stack.
 		 */
-    ProtocolStep* releaseStep();
+    ProtocolStep *releaseStep();
 
 private:
     /**
@@ -95,12 +93,12 @@ private:
     /**
 		 * \brief Holds the Steps Image.
 		 */
-    QImage* _image;
+    QImage *_image;
 
     /**
 		 * \brief The itemStack saves all ProtocolItems of the Step.
 		 */
-    QStack<ProtocolItem*>* _itemStack;
+    QStack<ProtocolItem *> *_itemStack;
 };
 
 #endif

@@ -8,23 +8,22 @@
 
 
 TempoTool::TempoTool()
-    : EventTool()
-{
+    : EventTool() {
     setImage(":/run_environment/graphics/tool/tempo.png");
     setToolTipText("Edit tempo");
     _startX = -1;
 }
 
-TempoTool::TempoTool(TempoTool& other) : TempoTool(){
+TempoTool::TempoTool(TempoTool &other) : TempoTool() {
     _startX = other._startX;
 }
 
-void TempoTool::draw(QPainter* painter){
+void TempoTool::draw(QPainter *painter) {
     if (_startX > -1) {
         int start = rasteredX(_startX);
         int end = rasteredX(mouseX);
         painter->setOpacity(0.5);
-        painter->fillRect(start, 0, end-start, matrixWidget->height(), Appearance::tempoToolHighlightColor());
+        painter->fillRect(start, 0, end - start, matrixWidget->height(), Appearance::tempoToolHighlightColor());
     } else {
         int x = rasteredX(mouseX);
         painter->setPen(Appearance::foregroundColor());
@@ -32,12 +31,12 @@ void TempoTool::draw(QPainter* painter){
     }
 }
 
-bool TempoTool::press(bool leftClick){
+bool TempoTool::press(bool leftClick) {
     _startX = rasteredX(mouseX);
     return true;
 }
 
-bool TempoTool::release(){
+bool TempoTool::release() {
     int endTick;
     rasteredX(mouseX, &endTick);
     int startTick = endTick;
@@ -64,22 +63,22 @@ bool TempoTool::release(){
     return true;
 }
 
-bool TempoTool::releaseOnly(){
+bool TempoTool::releaseOnly() {
     _startX = -1;
     return false;
 }
 
-bool TempoTool::move(int mouseX, int mouseY){
+bool TempoTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     return true;
 }
 
-ProtocolEntry* TempoTool::copy(){
+ProtocolEntry *TempoTool::copy() {
     return new TempoTool(*this);
 }
 
-void TempoTool::reloadState(ProtocolEntry* entry){
-    TempoTool* other = dynamic_cast<TempoTool*>(entry);
+void TempoTool::reloadState(ProtocolEntry *entry) {
+    TempoTool *other = dynamic_cast<TempoTool *>(entry);
     if (!other) {
         return;
     }

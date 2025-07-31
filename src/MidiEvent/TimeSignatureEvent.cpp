@@ -21,50 +21,43 @@
 #include "math.h"
 
 TimeSignatureEvent::TimeSignatureEvent(int channel, int num, int denom,
-    int midiClocks, int num32In4, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+                                       int midiClocks, int num32In4, MidiTrack *track)
+    : MidiEvent(channel, track) {
     numerator = num;
     denominator = denom;
     midiClocksPerMetronome = midiClocks;
     num32In4th = num32In4;
 }
 
-TimeSignatureEvent::TimeSignatureEvent(TimeSignatureEvent& other)
-    : MidiEvent(other)
-{
+TimeSignatureEvent::TimeSignatureEvent(TimeSignatureEvent &other)
+    : MidiEvent(other) {
     numerator = other.numerator;
     denominator = other.denominator;
     midiClocksPerMetronome = other.midiClocksPerMetronome;
     num32In4th = other.num32In4th;
 }
-int TimeSignatureEvent::num()
-{
+
+int TimeSignatureEvent::num() {
     return numerator;
 }
 
-int TimeSignatureEvent::denom()
-{
+int TimeSignatureEvent::denom() {
     return denominator;
 }
 
-int TimeSignatureEvent::midiClocks()
-{
+int TimeSignatureEvent::midiClocks() {
     return midiClocksPerMetronome;
 }
 
-int TimeSignatureEvent::num32In4()
-{
+int TimeSignatureEvent::num32In4() {
     return num32In4th;
 }
 
-int TimeSignatureEvent::ticksPerMeasure()
-{
+int TimeSignatureEvent::ticksPerMeasure() {
     return (4 * numerator * file()->ticksPerQuarter()) / powf(2, denominator);
 }
 
-int TimeSignatureEvent::measures(int ticks, int* ticksLeft)
-{
+int TimeSignatureEvent::measures(int ticks, int *ticksLeft) {
     //int numTicks = tick-midiTime();
     if (ticksLeft) {
         *ticksLeft = ticks % ticksPerMeasure();
@@ -72,14 +65,12 @@ int TimeSignatureEvent::measures(int ticks, int* ticksLeft)
     return ticks / ticksPerMeasure();
 }
 
-ProtocolEntry* TimeSignatureEvent::copy()
-{
+ProtocolEntry *TimeSignatureEvent::copy() {
     return new TimeSignatureEvent(*this);
 }
 
-void TimeSignatureEvent::reloadState(ProtocolEntry* entry)
-{
-    TimeSignatureEvent* other = dynamic_cast<TimeSignatureEvent*>(entry);
+void TimeSignatureEvent::reloadState(ProtocolEntry *entry) {
+    TimeSignatureEvent *other = dynamic_cast<TimeSignatureEvent *>(entry);
     if (!other) {
         return;
     }
@@ -89,27 +80,24 @@ void TimeSignatureEvent::reloadState(ProtocolEntry* entry)
     midiClocksPerMetronome = other->midiClocksPerMetronome;
     num32In4th = other->num32In4th;
 }
-int TimeSignatureEvent::line()
-{
+
+int TimeSignatureEvent::line() {
     return MidiEvent::TIME_SIGNATURE_EVENT_LINE;
 }
 
-void TimeSignatureEvent::setNumerator(int n)
-{
-    ProtocolEntry* toCopy = copy();
+void TimeSignatureEvent::setNumerator(int n) {
+    ProtocolEntry *toCopy = copy();
     numerator = n;
     protocol(toCopy, this);
 }
 
-void TimeSignatureEvent::setDenominator(int d)
-{
-    ProtocolEntry* toCopy = copy();
+void TimeSignatureEvent::setDenominator(int d) {
+    ProtocolEntry *toCopy = copy();
     denominator = d;
     protocol(toCopy, this);
 }
 
-QByteArray TimeSignatureEvent::save()
-{
+QByteArray TimeSignatureEvent::save() {
     QByteArray array = QByteArray();
     array.append(char(0xFF));
     array.append(char(0x58));
@@ -121,7 +109,6 @@ QByteArray TimeSignatureEvent::save()
     return array;
 }
 
-QString TimeSignatureEvent::typeString()
-{
+QString TimeSignatureEvent::typeString() {
     return "Time Signature Event";
 }

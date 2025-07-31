@@ -20,44 +20,37 @@
 
 #include "../midi/MidiFile.h"
 
-ProgChangeEvent::ProgChangeEvent(int channel, int prog, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+ProgChangeEvent::ProgChangeEvent(int channel, int prog, MidiTrack *track)
+    : MidiEvent(channel, track) {
     _program = prog;
 }
 
-ProgChangeEvent::ProgChangeEvent(ProgChangeEvent& other)
-    : MidiEvent(other)
-{
+ProgChangeEvent::ProgChangeEvent(ProgChangeEvent &other)
+    : MidiEvent(other) {
     _program = other._program;
 }
 
-int ProgChangeEvent::line()
-{
+int ProgChangeEvent::line() {
     return PROG_CHANGE_LINE;
 }
 
-QString ProgChangeEvent::toMessage()
-{
+QString ProgChangeEvent::toMessage() {
     return "prog " + QString::number(channel()) + " " + QString::number(_program);
 }
 
-QByteArray ProgChangeEvent::save()
-{
+QByteArray ProgChangeEvent::save() {
     QByteArray array = QByteArray();
     array.append(0xC0 | channel());
     array.append(_program);
     return array;
 }
 
-ProtocolEntry* ProgChangeEvent::copy()
-{
+ProtocolEntry *ProgChangeEvent::copy() {
     return new ProgChangeEvent(*this);
 }
 
-void ProgChangeEvent::reloadState(ProtocolEntry* entry)
-{
-    ProgChangeEvent* other = dynamic_cast<ProgChangeEvent*>(entry);
+void ProgChangeEvent::reloadState(ProtocolEntry *entry) {
+    ProgChangeEvent *other = dynamic_cast<ProgChangeEvent *>(entry);
     if (!other) {
         return;
     }
@@ -65,19 +58,16 @@ void ProgChangeEvent::reloadState(ProtocolEntry* entry)
     _program = other->_program;
 }
 
-QString ProgChangeEvent::typeString()
-{
+QString ProgChangeEvent::typeString() {
     return "Program Change Event";
 }
 
-int ProgChangeEvent::program()
-{
+int ProgChangeEvent::program() {
     return _program;
 }
 
-void ProgChangeEvent::setProgram(int p)
-{
-    ProtocolEntry* toCopy = copy();
+void ProgChangeEvent::setProgram(int p) {
+    ProtocolEntry *toCopy = copy();
     _program = p;
     protocol(toCopy, this);
 }

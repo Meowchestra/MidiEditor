@@ -19,7 +19,6 @@
 #include "SelectTool.h"
 #include "Selection.h"
 #include "../MidiEvent/MidiEvent.h"
-#include "../MidiEvent/NoteOnEvent.h"
 #include "../gui/HybridMatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
@@ -55,14 +54,14 @@ SelectTool::SelectTool(int type)
     }
 }
 
-SelectTool::SelectTool(SelectTool& other)
+SelectTool::SelectTool(SelectTool &other)
     : EventTool(other) {
     stool_type = other.stool_type;
     x_rect = 0;
     y_rect = 0;
 }
 
-void SelectTool::draw(QPainter* painter) {
+void SelectTool::draw(QPainter *painter) {
     paintSelectedEvents(painter);
     if (SELECTION_TYPE_BOX && (x_rect || y_rect)) {
         painter->setPen(Appearance::borderColor());
@@ -95,12 +94,11 @@ bool SelectTool::press(bool leftClick) {
 }
 
 bool SelectTool::release() {
-
     if (!file()) {
         return false;
     }
     file()->protocol()->startNewAction("Selection changed", image());
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
 
     if (!QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier) && !QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
         clearSelection();
@@ -129,7 +127,7 @@ bool SelectTool::release() {
             x_end = mouseX + 1;
             y_end = mouseY + 1;
         }
-        foreach (MidiEvent* event, *(matrixWidget->activeEvents())) {
+        foreach(MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
                 selectEvent(event, false, false, false);
             }
@@ -145,7 +143,7 @@ bool SelectTool::release() {
             end = file()->endTick();
             start = tick;
         }
-        foreach (MidiEvent* event, *(file()->eventsBetween(start, end))) {
+        foreach(MidiEvent* event, *(file()->eventsBetween(start, end))) {
             selectEvent(event, false, false, false);
         }
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());
@@ -164,8 +162,12 @@ bool SelectTool::release() {
     return true;
 }
 
-bool SelectTool::inRect(MidiEvent* event, int x_start, int y_start, int x_end, int y_end) {
-    return pointInRect(event->x(), event->y(), x_start, y_start, x_end, y_end) || pointInRect(event->x(), event->y() + event->height(), x_start, y_start, x_end, y_end) || pointInRect(event->x() + event->width(), event->y(), x_start, y_start, x_end, y_end) || pointInRect(event->x() + event->width(), event->y() + event->height(), x_start, y_start, x_end, y_end) || pointInRect(x_start, y_start, event->x(), event->y(), event->x() + event->width(), event->y() + event->height());
+bool SelectTool::inRect(MidiEvent *event, int x_start, int y_start, int x_end, int y_end) {
+    return pointInRect(event->x(), event->y(), x_start, y_start, x_end, y_end) ||
+           pointInRect(event->x(), event->y() + event->height(), x_start, y_start, x_end, y_end) ||
+           pointInRect(event->x() + event->width(), event->y(), x_start, y_start, x_end, y_end) ||
+           pointInRect(event->x() + event->width(), event->y() + event->height(), x_start, y_start, x_end, y_end) ||
+           pointInRect(x_start, y_start, event->x(), event->y(), event->x() + event->width(), event->y() + event->height());
 }
 
 bool SelectTool::move(int mouseX, int mouseY) {
@@ -173,12 +175,12 @@ bool SelectTool::move(int mouseX, int mouseY) {
     return true;
 }
 
-ProtocolEntry* SelectTool::copy() {
+ProtocolEntry *SelectTool::copy() {
     return new SelectTool(*this);
 }
 
-void SelectTool::reloadState(ProtocolEntry* entry) {
-    SelectTool* other = dynamic_cast<SelectTool*>(entry);
+void SelectTool::reloadState(ProtocolEntry *entry) {
+    SelectTool *other = dynamic_cast<SelectTool *>(entry);
     if (!other) {
         return;
     }

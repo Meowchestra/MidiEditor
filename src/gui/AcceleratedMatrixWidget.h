@@ -41,56 +41,73 @@ class GraphicObject;
  * Provides same interface as MatrixWidget with 100-200x performance improvement.
  * Falls back to software MatrixWidget if hardware acceleration fails.
  */
-class AcceleratedMatrixWidget : public QWidget
-{
+class AcceleratedMatrixWidget : public QWidget {
     Q_OBJECT
 
 signals:
     void fileChanged();
-    void eventClicked(MidiEvent* event);
+
+    void eventClicked(MidiEvent *event);
+
     void viewportChanged(int startTick, int endTick);
+
     void accelerationFailed();
-    void hardwareAccelerationFailed(const QString& reason);
+
+    void hardwareAccelerationFailed(const QString &reason);
 
 public:
-    explicit AcceleratedMatrixWidget(QWidget* parent = nullptr);
+    explicit AcceleratedMatrixWidget(QWidget *parent = nullptr);
+
     ~AcceleratedMatrixWidget();
 
     // NEW: Pure renderer interface - receives data from HybridMatrixWidget
-    void setRenderData(const MatrixRenderData& data);
-    MatrixRenderData* getRenderData() const { return _renderData; }
+    void setRenderData(const MatrixRenderData &data);
+
+    MatrixRenderData *getRenderData() const { return _renderData; }
 
     // MatrixWidget interface compatibility
-    void setFile(MidiFile* file);
-    MidiFile* midiFile() const { return _file; }
+    void setFile(MidiFile *file);
+
+    MidiFile *midiFile() const { return _file; }
 
     // View control (setters handled by HybridMatrixWidget)
     // Pure renderer - viewport managed through render data only
     double lineHeight() const;
+
     int lineNameWidth() const { return _renderData ? _renderData->lineNameWidth : 0; }
 
     // Selection and interaction (setters handled by HybridMatrixWidget)
-    QList<GraphicObject*>* objects() { return reinterpret_cast<QList<GraphicObject*>*>(&_midiEvents); }
+    QList<GraphicObject *> *objects() { return reinterpret_cast<QList<GraphicObject *> *>(&_midiEvents); }
     bool colorsByChannels() const { return _renderData ? _renderData->colorsByChannels : false; }
 
     // Use render data instead of duplicate business logic
-    QList<MidiEvent*>* activeEvents() { return &_midiEvents; }
-    QList<MidiEvent*>* velocityEvents() { return &_midiEvents; }
+    QList<MidiEvent *> *activeEvents() { return &_midiEvents; }
+    QList<MidiEvent *> *velocityEvents() { return &_midiEvents; }
+
     int lineAtY(int y) const;
+
     int yPosOfLine(int line) const;
+
     int xPosOfMs(int ms) const;
-    bool eventInWidget(MidiEvent* event) const;
+
+    bool eventInWidget(MidiEvent *event) const;
 
     // State access (setters handled by HybridMatrixWidget)
     bool screenLocked() const;
+
     int minVisibleMidiTime() const;
+
     int maxVisibleMidiTime() const;
+
     int div() const;
+
     int measure() const;
+
     int tool() const;
 
     // Hardware acceleration status
     bool isHardwareAccelerated() const;
+
     QString backendName() const;
 
     // Initialize hardware acceleration
@@ -98,95 +115,114 @@ public:
 
     // Additional methods
     void updateView();
-    QList<GraphicObject*>* getObjects() { return &_objects; }
+
+    QList<GraphicObject *> *getObjects() { return &_objects; }
 
     // GPU cache management (public for HybridMatrixWidget access)
     void clearGPUCache();
 
 protected:
-    void paintEvent(QPaintEvent* event) override;
-    void resizeEvent(QResizeEvent* event) override;
-    // User interaction handled by HybridMatrixWidget
+    void paintEvent(QPaintEvent *event) override;
+
+    void resizeEvent(QResizeEvent *event) override;
 
 public slots:
     // Add slots here if needed in the future
 
 private:
     // Full rendering pipeline methods
-    void renderFullMatrixContent(QPainter* painter);
-    void renderBackground(QPainter* painter);
-    void renderPianoKeys(QPainter* painter);
-    void renderMidiEvents(QPainter* painter);
-    void renderGridLines(QPainter* painter);
-    void renderTimeline(QPainter* painter);
-    void renderTools(QPainter* painter);
-    void renderCursor(QPainter* painter);
+    void renderFullMatrixContent(QPainter *painter);
+
+    void renderBackground(QPainter *painter);
+
+    void renderPianoKeys(QPainter *painter);
+
+    void renderMidiEvents(QPainter *painter);
+
+    void renderGridLines(QPainter *painter);
+
+    void renderTimeline(QPainter *painter);
+
+    void renderTools(QPainter *painter);
+
+    void renderCursor(QPainter *painter);
 
     // Piano key rendering helpers
-    void renderPianoKey(QPainter* painter, int number, int x, int y, int width, int height);
+    void renderPianoKey(QPainter *painter, int number, int x, int y, int width, int height);
+
     QString getNoteNameForMidiNumber(int midiNumber);
 
     // MIDI event rendering helpers
-    void renderChannelEvents(QPainter* painter, int channel);
-    void renderNoteEvent(QPainter* painter, OnEvent* onEvent, const QColor& color);
-    void renderSingleEvent(QPainter* painter, MidiEvent* event, const QColor& color);
+    void renderChannelEvents(QPainter *painter, int channel);
+
+    void renderNoteEvent(QPainter *painter, OnEvent *onEvent, const QColor &color);
+
+    void renderSingleEvent(QPainter *painter, MidiEvent *event, const QColor &color);
 
     // Timeline rendering helpers
     QString formatTimeLabel(int timeMs);
-    void renderMeasures(QPainter* painter);
 
-    // Qt RHI GPU rendering methods (implemented in PlatformImpl)
-    // These methods are now private implementation details
+    void renderMeasures(QPainter *painter);
 
     // GPU resource management (implemented in PlatformImpl)
     bool createGPUResources();
+
     void destroyGPUResources();
+
     bool createShaderPipelines();
+
     bool createVertexBuffers();
+
     bool createFontAtlas();
+
     void updateUniformBuffer();
 
     // Shader creation helpers (implemented in PlatformImpl)
     bool createMidiEventPipeline();
+
     bool createBackgroundPipeline();
+
     bool createLinePipeline();
+
     bool createTextPipeline();
+
     bool createPianoPipeline();
 
     // Shader compilation utilities (implemented in PlatformImpl)
-    bool loadShader(const QString& filename);
+    bool loadShader(const QString &filename);
+
     bool createBasicVertexShader();
+
     bool createBasicFragmentShader();
+
     bool compileShaders();
 
     // Platform-specific implementation
     class PlatformImpl;
-    PlatformImpl* _impl;
+    PlatformImpl *_impl;
 
     // Basic state
-    MidiFile* _file;
-    QSettings* _settings;
+    MidiFile *_file;
+    QSettings *_settings;
 
     // Event data for rendering (populated from render data)
-    QList<MidiEvent*> _midiEvents;
-    QList<GraphicObject*> _objects;
+    QList<MidiEvent *> _midiEvents;
+    QList<GraphicObject *> _objects;
 
     // Event data for GPU rendering
     struct EventVertex {
         float x, y, width, height;
         float r, g, b, a;
     };
-    QVector<EventVertex> _eventVertices;
-    QString _backendName;
 
-    // Qt RHI GPU resources are now managed by PlatformImpl
-    // This avoids exposing Qt RHI private headers in the public header
+    QList<EventVertex> _eventVertices;
+    QString _backendName;
 
     // GPU data caching for performance optimization
     struct CachedGPUData {
-        QVector<float> midiEventInstances;
-        QVector<float> pianoKeyData;
-        QVector<float> lineVertices;
+        QList<float> midiEventInstances;
+        QList<float> pianoKeyData;
+        QList<float> lineVertices;
         int lastStartTick = -1;
         int lastEndTick = -1;
         int lastStartLine = -1;
@@ -195,7 +231,7 @@ private:
     } _cachedGPUData;
 
     // Cached render data from HybridMatrixWidget
-    MatrixRenderData* _renderData;
+    MatrixRenderData *_renderData;
 
     // Frame rate limiting
     QElapsedTimer _frameTimer;
@@ -203,20 +239,24 @@ private:
 
     // Update event data for rendering
     void updateEventData();
+
     bool validateGPUResources();
+
     bool recreateGPUResources();
-    bool validateRenderData(const MatrixRenderData& data);
+
+    bool validateRenderData(const MatrixRenderData &data);
 
 private slots:
-    // Note: Appearance change handling removed (static class, no signals)
-
     // Color calculation for events
-    QColor getEventColor(MidiEvent* event) const;
+    QColor getEventColor(MidiEvent *event) const;
 
     // Coordinate conversion helpers
     float tickToX(int tick) const;
+
     float lineToY(int line) const;
+
     int xToTick(float x) const;
+
     int yToLine(float y) const;
 };
 

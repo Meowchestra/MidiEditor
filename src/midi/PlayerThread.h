@@ -19,7 +19,6 @@
 #ifndef PLAYERTHREAD_H_
 #define PLAYERTHREAD_H_
 
-#include <QMultiMap>
 #include <QObject>
 #include <QThread>
 #include <QTimer>
@@ -29,15 +28,19 @@ class MidiFile;
 class MidiEvent;
 
 class PlayerThread : public QThread {
-
     Q_OBJECT
 
 public:
     PlayerThread();
-    void setFile(MidiFile* f);
+
+    void setFile(MidiFile *f);
+
     void stop();
+
     void run();
+
     void setInterval(int i);
+
     int timeMs();
 
 public slots:
@@ -45,22 +48,26 @@ public slots:
 
 signals:
     void timeMsChanged(int ms);
+
     void playerStopped();
+
     void playerStarted();
 
     void tonalityChanged(int tonality);
+
     void measureChanged(int measure, int tickInMeasure);
+
     void meterChanged(int num, int denum);
 
     void measureUpdate(int measure, int tickInMeasure);
 
 private:
-    MidiFile* file;
-    QMultiMap<int, MidiEvent*>* events;
+    MidiFile *file;
+    QMultiMap<int, MidiEvent *> *events;
     int interval, position, timeoutSinceLastSignal;
     volatile bool stopped;
-    QTimer* timer;
-    QElapsedTimer* time;
+    QTimer *timer;
+    QElapsedTimer *time;
 
     int measure, posInMeasure;
 };

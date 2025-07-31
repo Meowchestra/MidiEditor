@@ -4,21 +4,24 @@
 #include "EventTool.h"
 
 class TimeSignatureTool : public EventTool {
-
 public:
     TimeSignatureTool();
-    TimeSignatureTool(TimeSignatureTool& other);
 
-    void draw(QPainter* painter);
+    TimeSignatureTool(TimeSignatureTool &other);
+
+    void draw(QPainter *painter);
 
     bool press(bool leftClick);
+
     bool release();
+
     bool releaseOnly();
 
     bool move(int mouseX, int mouseY);
 
-    ProtocolEntry* copy();
-    void reloadState(ProtocolEntry* entry);
+    ProtocolEntry *copy();
+
+    void reloadState(ProtocolEntry *entry);
 
 private:
 };

@@ -19,7 +19,6 @@
 #ifndef SHAREDCLIPBOARD_H
 #define SHAREDCLIPBOARD_H
 
-#include <QObject>
 #include <QSharedMemory>
 #include <QSystemSemaphore>
 #include <QList>
@@ -35,15 +34,14 @@ class MidiFile;
  * of MidiEditor using Qt's QSharedMemory. It preserves tempo information
  * and handles proper serialization/deserialization of MIDI events.
  */
-class SharedClipboard : public QObject
-{
+class SharedClipboard : public QObject {
     Q_OBJECT
 
 public:
     /**
      * @brief Get the singleton instance of SharedClipboard
      */
-    static SharedClipboard* instance();
+    static SharedClipboard *instance();
 
     /**
      * @brief Initialize the shared clipboard system
@@ -57,7 +55,7 @@ public:
      * @param sourceFile Source MIDI file (for tempo and timing info)
      * @return true if copy was successful
      */
-    bool copyEvents(const QList<MidiEvent*>& events, MidiFile* sourceFile);
+    bool copyEvents(const QList<MidiEvent *> &events, MidiFile *sourceFile);
 
     /**
      * @brief Paste events from shared clipboard
@@ -65,7 +63,7 @@ public:
      * @param pastedEvents Output list of pasted events
      * @return true if paste was successful
      */
-    bool pasteEvents(MidiFile* targetFile, QList<MidiEvent*>& pastedEvents);
+    bool pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &pastedEvents);
 
     /**
      * @brief Check if shared clipboard has data
@@ -97,27 +95,29 @@ public:
     static QPair<int, int> getOriginalTiming(int index);
 
 private:
-    explicit SharedClipboard(QObject* parent = nullptr);
+    explicit SharedClipboard(QObject *parent = nullptr);
+
     ~SharedClipboard();
 
     // Prevent copying
-    SharedClipboard(const SharedClipboard&) = delete;
-    SharedClipboard& operator=(const SharedClipboard&) = delete;
+    SharedClipboard(const SharedClipboard &) = delete;
+
+    SharedClipboard &operator=(const SharedClipboard &) = delete;
 
     /**
      * @brief Serialize events to byte array
      */
-    QByteArray serializeEvents(const QList<MidiEvent*>& events, MidiFile* sourceFile);
+    QByteArray serializeEvents(const QList<MidiEvent *> &events, MidiFile *sourceFile);
 
     /**
      * @brief Deserialize events from byte array
      */
-    bool deserializeEvents(const QByteArray& data, MidiFile* targetFile, QList<MidiEvent*>& events);
+    bool deserializeEvents(const QByteArray &data, MidiFile *targetFile, QList<MidiEvent *> &events);
 
     /**
      * @brief Get current tempo information from file
      */
-    int getCurrentTempo(MidiFile* file, int atTick = 0);
+    int getCurrentTempo(MidiFile *file, int atTick = 0);
 
     /**
      * @brief Lock shared memory for exclusive access
@@ -129,14 +129,14 @@ private:
      */
     void unlockMemory();
 
-    static SharedClipboard* _instance;
+    static SharedClipboard *_instance;
     static const QString SHARED_MEMORY_KEY;
     static const QString SEMAPHORE_KEY;
     static const int CLIPBOARD_VERSION;
     static const int MAX_CLIPBOARD_SIZE;
 
-    QSharedMemory* _sharedMemory;
-    QSystemSemaphore* _semaphore;
+    QSharedMemory *_sharedMemory;
+    QSystemSemaphore *_semaphore;
     bool _initialized;
 
     // Clipboard data structure
@@ -146,8 +146,8 @@ private:
         int tempoBeatsPerQuarter;
         int eventCount;
         int dataSize;
-        qint64 timestamp;  // For detecting stale data
-        qint64 sourceProcessId;  // Process ID that wrote the data
+        qint64 timestamp; // For detecting stale data
+        qint64 sourceProcessId; // Process ID that wrote the data
     };
 };
 

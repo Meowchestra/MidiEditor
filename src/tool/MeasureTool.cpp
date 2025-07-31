@@ -9,21 +9,20 @@
 #include "../protocol/Protocol.h"
 
 MeasureTool::MeasureTool()
-    : EventTool()
-{
+    : EventTool() {
     setImage(":/run_environment/graphics/tool/measure.png");
     setToolTipText("Insert or delete measures");
     _firstSelectedMeasure = -1;
     _secondSelectedMeasure = -1;
 }
 
-MeasureTool::MeasureTool(MeasureTool& other) : MeasureTool(){
+MeasureTool::MeasureTool(MeasureTool &other) : MeasureTool() {
     _firstSelectedMeasure = other._firstSelectedMeasure;
     _secondSelectedMeasure = other._secondSelectedMeasure;
 }
 
-void MeasureTool::draw(QPainter* painter){
-    if(_firstSelectedMeasure > -1) {
+void MeasureTool::draw(QPainter *painter) {
+    if (_firstSelectedMeasure > -1) {
         painter->setOpacity(0.3);
         fillMeasures(painter, _firstSelectedMeasure, _secondSelectedMeasure);
     }
@@ -49,9 +48,9 @@ void MeasureTool::draw(QPainter* painter){
             measureTo = tmp;
         }
         int x1 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureFrom)));
-        int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo+1)));
+        int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo + 1)));
         painter->setOpacity(0.2);
-        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
+        painter->fillRect(x1, 0, x2 - x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
     }
     int dist, measureX;
     this->closestMeasureStart(&dist, &measureX);
@@ -67,15 +66,15 @@ void MeasureTool::draw(QPainter* painter){
         int x1 = matrixWidget->xPosOfMs(file()->msOfTick(measureStartTick));
         int x2 = matrixWidget->xPosOfMs(file()->msOfTick(measureEndTick));
         painter->setOpacity(0.5);
-        painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
+        painter->fillRect(x1, 0, x2 - x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
     }
 }
 
-bool MeasureTool::press(bool leftClick){
+bool MeasureTool::press(bool leftClick) {
     return true;
 }
 
-bool MeasureTool::release(){
+bool MeasureTool::release() {
     if (_firstSelectedMeasure > -1 && QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier)) {
         int ms = matrixWidget->msOfXPos(mouseX);
         int tick = file()->tick(ms);
@@ -91,10 +90,10 @@ bool MeasureTool::release(){
             return true;
         }
         int num = QInputDialog::getInt(matrixWidget, "Insert Measures",
-            "Number of measures:", 1, 1, 100000, 1, &ok);
+                                       "Number of measures:", 1, 1, 100000, 1, &ok);
         if (ok) {
             file()->protocol()->startNewAction("Insert measures", image());
-            file()->insertMeasures(measure-1, num);
+            file()->insertMeasures(measure - 1, num);
             _firstSelectedMeasure = -1;
             _secondSelectedMeasure = -1;
             file()->protocol()->endAction();
@@ -114,14 +113,14 @@ bool MeasureTool::release(){
     return true;
 }
 
-bool MeasureTool::releaseOnly(){
+bool MeasureTool::releaseOnly() {
     _firstSelectedMeasure = -1;
     _secondSelectedMeasure = -1;
     return false;
 }
 
-bool MeasureTool::releaseKey(int key){
-    if(key == Qt::Key_Delete && _firstSelectedMeasure > -1){
+bool MeasureTool::releaseKey(int key) {
+    if (key == Qt::Key_Delete && _firstSelectedMeasure > -1) {
         file()->protocol()->startNewAction("Remove measures", image());
         if (_secondSelectedMeasure == -1) {
             _secondSelectedMeasure = _firstSelectedMeasure;
@@ -140,17 +139,17 @@ bool MeasureTool::releaseKey(int key){
     return false;
 }
 
-bool MeasureTool::move(int mouseX, int mouseY){
+bool MeasureTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     return true;
 }
 
-ProtocolEntry* MeasureTool::copy(){
+ProtocolEntry *MeasureTool::copy() {
     return new MeasureTool(*this);
 }
 
-void MeasureTool::reloadState(ProtocolEntry* entry){
-    MeasureTool* other = dynamic_cast<MeasureTool*>(entry);
+void MeasureTool::reloadState(ProtocolEntry *entry) {
+    MeasureTool *other = dynamic_cast<MeasureTool *>(entry);
     if (!other) {
         return;
     }
@@ -179,7 +178,7 @@ int MeasureTool::closestMeasureStart(int *distX, int *measureX) {
     return measure;
 }
 
-void MeasureTool::fillMeasures(QPainter *painter, int measureFrom, int measureTo){
+void MeasureTool::fillMeasures(QPainter *painter, int measureFrom, int measureTo) {
     // Draw selection
     if (measureFrom > measureTo) {
         int tmp = measureFrom;
@@ -187,6 +186,6 @@ void MeasureTool::fillMeasures(QPainter *painter, int measureFrom, int measureTo
         measureTo = tmp;
     }
     int x1 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureFrom)));
-    int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo+1)));
-    painter->fillRect(x1, 0, x2-x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
+    int x2 = matrixWidget->xPosOfMs(file()->msOfTick(file()->startTickOfMeasure(measureTo + 1)));
+    painter->fillRect(x1, 0, x2 - x1, matrixWidget->height(), Appearance::measureToolHighlightColor());
 }

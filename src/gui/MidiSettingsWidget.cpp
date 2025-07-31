@@ -28,19 +28,17 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
-#include <QListWidget>
 #include <QListWidgetItem>
 #include <QPushButton>
 #include <QSettings>
 #include <QSpinBox>
 #include <QTextEdit>
 
-AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings* settings, QWidget* parent)
+AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, QWidget *parent)
     : SettingsWidget(tr("Additional Midi Settings"), parent) {
-
     _settings = settings;
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
     layout->addWidget(new QLabel(tr("Default ticks per quarter note:"), this), 0, 0, 1, 2);
@@ -105,37 +103,37 @@ void AdditionalMidiSettingsWidget::setMetronomeLoudness(int value) {
 void AdditionalMidiSettingsWidget::refreshColors() {
     // Update info box colors to match current theme
     if (_tpqInfoBox) {
-        QLabel* label = qobject_cast<QLabel*>(_tpqInfoBox);
+        QLabel *label = qobject_cast<QLabel *>(_tpqInfoBox);
         if (label) {
             QColor bgColor = Appearance::infoBoxBackgroundColor();
             QColor textColor = Appearance::infoBoxTextColor();
             QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
             label->setStyleSheet(styleSheet);
         }
     }
 
     if (_startCmdInfoBox) {
-        QLabel* label = qobject_cast<QLabel*>(_startCmdInfoBox);
+        QLabel *label = qobject_cast<QLabel *>(_startCmdInfoBox);
         if (label) {
             QColor bgColor = Appearance::infoBoxBackgroundColor();
             QColor textColor = Appearance::infoBoxTextColor();
             QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
             label->setStyleSheet(styleSheet);
         }
     }
 
     if (_playerModeInfoBox) {
-        QLabel* label = qobject_cast<QLabel*>(_playerModeInfoBox);
+        QLabel *label = qobject_cast<QLabel *>(_playerModeInfoBox);
         if (label) {
             QColor bgColor = Appearance::infoBoxBackgroundColor();
             QColor textColor = Appearance::infoBoxTextColor();
             QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
             label->setStyleSheet(styleSheet);
         }
     }
@@ -151,10 +149,9 @@ bool AdditionalMidiSettingsWidget::accept() {
     return true;
 }
 
-MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
+MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     : SettingsWidget("Midi I/O", parent) {
-
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
     _playerModeInfoBox = createInfoBox(tr("Choose the Midi ports on your machine to which MidiEditor connects in order to play and record Midi data."));
@@ -167,7 +164,7 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
             SLOT(outputChanged(QListWidgetItem*)));
 
     layout->addWidget(_outList, 2, 0, 1, 3);
-    QPushButton* reloadOutputList = new QPushButton();
+    QPushButton *reloadOutputList = new QPushButton();
     reloadOutputList->setToolTip(tr("Refresh port list"));
     reloadOutputList->setFlat(true);
     reloadOutputList->setIcon(QIcon(":/run_environment/graphics/tool/refresh.png"));
@@ -184,7 +181,7 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
             SLOT(inputChanged(QListWidgetItem*)));
 
     layout->addWidget(_inList, 2, 3, 1, 3);
-    QPushButton* reloadInputList = new QPushButton();
+    QPushButton *reloadInputList = new QPushButton();
     reloadInputList->setFlat(true);
     layout->addWidget(reloadInputList, 1, 5, 1, 1);
     reloadInputList->setToolTip(tr("Refresh port list"));
@@ -196,17 +193,15 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget* parent)
 }
 
 void MidiSettingsWidget::reloadInputPorts() {
-
     disconnect(_inList, SIGNAL(itemChanged(QListWidgetItem*)), this,
                SLOT(inputChanged(QListWidgetItem*)));
 
     // clear the list
     _inList->clear();
 
-    foreach (QString name, MidiInput::inputPorts()) {
-
-        QListWidgetItem* item = new QListWidgetItem(name, _inList,
-                QListWidgetItem::UserType);
+    foreach(QString name, MidiInput::inputPorts()) {
+        QListWidgetItem *item = new QListWidgetItem(name, _inList,
+                                                    QListWidgetItem::UserType);
         item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
 
         if (name == MidiInput::inputPort()) {
@@ -221,17 +216,15 @@ void MidiSettingsWidget::reloadInputPorts() {
 }
 
 void MidiSettingsWidget::reloadOutputPorts() {
-
     disconnect(_outList, SIGNAL(itemChanged(QListWidgetItem*)), this,
                SLOT(outputChanged(QListWidgetItem*)));
 
     // clear the list
     _outList->clear();
 
-    foreach (QString name, MidiOutput::outputPorts()) {
-
-        QListWidgetItem* item = new QListWidgetItem(name, _outList,
-                QListWidgetItem::UserType);
+    foreach(QString name, MidiOutput::outputPorts()) {
+        QListWidgetItem *item = new QListWidgetItem(name, _outList,
+                                                    QListWidgetItem::UserType);
         item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled | Qt::ItemIsUserCheckable);
 
         if (name == MidiOutput::outputPort()) {
@@ -245,20 +238,16 @@ void MidiSettingsWidget::reloadOutputPorts() {
             SLOT(outputChanged(QListWidgetItem*)));
 }
 
-void MidiSettingsWidget::inputChanged(QListWidgetItem* item) {
-
+void MidiSettingsWidget::inputChanged(QListWidgetItem *item) {
     if (item->checkState() == Qt::Checked) {
-
         MidiInput::setInputPort(item->text());
 
         reloadInputPorts();
     }
 }
 
-void MidiSettingsWidget::outputChanged(QListWidgetItem* item) {
-
+void MidiSettingsWidget::outputChanged(QListWidgetItem *item) {
     if (item->checkState() == Qt::Checked) {
-
         MidiOutput::setOutputPort(item->text());
 
         reloadOutputPorts();
@@ -268,13 +257,13 @@ void MidiSettingsWidget::outputChanged(QListWidgetItem* item) {
 void MidiSettingsWidget::refreshColors() {
     // Update info box colors to match current theme
     if (_playerModeInfoBox) {
-        QLabel* label = qobject_cast<QLabel*>(_playerModeInfoBox);
+        QLabel *label = qobject_cast<QLabel *>(_playerModeInfoBox);
         if (label) {
             QColor bgColor = Appearance::infoBoxBackgroundColor();
             QColor textColor = Appearance::infoBoxTextColor();
             QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                                .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                                .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
             label->setStyleSheet(styleSheet);
         }
     }

@@ -18,9 +18,10 @@
 
 #include "ClickButton.h"
 
-ClickButton::ClickButton(QString imageName, QWidget* parent)
-    : QPushButton(parent)
-{
+#include <QPainter>
+
+ClickButton::ClickButton(QString imageName, QWidget *parent)
+    : QPushButton(parent) {
     setFixedSize(40, 40);
     button_mouseInButton = false;
     button_mouseClicked = false;
@@ -28,9 +29,7 @@ ClickButton::ClickButton(QString imageName, QWidget* parent)
     connect(this, SIGNAL(clicked()), this, SLOT(buttonClick()));
 }
 
-void ClickButton::paintEvent(QPaintEvent* event)
-{
-
+void ClickButton::paintEvent(QPaintEvent *event) {
     Q_UNUSED(event);
 
     QPainter painter(this);
@@ -45,27 +44,23 @@ void ClickButton::paintEvent(QPaintEvent* event)
     painter.drawImage(QRectF(3, 3, 35, 35), *(image));
 }
 
-void ClickButton::enterEvent(QEvent* event)
-{
+void ClickButton::enterEvent(QEnterEvent *event) {
     Q_UNUSED(event);
     button_mouseInButton = true;
 }
 
-void ClickButton::leaveEvent(QEvent* event)
-{
+void ClickButton::leaveEvent(QEvent *event) {
     Q_UNUSED(event);
     button_mouseInButton = false;
     button_mouseClicked = false;
 }
 
-void ClickButton::buttonClick()
-{
+void ClickButton::buttonClick() {
     button_mouseClicked = true;
     repaint();
 }
 
-void ClickButton::setImageName(QString imageName)
-{
+void ClickButton::setImageName(QString imageName) {
     image = new QImage(":/run_environment/graphics/tool/" + imageName);
     repaint();
 }

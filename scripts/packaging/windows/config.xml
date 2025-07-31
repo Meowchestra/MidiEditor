@@ -8,7 +8,7 @@
     <InstallerWindowIcon>package.png</InstallerWindowIcon>
     <Logo>midieditor.png</Logo>
     <RunProgram>@TargetDir@/MidiEditor.exe</RunProgram>
-    <RunProgramArguments></RunProgramArguments>
+    <RunProgramArguments/>
     <RunProgramDescription>Run MidiEditor</RunProgramDescription>
     <StartMenuDir>MidiEditor</StartMenuDir>
     <AllowNonAsciiCharacters>true</AllowNonAsciiCharacters>

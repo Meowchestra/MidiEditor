@@ -22,22 +22,28 @@
 #include "MidiEvent.h"
 
 class ControlChangeEvent : public MidiEvent {
-
 public:
-    ControlChangeEvent(int channel, int contr, int val, MidiTrack* track);
-    ControlChangeEvent(ControlChangeEvent& other);
+    ControlChangeEvent(int channel, int contr, int val, MidiTrack *track);
+
+    ControlChangeEvent(ControlChangeEvent &other);
 
     virtual int line();
+
     int control();
+
     int value();
+
     void setValue(int v);
+
     void setControl(int c);
 
     QString toMessage();
+
     QByteArray save();
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     QString typeString();
 

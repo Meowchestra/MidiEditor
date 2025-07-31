@@ -20,32 +20,27 @@
 
 #include "../midi/MidiFile.h"
 
-ControlChangeEvent::ControlChangeEvent(int channel, int control, int value, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+ControlChangeEvent::ControlChangeEvent(int channel, int control, int value, MidiTrack *track)
+    : MidiEvent(channel, track) {
     _control = control;
     _value = value;
 }
 
-ControlChangeEvent::ControlChangeEvent(ControlChangeEvent& other)
-    : MidiEvent(other)
-{
+ControlChangeEvent::ControlChangeEvent(ControlChangeEvent &other)
+    : MidiEvent(other) {
     _value = other._value;
     _control = other._control;
 }
 
-int ControlChangeEvent::line()
-{
+int ControlChangeEvent::line() {
     return CONTROLLER_LINE;
 }
 
-QString ControlChangeEvent::toMessage()
-{
+QString ControlChangeEvent::toMessage() {
     return "cc " + QString::number(channel()) + " " + QString::number(_control) + " " + QString::number(_value);
 }
 
-QByteArray ControlChangeEvent::save()
-{
+QByteArray ControlChangeEvent::save() {
     QByteArray array = QByteArray();
     array.append(0xB0 | channel());
     array.append(_control);
@@ -53,14 +48,12 @@ QByteArray ControlChangeEvent::save()
     return array;
 }
 
-ProtocolEntry* ControlChangeEvent::copy()
-{
+ProtocolEntry *ControlChangeEvent::copy() {
     return new ControlChangeEvent(*this);
 }
 
-void ControlChangeEvent::reloadState(ProtocolEntry* entry)
-{
-    ControlChangeEvent* other = dynamic_cast<ControlChangeEvent*>(entry);
+void ControlChangeEvent::reloadState(ProtocolEntry *entry) {
+    ControlChangeEvent *other = dynamic_cast<ControlChangeEvent *>(entry);
     if (!other) {
         return;
     }
@@ -69,36 +62,30 @@ void ControlChangeEvent::reloadState(ProtocolEntry* entry)
     _value = other->_value;
 }
 
-QString ControlChangeEvent::typeString()
-{
+QString ControlChangeEvent::typeString() {
     return "Control Change Event";
 }
 
-int ControlChangeEvent::value()
-{
+int ControlChangeEvent::value() {
     return _value;
 }
 
-int ControlChangeEvent::control()
-{
+int ControlChangeEvent::control() {
     return _control;
 }
 
-void ControlChangeEvent::setValue(int v)
-{
-    ProtocolEntry* toCopy = copy();
+void ControlChangeEvent::setValue(int v) {
+    ProtocolEntry *toCopy = copy();
     _value = v;
     protocol(toCopy, this);
 }
 
-void ControlChangeEvent::setControl(int c)
-{
-    ProtocolEntry* toCopy = copy();
+void ControlChangeEvent::setControl(int c) {
+    ProtocolEntry *toCopy = copy();
     _control = c;
     protocol(toCopy, this);
 }
 
-bool ControlChangeEvent::isOnEvent()
-{
+bool ControlChangeEvent::isOnEvent() {
     return false;
 }

@@ -25,18 +25,17 @@ class MidiFile;
 class QSpinBox;
 
 class FileLengthDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    FileLengthDialog(MidiFile* f, QWidget* parent = 0);
+    FileLengthDialog(MidiFile *f, QWidget *parent = 0);
 
 public slots:
     void accept();
 
 private:
-    MidiFile* _file;
-    QSpinBox* _box;
+    MidiFile *_file;
+    QSpinBox *_box;
 };
 
 #endif

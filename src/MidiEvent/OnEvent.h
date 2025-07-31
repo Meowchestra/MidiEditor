@@ -24,22 +24,27 @@
 class OffEvent;
 
 class OnEvent : public MidiEvent {
-
 public:
-    OnEvent(int ch, MidiTrack* track);
-    OnEvent(OnEvent& other);
+    OnEvent(int ch, MidiTrack *track);
 
-    void setOffEvent(OffEvent* event);
-    OffEvent* offEvent();
+    OnEvent(OnEvent &other);
+
+    void setOffEvent(OffEvent *event);
+
+    OffEvent *offEvent();
+
     virtual QByteArray saveOffEvent();
+
     virtual QString offEventMessage();
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+
+    virtual ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     void moveToChannel(int channel);
 
 protected:
-    OffEvent* _offEvent;
+    OffEvent *_offEvent;
 };
 
 #endif

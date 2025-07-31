@@ -35,11 +35,11 @@
 #include "Selection.h"
 #include "SharedClipboard.h"
 
-#include <QtCore/qmath.h>
 #include <set>
 #include <vector>
+#include <cmath>
 
-QList<MidiEvent*>* EventTool::copiedEvents = new QList<MidiEvent*>;
+QList<MidiEvent *> *EventTool::copiedEvents = new QList<MidiEvent *>;
 
 int EventTool::_pasteChannel = -1;
 int EventTool::_pasteTrack = -2;
@@ -50,12 +50,11 @@ EventTool::EventTool()
     : EditorTool() {
 }
 
-EventTool::EventTool(EventTool& other)
+EventTool::EventTool(EventTool &other)
     : EditorTool(other) {
 }
 
-void EventTool::selectEvent(MidiEvent* event, bool single, bool ignoreStr, bool setSelection) {
-
+void EventTool::selectEvent(MidiEvent *event, bool single, bool ignoreStr, bool setSelection) {
     if (!event->file()->channel(event->channel())->visible()) {
         return;
     }
@@ -64,16 +63,16 @@ void EventTool::selectEvent(MidiEvent* event, bool single, bool ignoreStr, bool 
         return;
     }
 
-    QList<MidiEvent*>& selected = Selection::instance()->selectedEvents();
+    QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
 
-    OffEvent* offevent = dynamic_cast<OffEvent*>(event);
+    OffEvent *offevent = dynamic_cast<OffEvent *>(event);
     if (offevent) {
         return;
     }
 
     if (single && !QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier) && (!QApplication::keyboardModifiers().testFlag(Qt::ControlModifier) || ignoreStr)) {
         selected.clear();
-        NoteOnEvent* on = dynamic_cast<NoteOnEvent*>(event);
+        NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(event);
         if (on) {
             MidiPlayer::play(on);
         }
@@ -84,16 +83,14 @@ void EventTool::selectEvent(MidiEvent* event, bool single, bool ignoreStr, bool 
         selected.removeAll(event);
     }
 
-    if (setSelection)
-    {
+    if (setSelection) {
         Selection::instance()->setSelection(selected);
     }
     _mainWindow->eventWidget()->reportSelectionChangedByTool();
 }
 
-void EventTool::deselectEvent(MidiEvent* event) {
-
-    QList<MidiEvent*>& selected = Selection::instance()->selectedEvents();
+void EventTool::deselectEvent(MidiEvent *event) {
+    QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
     selected.removeAll(event);
 
     if (_mainWindow->eventWidget()->events().contains(event)) {
@@ -106,13 +103,12 @@ void EventTool::clearSelection() {
     _mainWindow->eventWidget()->reportSelectionChangedByTool();
 }
 
-void EventTool::paintSelectedEvents(QPainter* painter) {
-    foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
-
+void EventTool::paintSelectedEvents(QPainter *painter) {
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         bool show = event->shown();
 
         if (!show) {
-            OnEvent* ev = dynamic_cast<OnEvent*>(event);
+            OnEvent *ev = dynamic_cast<OnEvent *>(event);
             if (ev) {
                 show = ev->offEvent() && ev->offEvent()->shown();
             }
@@ -134,7 +130,7 @@ void EventTool::paintSelectedEvents(QPainter* painter) {
     }
 }
 
-void EventTool::changeTick(MidiEvent* event, int shiftX) {
+void EventTool::changeTick(MidiEvent *event, int shiftX) {
     // TODO: falls event gezeigt ist, über matrixWidget tick erfragen (effizienter)
     //int newMs = matrixWidget->msOfXPos(event->x()-shiftX);
 
@@ -147,10 +143,9 @@ void EventTool::changeTick(MidiEvent* event, int shiftX) {
 
     // with magnet: set to div value if pixel refers to this tick
     if (magnetEnabled()) {
-
         int newX = matrixWidget->xPosOfMs(newMs);
         typedef QPair<int, int> TMPPair;
-        foreach (TMPPair p, matrixWidget->divs()) {
+        foreach(TMPPair p, matrixWidget->divs()) {
             int xt = p.first;
             if (newX == xt) {
                 tick = p.second;
@@ -166,22 +161,21 @@ void EventTool::copyAction() {
         // clear old copied Events
         copiedEvents->clear();
 
-        foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
-
+        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             // add the current Event
-            MidiEvent* ev = dynamic_cast<MidiEvent*>(event->copy());
+            MidiEvent *ev = dynamic_cast<MidiEvent *>(event->copy());
             if (ev) {
                 // do not append off event here
-                OffEvent* off = dynamic_cast<OffEvent*>(ev);
+                OffEvent *off = dynamic_cast<OffEvent *>(ev);
                 if (!off) {
                     copiedEvents->append(ev);
                 }
             }
 
             // if its onEvent, add a copy of the OffEvent
-            OnEvent* onEv = dynamic_cast<OnEvent*>(ev);
+            OnEvent *onEv = dynamic_cast<OnEvent *>(ev);
             if (onEv) {
-                OffEvent* offEv = dynamic_cast<OffEvent*>(onEv->offEvent()->copy());
+                OffEvent *offEv = dynamic_cast<OffEvent *>(onEv->offEvent()->copy());
                 if (offEv) {
                     offEv->setOnEvent(onEv);
                     copiedEvents->append(offEv);
@@ -214,26 +208,25 @@ void EventTool::pasteAction() {
         return;
     }
 
-    // TODO what happends to TempoEvents??
+    // TODO what happens to TempoEvents??
 
     // copy copied events to insert unique events
-    QList<MidiEvent*> copiedCopiedEvents;
-    foreach (MidiEvent* event, *copiedEvents) {
-
+    QList<MidiEvent *> copiedCopiedEvents;
+    foreach(MidiEvent* event, *copiedEvents) {
         // add the current Event
-        MidiEvent* ev = dynamic_cast<MidiEvent*>(event->copy());
+        MidiEvent *ev = dynamic_cast<MidiEvent *>(event->copy());
         if (ev) {
             // do not append off event here
-            OffEvent* off = dynamic_cast<OffEvent*>(ev);
+            OffEvent *off = dynamic_cast<OffEvent *>(ev);
             if (!off) {
                 copiedCopiedEvents.append(ev);
             }
         }
 
         // if its onEvent, add a copy of the OffEvent
-        OnEvent* onEv = dynamic_cast<OnEvent*>(ev);
+        OnEvent *onEv = dynamic_cast<OnEvent *>(ev);
         if (onEv) {
-            OffEvent* offEv = dynamic_cast<OffEvent*>(onEv->offEvent()->copy());
+            OffEvent *offEv = dynamic_cast<OffEvent *>(onEv->offEvent()->copy());
             if (offEv) {
                 offEv->setOnEvent(onEv);
                 copiedCopiedEvents.append(offEv);
@@ -242,20 +235,19 @@ void EventTool::pasteAction() {
     }
 
     if (copiedCopiedEvents.count() > 0) {
-
         // Begin a new ProtocolAction
         currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(copiedCopiedEvents.count()) + QObject::tr(" events"));
 
         double tickscale = 1;
         if (currentFile() != copiedEvents->first()->file()) {
-            tickscale = ((double)(currentFile()->ticksPerQuarter())) / ((double)copiedEvents->first()->file()->ticksPerQuarter());
+            tickscale = ((double) (currentFile()->ticksPerQuarter())) / ((double) copiedEvents->first()->file()->ticksPerQuarter());
         }
 
         // get first Tick of the copied events
         int firstTick = -1;
-        foreach (MidiEvent* event, copiedCopiedEvents) {
-            if ((int)(tickscale * event->midiTime()) < firstTick || firstTick < 0) {
-                firstTick = (int)(tickscale * event->midiTime());
+        foreach(MidiEvent* event, copiedCopiedEvents) {
+            if ((int) (tickscale * event->midiTime()) < firstTick || firstTick < 0) {
+                firstTick = (int) (tickscale * event->midiTime());
             }
         }
 
@@ -268,14 +260,13 @@ void EventTool::pasteAction() {
         // set the Positions and add the Events to the channels
         clearSelection();
 
-        std::sort(copiedCopiedEvents.begin(), copiedCopiedEvents.end(), [](MidiEvent* a, MidiEvent* b){ return a->midiTime() < b->midiTime(); });
+        std::sort(copiedCopiedEvents.begin(), copiedCopiedEvents.end(), [](MidiEvent *a, MidiEvent *b) {return a->midiTime() < b->midiTime();});
 
-        std::vector<std::pair<ProtocolEntry*, ProtocolEntry*>> channelCopies;
+        std::vector<std::pair<ProtocolEntry *, ProtocolEntry *> > channelCopies;
         std::set<int> copiedChannels;
 
         // Determine which channels are associated with the pasted events and copy them
-        for (auto event : copiedCopiedEvents)
-        {
+        for (auto event: copiedCopiedEvents) {
             // get channel
             int channelNum = event->channel();
             if (_pasteChannel == -2) {
@@ -285,17 +276,16 @@ void EventTool::pasteAction() {
                 channelNum = _pasteChannel;
             }
 
-            if (copiedChannels.find(channelNum) == copiedChannels.end())
-            {
-                MidiChannel* channel = currentFile()->channel(channelNum);
-                ProtocolEntry* channelCopy = channel->copy();
+            if (copiedChannels.find(channelNum) == copiedChannels.end()) {
+                MidiChannel *channel = currentFile()->channel(channelNum);
+                ProtocolEntry *channelCopy = channel->copy();
                 channelCopies.push_back(std::make_pair(channelCopy, channel));
                 copiedChannels.insert(channelNum);
             }
         }
 
         for (auto it = copiedCopiedEvents.rbegin(); it != copiedCopiedEvents.rend(); it++) {
-            MidiEvent* event = *it;
+            MidiEvent *event = *it;
 
             // get channel
             int channelNum = event->channel();
@@ -307,7 +297,7 @@ void EventTool::pasteAction() {
             }
 
             // get track
-            MidiTrack* track = event->track();
+            MidiTrack *track = event->track();
             if (pasteTrack() == -2) {
                 track = currentFile()->track(NewNoteTool::editTrack());
             } else if ((pasteTrack() >= 0) && (pasteTrack() < currentFile()->tracks()->size())) {
@@ -327,15 +317,14 @@ void EventTool::pasteAction() {
             event->setChannel(channelNum, false);
             event->setTrack(track, false);
             currentFile()->channel(channelNum)->insertEvent(event,
-                (int)(tickscale * event->midiTime()) + diff, false);
+                                                            (int) (tickscale * event->midiTime()) + diff, false);
             selectEvent(event, false, true, false);
         }
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 
         // Put the copied channels from before the event insertion onto the protocol stack
-        for (auto channelPair : channelCopies)
-        {
-            ProtocolEntry* channel = channelPair.first;
+        for (auto channelPair: channelCopies) {
+            ProtocolEntry *channel = channelPair.first;
             channel->protocol(channel, channelPair.second);
         }
 
@@ -363,7 +352,7 @@ int EventTool::pasteChannel() {
     return _pasteChannel;
 }
 
-int EventTool::rasteredX(int x, int* tick) {
+int EventTool::rasteredX(int x, int *tick) {
     if (!_magnet) {
         if (tick) {
             *tick = _currentFile->tick(matrixWidget->msOfXPos(x));
@@ -371,9 +360,9 @@ int EventTool::rasteredX(int x, int* tick) {
         return x;
     }
     typedef QPair<int, int> TMPPair;
-    foreach (TMPPair p, matrixWidget->divs()) {
+    foreach(TMPPair p, matrixWidget->divs()) {
         int xt = p.first;
-        if (qAbs(xt - x) <= 5) {
+        if (std::abs(xt - x) <= 5) {
             if (tick) {
                 *tick = p.second;
             }
@@ -395,7 +384,7 @@ bool EventTool::magnetEnabled() {
 }
 
 bool EventTool::copyToSharedClipboard() {
-    SharedClipboard* clipboard = SharedClipboard::instance();
+    SharedClipboard *clipboard = SharedClipboard::instance();
     if (!clipboard->initialize()) {
         return false;
     }
@@ -406,7 +395,7 @@ bool EventTool::copyToSharedClipboard() {
     }
 
     // Get the source file from the first event
-    MidiFile* sourceFile = copiedEvents->first()->file();
+    MidiFile *sourceFile = copiedEvents->first()->file();
     if (!sourceFile) {
         return false;
     }
@@ -416,7 +405,7 @@ bool EventTool::copyToSharedClipboard() {
 }
 
 bool EventTool::pasteFromSharedClipboard() {
-    SharedClipboard* clipboard = SharedClipboard::instance();
+    SharedClipboard *clipboard = SharedClipboard::instance();
     if (!clipboard->initialize()) {
         return false;
     }
@@ -426,7 +415,7 @@ bool EventTool::pasteFromSharedClipboard() {
         return false;
     }
 
-    QList<MidiEvent*> sharedEvents;
+    QList<MidiEvent *> sharedEvents;
     if (!clipboard->pasteEvents(currentFile(), sharedEvents)) {
         return false;
     }
@@ -461,14 +450,14 @@ bool EventTool::pasteFromSharedClipboard() {
 
         // Get current editing context (where to paste)
         int targetChannel = NewNoteTool::editChannel();
-        MidiTrack* targetTrack = currentFile()->track(NewNoteTool::editTrack());
+        MidiTrack *targetTrack = currentFile()->track(NewNoteTool::editTrack());
         if (!targetTrack) {
             targetTrack = currentFile()->track(0);
         }
 
         if (!targetTrack) {
             // Clean up events
-            for (MidiEvent* event : sharedEvents) {
+            for (MidiEvent *event: sharedEvents) {
                 if (event) delete event;
             }
             return false;
@@ -476,7 +465,7 @@ bool EventTool::pasteFromSharedClipboard() {
 
         if (!currentFile()) {
             // Clean up events
-            for (MidiEvent* event : sharedEvents) {
+            for (MidiEvent *event: sharedEvents) {
                 if (event) delete event;
             }
             return false;
@@ -487,7 +476,7 @@ bool EventTool::pasteFromSharedClipboard() {
 
         // Use the deserialized events directly - they're already properly constructed
         int eventIndex = 0;
-        for (MidiEvent* event : sharedEvents) {
+        for (MidiEvent *event: sharedEvents) {
             if (!event) {
                 eventIndex++;
                 continue;
@@ -517,7 +506,6 @@ bool EventTool::pasteFromSharedClipboard() {
                 currentFile()->channel(targetChannel)->insertEvent(event, newTime, false);
 
                 selectEvent(event, false, true, false);
-
             } catch (...) {
                 delete event;
             }
@@ -536,7 +524,7 @@ bool EventTool::pasteFromSharedClipboard() {
 }
 
 bool EventTool::hasSharedClipboardData() {
-    SharedClipboard* clipboard = SharedClipboard::instance();
+    SharedClipboard *clipboard = SharedClipboard::instance();
     if (!clipboard->initialize()) {
         return false;
     }

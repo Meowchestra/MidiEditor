@@ -20,24 +20,24 @@
 #define SENDERTHREAD_H_
 
 #include <QMutex>
-#include <QQueue>
 #include <QThread>
 #include <QWaitCondition>
 
 #include "MidiOutput.h"
 
 class SenderThread : public QThread {
-
 public:
     SenderThread();
+
     void run();
-    void enqueue(MidiEvent* event);
+
+    void enqueue(MidiEvent *event);
 
 private:
-    QQueue<MidiEvent*>* _eventQueue;
-    QQueue<MidiEvent*>* _noteQueue;
-    QMutex* _mutex;
-    QWaitCondition* _waitCondition;
+    QQueue<MidiEvent *> *_eventQueue;
+    QQueue<MidiEvent *> *_noteQueue;
+    QMutex *_mutex;
+    QWaitCondition *_waitCondition;
 };
 
 #endif

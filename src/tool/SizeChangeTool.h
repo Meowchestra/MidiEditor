@@ -22,18 +22,23 @@
 #include "EventTool.h"
 
 class SizeChangeTool : public EventTool {
-
 public:
     SizeChangeTool();
-    SizeChangeTool(SizeChangeTool& other);
 
-    ProtocolEntry* copy();
-    void reloadState(ProtocolEntry* entry);
+    SizeChangeTool(SizeChangeTool &other);
 
-    void draw(QPainter* painter);
+    ProtocolEntry *copy();
+
+    void reloadState(ProtocolEntry *entry);
+
+    void draw(QPainter *painter);
+
     bool press(bool leftClick);
+
     bool release();
+
     bool move(int mouseX, int mouseY);
+
     bool releaseOnly();
 
     bool showsSelection();

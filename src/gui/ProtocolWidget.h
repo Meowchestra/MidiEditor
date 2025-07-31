@@ -26,21 +26,24 @@ class MidiFile;
 class ProtocolStep;
 
 class ProtocolWidget : public QListWidget {
-
     Q_OBJECT
 
 public:
-    ProtocolWidget(QWidget* parent = 0);
-    void setFile(MidiFile* f);
+    ProtocolWidget(QWidget *parent = 0);
+
+    void setFile(MidiFile *f);
 
 public slots:
     void protocolChanged();
+
     void update();
-    void stepClicked(QListWidgetItem* item);
+
+    void stepClicked(QListWidgetItem *item);
+
     void refreshColors(); // Refresh colors for theme changes
 
 private:
-    MidiFile* file;
+    MidiFile *file;
     bool protocolHasChanged, nextChangeFromList;
 
     //protected:

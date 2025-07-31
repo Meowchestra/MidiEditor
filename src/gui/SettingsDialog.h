@@ -29,24 +29,25 @@ class QStackedWidget;
 class SettingsWidget;
 
 class SettingsDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    SettingsDialog(QString title, QSettings* settings, QWidget* parent);
-    void addSetting(SettingsWidget* settingsWidget);
+    SettingsDialog(QString title, QSettings *settings, QWidget *parent);
+
+    void addSetting(SettingsWidget *settingsWidget);
 
 public slots:
     void rowChanged(int row);
+
     void submit();
 
 signals:
     void settingsChanged();
 
 protected:
-    QListWidget* _listWidget;
-    QList<SettingsWidget*>* _settingsWidgets;
-    QStackedWidget* _container;
+    QListWidget *_listWidget;
+    QList<SettingsWidget *> *_settingsWidgets;
+    QStackedWidget *_container;
 };
 
 #endif

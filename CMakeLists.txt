@@ -160,7 +160,24 @@ elseif(DEFINED ENV{QT_ROOT_DIR} OR DEFINED ENV{Qt6_DIR})
         message(STATUS "Added versioned Qt RHI private headers: ${QT_VERSIONED_DIR}")
     endif()
 else()
-    message(WARNING "No Qt directory found, Qt RHI headers may not be available")
+    if(DEFINED Qt6_DIR)
+        get_filename_component(QT_DETECTED_DIR "${Qt6_DIR}/../../.." ABSOLUTE)
+
+        # Add standard private headers
+        if(EXISTS "${QT_DETECTED_DIR}/include/QtGui/private")
+            target_include_directories(MidiEditor PRIVATE "${QT_DETECTED_DIR}/include/QtGui/private")
+            message(STATUS "Added Qt RHI private headers from detected Qt: ${QT_DETECTED_DIR}/include/QtGui/private")
+        endif()
+
+        file(GLOB QT_VERSIONED_PRIVATE "${QT_DETECTED_DIR}/include/QtGui/*/QtGui/private")
+        if(QT_VERSIONED_PRIVATE)
+            list(GET QT_VERSIONED_PRIVATE 0 QT_VERSIONED_DIR)
+            target_include_directories(MidiEditor PRIVATE "${QT_VERSIONED_DIR}")
+            message(STATUS "Added versioned Qt RHI private headers from detected Qt: ${QT_VERSIONED_DIR}")
+        endif()
+    else()
+        message(WARNING "No Qt directory found, Qt RHI headers may not be available")
+    endif()
 endif()
 
 # Source files - be more specific to avoid test/doc/example files
@@ -254,7 +271,7 @@ target_sources(MidiEditor PRIVATE ${SOURCES} ${HEADERS})
 
 # Qt resources
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources.qrc")
-    qt6_add_resources(MidiEditor "resources" PREFIX "/" FILES resources.qrc)
+    qt6_add_resources(MidiEditor "resources" FILES resources.qrc)
     message(STATUS "Added Qt resources from resources.qrc")
 else()
     message(WARNING "resources.qrc not found - some resources may be missing")

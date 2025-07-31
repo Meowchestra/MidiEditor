@@ -23,23 +23,26 @@
 #include <QByteArray>
 
 class TextEvent : public MidiEvent {
-
 public:
-    TextEvent(int channel, MidiTrack* track);
-    TextEvent(TextEvent& other);
+    TextEvent(int channel, MidiTrack *track);
+
+    TextEvent(TextEvent &other);
 
     QString text();
+
     void setText(QString text);
 
     int type();
+
     void setType(int type);
 
     int line();
 
     QByteArray save();
 
-    virtual ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     enum {
         TEXT = 0x01,
@@ -52,9 +55,11 @@ public:
     };
 
     QString typeString();
+
     static QString textTypeString(int type);
 
     static int getTypeForNewEvents();
+
     static void setTypeForNewEvents(int type);
 
 private:

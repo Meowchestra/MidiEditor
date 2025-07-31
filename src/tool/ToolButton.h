@@ -25,18 +25,17 @@
 class Tool;
 
 class ToolButton : public QAction {
-
     Q_OBJECT
 
 public:
-    ToolButton(Tool* tool, QKeySequence sequence = QKeySequence(), QWidget* parent = 0);
+    ToolButton(Tool *tool, QKeySequence sequence = QKeySequence(), QWidget *parent = 0);
 
 public slots:
     void buttonClick();
     void releaseButton();
-    void refreshIcon(); // Refresh icon for theme changes
+    void refreshIcon();
 
 private:
-    Tool* button_tool;
+    Tool *button_tool;
 };
 #endif

@@ -19,34 +19,29 @@
 #include "SettingsWidget.h"
 #include "Appearance.h"
 
-#include <QFrame>
 #include <QLabel>
 #include <QString>
 
-SettingsWidget::SettingsWidget(QString title, QWidget* parent)
-    : QWidget(parent)
-{
+SettingsWidget::SettingsWidget(QString title, QWidget *parent)
+    : QWidget(parent) {
     _title = title;
 }
 
-bool SettingsWidget::accept()
-{
+bool SettingsWidget::accept() {
     return true;
 }
 
-QString SettingsWidget::title()
-{
+QString SettingsWidget::title() {
     return _title;
 }
 
-QWidget* SettingsWidget::createInfoBox(QString info)
-{
-    QLabel* label = new QLabel(info, this);
+QWidget *SettingsWidget::createInfoBox(QString info) {
+    QLabel *label = new QLabel(info, this);
     QColor bgColor = Appearance::infoBoxBackgroundColor();
     QColor textColor = Appearance::infoBoxTextColor();
     QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                        .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                        .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+            .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
     label->setStyleSheet(styleSheet);
     label->setWordWrap(true);
     label->setAlignment(Qt::AlignJustify);
@@ -54,14 +49,12 @@ QWidget* SettingsWidget::createInfoBox(QString info)
     return label;
 }
 
-QWidget* SettingsWidget::separator()
-{
-    QFrame* f0 = new QFrame(this);
+QWidget *SettingsWidget::separator() {
+    QFrame *f0 = new QFrame(this);
     f0->setFrameStyle(QFrame::HLine | QFrame::Sunken);
     return f0;
 }
 
-QIcon SettingsWidget::icon()
-{
+QIcon SettingsWidget::icon() {
     return QIcon();
 }

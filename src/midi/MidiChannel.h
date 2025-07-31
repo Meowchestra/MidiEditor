@@ -52,24 +52,23 @@ class NoteOnEvent;
  * Event.
  */
 class MidiChannel : public ProtocolEntry {
-
 public:
     /**
 		 * \brief creates a new MidiChannel with number num.
 		 *
 		 * Sets the channels file to f.
 		 */
-    MidiChannel(MidiFile* f, int num);
+    MidiChannel(MidiFile *f, int num);
 
     /**
 		 * \brief creates a copy of other.
 		 */
-    MidiChannel(MidiChannel& other);
+    MidiChannel(MidiChannel &other);
 
     /**
 		 * \brief returns the channels file.
 		 */
-    MidiFile* file();
+    MidiFile *file();
 
     /**
 		 * \brief returns the channels number.
@@ -84,29 +83,29 @@ public:
 		 *
 		 * The color only depends on the channel number.
 		 */
-    QColor* color();
+    QColor *color();
 
     /**
 		 * \brief returns the eventMap of the channel.
 		 *
 		 * This contains all MidiEvents of the channel.
 		 */
-    QMultiMap<int, MidiEvent*>* eventMap();
+    QMultiMap<int, MidiEvent *> *eventMap();
 
     /**
 		 * \brief inserts a note to this channel.
 		 */
-    NoteOnEvent* insertNote(int note, int startTick, int endTick, int velocity, MidiTrack* track);
+    NoteOnEvent *insertNote(int note, int startTick, int endTick, int velocity, MidiTrack *track);
 
     /**
 		 * \brief inserts event into the channels map.
 		 */
-    void insertEvent(MidiEvent* event, int tick, bool toProtocol = true);
+    void insertEvent(MidiEvent *event, int tick, bool toProtocol = true);
 
     /**
 		 * \brief removes event from the eventMap.
 		 */
-    bool removeEvent(MidiEvent* event);
+    bool removeEvent(MidiEvent *event);
 
     /**
 		 * \brief returns the program number of the midi program at tick.
@@ -154,15 +153,15 @@ public:
 		 * The following methods reimplement methods from the superclass
 		 * ProtocolEntry
 		 */
-    ProtocolEntry* copy();
+    ProtocolEntry *copy();
 
-    void reloadState(ProtocolEntry* entry);
+    void reloadState(ProtocolEntry *entry);
 
 protected:
     /**
 		 * \brief the midiFile of this channel.
 		 */
-    MidiFile* _midiFile;
+    MidiFile *_midiFile;
 
     /**
 		 * \brief the flags solo, mute and visible.
@@ -172,7 +171,7 @@ protected:
     /**
 		 * \brief contains all MidiEvents of the channel sorted by their tick.
 		 */
-    QMultiMap<int, MidiEvent*>* _events;
+    QMultiMap<int, MidiEvent *> *_events;
 
     /**
 		 * \brief the channels number.

@@ -27,26 +27,22 @@
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "../protocol/Protocol.h"
-#include "Selection.h"
 #include "StandardTool.h"
 
 #include <QPainter>
 #include <QList>
 
 ScissorsTool::ScissorsTool()
-    : EventTool(), _splitTick(0)
-{
+    : EventTool(), _splitTick(0) {
     setImage(":/run_environment/graphics/tool/scissors.png");
     setToolTipText("Split notes");
 }
 
-ScissorsTool::ScissorsTool(ScissorsTool& other)
-    : EventTool(other), _splitTick(other._splitTick)
-{
+ScissorsTool::ScissorsTool(ScissorsTool &other)
+    : EventTool(other), _splitTick(other._splitTick) {
 }
 
-void ScissorsTool::draw(QPainter* painter)
-{
+void ScissorsTool::draw(QPainter *painter) {
     if (!matrixWidget || !file()) {
         return;
     }
@@ -67,14 +63,12 @@ void ScissorsTool::draw(QPainter* painter)
     painter->setPen(Appearance::foregroundColor());
 }
 
-bool ScissorsTool::press(bool leftClick)
-{
+bool ScissorsTool::press(bool leftClick) {
     Q_UNUSED(leftClick);
     return true;
 }
 
-bool ScissorsTool::release()
-{
+bool ScissorsTool::release() {
     if (!file()) {
         return false;
     }
@@ -91,34 +85,30 @@ bool ScissorsTool::release()
     return true;
 }
 
-ProtocolEntry* ScissorsTool::copy()
-{
+ProtocolEntry *ScissorsTool::copy() {
     return new ScissorsTool(*this);
 }
 
-void ScissorsTool::reloadState(ProtocolEntry* entry)
-{
+void ScissorsTool::reloadState(ProtocolEntry *entry) {
     EventTool::reloadState(entry);
-    ScissorsTool* other = dynamic_cast<ScissorsTool*>(entry);
+    ScissorsTool *other = dynamic_cast<ScissorsTool *>(entry);
     if (!other) {
         return;
     }
     _splitTick = other->_splitTick;
 }
 
-bool ScissorsTool::showsSelection()
-{
+bool ScissorsTool::showsSelection() {
     return false; // Scissors tool doesn't need to show selection
 }
 
-void ScissorsTool::performSplitOperation()
-{
+void ScissorsTool::performSplitOperation() {
     // Calculate the split position from mouse coordinates
     int ms = matrixWidget->msOfXPos(mouseX);
     int splitTick = file()->tick(ms);
 
     // Find all notes that need to be split
-    QList<NoteOnEvent*> notesToSplit = findNotesToSplit(splitTick);
+    QList<NoteOnEvent *> notesToSplit = findNotesToSplit(splitTick);
 
     if (notesToSplit.isEmpty()) {
         return; // Nothing to split
@@ -128,28 +118,27 @@ void ScissorsTool::performSplitOperation()
     currentProtocol()->startNewAction(QObject::tr("Split notes"), image());
 
     // Split each note
-    for (NoteOnEvent* note : notesToSplit) {
+    for (NoteOnEvent *note: notesToSplit) {
         splitNote(note, splitTick);
     }
 
     currentProtocol()->endAction();
 }
 
-QList<NoteOnEvent*> ScissorsTool::findNotesToSplit(int splitTick)
-{
-    QList<NoteOnEvent*> notesToSplit;
+QList<NoteOnEvent *> ScissorsTool::findNotesToSplit(int splitTick) {
+    QList<NoteOnEvent *> notesToSplit;
 
     // Search through all channels and tracks (like Cubase scissors)
     for (int ch = 0; ch < 16; ch++) {
-        MidiChannel* channel = file()->channel(ch);
+        MidiChannel *channel = file()->channel(ch);
         if (!channel->visible()) continue;
 
-        QMultiMap<int, MidiEvent*>* eventMap = channel->eventMap();
+        QMultiMap<int, MidiEvent *> *eventMap = channel->eventMap();
         for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
-            MidiEvent* event = it.value();
+            MidiEvent *event = it.value();
             if (event->track()->hidden()) continue;
 
-            NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
+            NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
             if (!noteOn) continue;
 
             // Check if this note spans across the split position
@@ -162,8 +151,7 @@ QList<NoteOnEvent*> ScissorsTool::findNotesToSplit(int splitTick)
     return notesToSplit;
 }
 
-void ScissorsTool::splitNote(NoteOnEvent* originalNote, int splitTick)
-{
+void ScissorsTool::splitNote(NoteOnEvent *originalNote, int splitTick) {
     if (!originalNote || !originalNote->offEvent()) {
         return;
     }
@@ -180,11 +168,11 @@ void ScissorsTool::splitNote(NoteOnEvent* originalNote, int splitTick)
     int note = originalNote->note();
     int velocity = originalNote->velocity();
     int channel = originalNote->channel();
-    MidiTrack* track = originalNote->track();
+    MidiTrack *track = originalNote->track();
 
     // Create the second note (from split position to original end)
-    MidiChannel* midiChannel = file()->channel(channel);
-    NoteOnEvent* secondNote = midiChannel->insertNote(note, splitTick, originalEndTick, velocity, track);
+    MidiChannel *midiChannel = file()->channel(channel);
+    NoteOnEvent *secondNote = midiChannel->insertNote(note, splitTick, originalEndTick, velocity, track);
 
     // Modify the original note to end at the split position
     originalNote->offEvent()->setMidiTime(splitTick);
@@ -193,8 +181,7 @@ void ScissorsTool::splitNote(NoteOnEvent* originalNote, int splitTick)
     // No need to manually add it to any selection since scissors tool doesn't use selection
 }
 
-bool ScissorsTool::noteSpansAcrossTick(NoteOnEvent* note, int tick)
-{
+bool ScissorsTool::noteSpansAcrossTick(NoteOnEvent *note, int tick) {
     if (!note || !note->offEvent()) {
         return false;
     }

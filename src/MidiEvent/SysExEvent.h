@@ -23,18 +23,22 @@
 #include <QByteArray>
 
 class SysExEvent : public MidiEvent {
-
 public:
-    SysExEvent(int channel, QByteArray data, MidiTrack* track);
-    SysExEvent(SysExEvent& other);
+    SysExEvent(int channel, QByteArray data, MidiTrack *track);
+
+    SysExEvent(SysExEvent &other);
 
     QByteArray data();
+
     int line();
+
     QByteArray save();
 
     QString typeString();
-    ProtocolEntry* copy();
-    virtual void reloadState(ProtocolEntry* entry);
+
+    ProtocolEntry *copy();
+
+    virtual void reloadState(ProtocolEntry *entry);
 
     void setData(QByteArray d);
 

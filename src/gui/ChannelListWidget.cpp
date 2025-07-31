@@ -32,14 +32,13 @@
 
 #define ROW_HEIGHT 85
 
-ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
+ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
     : QWidget(parent) {
-
     channelList = parent;
     channel = ch;
 
     setContentsMargins(0, 0, 0, 0);
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
     layout->setVerticalSpacing(1);
 
@@ -51,7 +50,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     } else if (channel == 9) {
         text = tr("Percussion");
     }
-    QLabel* text1 = new QLabel(text, this);
+    QLabel *text1 = new QLabel(text, this);
     text1->setFixedHeight(15);
     layout->addWidget(text1, 0, 1, 1, 1);
 
@@ -59,7 +58,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     instrumentLabel->setFixedHeight(15);
     layout->addWidget(instrumentLabel, 1, 1, 1, 1);
 
-    QToolBar* toolBar = new QToolBar(this);
+    QToolBar *toolBar = new QToolBar(this);
     toolBar->setIconSize(QSize(12, 12));
     QPalette palette = toolBar->palette();
     palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
@@ -94,7 +93,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
 
         if (channel != 9) {
             // instrument
-            QAction* instrumentAction = new QAction(tr("Select instrument"), toolBar);
+            QAction *instrumentAction = new QAction(tr("Select instrument"), toolBar);
             Appearance::setActionIcon(instrumentAction, ":/run_environment/graphics/channelwidget/instrument.png");
             toolBar->addAction(instrumentAction);
             connect(instrumentAction, SIGNAL(triggered()), this, SLOT(instrument()));
@@ -146,7 +145,6 @@ void ChannelListItem::instrument() {
 }
 
 void ChannelListItem::onBeforeUpdate() {
-
     QString text = MidiFile::instrumentName(channelList->midiFile()->channel(channel)->progAtTick(channelList->midiFile()->cursorTick()));
     if (channel == 16) {
         text = tr("Events affecting all channels");
@@ -183,15 +181,14 @@ void ChannelListItem::onBeforeUpdate() {
     }
 }
 
-ChannelListWidget::ChannelListWidget(QWidget* parent)
+ChannelListWidget::ChannelListWidget(QWidget *parent)
     : QListWidget(parent) {
-
     setSelectionMode(QAbstractItemView::NoSelection);
     setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
 
     for (int channel = 0; channel < 17; channel++) {
-        ChannelListItem* widget = new ChannelListItem(channel, this);
-        QListWidgetItem* item = new QListWidgetItem();
+        ChannelListItem *widget = new ChannelListItem(channel, this);
+        QListWidgetItem *item = new QListWidgetItem();
         item->setSizeHint(QSize(0, ROW_HEIGHT));
         addItem(item);
         setItemWidget(item, widget);
@@ -204,21 +201,20 @@ ChannelListWidget::ChannelListWidget(QWidget* parent)
     file = 0;
 }
 
-void ChannelListWidget::setFile(MidiFile* f) {
+void ChannelListWidget::setFile(MidiFile *f) {
     file = f;
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
     update();
 }
 
 void ChannelListWidget::update() {
-
-    foreach (ChannelListItem* item, items) {
+    foreach(ChannelListItem* item, items) {
         item->onBeforeUpdate();
     }
 
     QListWidget::update();
 }
 
-MidiFile* ChannelListWidget::midiFile() {
+MidiFile *ChannelListWidget::midiFile() {
     return file;
 }

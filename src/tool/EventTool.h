@@ -21,46 +21,54 @@
 
 #include "EditorTool.h"
 
-#include <QList>
-
 class MidiEvent;
 class MidiTrack;
 class SharedClipboard;
 
 class EventTool : public EditorTool {
-
 public:
     EventTool();
-    EventTool(EventTool& other);
 
-    static void selectEvent(MidiEvent* event, bool single, bool ignoreStr = false, bool setSelection = true);
-    static void deselectEvent(MidiEvent* event);
+    EventTool(EventTool &other);
+
+    static void selectEvent(MidiEvent *event, bool single, bool ignoreStr = false, bool setSelection = true);
+
+    static void deselectEvent(MidiEvent *event);
+
     static void clearSelection();
-    void paintSelectedEvents(QPainter* painter);
 
-    void changeTick(MidiEvent* event, int shiftX);
+    void paintSelectedEvents(QPainter *painter);
+
+    void changeTick(MidiEvent *event, int shiftX);
 
     static void copyAction();
+
     static void pasteAction();
 
     // Shared clipboard methods
     static bool copyToSharedClipboard();
+
     static bool pasteFromSharedClipboard();
+
     static bool hasSharedClipboardData();
 
     virtual bool showsSelection();
 
     static void setPasteTrack(int track);
+
     static int pasteTrack();
+
     static void setPasteChannel(int channel);
+
     static int pasteChannel();
 
-    int rasteredX(int x, int* tick = 0);
+    int rasteredX(int x, int *tick = 0);
 
     static void enableMagnet(bool enable);
+
     static bool magnetEnabled();
 
-    static QList<MidiEvent*>* copiedEvents;
+    static QList<MidiEvent *> *copiedEvents;
 
 protected:
     static bool isCutAction;

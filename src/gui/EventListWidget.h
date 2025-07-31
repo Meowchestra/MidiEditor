@@ -22,6 +22,7 @@
 class EventListWidget {
 public:
     EventListWidget();
+
     virtual ~EventListWidget();
 };
 

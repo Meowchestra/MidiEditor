@@ -22,14 +22,8 @@
 #include <QDialog>
 #include <QRadioButton>
 #include <QCheckBox>
-#include <QPushButton>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
-#include <QGroupBox>
 #include <QLabel>
-#include <QPaintEvent>
 #include <QMoveEvent>
-#include <QResizeEvent>
 
 #include "../tool/DeleteOverlapsTool.h"
 
@@ -49,7 +43,7 @@ public:
      * \brief Creates a new DeleteOverlapsDialog.
      * \param parent Parent widget
      */
-    explicit DeleteOverlapsDialog(QWidget* parent = nullptr);
+    explicit DeleteOverlapsDialog(QWidget *parent = nullptr);
 
     /**
      * \brief Gets the selected overlap mode.
@@ -89,29 +83,30 @@ protected:
     /**
      * \brief Override paint event to ensure description is always visible.
      */
-    void paintEvent(QPaintEvent* event);
+    void paintEvent(QPaintEvent *event);
 
     /**
      * \brief Override move event to refresh description.
      */
-    void moveEvent(QMoveEvent* event);
+    void moveEvent(QMoveEvent *event);
 
     /**
      * \brief Override resize event to prevent unwanted resizing.
      */
-    void resizeEvent(QResizeEvent* event);
+    void resizeEvent(QResizeEvent *event);
 
 private:
-    QRadioButton* _monoModeRadio;
-    QRadioButton* _polyModeRadio;
-    QRadioButton* _doublesModeRadio;
-    QCheckBox* _respectChannelsCheckBox;
-    QCheckBox* _respectTracksCheckBox;
-    QLabel* _modeDescriptionLabel;
-    QPushButton* _okButton;
-    QPushButton* _cancelButton;
+    QRadioButton *_monoModeRadio;
+    QRadioButton *_polyModeRadio;
+    QRadioButton *_doublesModeRadio;
+    QCheckBox *_respectChannelsCheckBox;
+    QCheckBox *_respectTracksCheckBox;
+    QLabel *_modeDescriptionLabel;
+    QPushButton *_okButton;
+    QPushButton *_cancelButton;
 
     void setupUI();
+
     void setupConnections();
 };
 

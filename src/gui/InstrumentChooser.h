@@ -26,19 +26,18 @@ class QComboBox;
 class QCheckBox;
 
 class InstrumentChooser : public QDialog {
-
     Q_OBJECT
 
 public:
-    InstrumentChooser(MidiFile* f, int channel, QWidget* parent = 0);
+    InstrumentChooser(MidiFile *f, int channel, QWidget *parent = 0);
 
 public slots:
     void accept();
 
 private:
-    MidiFile* _file;
-    QComboBox* _box;
-    QCheckBox* _removeOthers;
+    MidiFile *_file;
+    QComboBox *_box;
+    QCheckBox *_removeOthers;
     int _channel;
 };
 

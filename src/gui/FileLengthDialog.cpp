@@ -25,20 +25,20 @@
 #include <QPushButton>
 #include <QSpinBox>
 
-FileLengthDialog::FileLengthDialog(MidiFile* f, QWidget* parent)
+FileLengthDialog::FileLengthDialog(MidiFile *f, QWidget *parent)
     : QDialog(parent) {
     _file = f;
-    QLabel* text = new QLabel(tr("File duration (ms): "), this);
+    QLabel *text = new QLabel(tr("File duration (ms): "), this);
     _box = new QSpinBox(this);
     _box->setMinimum(1);
     _box->setMaximum(2147483647);
     _box->setValue(_file->maxTime());
-    QPushButton* breakButton = new QPushButton(tr("Cancel"));
+    QPushButton *breakButton = new QPushButton(tr("Cancel"));
     connect(breakButton, SIGNAL(clicked()), this, SLOT(hide()));
-    QPushButton* acceptButton = new QPushButton(tr("Accept"));
+    QPushButton *acceptButton = new QPushButton(tr("Accept"));
     connect(acceptButton, SIGNAL(clicked()), this, SLOT(accept()));
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     layout->addWidget(text, 0, 0, 1, 1);
     layout->addWidget(_box, 0, 1, 1, 2);
     layout->addWidget(acceptButton, 1, 0, 1, 1);

@@ -28,19 +28,15 @@
 #include "../midi/MidiInput.h"
 #include "../midi/MidiPlayer.h"
 #include "../midi/MidiTrack.h"
-#include "../midi/PlayerThread.h"
 #include "../protocol/Protocol.h"
 #include "../tool/EditorTool.h"
-#include "../tool/EventTool.h"
 #include "../tool/Selection.h"
 #include "../tool/Tool.h"
 #include "../gui/Appearance.h"
-#include "../midi/MidiOutput.h"
 
 #include <QList>
 #include <QPainterPath>
 #include <QSettings>
-#include <QtCore/qmath.h>
 #include <QThreadPool>
 #include <QRunnable>
 #include <QMutexLocker>
@@ -50,7 +46,7 @@
 // QRunnable implementation for async rendering
 class MatrixRenderTask : public QRunnable {
 public:
-    MatrixRenderTask(MatrixWidget* widget) : _widget(widget) {
+    MatrixRenderTask(MatrixWidget *widget) : _widget(widget) {
         setAutoDelete(true); // Automatically delete when finished
     }
 
@@ -62,12 +58,11 @@ public:
     }
 
 private:
-    MatrixWidget* _widget;
+    MatrixWidget *_widget;
 };
 
-MatrixWidget::MatrixWidget(QWidget* parent)
+MatrixWidget::MatrixWidget(QWidget *parent)
     : PaintWidget(parent) {
-
     // Initialize render data cache
     _renderData = nullptr;
 
@@ -113,9 +108,8 @@ MatrixWidget::MatrixWidget(QWidget* parent)
     // Initialize settings first
     _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
 
-    // Initialize Qt6 threading from settings (after settings is created)
     _useAsyncRendering = _settings->value("rendering/async_rendering", false).toBool();
-    _renderingInProgress.storeRelaxed(0); // Initialize as not rendering
+    _renderingInProgress.storeRelaxed(0);
 }
 
 MatrixWidget::~MatrixWidget() {
@@ -138,7 +132,7 @@ MatrixWidget::~MatrixWidget() {
 }
 
 // NEW: Pure renderer interface - receives data from HybridMatrixWidget
-void MatrixWidget::setRenderData(const MatrixRenderData& data) {
+void MatrixWidget::setRenderData(const MatrixRenderData &data) {
     if (!_renderData) {
         _renderData = new MatrixRenderData();
     }
@@ -201,7 +195,7 @@ bool MatrixWidget::screenLocked() {
     return screen_locked;
 }
 
-void MatrixWidget::paintEvent(QPaintEvent* event) {
+void MatrixWidget::paintEvent(QPaintEvent *event) {
     // Handle startup case when no file is loaded yet - just like original MatrixWidget
     if (!file) {
         // Original MatrixWidget just returns early, showing default widget background
@@ -209,7 +203,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         return;
     }
 
-    QPainter* painter = new QPainter(this);
+    QPainter *painter = new QPainter(this);
 
     QFont font = painter->font();
     font.setPixelSize(12);
@@ -219,7 +213,6 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
     bool totalRepaint = !pixmap;
 
     if (totalRepaint) {
-
         if (!_renderData) {
             delete painter;
             return;
@@ -227,13 +220,16 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
 
         // Check if viewport has changed significantly to optimize repaints
         bool viewportChanged = (_lastStartTick != _renderData->startTick || _lastEndTick != _renderData->endTick ||
-                               _lastStartLineY != _renderData->startLineY || _lastEndLineY != _renderData->endLineY ||
-                               _lastScaleX != _renderData->scaleX || _lastScaleY != _renderData->scaleY);
+                                _lastStartLineY != _renderData->startLineY || _lastEndLineY != _renderData->endLineY ||
+                                _lastScaleX != _renderData->scaleX || _lastScaleY != _renderData->scaleY);
 
         // Update viewport cache
-        _lastStartTick = _renderData->startTick; _lastEndTick = _renderData->endTick;
-        _lastStartLineY = _renderData->startLineY; _lastEndLineY = _renderData->endLineY;
-        _lastScaleX = _renderData->scaleX; _lastScaleY = _renderData->scaleY;
+        _lastStartTick = _renderData->startTick;
+        _lastEndTick = _renderData->endTick;
+        _lastStartLineY = _renderData->startLineY;
+        _lastEndLineY = _renderData->endLineY;
+        _lastScaleX = _renderData->scaleX;
+        _lastScaleY = _renderData->scaleY;
 
         // Handle async rendering if enabled
         if (_useAsyncRendering && viewportChanged) {
@@ -258,7 +254,6 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
 
         this->pianoKeys.clear();
 
-        // Qt6 optimized pixmap creation with device pixel ratio support
         QSize pixmapSize(width(), height());
         qreal devicePixelRatio = devicePixelRatioF();
 
@@ -268,7 +263,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
 
         // Fill with background color to avoid artifacts
         pixmap->fill(Appearance::backgroundColor());
-        QPainter* pixpainter = new QPainter(pixmap);
+        QPainter *pixpainter = new QPainter(pixmap);
 
         // Configure rendering hints based on user settings
         if (!QApplication::arguments().contains("--no-antialiasing")) {
@@ -299,7 +294,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         if (_renderData->objects) {
             for (int i = 0; i < _renderData->objects->length(); i++) {
                 _renderData->objects->at(i)->setShown(false);
-                OnEvent* onev = dynamic_cast<OnEvent*>(_renderData->objects->at(i));
+                OnEvent *onev = dynamic_cast<OnEvent *>(_renderData->objects->at(i));
                 if (onev && onev->offEvent()) {
                     onev->offEvent()->setShown(false);
                 }
@@ -316,7 +311,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             return;
         }
 
-        TempoChangeEvent* ev = dynamic_cast<TempoChangeEvent*>(_renderData->tempoEvents->at(0));
+        TempoChangeEvent *ev = dynamic_cast<TempoChangeEvent *>(_renderData->tempoEvents->at(0));
         if (!ev) {
             pixpainter->fillRect(0, 0, width(), height(), Appearance::errorColor());
             delete pixpainter;
@@ -346,7 +341,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         for (int i = _renderData->startLineY; i <= _renderData->endLineY; i++) {
             int startLine = yPosOfLine(i);
             QColor c;
-            if(i<=127){
+            if (i <= 127) {
                 bool isHighlighted = false;
                 bool isRangeLine = false;
 
@@ -356,52 +351,49 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                     // Matrix widget uses inverted indexing (127-i), so:
                     // For C3: 127-48 = 79
                     // For C6: 127-84 = 43
-                    if (i == 79 || i == 43) {  // C3 or C6 lines
+                    if (i == 79 || i == 43) { // C3 or C6 lines
                         isRangeLine = true;
                     }
                 }
 
                 Appearance::stripStyle strip = Appearance::strip();
                 switch (strip) {
-                    case Appearance::onOctave :
+                    case Appearance::onOctave:
                         // MIDI note 0 = C, so we want (127-i) % 12 == 0 for C notes
                         // Since i is inverted (127-i gives actual MIDI note), we need:
-                        isHighlighted = ((127 - static_cast<unsigned int>(i)) % 12) == 0 ;  // Highlight C notes (octave boundaries)
-                    break;
-                    case Appearance::onSharp :
-                        isHighlighted = ! ( (1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask) ;
-                    break;
-                    case Appearance::onEven :
+                        isHighlighted = ((127 - static_cast<unsigned int>(i)) % 12) == 0; // Highlight C notes (octave boundaries)
+                        break;
+                    case Appearance::onSharp:
+                        isHighlighted = !((1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask);
+                        break;
+                    case Appearance::onEven:
                         isHighlighted = (static_cast<unsigned int>(i) % 2);
-                    break;
-
+                        break;
                 }
 
                 if (isRangeLine) {
-                    c = Appearance::rangeLineColor();  // Range line color (C3/C6)
-                } else if (isHighlighted){
+                    c = Appearance::rangeLineColor(); // Range line color (C3/C6)
+                } else if (isHighlighted) {
                     c = Appearance::stripHighlightColor();
-                }else{
+                } else {
                     c = Appearance::stripNormalColor();
                 }
-            }else{
+            } else {
                 // Program events section (lines >127) - use different colors than strips
                 if (i % 2 == 1) {
                     c = Appearance::programEventHighlightColor();
-                }else{
+                } else {
                     c = Appearance::programEventNormalColor();
                 }
             }
-            pixpainter->fillRect(_renderData->lineNameWidth, startLine, width(),
-                                 startLine + _renderData->lineHeight, c);
+            pixpainter->fillRect(_renderData->lineNameWidth, startLine, width(), startLine + _renderData->lineHeight, c);
         }
 
         // paint measures and timeline background
         pixpainter->fillRect(0, 0, width(), _renderData->timeHeight, Appearance::systemWindowColor());
 
         pixpainter->setClipping(true);
-        pixpainter->setClipRect(_renderData->lineNameWidth, 0, width() - _renderData->lineNameWidth - 2,
-                                height());
+        pixpainter->setClipRect(_renderData->lineNameWidth, 0, width() - _renderData->lineNameWidth - 2, height());
 
         pixpainter->setPen(Appearance::darkGrayColor());
         pixpainter->setBrush(Appearance::pianoWhiteKeyColor());
@@ -472,7 +464,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             return;
         }
 
-        TimeSignatureEvent* currentEvent = _renderData->timeSignatureEvents->at(0);
+        TimeSignatureEvent *currentEvent = _renderData->timeSignatureEvents->at(0);
         int i = 0;
         if (!currentEvent) {
             return;
@@ -482,7 +474,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             tick += currentEvent->ticksPerMeasure();
         }
         while (tick < endTick) {
-            TimeSignatureEvent* measureEvent = _renderData->timeSignatureEvents->at(i);
+            TimeSignatureEvent *measureEvent = _renderData->timeSignatureEvents->at(i);
             int xfrom = xPosOfMs(msOfTick(tick));
             measure++;
             int measureStartTick = tick;
@@ -497,7 +489,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             int xto = xPosOfMs(msOfTick(tick));
             pixpainter->setBrush(Appearance::measureBarColor());
             pixpainter->setPen(Qt::NoPen);
-            pixpainter->drawRoundedRect(xfrom + 2, _renderData->timeHeight / 2 + 4, xto - xfrom - 4, _renderData->timeHeight / 2 - 10, 5, 5);
+            pixpainter->drawRoundedRect(xfrom + 2, _renderData->timeHeight / 2 + 4, xto - xfrom - 4,  _renderData->timeHeight / 2 - 10, 5, 5);
             if (tick > startTick) {
                 pixpainter->setPen(Appearance::measureLineColor());
                 pixpainter->drawLine(xfrom, _renderData->timeHeight / 2, xfrom, height());
@@ -528,7 +520,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
                 pixpainter->setPen(dashPen);
 
                 // Draw all division lines that fall within this measure
-                for (const QPair<int, int>& div : _renderData->divs) {
+                for (const QPair<int, int> &div: _renderData->divs) {
                     int xDiv = div.first;
                     int divTick = div.second;
 
@@ -541,7 +533,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
             }
         }
 
-        // line between time texts and matrixarea
+        // line between time texts and matrix area
         pixpainter->setPen(Appearance::borderColor());
         pixpainter->drawLine(0, _renderData->timeHeight, width(), _renderData->timeHeight);
         pixpainter->drawLine(_renderData->lineNameWidth, _renderData->timeHeight, _renderData->lineNameWidth, height());
@@ -550,9 +542,7 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
 
         // paint the events
         pixpainter->setClipping(true);
-        pixpainter->setClipRect(_renderData->lineNameWidth, _renderData->timeHeight, width() - _renderData->lineNameWidth,
-                                height() - _renderData->timeHeight);
-        // Use optimized rendering with viewport culling and Qt6 enhancements
+        pixpainter->setClipRect(_renderData->lineNameWidth, _renderData->timeHeight, width() - _renderData->lineNameWidth, height() - _renderData->timeHeight);
 
         for (int i = 0; i < 19; i++) {
             paintChannel(pixpainter, i);
@@ -565,7 +555,6 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
         delete pixpainter;
     }
 
-    // Qt6 optimized pixmap drawing with device pixel ratio support
     painter->drawPixmap(QRect(0, 0, width(), height()), *pixmap, pixmap->rect());
 
     painter->setRenderHint(QPainter::Antialiasing);
@@ -714,14 +703,14 @@ void MatrixWidget::paintEvent(QPaintEvent* event) {
     }
 }
 
-void MatrixWidget::paintChannel(QPainter* painter, int channel) {
+void MatrixWidget::paintChannel(QPainter *painter, int channel) {
     if (!file->channel(channel)->visible()) {
         return;
     }
     QColor cC = *file->channel(channel)->color();
 
     // filter events
-    QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+    QMultiMap<int, MidiEvent *> *map = file->channelEvents(channel);
 
     // Early exit for empty channels
     if (!map || map->isEmpty()) {
@@ -743,11 +732,11 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     int searchEndTick = endTick + maxNoteLengthEstimate;
     if (searchStartTick < 0) searchStartTick = 0;
 
-    QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(searchStartTick);
-    QMultiMap<int, MidiEvent*>::iterator endIt = map->upperBound(searchEndTick);
+    QMultiMap<int, MidiEvent *>::iterator it = map->lowerBound(searchStartTick);
+    QMultiMap<int, MidiEvent *>::iterator endIt = map->upperBound(searchEndTick);
 
     while (it != endIt && it != map->end()) {
-        MidiEvent* event = it.value();
+        MidiEvent *event = it.value();
         // Quick Y-axis (line) culling before expensive eventInWidget() call
         int line = event->line();
         if (line < startLineY - 1 || line > endLineY + 1) {
@@ -760,8 +749,8 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
             // Only onEvents are inserted. When there is an On
             // and an OffEvent, the OnEvent will hold the coordinates
 
-            OffEvent* offEvent = dynamic_cast<OffEvent*>(event);
-            OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+            OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
+            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
 
             int x, width;
             int y = yPosOfLine(line);
@@ -771,7 +760,7 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
                 if (onEvent) {
                     offEvent = onEvent->offEvent();
                 } else if (offEvent) {
-                    onEvent = dynamic_cast<OnEvent*>(offEvent->onEvent());
+                    onEvent = dynamic_cast<OnEvent *>(offEvent->onEvent());
                 }
 
                 width = xPosOfMs(msOfTick(offEvent->midiTime())) - xPosOfMs(msOfTick(onEvent->midiTime()));
@@ -810,8 +799,8 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
         if (!(event->track()->hidden())) {
             // append event to velocityObjects if its not a offEvent and if it
             // is in the x-Area
-            OffEvent* offEvent = dynamic_cast<OffEvent*>(event);
-            if (!offEvent && event->midiTime() >= startTick && event->midiTime() <= endTick && !velocityObjects->contains(event)) {
+            OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
+            if (!offEvent && event->midiTime() >= startTick && event->midiTime() <= endTick && !velocityObjects-> contains(event)) {
                 event->setX(xPosOfMs(msOfTick(event->midiTime())));
 
                 velocityObjects->prepend(event);
@@ -824,12 +813,12 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     // This ensures we don't break the original bug fix for long sustains
     if (searchStartTick > 0) {
         // Look for OnEvents that start before our search range but might still be visible
-        QMultiMap<int, MidiEvent*>::iterator fallbackIt = map->begin();
-        QMultiMap<int, MidiEvent*>::iterator fallbackEnd = map->lowerBound(searchStartTick);
+        QMultiMap<int, MidiEvent *>::iterator fallbackIt = map->begin();
+        QMultiMap<int, MidiEvent *>::iterator fallbackEnd = map->lowerBound(searchStartTick);
 
         while (fallbackIt != fallbackEnd) {
-            MidiEvent* event = fallbackIt.value();
-            OnEvent* onEvent = dynamic_cast<OnEvent*>(event);
+            MidiEvent *event = fallbackIt.value();
+            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
 
             // Only check OnEvents (notes) that might span the viewport
             if (onEvent && onEvent->offEvent()) {
@@ -869,12 +858,11 @@ void MatrixWidget::paintChannel(QPainter* painter, int channel) {
     }
 }
 
-void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
+void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
                                  int width, int height) {
     int borderRight = 10;
     width = width - borderRight;
     if (number >= 0 && number <= 127) {
-
         double scaleHeightBlack = 0.5;
         double scaleWidthBlack = 0.6;
 
@@ -969,7 +957,7 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
         }
 
         bool selected = _renderData->mouseY >= y && _renderData->mouseY <= y + height && _renderData->mouseX > _renderData->lineNameWidth && _renderData->mouseOver;
-        foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
+        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             if (event->line() == 127 - number) {
                 selected = true;
                 break;
@@ -999,9 +987,7 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
             keyPolygon.append(QPoint(x + width * scaleWidthBlack, y + height * scaleHeightBlack));
             keyPolygon.append(QPoint(x + width * scaleWidthBlack, y));
             pianoKeys.insert(number, playerRect);
-
         } else {
-
             if (!blackOnTop) {
                 keyPolygon.append(QPoint(x, y));
                 keyPolygon.append(QPoint(x + width, y));
@@ -1070,7 +1056,7 @@ void MatrixWidget::paintPianoKey(QPainter* painter, int number, int x, int y,
     }
 }
 
-void MatrixWidget::setFile(MidiFile* f) {
+void MatrixWidget::setFile(MidiFile *f) {
     // Pure renderer - stores file reference for coordinate calculations
 
     file = f;
@@ -1103,16 +1089,15 @@ void MatrixWidget::calcSizes() {
     // Interface compatibility - size calculations handled by HybridMatrixWidget
 }
 
-MidiFile* MatrixWidget::midiFile() {
+MidiFile *MatrixWidget::midiFile() {
     return file;
 }
 
 
-void MatrixWidget::resizeEvent(QResizeEvent* event) {
-    QWidget::resizeEvent(event);  // Properly handle the resize event
+void MatrixWidget::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event); // Properly handle the resize event
     // Interface compatibility - resizing handled by HybridMatrixWidget
 }
-
 
 
 int MatrixWidget::yPosOfLine(int line) {
@@ -1123,14 +1108,15 @@ int MatrixWidget::yPosOfLine(int line) {
 double MatrixWidget::lineHeight() {
     if (!_renderData) return 0;
     if (_renderData->endLineY - _renderData->startLineY == 0) return 0;
-    return (double)(height() - _renderData->timeHeight) / (double)(_renderData->endLineY - _renderData->startLineY);
+    return (double) (height() - _renderData->timeHeight) / (double) (_renderData->endLineY - _renderData->startLineY);
 }
 
-void MatrixWidget::enterEvent(QEvent* event) {
+void MatrixWidget::enterEvent(QEvent *event) {
     PaintWidget::enterEvent(event);
     // Tool handling is done by HybridMatrixWidget - pure renderer doesn't control updates
 }
-void MatrixWidget::leaveEvent(QEvent* event) {
+
+void MatrixWidget::leaveEvent(QEvent *event) {
     PaintWidget::leaveEvent(event);
     // Tool handling is done by HybridMatrixWidget - pure renderer doesn't control updates
 }
@@ -1147,7 +1133,7 @@ void MatrixWidget::startAsyncRendering() {
     _renderingInProgress.storeRelaxed(1);
 
     // Create and start async rendering task using QThreadPool
-    MatrixRenderTask* task = new MatrixRenderTask(this);
+    MatrixRenderTask *task = new MatrixRenderTask(this);
     QThreadPool::globalInstance()->start(task);
 }
 
@@ -1157,8 +1143,7 @@ void MatrixWidget::renderPixmapAsync() {
 
     if (!_renderData) return;
 
-    // Create pixmap in background thread (Qt6 supports this)
-    QPixmap* newPixmap = new QPixmap(size() * devicePixelRatio());
+    QPixmap *newPixmap = new QPixmap(size() * devicePixelRatio());
     newPixmap->setDevicePixelRatio(devicePixelRatio());
     newPixmap->fill(Appearance::backgroundColor());
 
@@ -1201,16 +1186,15 @@ void MatrixWidget::renderPixmapAsync() {
     }, Qt::QueuedConnection);
 }
 
-void MatrixWidget::batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& events, const QColor& color) {
+void MatrixWidget::batchDrawEvents(QPainter *painter, const QList<MidiEvent *> &events, const QColor &color) {
     if (events.isEmpty()) return;
 
-    // Qt6 optimized batch drawing
     painter->setPen(Appearance::borderColor());
     painter->setBrush(color);
 
     // Use QPainterPath for better performance with many rectangles
     QPainterPath path;
-    for (MidiEvent* event : events) {
+    for (MidiEvent *event: events) {
         if (event && !event->track()->hidden()) {
             QRectF rect(event->x(), event->y(), event->width(), event->height());
             path.addRoundedRect(rect, 1, 1);
@@ -1226,15 +1210,13 @@ void MatrixWidget::batchDrawEvents(QPainter* painter, const QList<MidiEvent*>& e
 int MatrixWidget::msOfXPos(int x) {
     if (!_renderData) return 0;
     if (width() <= _renderData->lineNameWidth) return _renderData->startTimeX;
-    return _renderData->startTimeX + ((x - _renderData->lineNameWidth) *
-           (_renderData->endTimeX - _renderData->startTimeX)) / (width() - _renderData->lineNameWidth);
+    return _renderData->startTimeX + ((x - _renderData->lineNameWidth) * (_renderData->endTimeX - _renderData->startTimeX)) / (width() - _renderData->lineNameWidth);
 }
 
 int MatrixWidget::xPosOfMs(int ms) {
     if (!_renderData) return 0;
     if (_renderData->endTimeX <= _renderData->startTimeX) return _renderData->lineNameWidth;
-    return _renderData->lineNameWidth + (ms - _renderData->startTimeX) *
-           (width() - _renderData->lineNameWidth) / (_renderData->endTimeX - _renderData->startTimeX);
+    return _renderData->lineNameWidth + (ms - _renderData->startTimeX) * (width() - _renderData->lineNameWidth) / (_renderData->endTimeX - _renderData->startTimeX);
 }
 
 int MatrixWidget::msOfTick(int tick) {
@@ -1248,7 +1230,7 @@ int MatrixWidget::timeMsOfWidth(int w) {
     return (w * (_renderData->endTimeX - _renderData->startTimeX)) / (width() - _renderData->lineNameWidth);
 }
 
-bool MatrixWidget::eventInWidget(MidiEvent* event) {
+bool MatrixWidget::eventInWidget(MidiEvent *event) {
     if (!_renderData) return false;
 
     int startTick = _renderData->startTick;
@@ -1256,12 +1238,12 @@ bool MatrixWidget::eventInWidget(MidiEvent* event) {
     int startLineY = _renderData->startLineY;
     int endLineY = _renderData->endLineY;
 
-    NoteOnEvent* on = dynamic_cast<NoteOnEvent*>(event);
-    OffEvent* off = dynamic_cast<OffEvent*>(event);
+    NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(event);
+    OffEvent *off = dynamic_cast<OffEvent *>(event);
     if (on) {
         off = on->offEvent();
     } else if (off) {
-        on = dynamic_cast<NoteOnEvent*>(off->onEvent());
+        on = dynamic_cast<NoteOnEvent *>(off->onEvent());
     }
     if (on && off) {
         int offLine = off->line();
@@ -1292,7 +1274,6 @@ bool MatrixWidget::eventInWidget(MidiEvent* event) {
         on->setShown(shouldShow);
 
         return shouldShow;
-
     } else {
         int line = event->line();
         int tick = event->midiTime();
@@ -1313,19 +1294,12 @@ int MatrixWidget::lineAtY(int y) {
 // Duplicate method definitions removed - already defined above
 
 
-
-
-
-
-
-void MatrixWidget::mouseDoubleClickEvent(QMouseEvent* event) {
+void MatrixWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     // Business logic is handled by HybridMatrixWidget - just update rendering
     update();
 }
 
 void MatrixWidget::clearSoftwareCache() {
-
-
     // Clear pixmap cache
     if (pixmap) {
         delete pixmap;

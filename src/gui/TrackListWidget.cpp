@@ -20,37 +20,33 @@
 #include "ColoredWidget.h"
 #include "Appearance.h"
 
-#include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "../protocol/Protocol.h"
 
 #include <QAction>
 #include <QGridLayout>
-#include <QInputDialog>
 #include <QLabel>
-#include <QLineEdit>
 #include <QPainter>
 #include <QToolBar>
 #include <QWidget>
 
 #define ROW_HEIGHT 85
 
-TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
+TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
     : QWidget(parent) {
-
     trackList = parent;
     this->track = track;
 
     setContentsMargins(0, 0, 0, 0);
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
     layout->setVerticalSpacing(1);
 
     colored = new ColoredWidget(*(track->color()), this);
     layout->addWidget(colored, 0, 0, 2, 1);
     QString text = tr("Track ") + QString::number(track->number());
-    QLabel* text1 = new QLabel(text, this);
+    QLabel *text1 = new QLabel(text, this);
     text1->setFixedHeight(15);
     layout->addWidget(text1, 0, 1, 1, 1);
 
@@ -58,7 +54,7 @@ TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
     trackNameLabel->setFixedHeight(15);
     layout->addWidget(trackNameLabel, 1, 1, 1, 1);
 
-    QToolBar* toolBar = new QToolBar(this);
+    QToolBar *toolBar = new QToolBar(this);
     toolBar->setIconSize(QSize(12, 12));
     QPalette palette = toolBar->palette();
     palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
@@ -82,13 +78,13 @@ TrackListItem::TrackListItem(MidiTrack* track, TrackListWidget* parent)
     toolBar->addSeparator();
 
     // name
-    QAction* renameAction = new QAction(tr("Rename track"), toolBar);
+    QAction *renameAction = new QAction(tr("Rename track"), toolBar);
     Appearance::setActionIcon(renameAction, ":/run_environment/graphics/trackwidget/rename.png");
     toolBar->addAction(renameAction);
     connect(renameAction, SIGNAL(triggered()), this, SLOT(renameTrack()));
 
     // remove
-    QAction* removeAction = new QAction(tr("Remove track"), toolBar);
+    QAction *removeAction = new QAction(tr("Remove track"), toolBar);
     Appearance::setActionIcon(removeAction, ":/run_environment/graphics/trackwidget/remove.png");
     toolBar->addAction(removeAction);
     connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTrack()));
@@ -129,7 +125,6 @@ void TrackListItem::removeTrack() {
 }
 
 void TrackListItem::onBeforeUpdate() {
-
     trackNameLabel->setText(track->name());
 
     if (visibleAction->isChecked() == track->hidden()) {
@@ -146,30 +141,27 @@ void TrackListItem::onBeforeUpdate() {
     colored->setColor(*(track->color()));
 }
 
-TrackListWidget::TrackListWidget(QWidget* parent)
+TrackListWidget::TrackListWidget(QWidget *parent)
     : QListWidget(parent) {
-
     setSelectionMode(QAbstractItemView::SingleSelection);
     setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
     file = 0;
     connect(this, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(chooseTrack(QListWidgetItem*)));
 }
 
-void TrackListWidget::setFile(MidiFile* f) {
+void TrackListWidget::setFile(MidiFile *f) {
     file = f;
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
     update();
 }
 
-void TrackListWidget::chooseTrack(QListWidgetItem* item) {
-
+void TrackListWidget::chooseTrack(QListWidgetItem *item) {
     int t = item->data(Qt::UserRole).toInt();
-    MidiTrack* track = trackorder.at(t);
+    MidiTrack *track = trackorder.at(t);
     emit trackClicked(track);
 }
 
 void TrackListWidget::update() {
-
     if (!file) {
         clear();
         items.clear();
@@ -179,8 +171,8 @@ void TrackListWidget::update() {
     }
 
     bool rebuild = false;
-    QList<MidiTrack*> oldTracks = trackorder;
-    QList<MidiTrack*> realTracks = *file->tracks();
+    QList<MidiTrack *> oldTracks = trackorder;
+    QList<MidiTrack *> realTracks = *file->tracks();
 
     if (oldTracks.size() != realTracks.size()) {
         rebuild = true;
@@ -198,9 +190,9 @@ void TrackListWidget::update() {
         items.clear();
         trackorder.clear();
 
-        foreach (MidiTrack* track, realTracks) {
-            TrackListItem* widget = new TrackListItem(track, this);
-            QListWidgetItem* item = new QListWidgetItem();
+        foreach(MidiTrack* track, realTracks) {
+            TrackListItem *widget = new TrackListItem(track, this);
+            QListWidgetItem *item = new QListWidgetItem();
             item->setSizeHint(QSize(0, ROW_HEIGHT));
             item->setData(Qt::UserRole, track->number());
             addItem(item);
@@ -212,13 +204,13 @@ void TrackListWidget::update() {
         }
     }
 
-    foreach (TrackListItem* item, items.values()) {
+    foreach(TrackListItem* item, items.values()) {
         item->onBeforeUpdate();
     }
 
     QListWidget::update();
 }
 
-MidiFile* TrackListWidget::midiFile() {
+MidiFile *TrackListWidget::midiFile() {
     return file;
 }

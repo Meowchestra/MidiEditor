@@ -10,11 +10,10 @@
 #include "../midi/MidiFile.h"
 
 class TimeSignatureDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    TimeSignatureDialog(MidiFile *file, int measure, int startTickOfMeasure, QWidget* parent = 0);
+    TimeSignatureDialog(MidiFile *file, int measure, int startTickOfMeasure, QWidget *parent = 0);
 
 public slots:
     void accept();

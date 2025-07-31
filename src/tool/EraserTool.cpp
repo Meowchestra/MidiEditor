@@ -31,25 +31,25 @@ EraserTool::EraserTool()
     setToolTipText(QObject::tr("Eraser (remove Events)"));
 }
 
-EraserTool::EraserTool(EraserTool& other)
+EraserTool::EraserTool(EraserTool &other)
     : EventTool(other) {
     return;
 }
 
-ProtocolEntry* EraserTool::copy() {
+ProtocolEntry *EraserTool::copy() {
     return new EraserTool(*this);
 }
 
-void EraserTool::reloadState(ProtocolEntry* entry) {
-    EraserTool* other = dynamic_cast<EraserTool*>(entry);
+void EraserTool::reloadState(ProtocolEntry *entry) {
+    EraserTool *other = dynamic_cast<EraserTool *>(entry);
     if (!other) {
         return;
     }
     EventTool::reloadState(entry);
 }
 
-void EraserTool::draw(QPainter* painter) {
-    foreach (MidiEvent* ev, *(matrixWidget->activeEvents())) {
+void EraserTool::draw(QPainter *painter) {
+    foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
         if (pointInRect(mouseX, mouseY, ev->x(), ev->y(), ev->x() + ev->width(),
                         ev->y() + ev->height())) {
             painter->fillRect(ev->x(), ev->y(), ev->width(), ev->height(), Qt::black);
@@ -64,7 +64,7 @@ bool EraserTool::move(int mouseX, int mouseY) {
 
 bool EraserTool::release() {
     currentProtocol()->startNewAction(QObject::tr("Remove event"), image());
-    foreach (MidiEvent* ev, *(matrixWidget->activeEvents())) {
+    foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
         if (pointInRect(mouseX, mouseY, ev->x(), ev->y(), ev->x() + ev->width(),
                         ev->y() + ev->height())) {
             file()->channel(ev->channel())->removeEvent(ev);

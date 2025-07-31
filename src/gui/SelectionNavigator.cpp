@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QtMath>
+#include <cmath>
 #include "MainWindow.h"
 #include "HybridMatrixWidget.h"
 #include "SelectionNavigator.h"
@@ -34,44 +34,38 @@
  * Moves the selection to the nearest event of the same type in the specified
  * direction on screen.
  */
-SelectionNavigator::SelectionNavigator(MainWindow* mainWindow)
-{
+SelectionNavigator::SelectionNavigator(MainWindow *mainWindow) {
     this->mainWindow = mainWindow;
 }
 
-void SelectionNavigator::up()
-{
+void SelectionNavigator::up() {
     navigate(-M_PI_2);
 }
 
-void SelectionNavigator::down()
-{
+void SelectionNavigator::down() {
     navigate(M_PI_2);
 }
 
-void SelectionNavigator::left()
-{
+void SelectionNavigator::left() {
     navigate(M_PI);
 }
 
-void SelectionNavigator::right()
-{
+void SelectionNavigator::right() {
     navigate(0.0);
 }
 
-void SelectionNavigator::navigate(qreal searchAngle)
-{
-    MidiEvent* selectedEvent = getFirstSelectedEvent();
+void SelectionNavigator::navigate(qreal searchAngle) {
+    MidiEvent *selectedEvent = getFirstSelectedEvent();
     if (!selectedEvent) return;
-    MidiFile* file = selectedEvent->file();
-    MidiEvent* newSelectedEvent = NULL;
+    MidiFile *file = selectedEvent->file();
+    MidiEvent *newSelectedEvent = NULL;
     qreal newSelectedEventDistance = -1.0;
 
     for (int channelNumber = 0; channelNumber < 19; channelNumber++) {
-        MidiChannel* channel = file->channel(channelNumber);
+        MidiChannel *channel = file->channel(channelNumber);
         if (!channel->visible()) continue;
 
-        foreach (MidiEvent* channelEvent, channel->eventMap()->values()) {
+        foreach(MidiEvent* channelEvent, channel->eventMap()->values()) {
             if (channelEvent == selectedEvent) continue;
             if (channelEvent->track()->hidden()) continue;
             if (!eventIsInVisibleTimeRange(channelEvent)) continue;
@@ -87,33 +81,30 @@ void SelectionNavigator::navigate(qreal searchAngle)
     }
 
     if (!newSelectedEvent) return;
-    Protocol* protocol = file->protocol();
+    Protocol *protocol = file->protocol();
     protocol->startNewAction("Tweak selection");
     EventTool::selectEvent(newSelectedEvent, true);
     protocol->endAction();
     mainWindow->updateAll();
 }
 
-MidiEvent* SelectionNavigator::getFirstSelectedEvent()
-{
-    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+MidiEvent *SelectionNavigator::getFirstSelectedEvent() {
+    QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
     return selectedEvents.isEmpty() ? NULL : selectedEvents.first();
 }
 
-bool SelectionNavigator::eventIsInVisibleTimeRange(MidiEvent* event)
-{
-    HybridMatrixWidget* matrixWidget = mainWindow->matrixWidget();
+bool SelectionNavigator::eventIsInVisibleTimeRange(MidiEvent *event) {
+    HybridMatrixWidget *matrixWidget = mainWindow->matrixWidget();
     int time = event->midiTime();
     return (time >= matrixWidget->minVisibleMidiTime() && time < matrixWidget->maxVisibleMidiTime());
 }
 
-bool SelectionNavigator::eventsAreSameType(MidiEvent* event1, MidiEvent* event2)
-{
-    NoteOnEvent* noteOnEvent1 = dynamic_cast<NoteOnEvent*>(event1);
-    NoteOnEvent* noteOnEvent2 = dynamic_cast<NoteOnEvent*>(event2);
+bool SelectionNavigator::eventsAreSameType(MidiEvent *event1, MidiEvent *event2) {
+    NoteOnEvent *noteOnEvent1 = dynamic_cast<NoteOnEvent *>(event1);
+    NoteOnEvent *noteOnEvent2 = dynamic_cast<NoteOnEvent *>(event2);
     if (noteOnEvent1 || noteOnEvent2) return (noteOnEvent1 && noteOnEvent2);
-    OffEvent* offEvent1 = dynamic_cast<OffEvent*>(event1);
-    OffEvent* offEvent2 = dynamic_cast<OffEvent*>(event2);
+    OffEvent *offEvent1 = dynamic_cast<OffEvent *>(event1);
+    OffEvent *offEvent2 = dynamic_cast<OffEvent *>(event2);
     if (offEvent1 || offEvent2) return (offEvent1 && offEvent2);
     return (event1->line() == event2->line());
 }
@@ -127,24 +118,23 @@ bool SelectionNavigator::eventsAreSameType(MidiEvent* event1, MidiEvent* event2)
  * that should never be considered a match.
  */
 qreal SelectionNavigator::getDisplayDistanceWeightedByDirection(
-    MidiEvent* originEvent,
-    MidiEvent* targetEvent,
-    qreal searchAngle)
-{
-    HybridMatrixWidget* matrixWidget = mainWindow->matrixWidget();
+    MidiEvent *originEvent,
+    MidiEvent *targetEvent,
+    qreal searchAngle) {
+    HybridMatrixWidget *matrixWidget = mainWindow->matrixWidget();
     int originX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(originEvent->midiTime()));
     int originY = matrixWidget->yPosOfLine(originEvent->line());
     int targetX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(targetEvent->midiTime()));
     int targetY = matrixWidget->yPosOfLine(targetEvent->line());
     qreal distanceX = targetX - originX;
     qreal distanceY = targetY - originY;
-    qreal distance = qSqrt((distanceX * distanceX) + (distanceY * distanceY));
-    qreal angle = qAtan2(distanceY, distanceX);
+    qreal distance = std::sqrt((distanceX * distanceX) + (distanceY * distanceY));
+    qreal angle = std::atan2(distanceY, distanceX);
 
-    qreal angleDifferenceNaive = qFabs(angle - searchAngle);
+    qreal angleDifferenceNaive = std::abs(angle - searchAngle);
     qreal angleDifference = fmin(angleDifferenceNaive, (2 * M_PI) - angleDifferenceNaive);
     if (angleDifference >= M_PI_2) return -1.0;
-    qreal offAxisDistance = qSin(angleDifference) * distance;
+    qreal offAxisDistance = std::sin(angleDifference) * distance;
 
     return distance + offAxisDistance;
 }

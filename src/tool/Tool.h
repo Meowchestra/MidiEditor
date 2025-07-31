@@ -20,7 +20,6 @@
 #define TOOL_H
 
 #include <QImage>
-#include <QList>
 #include <QString>
 
 #include "../protocol/ProtocolEntry.h"
@@ -52,7 +51,6 @@ class StandardTool;
  */
 
 class Tool : public ProtocolEntry {
-
 public:
     /**
 		 * \brief creates a new Tool.
@@ -62,7 +60,7 @@ public:
     /**
 		 * \brief creates a new Tool copying all data from &other.
 		 */
-    Tool(Tool& other);
+    Tool(Tool &other);
 
     /**
 		 * \brief returns wether the Tool is selected or not.
@@ -77,7 +75,7 @@ public:
     /**
 		 * \brief returns the Tools image.
 		 */
-    QImage* image();
+    QImage *image();
 
     /**
 		 * \brief sets the Tools ToolTipText
@@ -92,7 +90,7 @@ public:
     /**
 		 * \brief sets the Tools ToolButton.
 		 */
-    void setButton(ToolButton* b);
+    void setButton(ToolButton *b);
 
     /**
 		 * \brief this method is called when the user presses the Tools Button.
@@ -102,63 +100,63 @@ public:
     /**
 		 * \brief returns the Tools ToolButton.
 		 */
-    ToolButton* button();
+    ToolButton *button();
 
     /**
 		 * \brief sets the static current Tool.
 		 *
 		 * This method is used by EditorTool
 		 */
-    static void setCurrentTool(EditorTool* editorTool);
+    static void setCurrentTool(EditorTool *editorTool);
 
     /**
 		 * \brief returns the current Tool.
 		 */
-    static EditorTool* currentTool();
+    static EditorTool *currentTool();
 
     /**
 		 * \brief sets the static current MidiFile.
 		 */
-    static void setFile(MidiFile* file);
+    static void setFile(MidiFile *file);
 
     /**
 		 * \brief returns the currenty opened File.
 		 */
-    static MidiFile* currentFile();
+    static MidiFile *currentFile();
 
     /**
 		 * \brief returns the Protocol of the currently opened Document.
 		 */
-    static Protocol* currentProtocol();
+    static Protocol *currentProtocol();
 
     /**
 		 * \brief sets the StandardTool. When the StandardTool is set, the Tool
 		 * has to set StandardTool as currentTool when its action is finished
 		 */
-    void setStandardTool(StandardTool* stdTool);
+    void setStandardTool(StandardTool *stdTool);
 
     /*
 		 * The following functions are redefinitions from the superclass
 		 * ProtocolEntry
 		 */
-    virtual ProtocolEntry* copy();
+    virtual ProtocolEntry *copy();
 
-    virtual void reloadState(ProtocolEntry* entry);
+    virtual void reloadState(ProtocolEntry *entry);
 
-    MidiFile* file();
+    MidiFile *file();
 
 protected:
     /**
 		 * \brief the Tools Button if existing.
 		 */
-    ToolButton* _button;
+    ToolButton *_button;
 
     /**
 		 * \brief the image representing the Tool.
 		 *
 		 * Used in the protoc list and on the Buttons.
 		 */
-    QImage* _image;
+    QImage *_image;
 
     /**
 		 * \brief The ToolTip the Button should display.
@@ -171,12 +169,12 @@ protected:
 		 * If existing the Tool has to set _standardTool as current tool
 		 * after his action has been finished.
 		 */
-    StandardTool* _standardTool;
+    StandardTool *_standardTool;
 
     /**
 		 * \brief the current opened file.
 		 */
-    static MidiFile* _currentFile;
+    static MidiFile *_currentFile;
 
     /**
 		 * \brief The active EditorTool.
@@ -184,7 +182,7 @@ protected:
 		 * Is not always the selected Tool (If the selected tool is the
 		 * StandardTool).
 		 */
-    static EditorTool* _currentTool;
+    static EditorTool *_currentTool;
 };
 
 #endif

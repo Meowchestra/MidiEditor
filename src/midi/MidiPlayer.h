@@ -27,17 +27,23 @@ class PlayerThread;
 class SingleNotePlayer;
 
 class MidiPlayer : public QObject {
-
     Q_OBJECT
 
 public:
-    static void play(MidiFile* file);
-    static void play(NoteOnEvent* event);
+    static void play(MidiFile *file);
+
+    static void play(NoteOnEvent *event);
+
     static void stop();
+
     static bool isPlaying();
+
     static int timeMs();
-    static PlayerThread* playerThread();
+
+    static PlayerThread *playerThread();
+
     static double speedScale();
+
     static void setSpeedScale(double d);
 
     /**
@@ -46,9 +52,9 @@ public:
     static void panic();
 
 private:
-    static PlayerThread* filePlayer;
+    static PlayerThread *filePlayer;
     static bool playing;
-    static SingleNotePlayer* singleNotePlayer;
+    static SingleNotePlayer *singleNotePlayer;
     static double _speed;
 };
 

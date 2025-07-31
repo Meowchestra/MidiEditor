@@ -40,8 +40,10 @@ class PerformanceSettingsWidget : public SettingsWidget {
     Q_OBJECT
 
 public:
-    explicit PerformanceSettingsWidget(QSettings* settings, QWidget* parent = nullptr);
+    explicit PerformanceSettingsWidget(QSettings *settings, QWidget *parent = nullptr);
+
     bool accept() override;
+
     QIcon icon() override;
 
 public slots:
@@ -50,15 +52,19 @@ public slots:
 private slots:
     // Rendering quality settings
     void enableSmoothPixmapTransformChanged(bool enabled);
+
     void enableLosslessImageRenderingChanged(bool enabled);
+
     void enableOptimizedCompositionChanged(bool enabled);
-    
+
     // Hardware acceleration settings
     void enableHardwareAccelerationChanged(bool enabled);
+
     void enableAsyncRenderingChanged(bool enabled);
 
     // DPI scaling settings
     void ignoreScalingChanged(bool enabled);
+
     void roundedScalingChanged(bool enabled);
 
     // Reset to defaults
@@ -66,23 +72,26 @@ private slots:
 
 private:
     void setupUI();
+
     void loadSettings();
+
     void updateInfoLabels();
-    QString getBackendDescription(const QString& backend) const;
-    
-    QSettings* _settings;
-    
+
+    QString getBackendDescription(const QString &backend) const;
+
+    QSettings *_settings;
+
     // Rendering quality controls
-    QGroupBox* _renderingQualityGroup;
-    QCheckBox* _enableSmoothPixmapTransform;
-    QCheckBox* _enableLosslessImageRendering;
-    QCheckBox* _enableOptimizedComposition;
-    
+    QGroupBox *_renderingQualityGroup;
+    QCheckBox *_enableSmoothPixmapTransform;
+    QCheckBox *_enableLosslessImageRendering;
+    QCheckBox *_enableOptimizedComposition;
+
     // Hardware acceleration controls
-    QGroupBox* _hardwareAccelerationGroup;
-    QCheckBox* _enableHardwareAcceleration;
-    QCheckBox* _enableAsyncRendering;
-    QLabel* _backendInfoLabel;
+    QGroupBox *_hardwareAccelerationGroup;
+    QCheckBox *_enableHardwareAcceleration;
+    QCheckBox *_enableAsyncRendering;
+    QLabel *_backendInfoLabel;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H

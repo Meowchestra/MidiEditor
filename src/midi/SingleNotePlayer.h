@@ -25,18 +25,18 @@ class NoteOnEvent;
 class QTimer;
 
 class SingleNotePlayer : public QObject {
-
     Q_OBJECT
 
 public:
     SingleNotePlayer();
-    void play(NoteOnEvent* event);
+
+    void play(NoteOnEvent *event);
 
 public slots:
     void timeout();
 
 private:
-    QTimer* timer;
+    QTimer *timer;
     QByteArray offMessage;
     bool playing;
 };
