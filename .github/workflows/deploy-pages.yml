@@ -1,0 +1,443 @@
+name: Deploy to GitHub Pages
+
+on:
+  # Only runs when manual or README files change
+  push:
+    branches: [ main ]
+    paths:
+      - 'manual/**'
+      - 'README.md'
+      - '.github/workflows/deploy-pages.yml'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Cleanup old deployments first
+  cleanup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+
+    steps:
+      - name: Cleanup all old deployments
+        uses: aetherinox/gh-action-delete-deploy-env@3.1.0
+        with:
+          # GitHub token with deployments:write permission
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+          # Environment to clean up (github-pages)
+          environment: github-pages
+
+          # Delete ALL deployments
+          limit: 5
+
+          # Delete deployments but keep the environment
+          onlyRemoveDeployments: true
+
+          # Delay to avoid rate limits (in milliseconds)
+          delay: 300
+
+      - name: Cleanup summary
+        run: |
+          echo "🧹 All old deployments cleaned up!"
+          echo "🚀 Ready for fresh deployment"
+
+  # Build job (runs after cleanup)
+  build:
+    runs-on: ubuntu-latest
+    needs: cleanup
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Generate Jekyll site files (temporary)
+        run: |
+          # Create Jekyll configuration
+          cat > _config.yml << 'EOF'
+          # GitHub Pages Configuration for MidiEditor
+
+          # Site settings
+          url: "${{ steps.pages.outputs.base_url }}"
+          baseurl: "${{ steps.pages.outputs.base_path }}"
+
+          # Theme - Chirpy (modern, feature-rich theme)
+          theme: jekyll-theme-chirpy
+
+          # Build settings
+          markdown: kramdown
+          highlighter: rouge
+          kramdown:
+            input: GFM
+            syntax_highlighter: rouge
+
+          # Chirpy theme plugins (matching gemspec)
+          plugins:
+            - jekyll-paginate
+            - jekyll-seo-tag
+            - jekyll-archives
+            - jekyll-sitemap
+            - jekyll-include-cache
+            - jekyll-feed
+            - jekyll-github-metadata
+
+          # Chirpy theme settings
+          lang: en
+          timezone: UTC
+
+          # Site author (Chirpy format)
+          social:
+            name: MidiEditor
+            links:
+              - https://github.com/Meowchestra/MidiEditor
+
+          # Site avatar/icon (square, not circular)
+          avatar: /midieditor.ico
+          img_cdn: ""
+          avatar_style: "border-radius: 8px;"
+
+          # Let Chirpy handle navigation automatically
+
+          # Exclude files from processing
+          exclude:
+            - .github/
+            - build/
+            - packaging/
+            - run_environment/
+            - scripts/
+            - src/
+            - "*.pro"
+            - "*.qrc"
+            - "*.rc"
+            - "*.icns"
+            - xmake.lua
+            - CONTRIBUTORS
+            - LICENSE
+            - Gemfile
+            - Gemfile.lock
+            - vendor/
+            - manual/index.html
+
+          # Include manual directory but exclude its index
+          include:
+            - manual/
+          EOF
+
+          # Create Gemfile with latest Jekyll
+          cat > Gemfile << 'EOF'
+          source "https://rubygems.org"
+
+          # Latest Jekyll
+          gem "jekyll", "~> 4.4.1"
+          gem "jekyll-theme-chirpy", "~> 7.3", ">= 7.3.1"
+
+          # Chirpy theme plugins (matching gemspec dependencies)
+          group :jekyll_plugins do
+            # Core Chirpy dependencies (from gemspec)
+            gem "jekyll-paginate", "~> 1.1"
+            gem "jekyll-seo-tag", "~> 2.8"
+            gem "jekyll-archives", "~> 2.3"
+            gem "jekyll-sitemap", "~> 1.4"
+            gem "jekyll-include-cache", "~> 0.2"
+            # Optional additional plugins
+            gem "jekyll-feed", "~> 0.17.0"
+            gem "jekyll-github-metadata", "~> 2.16", ">= 2.16.1"
+          end
+
+          # Platform-specific gems
+          platforms :windows, :jruby do
+            gem "tzinfo", "~> 2.0"
+            gem "tzinfo-data", "~> 1.2025", ">= 1.2025.2"
+          end
+
+          # Development server and performance
+          gem "webrick", "~> 1.9", ">= 1.9.1"
+          gem "kramdown-parser-gfm", "~> 1.1"
+
+          # Fix Faraday v2.0+ compatibilitys
+          gem "faraday-retry", "~> 2.3", ">= 2.3.2"
+
+          # Windows/JRuby compatibility
+          gem "wdm", "~> 0.2.0", :platforms => [:windows]
+          gem "http_parser.rb", "~> 0.8.0", :platforms => [:jruby]
+          EOF
+
+          # Create homepage from README with cleaned content (Chirpy format)
+          cat > index.md << 'EOF'
+          ---
+          layout: page
+          title: Home
+          icon: fas fa-home
+          ---
+
+          # MidiEditor
+
+          EOF
+          # Remove icon and title from README content, then add to index
+          echo "🔧 Cleaning README content for homepage..."
+          # Skip first line (icon), keep everything else but remove duplicate titles
+          tail -n +2 README.md | sed '/^<img.*midieditor\.ico/d' | sed '/^# MidiEditor/d' >> index.md
+          echo "✅ Homepage created with cleaned README content"
+
+          # Create enhanced manual navigation page with Chirpy styling
+          cat > manual-nav.md << 'EOF'
+          ---
+          layout: page
+          title: Manual
+          permalink: /manual/
+          icon: fas fa-book
+          ---
+
+          <!-- Chirpy theme has built-in styling, so we'll use minimal custom CSS -->
+          <style>
+          .manual-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+          }
+          .manual-card {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            background: var(--card-bg);
+            transition: all 0.3s ease;
+          }
+          .manual-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+          }
+          .hero-section {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white !important;
+            border-radius: 1rem;
+            margin-bottom: 2rem;
+          }
+          .hero-section h1, .hero-section p {
+            color: white !important;
+          }
+          /* Make avatar square instead of circular - force override */
+          .site-avatar img, .avatar img, img.avatar,
+          .sidebar .site-title img, .sidebar img,
+          .site-title .site-subtitle img,
+          .sidebar .site-title .site-subtitle img {
+            border-radius: 8px !important;
+            clip-path: none !important;
+          }
+          /* Remove any circular clipping */
+          .sidebar .site-title {
+            border-radius: 8px !important;
+          }
+          /* Smooth scrolling for anchor links */
+          html {
+            scroll-behavior: smooth;
+          }
+          /* Style for manual sections */
+          .manual-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border-left: 4px solid var(--link-color);
+            background: var(--card-bg);
+            border-radius: 0.5rem;
+          }
+          </style>
+
+          <div class="hero-section">
+            <h1>🎵 MidiEditor Manual</h1>
+            <p>Your complete guide to creating and editing MIDI files</p>
+          </div>
+
+          <div class="manual-grid">
+            <div class="manual-card">
+              <h3>🚀 Getting Started</h3>
+              <ul>
+                <li><a href="/manual/introduction/">👋 Introduction</a></li>
+                <li><a href="/manual/setup/">⚙️ Setup & Installation</a></li>
+                <li><a href="/manual/editor-and-components/">🖥️ Interface Overview</a></li>
+              </ul>
+            </div>
+
+            <div class="manual-card">
+              <h3>🎼 MIDI Fundamentals</h3>
+              <ul>
+                <li><a href="/manual/midi-overview/">📚 MIDI Overview</a></li>
+                <li><a href="/manual/editing-midi-files/">✏️ Editing MIDI Files</a></li>
+                <li><a href="/manual/playback/">▶️ Playback Features</a></li>
+                <li><a href="/manual/record/">🎤 Recording MIDI</a></li>
+              </ul>
+            </div>
+
+            <div class="manual-card">
+              <h3>📋 Menu Reference</h3>
+              <ul>
+                <li><a href="/manual/menu-file/">📁 File Menu</a></li>
+                <li><a href="/manual/menu-edit/">✂️ Edit Menu</a></li>
+                <li><a href="/manual/menu-view/">👁️ View Menu</a></li>
+                <li><a href="/manual/menu-midi/">🎹 MIDI Menu</a></li>
+              </ul>
+            </div>
+
+            <div class="manual-card">
+              <h3>🔧 Advanced Features</h3>
+              <ul>
+                <li><a href="/manual/menu-playback/">🎵 Playback Controls</a></li>
+                <li><a href="/manual/menu-tools/">🛠️ Tools Menu</a></li>
+              </ul>
+            </div>
+          </div>
+
+          ---
+
+          <div style="text-align: center; margin-top: 40px; padding: 20px; border-radius: 8px;">
+            <p><strong>💡 Tip:</strong> Click on any section above to explore detailed documentation!</p>
+          </div>
+          EOF
+
+          # Create individual manual section pages
+          echo "📚 Creating individual manual section pages..."
+          if [ -d "manual" ]; then
+            echo "📁 Found manual directory, listing files:"
+            ls -la manual/
+            for html_file in manual/*.html; do
+              if [ -f "$html_file" ] && [ "$(basename "$html_file")" != "index.html" ]; then
+                filename=$(basename "$html_file" .html)
+                title=$(echo "$filename" | sed 's/-/ /g' | sed 's/\b\w/\U&/g')
+                echo "Creating manual section: $filename -> $title"
+
+                # Create individual page for each manual section
+                cat > "manual-${filename}.md" << EOF
+          ---
+          layout: page
+          title: $title
+          permalink: /manual/${filename}/
+          ---
+
+          <div style="margin-bottom: 20px; padding: 10px; background: var(--card-bg); border-radius: 5px;">
+            <a href="/manual/" style="color: var(--link-color); text-decoration: none;">← Back to Manual Index</a>
+          </div>
+
+          EOF
+
+                # Add the HTML content directly with debugging
+                echo "Processing file: $html_file"
+                if [ -f "$html_file" ]; then
+                  cat "$html_file" >> "manual-${filename}.md"
+                  echo "✅ Added content from $html_file to manual-${filename}.md"
+                else
+                  echo "❌ File $html_file not found"
+                  echo "<p>Error: Manual content not found for $filename</p>" >> "manual-${filename}.md"
+                fi
+              fi
+            done
+            echo "✅ Individual manual section pages created"
+
+            # List created files for debugging
+            echo "📄 Created manual files:"
+            ls -la manual-*.md || echo "No manual-*.md files found"
+          else
+            echo "❌ Manual directory not found"
+          fi
+
+          echo "✅ Jekyll site files generated (temporary)"
+
+      - name: Setup Ruby (after Gemfile creation)
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 'head'
+          bundler-cache: true
+
+      - name: Copy assets and verify icon fix
+        run: |
+          # Copy icon to root for proper linking
+          if [ -f "run_environment/midieditor.ico" ]; then
+            cp run_environment/midieditor.ico ./midieditor.ico
+            echo "✅ Icon copied from run_environment/ to root as midieditor.ico"
+            ls -la midieditor.ico
+          else
+            echo "❌ Icon not found at run_environment/midieditor.ico"
+            ls -la run_environment/ || echo "run_environment directory not found"
+          fi
+
+          # Copy manual screenshots and assets
+          if [ -d "manual/screenshots" ]; then
+            mkdir -p assets/manual/
+            cp -r manual/screenshots assets/manual/
+            echo "✅ Manual screenshots copied"
+          fi
+
+          # Verify the icon path was fixed in index.md
+          if grep -q "midieditor.ico" index.md && ! grep -q "run_environment/midieditor.ico" index.md; then
+            echo "✅ Icon path correctly fixed in homepage"
+          else
+            echo "❌ Icon path may not be fixed correctly"
+            echo "Checking index.md content:"
+            head -10 index.md
+          fi
+
+          # Debug: Check if icon will be included in Jekyll build
+          echo "📁 Files in root directory:"
+          ls -la *.ico || echo "No .ico files found in root"
+
+      - name: Verify Jekyll installation
+        run: |
+          # Bundler cache should have installed everything
+          echo "✅ Jekyll and dependencies installed via bundler-cache"
+
+          # Show versions for debugging
+          echo "📦 Installed versions:"
+          echo "Ruby: $(ruby --version)"
+          echo "Bundler: $(bundle --version)"
+          bundle exec jekyll --version
+          echo "Jekyll gems:"
+          bundle list | grep jekyll
+
+      - name: Build with Jekyll (manual)
+        run: |
+          # Build the site with our custom Jekyll setup (suppress warnings)
+          bundle exec jekyll build --quiet
+
+          echo "✅ Jekyll site built successfully"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  # Deployment job
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Deployment success
+        run: |
+          echo "🎉 Fresh deployment completed!"
+          echo "🌐 Site URL: ${{ steps.deployment.outputs.page_url }}"
+          echo "✨ This is now the only deployment (old ones were cleaned up first)"
+
+
