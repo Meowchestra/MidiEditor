@@ -20,7 +20,6 @@
 #define PROTOCOLSTEP_H_
 
 // Qt includes
-#include <QString>
 #include <QStack>
 
 // Forward declarations

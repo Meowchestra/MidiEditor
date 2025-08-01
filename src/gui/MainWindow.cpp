@@ -186,7 +186,7 @@ MainWindow::MainWindow(QString initFile)
     QWidget *matrixArea = new QWidget(leftSplitter);
     leftSplitter->addWidget(matrixArea);
     matrixArea->setContentsMargins(0, 0, 0, 0);
-    mw_matrixWidget = new MatrixWidget(matrixArea);
+    mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
     vert = new QScrollBar(Qt::Vertical, matrixArea);
     QGridLayout *matrixAreaLayout = new QGridLayout(matrixArea);
     matrixAreaLayout->setHorizontalSpacing(6);

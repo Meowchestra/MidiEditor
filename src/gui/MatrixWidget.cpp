@@ -30,14 +30,12 @@
 #include "../midi/PlayerThread.h"
 #include "../protocol/Protocol.h"
 #include "../tool/EditorTool.h"
-#include "../tool/EventTool.h"
 #include "../tool/Selection.h"
 #include "../tool/Tool.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiOutput.h"
 
 #include <QList>
-#include <QPainterPath>
 #include <QSettings>
 #include <cmath>
 
@@ -46,8 +44,8 @@
 #define PIXEL_PER_LINE 11
 #define PIXEL_PER_EVENT 15
 
-MatrixWidget::MatrixWidget(QWidget *parent)
-    : PaintWidget(parent) {
+MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
+    : PaintWidget(parent), _settings(settings) {
     screen_locked = false;
     startTimeX = 0;
     startLineY = 50;
@@ -77,17 +75,6 @@ MatrixWidget::MatrixWidget(QWidget *parent)
 
     pixmap = 0;
     _div = 2;
-
-    // Initialize viewport cache
-    _lastStartTick = _lastEndTick = _lastStartLineY = _lastEndLineY = -1;
-    _lastScaleX = _lastScaleY = -1.0;
-
-    // Initialize settings
-    _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
-}
-
-MatrixWidget::~MatrixWidget() {
-    delete _settings;
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -178,34 +165,10 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
     bool totalRepaint = !pixmap;
 
     if (totalRepaint) {
-        // Check if viewport has changed significantly to optimize repaints
-        bool viewportChanged = (_lastStartTick != startTick || _lastEndTick != endTick ||
-                                _lastStartLineY != startLineY || _lastEndLineY != endLineY ||
-                                _lastScaleX != scaleX || _lastScaleY != scaleY);
-
-        // Update viewport cache
-        _lastStartTick = startTick;
-        _lastEndTick = endTick;
-        _lastStartLineY = startLineY;
-        _lastEndLineY = endLineY;
-        _lastScaleX = scaleX;
-        _lastScaleY = scaleY;
-
         this->pianoKeys.clear();
-
-        // Qt6 optimized pixmap creation with device pixel ratio support
-        QSize pixmapSize(width(), height());
-        qreal devicePixelRatio = devicePixelRatioF();
-
-        // Create pixmap with proper device pixel ratio for high-DPI displays
-        pixmap = new QPixmap(pixmapSize * devicePixelRatio);
-        pixmap->setDevicePixelRatio(devicePixelRatio);
-
-        // Fill with background color to avoid artifacts
-        pixmap->fill(Appearance::backgroundColor());
+        pixmap = new QPixmap(width(), height());
         QPainter *pixpainter = new QPainter(pixmap);
 
-        // Configure rendering hints based on user settings
         if (!QApplication::arguments().contains("--no-antialiasing")) {
             pixpainter->setRenderHint(QPainter::Antialiasing);
         }
@@ -217,7 +180,6 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         pixpainter->setRenderHint(QPainter::SmoothPixmapTransform, smoothPixmapTransform);
         pixpainter->setRenderHint(QPainter::LosslessImageRendering, losslessImageRendering);
 
-        // Note: CompositionMode_SourceOver is Qt's default - no need to set explicitly
         // background shade
         pixpainter->fillRect(0, 0, width(), height(), Appearance::backgroundColor());
 
@@ -267,7 +229,6 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             pixpainter->fillRect(0, timeHeight, lineNameWidth - 10,
                                  pianoKeys * lineHeight(), Appearance::pianoWhiteKeyColor());
         }
-
 
         // draw background of lines, pianokeys and linenames. when i increase ,the tune decrease.
         for (int i = startLineY; i <= endLineY; i++) {
@@ -527,12 +488,10 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 
         pixpainter->setClipping(false);
 
-        pixpainter->setPen(Appearance::foregroundColor());
-
         delete pixpainter;
     }
 
-    painter->drawPixmap(QRect(0, 0, width(), height()), *pixmap, pixmap->rect());
+    painter->drawPixmap(0, 0, *pixmap);
 
     painter->setRenderHint(QPainter::Antialiasing);
     // draw the piano / linenames
@@ -589,18 +548,22 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                     break;
                 }
             }
-            if (Appearance::shouldUseDarkMode()) {
-                painter->setPen(QColor(200, 200, 200)); // Light gray for dark mode
-            } else {
-                painter->setPen(Qt::darkGray); // Original color for light mode
+
+            if (text != "") {
+                if (Appearance::shouldUseDarkMode()) {
+                    painter->setPen(QColor(200, 200, 200)); // Light gray for dark mode
+                } else {
+                    painter->setPen(Appearance::foregroundColor());
+                }
+                QFont font = painter->font();
+                font.setPixelSize(10);
+                painter->setFont(font);
+                int textlength = QFontMetrics(font).horizontalAdvance(text);
+                painter->drawText(lineNameWidth - 15 - textlength, startLine + lineHeight(), text);
             }
-            font = painter->font();
-            font.setPixelSize(10);
-            painter->setFont(font);
-            int textlength = QFontMetrics(font).horizontalAdvance(text);
-            painter->drawText(lineNameWidth - 15 - textlength, startLine + lineHeight(), text);
         }
     }
+
     if (Tool::currentTool()) {
         painter->setClipping(true);
         painter->setClipRect(ToolArea);
@@ -1205,28 +1168,6 @@ void MatrixWidget::forceCompleteRedraw() {
     delete pixmap;
     pixmap = 0;
     repaint();
-}
-
-void MatrixWidget::batchDrawEvents(QPainter *painter, const QList<MidiEvent *> &events, const QColor &color) {
-    if (events.isEmpty()) return;
-
-    // Qt6 optimized batch drawing
-    painter->setPen(Appearance::borderColor());
-    painter->setBrush(color);
-
-    // Use QPainterPath for better performance with many rectangles
-    QPainterPath path;
-    for (MidiEvent *event: events) {
-        if (event && !event->track()->hidden()) {
-            QRectF rect(event->x(), event->y(), event->width(), event->height());
-            path.addRoundedRect(rect, 1, 1);
-        }
-    }
-
-    // Draw all rectangles in one operation
-    if (!path.isEmpty()) {
-        painter->drawPath(path);
-    }
 }
 
 void MatrixWidget::pianoEmulator(QKeyEvent *event) {

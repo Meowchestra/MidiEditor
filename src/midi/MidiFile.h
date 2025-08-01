@@ -23,7 +23,6 @@
 #include "../protocol/ProtocolEntry.h"
 
 // Qt includes
-#include <QDataStream>
 #include <QMultiMap>
 #include <QObject>
 

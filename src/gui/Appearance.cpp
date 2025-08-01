@@ -2,8 +2,6 @@
 #include <QStyleFactory>
 #include <QStyleHints>
 #include <QTimer>
-#include <QPixmap>
-#include <QAction>
 #include <QDateTime>
 #include <QFile>
 #include "../tool/ToolButton.h"

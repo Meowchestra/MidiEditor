@@ -20,7 +20,6 @@
 #define TRACKLISTWIDGET_H_
 
 // Qt includes
-#include <QList>
 #include <QListWidget>
 #include <QPaintEvent>
 #include <QWidget>

@@ -20,7 +20,6 @@
 #define PLAYERTHREAD_H_
 
 // Qt includes
-#include <QObject>
 #include <QThread>
 #include <QTimer>
 #include <QElapsedTimer>
