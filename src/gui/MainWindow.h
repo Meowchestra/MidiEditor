@@ -29,7 +29,7 @@
 #include "ToolbarActionInfo.h"
 
 // Forward declarations
-class HybridMatrixWidget;
+class MatrixWidget;
 class MidiEvent;
 class MidiFile;
 class ChannelListWidget;
@@ -94,9 +94,9 @@ public:
 
     /**
      * \brief Gets the matrix widget for note editing.
-     * \return Pointer to the HybridMatrixWidget
+     * \return Pointer to the MatrixWidget
      */
-    HybridMatrixWidget *matrixWidget();
+    MatrixWidget *matrixWidget();
 
     /**
      * \brief Gets the event widget for detailed event editing.
@@ -750,7 +750,7 @@ private:
     // === Core Widgets ===
 
     /** \brief Main matrix widget for MIDI editing */
-    HybridMatrixWidget *mw_matrixWidget;
+    MatrixWidget *mw_matrixWidget;
 
     /** \brief Vertical and horizontal scroll bars */
     QScrollBar *vert, *hori;

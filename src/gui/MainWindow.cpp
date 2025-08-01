@@ -48,7 +48,7 @@
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
 #include "LayoutSettingsWidget.h"
-#include "HybridMatrixWidget.h"
+#include "MatrixWidget.h"
 #include "MiscWidget.h"
 #include "NToleQuantizationDialog.h"
 #include "ProtocolWidget.h"
@@ -186,7 +186,7 @@ MainWindow::MainWindow(QString initFile)
     QWidget *matrixArea = new QWidget(leftSplitter);
     leftSplitter->addWidget(matrixArea);
     matrixArea->setContentsMargins(0, 0, 0, 0);
-    mw_matrixWidget = new HybridMatrixWidget(matrixArea);
+    mw_matrixWidget = new MatrixWidget(matrixArea);
     vert = new QScrollBar(Qt::Vertical, matrixArea);
     QGridLayout *matrixAreaLayout = new QGridLayout(matrixArea);
     matrixAreaLayout->setHorizontalSpacing(6);
@@ -460,8 +460,11 @@ MainWindow::MainWindow(QString initFile)
     currentTweakTarget = new TimeTweakTarget(this);
     selectionNavigator = new SelectionNavigator(this);
 
-    QTimer::singleShot(100, this, SLOT(initializeSharedClipboard()));
-    QTimer::singleShot(200, this, SLOT(loadInitFile()));
+    // Initialize shared clipboard immediately
+    initializeSharedClipboard();
+
+    // Load initial file immediately - no need for artificial delay
+    loadInitFile();
 }
 
 void MainWindow::initializeSharedClipboard() {
@@ -553,7 +556,7 @@ MidiFile *MainWindow::getFile() {
     return file;
 }
 
-HybridMatrixWidget *MainWindow::matrixWidget() {
+MatrixWidget *MainWindow::matrixWidget() {
     return mw_matrixWidget;
 }
 

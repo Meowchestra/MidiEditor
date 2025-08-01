@@ -24,7 +24,7 @@
 #include "../MidiEvent/OnEvent.h"
 #include "../gui/EventWidget.h"
 #include "../gui/MainWindow.h"
-#include "../gui/HybridMatrixWidget.h"
+#include "../gui/MatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"

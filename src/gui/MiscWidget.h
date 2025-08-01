@@ -26,7 +26,7 @@
 #include <QList>
 
 // Forward declarations
-class HybridMatrixWidget;
+class MatrixWidget;
 class MidiEvent;
 class SelectTool;
 
@@ -75,10 +75,10 @@ class MiscWidget : public PaintWidget {
 public:
     /**
      * \brief Creates a new MiscWidget.
-     * \param mw The parent HybridMatrixWidget
+     * \param mw The parent MatrixWidget
      * \param parent The parent widget
      */
-    MiscWidget(HybridMatrixWidget *mw, QWidget *parent = 0);
+    MiscWidget(MatrixWidget *mw, QWidget *parent = 0);
 
     /**
      * \brief Converts a mode constant to a human-readable string.
@@ -157,7 +157,7 @@ protected:
 
 private:
     /** \brief Reference to the parent matrix widget */
-    HybridMatrixWidget *matrixWidget;
+    MatrixWidget *matrixWidget;
 
     /** \brief Edit mode (SINGLE_MODE or LINE_MODE) */
     int edit_mode;

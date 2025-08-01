@@ -31,7 +31,7 @@
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/UnknownEvent.h"
-#include "../gui/HybridMatrixWidget.h"
+#include "../gui/MatrixWidget.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"

@@ -18,10 +18,10 @@
 
 #include "EditorTool.h"
 #include "../gui/MainWindow.h"
-#include "../gui/HybridMatrixWidget.h"
+#include "../gui/MatrixWidget.h"
 #include "ToolButton.h"
 
-HybridMatrixWidget *EditorTool::matrixWidget = 0;
+MatrixWidget *EditorTool::matrixWidget = 0;
 MainWindow *EditorTool::_mainWindow = 0;
 
 EditorTool::EditorTool()
@@ -118,7 +118,7 @@ void EditorTool::reloadState(ProtocolEntry *entry) {
     mouseIn = other->mouseIn;
 }
 
-void EditorTool::setMatrixWidget(HybridMatrixWidget *w) {
+void EditorTool::setMatrixWidget(MatrixWidget *w) {
     matrixWidget = w;
 }
 

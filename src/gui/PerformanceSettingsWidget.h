@@ -45,9 +45,7 @@ class QGroupBox;
  *
  * - **Rendering quality**: Smooth pixmap transforms, lossless image rendering
  * - **Hardware acceleration**: GPU-accelerated rendering when available
- * - **Async rendering**: Background rendering for improved responsiveness
  * - **DPI scaling**: High-DPI display optimization settings
- * - **Composition modes**: Optimized drawing composition settings
  *
  * The widget provides detailed information about available backends and
  * their capabilities, helping users make informed performance choices.
@@ -96,12 +94,6 @@ private slots:
      */
     void enableLosslessImageRenderingChanged(bool enabled);
 
-    /**
-     * \brief Handles optimized composition setting changes.
-     * \param enabled True to enable optimized composition
-     */
-    void enableOptimizedCompositionChanged(bool enabled);
-
     // === Hardware Acceleration Settings ===
 
     /**
@@ -109,12 +101,6 @@ private slots:
      * \param enabled True to enable hardware acceleration
      */
     void enableHardwareAccelerationChanged(bool enabled);
-
-    /**
-     * \brief Handles async rendering setting changes.
-     * \param enabled True to enable async rendering
-     */
-    void enableAsyncRenderingChanged(bool enabled);
 
     // === DPI Scaling Settings ===
 
@@ -175,7 +161,6 @@ private:
     /** \brief Checkboxes for rendering quality options */
     QCheckBox *_enableSmoothPixmapTransform;
     QCheckBox *_enableLosslessImageRendering;
-    QCheckBox *_enableOptimizedComposition;
 
     // === Hardware Acceleration Controls ===
 
@@ -184,9 +169,6 @@ private:
 
     /** \brief Checkbox for hardware acceleration options */
     QCheckBox *_enableHardwareAcceleration;
-
-    /** \brief Checkbox for async software rendering */
-    QCheckBox *_enableAsyncRendering;
 
     /** \brief Label showing backend information */
     QLabel *_backendInfoLabel;

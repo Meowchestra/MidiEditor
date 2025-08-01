@@ -21,6 +21,7 @@
 
 // Qt includes
 #include <QMutex>
+#include <QQueue>
 #include <QThread>
 #include <QWaitCondition>
 

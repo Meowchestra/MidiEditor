@@ -30,6 +30,17 @@ set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{QT_ROOT_DIR} $ENV{Qt6_DIR})
 # Add common Qt installation paths
 if(WIN32)
     # Common Qt installation paths on Windows
+    # Prioritize MinGW builds if using GCC compiler
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        file(GLOB QT_MINGW "C:/Qt/6.*/mingw*")
+        if(QT_MINGW)
+            list(GET QT_MINGW -1 QT_MINGW_LATEST)
+            set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "${QT_MINGW_LATEST}")
+            message(STATUS "Found Qt MinGW installation: ${QT_MINGW_LATEST}")
+        endif()
+    endif()
+
+    # Fallback to MSVC builds
     file(GLOB QT_VERSIONS "C:/Qt/6.*")
     if(QT_VERSIONS)
         list(GET QT_VERSIONS -1 QT_LATEST_VERSION)  # Get the latest version
@@ -47,7 +58,7 @@ if(WIN32)
 endif()
 
 # Try to find Qt6 with different approaches
-find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network Xml Multimedia MultimediaWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Network Xml Multimedia MultimediaWidgets)
 
 if(NOT Qt6_FOUND)
     # Try with Qt6_DIR environment variable
@@ -69,6 +80,20 @@ if(NOT Qt6_FOUND)
     message(FATAL_ERROR "Qt6 not found. Please set Qt6_DIR or QT_ROOT_DIR environment variable to your Qt installation directory, or install Qt6 to C:/Qt/")
 endif()
 
+# Debug Qt6 information
+message(STATUS "Qt6 found: ${Qt6_FOUND}")
+message(STATUS "Qt6 version: ${Qt6_VERSION}")
+message(STATUS "Qt6 directory: ${Qt6_DIR}")
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID}")
+get_target_property(QT6_CORE_LOCATION Qt6::Core LOCATION)
+message(STATUS "Qt6::Core location: ${QT6_CORE_LOCATION}")
+
+# Check for compiler/Qt compatibility
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    message(WARNING "Using MinGW compiler with Qt6. Make sure Qt6 was compiled with MinGW, not MSVC.")
+    message(STATUS "If you encounter linking errors, try using Qt6 compiled for MinGW or switch to MSVC compiler.")
+endif()
+
 # Find Vulkan SDK
 find_package(Vulkan QUIET)
 if(Vulkan_FOUND)
@@ -77,18 +102,33 @@ else()
     message(STATUS "Vulkan SDK not found - Vulkan backend may not be available")
 endif()
 
+# Enable Qt6 MOC, UIC, and RCC processing
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
+
+# Ensure proper Qt6 setup
+if(Qt6_FOUND)
+    qt6_standard_project_setup()
+endif()
+
 # Main target
 add_executable(MidiEditor)
 
 target_link_libraries(MidiEditor PRIVATE
         Qt6::Core
-        Qt6::Widgets
         Qt6::Gui
+        Qt6::Widgets
         Qt6::Network
         Qt6::Xml
         Qt6::Multimedia
         Qt6::MultimediaWidgets
 )
+
+# Additional linking for MinGW compatibility
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_options(MidiEditor PRIVATE -Wl,--allow-multiple-definition)
+endif()
 
 # Qt RHI for hardware acceleration
 find_package(Qt6 QUIET COMPONENTS GuiPrivate)
@@ -271,7 +311,7 @@ target_sources(MidiEditor PRIVATE ${SOURCES} ${HEADERS})
 
 # Qt resources
 if(EXISTS "${CMAKE_SOURCE_DIR}/resources.qrc")
-    qt6_add_resources(MidiEditor "resources" FILES resources.qrc)
+    target_sources(MidiEditor PRIVATE resources.qrc)
     message(STATUS "Added Qt resources from resources.qrc")
 else()
     message(WARNING "resources.qrc not found - some resources may be missing")
@@ -334,6 +374,65 @@ endif()
 set_target_properties(MidiEditor PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
 )
+
+# Qt deployment for development builds (Windows only)
+if(WIN32)
+    find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS ${Qt6_DIR}/../../../bin)
+    if(WINDEPLOYQT_EXECUTABLE)
+        # Deploy Qt libraries to build directory for debugging
+        add_custom_command(TARGET MidiEditor POST_BUILD
+            COMMAND ${WINDEPLOYQT_EXECUTABLE}
+                --debug
+                --compiler-runtime
+                --force
+                --no-translations
+                --no-system-d3d-compiler
+                --no-opengl-sw
+                $<TARGET_FILE:MidiEditor>
+            COMMENT "Deploying Qt libraries for debug"
+        )
+
+        # Ensure platforms plugin is deployed
+        add_custom_command(TARGET MidiEditor POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                $<TARGET_FILE_DIR:MidiEditor>/platforms
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${Qt6_DIR}/../../../plugins/platforms/qwindows$<$<CONFIG:Debug>:d>.dll
+                $<TARGET_FILE_DIR:MidiEditor>/platforms/
+            COMMENT "Ensuring Qt platform plugins are available"
+        )
+    else()
+        message(WARNING "windeployqt not found - attempting manual Qt deployment")
+
+        # Manual deployment of essential Qt DLLs
+        set(QT_BIN_DIR ${Qt6_DIR}/../../../bin)
+        set(QT_PLUGINS_DIR ${Qt6_DIR}/../../../plugins)
+
+        # Copy essential Qt DLLs
+        add_custom_command(TARGET MidiEditor POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${QT_BIN_DIR}/Qt6Core$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6Gui$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6Widgets$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6Network$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6Xml$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6Multimedia$<$<CONFIG:Debug>:d>.dll
+                ${QT_BIN_DIR}/Qt6MultimediaWidgets$<$<CONFIG:Debug>:d>.dll
+                $<TARGET_FILE_DIR:MidiEditor>/
+            COMMENT "Manually copying Qt DLLs"
+        )
+
+        # Copy platform plugins
+        add_custom_command(TARGET MidiEditor POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                $<TARGET_FILE_DIR:MidiEditor>/platforms
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                ${QT_PLUGINS_DIR}/platforms/qwindows$<$<CONFIG:Debug>:d>.dll
+                $<TARGET_FILE_DIR:MidiEditor>/platforms/
+            COMMENT "Manually copying Qt platform plugins"
+        )
+    endif()
+endif()
 
 # Installation
 set(INSTALL_DIR "packaging/org.midieditor.midieditor/data/")

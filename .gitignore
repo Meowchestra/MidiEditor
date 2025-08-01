@@ -5,6 +5,7 @@ doxy/
 .xmake/
 MidiEditor-*/
 releases/
+cmake-*/
 
 #local 
 .tmp

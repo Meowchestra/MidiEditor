@@ -86,11 +86,6 @@ void PerformanceSettingsWidget::setupUI() {
     connect(_enableLosslessImageRendering, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableLosslessImageRenderingChanged);
     qualityLayout->addWidget(_enableLosslessImageRendering, 1, 0, 1, 2);
 
-    _enableOptimizedComposition = new QCheckBox(tr("Use optimized composition mode"), this);
-    _enableOptimizedComposition->setToolTip(tr("Uses faster composition for better performance. Software rendering only."));
-    connect(_enableOptimizedComposition, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableOptimizedCompositionChanged);
-    qualityLayout->addWidget(_enableOptimizedComposition, 2, 0, 1, 2);
-
     mainLayout->addWidget(_renderingQualityGroup);
 
     // Hardware Acceleration Group
@@ -106,11 +101,6 @@ void PerformanceSettingsWidget::setupUI() {
     accelDesc->setWordWrap(true);
     accelDesc->setStyleSheet("color: gray; font-size: 10px; margin-left: 10px;");
     accelLayout->addWidget(accelDesc, 1, 0, 1, 2);
-
-    _enableAsyncRendering = new QCheckBox(tr("Enable experimental async rendering"), this);
-    _enableAsyncRendering->setToolTip(tr("EXPERIMENTAL: Use background thread for rendering (may improve performance). Software rendering only."));
-    connect(_enableAsyncRendering, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableAsyncRenderingChanged);
-    accelLayout->addWidget(_enableAsyncRendering, 2, 0, 1, 2);
 
     _backendInfoLabel = new QLabel(this);
     _backendInfoLabel->setWordWrap(true);
@@ -130,11 +120,9 @@ void PerformanceSettingsWidget::loadSettings() {
     // Load rendering quality settings (default to high quality)
     _enableSmoothPixmapTransform->setChecked(_settings->value("rendering/smooth_pixmap_transform", true).toBool());
     _enableLosslessImageRendering->setChecked(_settings->value("rendering/lossless_image_rendering", true).toBool());
-    _enableOptimizedComposition->setChecked(_settings->value("rendering/optimized_composition", false).toBool());
 
     // Load hardware acceleration settings (default to software rendering for stability)
     _enableHardwareAcceleration->setChecked(_settings->value("rendering/hardware_acceleration", false).toBool());
-    _enableAsyncRendering->setChecked(_settings->value("rendering/async_rendering", false).toBool());
 
     // Apply the enable/disable logic for software-only options
     enableHardwareAccelerationChanged(_enableHardwareAcceleration->isChecked());
@@ -144,11 +132,9 @@ bool PerformanceSettingsWidget::accept() {
     // Save rendering quality settings
     _settings->setValue("rendering/smooth_pixmap_transform", _enableSmoothPixmapTransform->isChecked());
     _settings->setValue("rendering/lossless_image_rendering", _enableLosslessImageRendering->isChecked());
-    _settings->setValue("rendering/optimized_composition", _enableOptimizedComposition->isChecked());
 
     // Save hardware acceleration settings
     _settings->setValue("rendering/hardware_acceleration", _enableHardwareAcceleration->isChecked());
-    _settings->setValue("rendering/async_rendering", _enableAsyncRendering->isChecked());
 
     return true;
 }
@@ -173,26 +159,11 @@ void PerformanceSettingsWidget::enableLosslessImageRenderingChanged(bool enabled
     updateInfoLabels();
 }
 
-void PerformanceSettingsWidget::enableOptimizedCompositionChanged(bool enabled) {
-    Q_UNUSED(enabled)
-    updateInfoLabels();
-}
-
 void PerformanceSettingsWidget::enableHardwareAccelerationChanged(bool enabled) {
     // Enable/disable software-only options based on hardware acceleration setting
-    bool usingSoftware = !enabled;
-
-    // Only async rendering and optimized composition are software-only
-    // Just gray them out when hardware acceleration is enabled, don't uncheck them
-    _enableAsyncRendering->setEnabled(usingSoftware);
-    _enableOptimizedComposition->setEnabled(usingSoftware);
+    // (Currently no software-only options remaining)
 
     updateInfoLabels();
-}
-
-void PerformanceSettingsWidget::enableAsyncRenderingChanged(bool enabled) {
-    Q_UNUSED(enabled)
-    // Async rendering setting change handled automatically through settings
 }
 
 void PerformanceSettingsWidget::ignoreScalingChanged(bool enabled) {
@@ -206,11 +177,9 @@ void PerformanceSettingsWidget::roundedScalingChanged(bool enabled) {
 void PerformanceSettingsWidget::resetToDefaults() {
     _enableSmoothPixmapTransform->setChecked(true);
     _enableLosslessImageRendering->setChecked(true);
-    _enableOptimizedComposition->setChecked(false);
 
     // Default to software rendering for stability
     _enableHardwareAcceleration->setChecked(false);
-    _enableAsyncRendering->setChecked(false);
 
     updateInfoLabels();
 }

@@ -26,7 +26,7 @@
 #include "Tool.h"
 
 // Forward declarations
-class HybridMatrixWidget;
+class MatrixWidget;
 class MainWindow;
 
 /**
@@ -41,7 +41,7 @@ class MainWindow;
  * - **Tool selection**: Only one EditorTool can be active at a time
  * - **Visual feedback**: Tools draw overlays and cursors on the matrix
  * - **Input handling**: Process mouse clicks, drags, and keyboard input
- * - **Widget integration**: Connect to HybridMatrixWidget for editing
+ * - **Widget integration**: Connect to MatrixWidget for editing
  * - **State management**: Maintain tool-specific state and settings
  *
  * Key features:
@@ -168,9 +168,9 @@ public:
 
     /**
      * \brief Sets the matrix widget for all editor tools.
-     * \param w The HybridMatrixWidget to associate with tools
+     * \param w The MatrixWidget to associate with tools
      */
-    static void setMatrixWidget(HybridMatrixWidget *w);
+    static void setMatrixWidget(MatrixWidget *w);
 
     /**
      * \brief Sets the main window for all editor tools.
@@ -201,7 +201,7 @@ protected:
     bool mouseIn;
 
     /** \brief Static reference to the matrix widget */
-    static HybridMatrixWidget *matrixWidget;
+    static MatrixWidget *matrixWidget;
 
     /** \brief Static reference to the main window */
     static MainWindow *_mainWindow;

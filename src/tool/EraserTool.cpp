@@ -19,7 +19,7 @@
 #include "EraserTool.h"
 
 #include "../MidiEvent/MidiEvent.h"
-#include "../gui/HybridMatrixWidget.h"
+#include "../gui/MatrixWidget.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"

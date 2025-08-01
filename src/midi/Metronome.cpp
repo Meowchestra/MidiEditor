@@ -3,10 +3,10 @@
 #include "MidiFile.h"
 
 #include <QFileInfo>
-
 #include <QSoundEffect>
+#include <QUrl>
 
-Metronome *Metronome::_instance = new Metronome();
+Metronome *Metronome::_instance = nullptr;
 bool Metronome::_enable = false;
 
 Metronome::Metronome(QObject *parent) : QObject(parent) {
@@ -15,7 +15,20 @@ Metronome::Metronome(QObject *parent) : QObject(parent) {
     denom = 2;
     _player = new QSoundEffect;
     _player->setVolume(100);
-    _player->setSource(QUrl::fromLocalFile(":/run_environment/metronome/metronome-01.wav"));
+
+    // Try to load metronome sound file - silently fail if missing
+    try {
+        _player->setSource(QUrl::fromLocalFile(":/run_environment/metronome/metronome-01.wav"));
+    } catch (...) {
+        // Silently ignore - metronome will just be disabled
+    }
+}
+
+Metronome::~Metronome() {
+    if (_player) {
+        delete _player;
+        _player = nullptr;
+    }
 }
 
 void Metronome::setFile(MidiFile *file) {
@@ -58,6 +71,9 @@ void Metronome::playbackStopped() {
 }
 
 Metronome *Metronome::instance() {
+    if (!_instance) {
+        _instance = new Metronome();
+    }
     return _instance;
 }
 
@@ -70,7 +86,11 @@ void Metronome::click() {
     if (!enabled()) {
         return;
     }
-    _player->play();
+
+    // Only play if the audio file was loaded successfully
+    if (_player && _player->status() != QSoundEffect::Error) {
+        _player->play();
+    }
 }
 
 bool Metronome::enabled() {
@@ -82,9 +102,14 @@ void Metronome::setEnabled(bool b) {
 }
 
 void Metronome::setLoudness(int value) {
-    _instance->_player->setVolume(value / 100.0);
+    if (_instance && _instance->_player) {
+        _instance->_player->setVolume(value / 100.0);
+    }
 }
 
 int Metronome::loudness() {
-    return (int) (_instance->_player->volume() * 100);
+    if (_instance && _instance->_player) {
+        return (int) (_instance->_player->volume() * 100);
+    }
+    return 100;
 }

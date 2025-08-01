@@ -21,6 +21,7 @@
 
 // Qt includes
 #include <QString>
+#include <QStack>
 
 // Forward declarations
 class ProtocolItem;

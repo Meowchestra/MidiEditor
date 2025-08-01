@@ -17,6 +17,7 @@
  */
 
 #include "ProtocolItem.h"
+#include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "ProtocolEntry.h"
 

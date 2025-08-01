@@ -54,6 +54,11 @@ public:
     Metronome(QObject *parent = 0);
 
     /**
+     * \brief Destroys the Metronome and cleans up resources.
+     */
+    ~Metronome();
+
+    /**
      * \brief Sets the MIDI file for timing reference.
      * \param file The MidiFile to track for timing
      */
