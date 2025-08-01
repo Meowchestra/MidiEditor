@@ -25,6 +25,7 @@
 #include <QWidget>
 
 #include "Appearance.h"
+#include "ChannelVisibilityManager.h"
 #include "ColoredWidget.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
@@ -113,7 +114,17 @@ void ChannelListItem::toggleVisibility(bool visible) {
         text = tr("Show channel");
     }
     channelList->midiFile()->protocol()->startNewAction(text);
-    channelList->midiFile()->channel(channel)->setVisible(visible);
+
+    // Use global visibility manager to avoid corrupted MidiChannel access
+    ChannelVisibilityManager::instance().setChannelVisible(channel, visible);
+
+    // Also try to update the MidiChannel object (with safety)
+    try {
+        channelList->midiFile()->channel(channel)->setVisible(visible);
+    } catch (...) {
+        // Ignore if MidiChannel is corrupted
+    }
+
     channelList->midiFile()->protocol()->endAction();
     emit channelStateChanged();
 }
@@ -159,9 +170,11 @@ void ChannelListItem::onBeforeUpdate() {
         colored->setColor(*(Appearance::channelColor(channel)));
     }
 
-    if (visibleAction->isChecked() != channelList->midiFile()->channel(channel)->visible()) {
+    // Use global visibility manager to avoid corrupted MidiChannel access
+    bool currentVisibility = ChannelVisibilityManager::instance().isChannelVisible(channel);
+    if (visibleAction->isChecked() != currentVisibility) {
         disconnect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
-        visibleAction->setChecked(channelList->midiFile()->channel(channel)->visible());
+        visibleAction->setChecked(currentVisibility);
         connect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
         emit channelStateChanged();
     }

@@ -33,6 +33,7 @@
 #include "../tool/Selection.h"
 #include "../tool/Tool.h"
 #include "../gui/Appearance.h"
+#include "../gui/ChannelVisibilityManager.h"
 #include "../midi/MidiOutput.h"
 
 #include <QList>
@@ -75,6 +76,16 @@ MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
 
     pixmap = 0;
     _div = 2;
+
+    // Cache rendering settings to avoid reading from QSettings on every paint event
+    _antialiasing = _settings->value("rendering/antialiasing", true).toBool();
+    _smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
+
+    // Initialize scroll repaint suppression flag
+    _suppressScrollRepaints = false;
+
+    // Cache appearance colors to avoid expensive theme checks on every paint event
+    updateCachedAppearanceColors();
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -95,7 +106,7 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
                                              100)) {
         // return if the last tick is already shown
         if (file->maxTime() <= endTimeX && ms >= startTimeX) {
-            repaint();
+            update();
             return;
         }
 
@@ -103,7 +114,7 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
         emit scrollChanged(ms, (file->maxTime() - endTimeX + startTimeX), startLineY,
                            NUM_LINES - (endLineY - startLineY));
     } else {
-        repaint();
+        update();
     }
 }
 
@@ -125,8 +136,12 @@ void MatrixWidget::scrollXChanged(int scrollPositionX) {
         startTimeX += file->maxTime() - endTimeX;
         endTimeX = file->maxTime();
     }
-    registerRelayout();
-    repaint();
+
+    // Only repaint if not suppressed (to prevent cascading repaints)
+    if (!_suppressScrollRepaints) {
+        registerRelayout();
+        update();
+    }
 }
 
 void MatrixWidget::scrollYChanged(int scrollPositionY) {
@@ -148,8 +163,12 @@ void MatrixWidget::scrollYChanged(int scrollPositionY) {
             startLineY = 0;
         }
     }
-    registerRelayout();
-    repaint();
+
+    // Only repaint if not suppressed (to prevent cascading repaints)
+    if (!_suppressScrollRepaints) {
+        registerRelayout();
+        update();
+    }
 }
 
 void MatrixWidget::paintEvent(QPaintEvent *event) {
@@ -157,7 +176,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         return;
 
     QPainter *painter = new QPainter(this);
-    QFont font = painter->font();
+    QFont font = Appearance::improveFont(painter->font());
     font.setPixelSize(12);
     painter->setFont(font);
     painter->setClipping(false);
@@ -169,21 +188,14 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         pixmap = new QPixmap(width(), height());
         QPainter *pixpainter = new QPainter(pixmap);
 
-        if (!QApplication::arguments().contains("--no-antialiasing")) {
-            pixpainter->setRenderHint(QPainter::Antialiasing);
-        }
-
-        // Apply user-configurable performance settings
-        bool smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
-        bool losslessImageRendering = _settings->value("rendering/lossless_image_rendering", true).toBool();
-
-        pixpainter->setRenderHint(QPainter::SmoothPixmapTransform, smoothPixmapTransform);
-        pixpainter->setRenderHint(QPainter::LosslessImageRendering, losslessImageRendering);
+        // Apply cached user-configurable performance settings
+        pixpainter->setRenderHint(QPainter::Antialiasing, _antialiasing);
+        pixpainter->setRenderHint(QPainter::SmoothPixmapTransform, _smoothPixmapTransform);
 
         // background shade
-        pixpainter->fillRect(0, 0, width(), height(), Appearance::backgroundColor());
+        pixpainter->fillRect(0, 0, width(), height(), _cachedBackgroundColor);
 
-        QFont f = pixpainter->font();
+        QFont f = Appearance::improveFont(pixpainter->font());
         f.setPixelSize(12);
         pixpainter->setFont(f);
         pixpainter->setClipping(false);
@@ -207,7 +219,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         TempoChangeEvent *ev = dynamic_cast<TempoChangeEvent *>(
             currentTempoEvents->at(0));
         if (!ev) {
-            pixpainter->fillRect(0, 0, width(), height(), Appearance::errorColor());
+            pixpainter->fillRect(0, 0, width(), height(), _cachedErrorColor);
             delete pixpainter;
             return;
         }
@@ -218,7 +230,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         }
 
         // fill background of the line descriptions
-        pixpainter->fillRect(PianoArea, Appearance::systemWindowColor());
+        pixpainter->fillRect(PianoArea, _cachedSystemWindowColor);
 
         // fill the pianos background
         int pianoKeys = numLines;
@@ -227,10 +239,12 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         }
         if (pianoKeys > 0) {
             pixpainter->fillRect(0, timeHeight, lineNameWidth - 10,
-                                 pianoKeys * lineHeight(), Appearance::pianoWhiteKeyColor());
+                                 pianoKeys * lineHeight(), _cachedPianoWhiteKeyColor);
         }
 
         // draw background of lines, pianokeys and linenames. when i increase ,the tune decrease.
+        // Use cached appearance values to avoid expensive calls during paint
+
         for (int i = startLineY; i <= endLineY; i++) {
             int startLine = yPosOfLine(i);
             QColor c;
@@ -239,7 +253,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 bool isRangeLine = false;
 
                 // Check for C3/C6 range lines if enabled
-                if (Appearance::showRangeLines()) {
+                if (_cachedShowRangeLines) {
                     // C3 = MIDI note 48, C6 = MIDI note 84
                     // Matrix widget uses inverted indexing (127-i), so:
                     // For C3: 127-48 = 79
@@ -249,9 +263,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                         isRangeLine = true;
                     }
                 }
-
-                Appearance::stripStyle strip = Appearance::strip();
-                switch (strip) {
+                switch (_cachedStripStyle) {
                     case Appearance::onOctave:
                         // MIDI note 0 = C, so we want (127-i) % 12 == 0 for C notes
                         // Since i is inverted (127-i gives actual MIDI note), we need:
@@ -267,18 +279,18 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 }
 
                 if (isRangeLine) {
-                    c = Appearance::rangeLineColor(); // Range line color (C3/C6)
+                    c = _cachedRangeLineColor; // Range line color (C3/C6)
                 } else if (isHighlighted) {
-                    c = Appearance::stripHighlightColor();
+                    c = _cachedStripHighlightColor;
                 } else {
-                    c = Appearance::stripNormalColor();
+                    c = _cachedStripNormalColor;
                 }
             } else {
                 // Program events section (lines >127) - use different colors than strips
                 if (i % 2 == 1) {
-                    c = Appearance::programEventHighlightColor();
+                    c = _cachedProgramEventHighlightColor;
                 } else {
-                    c = Appearance::programEventNormalColor();
+                    c = _cachedProgramEventNormalColor;
                 }
             }
             pixpainter->fillRect(lineNameWidth, startLine, width(),
@@ -286,18 +298,18 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         }
 
         // paint measures and timeline background
-        pixpainter->fillRect(0, 0, width(), timeHeight, Appearance::systemWindowColor());
+        pixpainter->fillRect(0, 0, width(), timeHeight, _cachedSystemWindowColor);
 
         pixpainter->setClipping(true);
         pixpainter->setClipRect(lineNameWidth, 0, width() - lineNameWidth - 2,
                                 height());
 
-        pixpainter->setPen(Appearance::darkGrayColor());
-        pixpainter->setBrush(Appearance::pianoWhiteKeyColor());
+        pixpainter->setPen(_cachedDarkGrayColor);
+        pixpainter->setBrush(_cachedPianoWhiteKeyColor);
         pixpainter->drawRect(lineNameWidth, 2, width() - lineNameWidth - 1, timeHeight - 2);
-        pixpainter->setPen(Appearance::foregroundColor());
+        pixpainter->setPen(_cachedForegroundColor);
 
-        pixpainter->fillRect(0, timeHeight - 3, width(), 3, Appearance::systemWindowColor());
+        pixpainter->fillRect(0, timeHeight - 3, width(), 3, _cachedSystemWindowColor);
 
         // paint time text in ms
         int numbers = (width() - lineNameWidth) / 80;
@@ -326,7 +338,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             if (startNumber < startTimeX) {
                 startNumber += realstep;
             }
-            if (Appearance::shouldUseDarkMode()) {
+            if (_cachedShouldUseDarkMode) {
                 pixpainter->setPen(QColor(200, 200, 200)); // Light gray for dark mode
             } else {
                 pixpainter->setPen(Qt::gray); // Original color for light mode
@@ -381,18 +393,15 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 }
             }
             int xto = xPosOfMs(msOfTick(tick));
-            pixpainter->setBrush(Appearance::measureBarColor());
+            pixpainter->setBrush(_cachedMeasureBarColor);
             pixpainter->setPen(Qt::NoPen);
             pixpainter->drawRoundedRect(xfrom + 2, timeHeight / 2 + 4, xto - xfrom - 4, timeHeight / 2 - 10, 5, 5);
             if (tick > startTick) {
-                pixpainter->setPen(Appearance::measureLineColor());
+                pixpainter->setPen(_cachedMeasureLineColor);
                 pixpainter->drawLine(xfrom, timeHeight / 2, xfrom, height());
                 QString text = tr("Measure ") + QString::number(measure - 1);
 
-                // Improve text rendering for high DPI displays
-                QFont font = Appearance::improveFont(pixpainter->font());
-                pixpainter->setFont(font);
-
+                QFont font = pixpainter->font();
                 QFontMetrics fm(font);
                 int textlength = fm.horizontalAdvance(text);
                 if (textlength > xto - xfrom) {
@@ -405,7 +414,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 int textX = static_cast<int>(std::round(pos - textlength / 2.0));
                 int textY = timeHeight - 9;
 
-                pixpainter->setPen(Appearance::measureTextColor());
+                pixpainter->setPen(_cachedMeasureTextColor);
                 pixpainter->drawText(textX, textY, text);
 
                 if (_div >= 0 || _div <= -100) {
@@ -456,7 +465,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 
                     int startTickDiv = ticksPerDiv;
                     QPen oldPen = pixpainter->pen();
-                    QPen dashPen = QPen(Appearance::timelineGridColor(), 1, Qt::DashLine);
+                    QPen dashPen = QPen(_cachedTimelineGridColor, 1, Qt::DashLine);
                     pixpainter->setPen(dashPen);
                     while (startTickDiv < measureEvent->ticksPerMeasure()) {
                         int divTick = startTickDiv + measureStartTick;
@@ -471,11 +480,11 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         }
 
         // line between time texts and matrixarea
-        pixpainter->setPen(Appearance::borderColor());
+        pixpainter->setPen(_cachedBorderColor);
         pixpainter->drawLine(0, timeHeight, width(), timeHeight);
         pixpainter->drawLine(lineNameWidth, timeHeight, lineNameWidth, height());
 
-        pixpainter->setPen(Appearance::foregroundColor());
+        pixpainter->setPen(_cachedForegroundColor);
 
         // paint the events
         pixpainter->setClipping(true);
@@ -516,7 +525,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                     break;
                 }
                 case MidiEvent::KEY_SIGNATURE_EVENT_LINE: {
-                    text = tr("Key Signature.");
+                    text = tr("Key Signature");
                     break;
                 }
                 case MidiEvent::PROG_CHANGE_LINE: {
@@ -550,12 +559,12 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             }
 
             if (text != "") {
-                if (Appearance::shouldUseDarkMode()) {
+                if (_cachedShouldUseDarkMode) {
                     painter->setPen(QColor(200, 200, 200)); // Light gray for dark mode
                 } else {
-                    painter->setPen(Appearance::foregroundColor());
+                    painter->setPen(_cachedForegroundColor);
                 }
-                QFont font = painter->font();
+                QFont font = Appearance::improveFont(painter->font());
                 font.setPixelSize(10);
                 painter->setFont(font);
                 int textlength = QFontMetrics(font).horizontalAdvance(text);
@@ -572,18 +581,18 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
     }
 
     if (enabled && mouseInRect(TimeLineArea)) {
-        painter->setPen(Appearance::playbackCursorColor());
+        painter->setPen(_cachedPlaybackCursorColor);
         painter->drawLine(mouseX, 0, mouseX, height());
-        painter->setPen(Appearance::foregroundColor());
+        painter->setPen(_cachedForegroundColor);
     }
 
     if (MidiPlayer::isPlaying()) {
-        painter->setPen(Appearance::playbackCursorColor());
+        painter->setPen(_cachedPlaybackCursorColor);
         int x = xPosOfMs(MidiPlayer::timeMs());
         if (x >= lineNameWidth) {
             painter->drawLine(x, 0, x, height());
         }
-        painter->setPen(Appearance::foregroundColor());
+        painter->setPen(_cachedForegroundColor);
     }
 
     // paint the cursorTick of file
@@ -597,11 +606,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             QPointF(x, timeHeight - 2),
         };
 
-        if (Appearance::shouldUseDarkMode()) {
-            painter->setBrush(QBrush(Appearance::cursorTriangleColor(), Qt::SolidPattern));
-        } else {
-            painter->setBrush(QBrush(QColor(194, 230, 255), Qt::SolidPattern)); // Original color
-        }
+        painter->setBrush(QBrush(_cachedCursorTriangleColor, Qt::SolidPattern));
 
         painter->drawPolygon(points, 3);
         painter->setPen(Qt::gray); // Original color for both modes
@@ -623,13 +628,13 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
     }
 
     // border
-    painter->setPen(Appearance::borderColor());
+    painter->setPen(_cachedBorderColor);
     painter->drawLine(width() - 1, height() - 1, lineNameWidth, height() - 1);
     painter->drawLine(width() - 1, height() - 1, width() - 1, 2);
 
     // if the recorder is recording, show red circle
     if (MidiInput::recording()) {
-        painter->setBrush(Appearance::recordingIndicatorColor());
+        painter->setBrush(_cachedRecordingIndicatorColor);
         painter->drawEllipse(width() - 20, timeHeight + 5, 15, 15);
     }
     delete painter;
@@ -643,7 +648,8 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 }
 
 void MatrixWidget::paintChannel(QPainter *painter, int channel) {
-    if (!file->channel(channel)->visible()) {
+    // Use global visibility manager to avoid corrupted MidiChannel access
+    if (!ChannelVisibilityManager::instance().isChannelVisible(channel)) {
         return;
     }
     QColor cC = *file->channel(channel)->color();
@@ -651,40 +657,39 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
     // filter events
     QMultiMap<int, MidiEvent *> *map = file->channelEvents(channel);
 
-    // Early exit for empty channels
-    if (!map || map->isEmpty()) {
-        return;
-    }
+    // RELIABLE SOLUTION: Check all events but with optimizations
+    // This guarantees no notes ever disappear regardless of zoom or scroll position
 
-    // Two-pass approach for performance while maintaining correctness:
-    // Pass 1: Process events that start within an extended viewport (for performance)
-    // Pass 2: For note events, check for long notes that start before extended viewport
+    // Pre-calculate viewport bounds for fast comparison in eventInWidget
+    // This avoids repeated calculations in the inner loop
 
-    // Calculate extended search range - look back/forward based on typical note lengths
-    int maxNoteLengthEstimate = std::min(endTick - startTick, file->ticksPerQuarter() * 16); // Max 16 beats
-    int searchStartTick = startTick - maxNoteLengthEstimate;
-    int searchEndTick = endTick + maxNoteLengthEstimate;
-    if (searchStartTick < 0) searchStartTick = 0;
+    // Optimization: Use const iterator for faster iteration
+    QMultiMap<int, MidiEvent *>::const_iterator it = map->constBegin();
+    QMultiMap<int, MidiEvent *>::const_iterator end = map->constEnd();
 
-    QMultiMap<int, MidiEvent *>::iterator it = map->lowerBound(searchStartTick);
-    QMultiMap<int, MidiEvent *>::iterator endIt = map->upperBound(searchEndTick);
+    for (; it != end; ++it) {
+        MidiEvent *currentEvent = it.value();
 
-    while (it != endIt && it != map->end()) {
-        MidiEvent *event = it.value();
-        // Quick Y-axis (line) culling before expensive eventInWidget() call
-        int line = event->line();
-        if (line < startLineY - 1 || line > endLineY + 1) {
-            it++;
+        // Fast early rejection: check line visibility first (cheapest test)
+        int line = currentEvent->line();
+        if (line < startLineY || line > endLineY) {
             continue;
         }
 
-        if (eventInWidget(event)) {
-            // insert all Events in objects, set their coordinates
-            // Only onEvents are inserted. When there is an On
-            // and an OffEvent, the OnEvent will hold the coordinates
+        // Only do full eventInWidget check if line is visible
+        if (!eventInWidget(currentEvent)) {
+            continue;
+        }
 
-            OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
-            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
+        // insert all Events in objects, set their coordinates
+        // Only onEvents are inserted. When there is an On
+        // and an OffEvent, the OnEvent will hold the coordinates
+        // (line already declared above for early rejection check)
+
+        OffEvent *offEvent = dynamic_cast<OffEvent *>(currentEvent);
+        OnEvent *onEvent = dynamic_cast<OnEvent *>(currentEvent);
+
+        MidiEvent *event = currentEvent; // The event we'll process (may be reassigned to onEvent)
 
             int x, width;
             int y = yPosOfLine(line);
@@ -697,16 +702,22 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
                     onEvent = dynamic_cast<OnEvent *>(offEvent->onEvent());
                 }
 
-                width = xPosOfMs(msOfTick(offEvent->midiTime())) - xPosOfMs(msOfTick(onEvent->midiTime()));
-                x = xPosOfMs(msOfTick(onEvent->midiTime()));
+                // Calculate raw coordinates
+                int rawX = xPosOfMs(msOfTick(onEvent->midiTime()));
+                int rawEndX = xPosOfMs(msOfTick(offEvent->midiTime()));
+
+                // Clamp coordinates to viewport for partially visible notes
+                x = qMax(rawX, lineNameWidth);  // Don't start before the piano area
+                int endX = qMin(rawEndX, this->width());  // Don't extend beyond widget width
+                width = qMax(endX - x, 1);  // Ensure minimum width of 1 pixel
+
                 event = onEvent;
                 if (objects->contains(event)) {
-                    it++;
                     continue;
                 }
             } else {
                 width = PIXEL_PER_EVENT;
-                x = xPosOfMs(msOfTick(event->midiTime()));
+                x = xPosOfMs(msOfTick(currentEvent->midiTime()));
             }
 
             event->setX(x);
@@ -721,77 +732,26 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
                 event->draw(painter, cC);
 
                 if (Selection::instance()->selectedEvents().contains(event)) {
-                    painter->setPen(Qt::gray); // Original color for both modes
+                    painter->setPen(Qt::gray);
                     painter->drawLine(lineNameWidth, y, this->width(), y);
                     painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
-                    painter->setPen(Appearance::foregroundColor());
+                    painter->setPen(_cachedForegroundColor);
                 }
                 objects->prepend(event);
             }
-        }
 
-        if (!(event->track()->hidden())) {
             // append event to velocityObjects if its not a offEvent and if it
             // is in the x-Area
-            OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
-            if (!offEvent && event->midiTime() >= startTick && event->midiTime() <= endTick && !velocityObjects->
-                contains(event)) {
-                event->setX(xPosOfMs(msOfTick(event->midiTime())));
-
-                velocityObjects->prepend(event);
-            }
-        }
-        it++;
-    }
-
-    // Fallback: Check for very long notes that might have been missed
-    // This ensures we don't break the original bug fix for long sustains
-    if (searchStartTick > 0) {
-        // Look for OnEvents that start before our search range but might still be visible
-        QMultiMap<int, MidiEvent *>::iterator fallbackIt = map->begin();
-        QMultiMap<int, MidiEvent *>::iterator fallbackEnd = map->lowerBound(searchStartTick);
-
-        while (fallbackIt != fallbackEnd) {
-            MidiEvent *event = fallbackIt.value();
-            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
-
-            // Only check OnEvents (notes) that might span the viewport
-            if (onEvent && onEvent->offEvent()) {
-                int noteEndTick = onEvent->offEvent()->midiTime();
-
-                // If this note ends after our viewport starts, it should be visible
-                if (noteEndTick > startTick && !objects->contains(onEvent)) {
-                    if (eventInWidget(onEvent)) {
-                        int line = onEvent->line();
-                        int x = xPosOfMs(msOfTick(onEvent->midiTime()));
-                        int y = yPosOfLine(line);
-                        int width = xPosOfMs(msOfTick(noteEndTick)) - x;
-                        int height = lineHeight();
-
-                        onEvent->setX(x);
-                        onEvent->setY(y);
-                        onEvent->setWidth(width);
-                        onEvent->setHeight(height);
-
-                        if (!onEvent->track()->hidden()) {
-                            QColor color = _colorsByChannels ? cC : *onEvent->track()->color();
-                            onEvent->draw(painter, color);
-
-                            if (Selection::instance()->selectedEvents().contains(onEvent)) {
-                                painter->setPen(Qt::gray);
-                                painter->drawLine(lineNameWidth, y, this->width(), y);
-                                painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
-                                painter->setPen(Appearance::foregroundColor());
-                            }
-                            objects->prepend(onEvent);
-                        }
-                    }
+            MidiEvent *originalEvent = (onEvent || offEvent) ? currentEvent : event;
+            if (!(originalEvent->track()->hidden())) {
+                OffEvent *velocityOffEvent = dynamic_cast<OffEvent *>(originalEvent);
+                if (!velocityOffEvent && originalEvent->midiTime() >= startTick && originalEvent->midiTime() <= endTick && !velocityObjects->contains(originalEvent)) {
+                    originalEvent->setX(xPosOfMs(msOfTick(originalEvent->midiTime())));
+                    velocityObjects->prepend(originalEvent);
                 }
             }
-            fallbackIt++;
         }
     }
-}
 
 void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
                                  int width, int height) {
@@ -910,9 +870,9 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             playerRect.setY(y);
             playerRect.setWidth(width * scaleWidthBlack);
             playerRect.setHeight(height * scaleHeightBlack + 0.5);
-            QColor c = Appearance::pianoBlackKeyColor();
+            QColor c = _cachedPianoBlackKeyColor;
             if (mouseInRect(playerRect)) {
-                c = Appearance::pianoBlackKeyHoverColor();
+                c = _cachedPianoBlackKeyHoverColor;
                 inRect = true;
             }
             painter->fillRect(playerRect, c);
@@ -948,31 +908,27 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
 
         if (isBlack) {
             if (inRect) {
-                painter->setBrush(Appearance::pianoBlackKeyHoverColor());
+                painter->setBrush(_cachedPianoBlackKeyHoverColor);
             } else if (selected) {
-                painter->setBrush(Appearance::pianoBlackKeySelectedColor());
+                painter->setBrush(_cachedPianoBlackKeySelectedColor);
             } else {
-                painter->setBrush(Appearance::pianoBlackKeyColor());
+                painter->setBrush(_cachedPianoBlackKeyColor);
             }
         } else {
             if (inRect) {
-                painter->setBrush(Appearance::pianoWhiteKeyHoverColor());
+                painter->setBrush(_cachedPianoWhiteKeyHoverColor);
             } else if (selected) {
-                painter->setBrush(Appearance::pianoWhiteKeySelectedColor());
+                painter->setBrush(_cachedPianoWhiteKeySelectedColor);
             } else {
-                painter->setBrush(Appearance::pianoWhiteKeyColor());
+                painter->setBrush(_cachedPianoWhiteKeyColor);
             }
         }
-        painter->setPen(Appearance::darkGrayColor());
+        painter->setPen(_cachedDarkGrayColor);
         painter->drawPolygon(keyPolygon, Qt::OddEvenFill);
 
         if (name != "") {
-            // Improve text rendering for piano key names
-            QFont font = Appearance::improveFont(painter->font());
-            painter->setFont(font);
-
             painter->setPen(Qt::gray); // Original color for both modes
-            QFontMetrics fm(font);
+            QFontMetrics fm(painter->font());
             int textlength = fm.horizontalAdvance(name);
 
             // Align text to pixel boundaries for sharper rendering
@@ -980,13 +936,12 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             int textY = y + height - 1;
 
             painter->drawText(textX, textY, name);
-            painter->setPen(Appearance::foregroundColor());
+            painter->setPen(_cachedForegroundColor);
         }
         if (inRect && enabled) {
             // mark the current Line
-            QColor lineColor = Appearance::pianoKeyLineHighlightColor();
             painter->fillRect(x + width + borderRight, yPosOfLine(127 - number),
-                              this->width() - x - width - borderRight, height, lineColor);
+                              this->width() - x - width - borderRight, height, _cachedPianoKeyLineHighlightColor);
         }
     }
 }
@@ -1001,8 +956,7 @@ void MatrixWidget::setFile(MidiFile *f) {
     // Roughly vertically center on Middle C.
     startLineY = 50;
 
-    connect(file->protocol(), SIGNAL(actionFinished()), this,
-            SLOT(registerRelayout()));
+    connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(registerRelayout()));
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
 
     calcSizes();
@@ -1043,11 +997,17 @@ void MatrixWidget::calcSizes() {
     PianoArea = QRectF(0, timeHeight, lineNameWidth, height() - timeHeight);
     TimeLineArea = QRectF(lineNameWidth, 0, width() - lineNameWidth, timeHeight);
 
+    // Call scroll methods with suppression to prevent cascading repaints
+    _suppressScrollRepaints = true;
     scrollXChanged(startTimeX);
     scrollYChanged(startLineY);
+    _suppressScrollRepaints = false;
 
-    emit sizeChanged(time - timeInWidget, NUM_LINES - endLineY + startLineY, startTimeX,
-                     startLineY);
+    // Trigger single repaint after all scroll updates
+    registerRelayout();
+    update();
+
+    emit sizeChanged(time - timeInWidget, NUM_LINES - endLineY + startLineY, startTimeX, startLineY);
 }
 
 MidiFile *MatrixWidget::midiFile() {
@@ -1066,7 +1026,7 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (!MidiPlayer::isPlaying()) {
-        repaint();
+        update();
     }
 }
 
@@ -1148,7 +1108,7 @@ void MatrixWidget::mouseReleaseEvent(QMouseEvent *event) {
 void MatrixWidget::takeKeyPressEvent(QKeyEvent *event) {
     if (Tool::currentTool()) {
         if (Tool::currentTool()->pressKey(event->key())) {
-            repaint();
+            update();
         }
     }
 
@@ -1158,16 +1118,62 @@ void MatrixWidget::takeKeyPressEvent(QKeyEvent *event) {
 void MatrixWidget::takeKeyReleaseEvent(QKeyEvent *event) {
     if (Tool::currentTool()) {
         if (Tool::currentTool()->releaseKey(event->key())) {
-            repaint();
+            update();
         }
     }
 }
 
-void MatrixWidget::forceCompleteRedraw() {
-    // Force complete redraw by invalidating cached pixmap
-    delete pixmap;
-    pixmap = 0;
-    repaint();
+void MatrixWidget::updateRenderingSettings() {
+    // Update cached rendering settings from QSettings
+    // This method should be called whenever rendering settings change in the settings dialog
+    // to refresh the cached values and avoid expensive I/O during paint events
+    _antialiasing = _settings->value("rendering/antialiasing", true).toBool();
+    _smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
+
+    // Update cached appearance colors to avoid expensive theme checks
+    updateCachedAppearanceColors();
+
+    // Force a redraw to apply the new settings
+    registerRelayout();
+    update();
+}
+
+void MatrixWidget::updateCachedAppearanceColors() {
+    // Cache all appearance colors and settings to avoid expensive calls during paint events
+    // This should be called whenever the theme changes (light/dark mode, etc.)
+    _cachedBackgroundColor = Appearance::backgroundColor();
+    _cachedForegroundColor = Appearance::foregroundColor();
+    _cachedBorderColor = Appearance::borderColor();
+    _cachedShowRangeLines = Appearance::showRangeLines();
+    _cachedStripStyle = Appearance::strip();
+    _cachedStripHighlightColor = Appearance::stripHighlightColor();
+    _cachedStripNormalColor = Appearance::stripNormalColor();
+    _cachedRangeLineColor = Appearance::rangeLineColor();
+    _cachedProgramEventHighlightColor = Appearance::programEventHighlightColor();
+    _cachedProgramEventNormalColor = Appearance::programEventNormalColor();
+    _cachedSystemWindowColor = Appearance::systemWindowColor();
+    _cachedMeasureBarColor = Appearance::measureBarColor();
+    _cachedMeasureLineColor = Appearance::measureLineColor();
+    _cachedMeasureTextColor = Appearance::measureTextColor();
+    _cachedTimelineGridColor = Appearance::timelineGridColor();
+    _cachedDarkGrayColor = Appearance::darkGrayColor();
+    _cachedGrayColor = Appearance::grayColor();
+    _cachedErrorColor = Appearance::errorColor();
+    _cachedPlaybackCursorColor = Appearance::playbackCursorColor();
+    _cachedCursorTriangleColor = Appearance::cursorTriangleColor();
+    _cachedRecordingIndicatorColor = Appearance::recordingIndicatorColor();
+
+    // Cache piano key colors
+    _cachedPianoBlackKeyColor = Appearance::pianoBlackKeyColor();
+    _cachedPianoBlackKeyHoverColor = Appearance::pianoBlackKeyHoverColor();
+    _cachedPianoBlackKeySelectedColor = Appearance::pianoBlackKeySelectedColor();
+    _cachedPianoWhiteKeyColor = Appearance::pianoWhiteKeyColor();
+    _cachedPianoWhiteKeyHoverColor = Appearance::pianoWhiteKeyHoverColor();
+    _cachedPianoWhiteKeySelectedColor = Appearance::pianoWhiteKeySelectedColor();
+    _cachedPianoKeyLineHighlightColor = Appearance::pianoKeyLineHighlightColor();
+
+    // Cache theme state to avoid expensive shouldUseDarkMode() calls
+    _cachedShouldUseDarkMode = Appearance::shouldUseDarkMode();
 }
 
 void MatrixWidget::pianoEmulator(QKeyEvent *event) {
@@ -1435,10 +1441,20 @@ void MatrixWidget::wheelEvent(QWheelEvent *event) {
         }
 
         if (verScrollAmount != 0) {
-            int newStartLineY = startLineY - (verScrollAmount / (scaleY * PIXEL_PER_LINE));
+            // Calculate normal scroll amount based on zoom level
+            double scrollDelta = -verScrollAmount / (scaleY * PIXEL_PER_LINE);
+            int linesToScroll = (int)round(scrollDelta);
 
-            if (newStartLineY < 0)
+            // Ensure we always move at least 1 line when zoomed in to avoid "dead" scrolls
+            if (linesToScroll == 0 && verScrollAmount != 0) {
+                linesToScroll = (verScrollAmount > 0) ? -1 : 1;
+            }
+
+            int newStartLineY = startLineY + linesToScroll;
+
+            if (newStartLineY < 0) {
                 newStartLineY = 0;
+            }
 
             // endline too large handled in scrollYchanged()
             scrollYChanged(newStartLineY);

@@ -228,14 +228,52 @@ bool MidiFile::readMidiFile(QDataStream *content, QStringList *log) {
         ok = readTrack(content, num, log);
         if (!ok) {
             log->append(tr("Error in Track ") + QString::number(num));
-            return false;
+            // Essential: don't fail completely on one bad track
+            // Try to skip to next track
+            while (!content->atEnd()) {
+                quint8 searchByte;
+                (*content) >> searchByte;
+                if (searchByte == 'M') {
+                    // Check if this is start of "MTrk"
+                    qint64 pos = content->device()->pos();
+                    quint8 t, r, k;
+                    if (!content->atEnd()) (*content) >> t;
+                    if (!content->atEnd()) (*content) >> r;
+                    if (!content->atEnd()) (*content) >> k;
+
+                    if (t == 'T' && r == 'r' && k == 'k') {
+                        // Found next track, rewind to start of "MTrk"
+                        content->device()->seek(pos - 1);
+                        break;
+                    } else {
+                        // Not "MTrk", continue searching
+                        content->device()->seek(pos);
+                    }
+                }
+            }
         }
     }
 
     // find corrupted OnEvents (without OffEvent)
-    foreach(OnEvent* onevent, OffEvent::corruptedOnEvents()) {
-        log->append(tr("Warning: found OnEvent without OffEvent (line ") + QString::number(onevent->line()) + tr(") - removing..."));
-        channel(onevent->channel())->removeEvent(onevent);
+    QList<OnEvent*> corruptedEvents = OffEvent::corruptedOnEvents();
+    if (!corruptedEvents.isEmpty()) {
+        foreach(OnEvent* onevent, corruptedEvents) {
+            if (onevent) {
+                int eventChannel = onevent->channel();
+                if (eventChannel >= 0 && eventChannel < 19) {
+                    try {
+                        // Safely remove the event
+                        MidiChannel* ch = channel(eventChannel);
+                        if (ch) {
+                            log->append(tr("Warning: found OnEvent without OffEvent (line ") + QString::number(onevent->line()) + tr(") - removing..."));
+                            ch->removeEvent(onevent);
+                        }
+                    } catch (...) {
+                        // Silent error handling
+                    }
+                }
+            }
+        }
     }
 
     OffEvent::clearOnEvents();
@@ -294,6 +332,11 @@ bool MidiFile::readTrack(QDataStream *content, int num, QStringList *log) {
     }
 
     while (!endEvent) {
+        // Essential safety: prevent infinite loops from corrupted data
+        if (content->atEnd()) {
+            break;
+        }
+
         position += deltaTime(content);
 
         MidiEvent *event = MidiEvent::loadMidiEvent(content, &ok, &endEvent, track);
@@ -304,8 +347,11 @@ bool MidiFile::readTrack(QDataStream *content, int num, QStringList *log) {
         OffEvent *offEvent = dynamic_cast<OffEvent *>(event);
         if (offEvent && !offEvent->onEvent()) {
             log->append(tr("Warning: detected offEvent without prior onEvent. Skipping!"));
+            // Clean up the orphaned OffEvent to prevent memory leaks
+            delete offEvent;
             continue;
         }
+
         // check whether its the tracks name
         if (event && event->line() == MidiEvent::TEXT_EVENT_LINE) {
             TextEvent *textEvent = dynamic_cast<TextEvent *>(event);
@@ -382,11 +428,36 @@ int MidiFile::deltaTime(QDataStream *content) {
 int MidiFile::variableLengthvalue(QDataStream *content) {
     quint32 v = 0;
     quint8 byte = 0;
+    int bytesRead = 0;
+    const int MAX_VARIABLE_LENGTH_BYTES = 4; // MIDI standard allows max 4 bytes for variable length values
+
     do {
+        // Safety check: prevent infinite loops from malformed MIDI data
+        if (bytesRead >= MAX_VARIABLE_LENGTH_BYTES) {
+            return 0; // Return 0 as safe fallback
+        }
+
+        // Check if stream has data available
+        if (content->atEnd()) {
+            return 0;
+        }
+
         (*content) >> byte;
+        bytesRead++;
+
+        // Check for potential overflow before shifting
+        if (v > (UINT32_MAX >> 7)) {
+            return 0;
+        }
+
         v <<= 7;
         v |= (byte & 0x7F);
     } while (byte & (1 << 7));
+
+    // Additional safety check for unreasonably large values
+    if (v > 0x0FFFFFFF) { // MIDI standard maximum
+        return 0;
+    }
     return (int) v;
 }
 
@@ -688,6 +759,16 @@ int MidiFile::ticksPerQuarter() {
 }
 
 QMultiMap<int, MidiEvent *> *MidiFile::channelEvents(int channel) {
+    // Add bounds checking to prevent crashes
+    if (channel < 0 || channel >= 19) {
+        return channels[0]->eventMap(); // Return a safe default
+    }
+
+    // Additional safety check for null channels
+    if (!channels[channel]) {
+        return channels[0]->eventMap(); // Return a safe default
+    }
+
     return channels[channel]->eventMap();
 }
 
@@ -696,6 +777,16 @@ Protocol *MidiFile::protocol() {
 }
 
 MidiChannel *MidiFile::channel(int i) {
+    // Add bounds checking to prevent crashes
+    if (i < 0 || i >= 19) {
+        return channels[0]; // Return a safe default
+    }
+
+    // Additional safety check for null channels
+    if (!channels[i]) {
+        return channels[0]; // Return a safe default
+    }
+
     return channels[i];
 }
 

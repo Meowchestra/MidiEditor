@@ -41,6 +41,7 @@
 
 #include "Appearance.h"
 #include "AboutDialog.h"
+#include "ChannelVisibilityManager.h"
 #include "ChannelListWidget.h"
 #include "CompleteMidiSetupDialog.h"
 #include "DeleteOverlapsDialog.h"
@@ -431,7 +432,7 @@ MainWindow::MainWindow(QString initFile)
     connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
     connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
 
-    connect(channelWidget, SIGNAL(channelStateChanged()), mw_matrixWidget, SLOT(repaint()));
+    connect(channelWidget, SIGNAL(channelStateChanged()), mw_matrixWidget, SLOT(update()));
     connect(mw_matrixWidget, SIGNAL(sizeChanged(int, int, int, int)), this, SLOT(matrixSizeChanged(int, int, int, int)));
     connect(mw_matrixWidget, SIGNAL(scrollChanged(int, int, int, int)), this, SLOT(scrollPositionsChanged(int, int, int, int)));
 
@@ -508,10 +509,18 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev) {
 
 void MainWindow::scrollPositionsChanged(int startMs, int maxMs, int startLine,
                                         int maxLine) {
+    // Temporarily disconnect scrollbar signals to prevent cascade
+    disconnect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
+    disconnect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
+
     hori->setMaximum(maxMs);
     hori->setValue(startMs);
     vert->setMaximum(maxLine);
     vert->setValue(startLine);
+
+    // Reconnect scrollbar signals
+    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
+    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
 }
 
 void MainWindow::setFile(MidiFile *newFile) {
@@ -562,11 +571,20 @@ MatrixWidget *MainWindow::matrixWidget() {
 
 void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
                                    int vX, int vY) {
+    // Temporarily disconnect scrollbar signals to prevent cascade
+    disconnect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
+    disconnect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
+
     vert->setMaximum(maxScrollLine);
     hori->setMaximum(maxScrollTime);
     vert->setValue(vY);
     hori->setValue(vX);
-    mw_matrixWidget->repaint();
+
+    // Reconnect scrollbar signals
+    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
+    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
+
+    mw_matrixWidget->update();
 }
 
 void MainWindow::playStop() {
@@ -1022,9 +1040,19 @@ void MainWindow::allChannelsVisible() {
     if (!file)
         return;
     file->protocol()->startNewAction(tr("All channels visible"));
+
+    // Use global visibility manager to avoid corrupted MidiChannel access
     for (int i = 0; i < 19; i++) {
-        file->channel(i)->setVisible(true);
+        ChannelVisibilityManager::instance().setChannelVisible(i, true);
+
+        // Also try to update MidiChannel object (with safety)
+        try {
+            file->channel(i)->setVisible(true);
+        } catch (...) {
+            // Ignore if MidiChannel is corrupted
+        }
     }
+
     file->protocol()->endAction();
     channelWidget->update();
 }
@@ -1033,9 +1061,19 @@ void MainWindow::allChannelsInvisible() {
     if (!file)
         return;
     file->protocol()->startNewAction(tr("Hide all channels"));
+
+    // Use global visibility manager to avoid corrupted MidiChannel access
     for (int i = 0; i < 19; i++) {
-        file->channel(i)->setVisible(false);
+        ChannelVisibilityManager::instance().setChannelVisible(i, false);
+
+        // Also try to update MidiChannel object (with safety)
+        try {
+            file->channel(i)->setVisible(false);
+        } catch (...) {
+            // Ignore if MidiChannel is corrupted
+        }
     }
+
     file->protocol()->endAction();
     channelWidget->update();
 }
@@ -4163,8 +4201,12 @@ void MainWindow::copiedEventsChanged() {
 }
 
 void MainWindow::updateAll() {
-    mw_matrixWidget->registerRelayout();
-    mw_matrixWidget->update();
+    // Update cached rendering settings when settings change
+    // This ensures MatrixWidget uses the latest performance settings without
+    // expensive QSettings I/O operations during paint events
+    mw_matrixWidget->updateRenderingSettings();
+
+    // Update all widgets
     channelWidget->update();
     _trackWidget->update();
     _miscWidget->update();

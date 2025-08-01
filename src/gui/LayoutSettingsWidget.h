@@ -232,6 +232,11 @@ public slots:
     void refreshIcons();
 
     /**
+     * \brief Triggers toolbar update after settings changes.
+     */
+    void triggerToolbarUpdate();
+
+    /**
      * \brief Handles icon size changes.
      * \param size The new icon size
      */
@@ -259,11 +264,6 @@ private:
      * \brief Saves settings to configuration.
      */
     void saveSettings();
-
-    /**
-     * \brief Triggers a toolbar update.
-     */
-    void triggerToolbarUpdate();
 
     /**
      * \brief Populates the actions list.

@@ -42,7 +42,8 @@ void PerformanceSettingsWidget::setupUI() {
 
     // System & Performance info
     QString infoText = tr("Configure system display settings and rendering performance for optimal MIDI editing experience.");
-    mainLayout->addWidget(createInfoBox(infoText));
+    _infoBox = createInfoBox(infoText);
+    mainLayout->addWidget(_infoBox);
 
     // High DPI Scaling Group
     QGroupBox *scalingGroup = new QGroupBox(tr("High DPI Scaling"), this);
@@ -76,15 +77,15 @@ void PerformanceSettingsWidget::setupUI() {
     _renderingQualityGroup = new QGroupBox(tr("Rendering Quality"), this);
     QGridLayout *qualityLayout = new QGridLayout(_renderingQualityGroup);
 
+    _enableAntialiasing = new QCheckBox(tr("Enable anti-aliasing"), this);
+    _enableAntialiasing->setToolTip(tr("Provides smoother edges but reduces performance"));
+    connect(_enableAntialiasing, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableAntialiasingChanged);
+    qualityLayout->addWidget(_enableAntialiasing, 0, 0, 1, 2);
+
     _enableSmoothPixmapTransform = new QCheckBox(tr("Enable smooth pixmap transforms"), this);
     _enableSmoothPixmapTransform->setToolTip(tr("Provides smoother scaling but reduces performance"));
     connect(_enableSmoothPixmapTransform, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableSmoothPixmapTransformChanged);
-    qualityLayout->addWidget(_enableSmoothPixmapTransform, 0, 0, 1, 2);
-
-    _enableLosslessImageRendering = new QCheckBox(tr("Enable lossless image rendering"), this);
-    _enableLosslessImageRendering->setToolTip(tr("Preserves image quality but reduces performance"));
-    connect(_enableLosslessImageRendering, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableLosslessImageRenderingChanged);
-    qualityLayout->addWidget(_enableLosslessImageRendering, 1, 0, 1, 2);
+    qualityLayout->addWidget(_enableSmoothPixmapTransform, 1, 0, 1, 2);
 
     mainLayout->addWidget(_renderingQualityGroup);
 
@@ -118,8 +119,8 @@ void PerformanceSettingsWidget::setupUI() {
 
 void PerformanceSettingsWidget::loadSettings() {
     // Load rendering quality settings (default to high quality)
+    _enableAntialiasing->setChecked(_settings->value("rendering/antialiasing", true).toBool());
     _enableSmoothPixmapTransform->setChecked(_settings->value("rendering/smooth_pixmap_transform", true).toBool());
-    _enableLosslessImageRendering->setChecked(_settings->value("rendering/lossless_image_rendering", true).toBool());
 
     // Load hardware acceleration settings (default to software rendering for stability)
     _enableHardwareAcceleration->setChecked(_settings->value("rendering/hardware_acceleration", false).toBool());
@@ -130,8 +131,8 @@ void PerformanceSettingsWidget::loadSettings() {
 
 bool PerformanceSettingsWidget::accept() {
     // Save rendering quality settings
+    _settings->setValue("rendering/antialiasing", _enableAntialiasing->isChecked());
     _settings->setValue("rendering/smooth_pixmap_transform", _enableSmoothPixmapTransform->isChecked());
-    _settings->setValue("rendering/lossless_image_rendering", _enableLosslessImageRendering->isChecked());
 
     // Save hardware acceleration settings
     _settings->setValue("rendering/hardware_acceleration", _enableHardwareAcceleration->isChecked());
@@ -144,17 +145,29 @@ QIcon PerformanceSettingsWidget::icon() {
 }
 
 void PerformanceSettingsWidget::refreshColors() {
-    // Update colors when theme changes
+    // Update info box colors to match current theme
+    if (_infoBox) {
+        QLabel *label = qobject_cast<QLabel *>(_infoBox);
+        if (label) {
+            QColor bgColor = Appearance::infoBoxBackgroundColor();
+            QColor textColor = Appearance::infoBoxTextColor();
+            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+            label->setStyleSheet(styleSheet);
+        }
+    }
+
     update();
 }
 
 // Slot implementations
-void PerformanceSettingsWidget::enableSmoothPixmapTransformChanged(bool enabled) {
+void PerformanceSettingsWidget::enableAntialiasingChanged(bool enabled) {
     Q_UNUSED(enabled)
     updateInfoLabels();
 }
 
-void PerformanceSettingsWidget::enableLosslessImageRenderingChanged(bool enabled) {
+void PerformanceSettingsWidget::enableSmoothPixmapTransformChanged(bool enabled) {
     Q_UNUSED(enabled)
     updateInfoLabels();
 }
@@ -175,8 +188,8 @@ void PerformanceSettingsWidget::roundedScalingChanged(bool enabled) {
 }
 
 void PerformanceSettingsWidget::resetToDefaults() {
+    _enableAntialiasing->setChecked(true);
     _enableSmoothPixmapTransform->setChecked(true);
-    _enableLosslessImageRendering->setChecked(true);
 
     // Default to software rendering for stability
     _enableHardwareAcceleration->setChecked(false);

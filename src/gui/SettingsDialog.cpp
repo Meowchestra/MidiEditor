@@ -19,6 +19,7 @@
 #include "SettingsDialog.h"
 
 #include <QList>
+#include <QMetaObject>
 #include <QStackedWidget>
 #include <QWidget>
 
@@ -34,7 +35,8 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
 
     _settingsWidgets = new QList<SettingsWidget *>;
 
-    setMinimumHeight(400);
+    setMinimumSize(640, 450);
+    resize(640, 720);
 
     QGridLayout *layout = new QGridLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -114,6 +116,18 @@ void SettingsDialog::rowChanged(int row) {
         }
     }
     _container->setCurrentIndex(row);
+}
+
+void SettingsDialog::refreshToolbarIcons() {
+    // Only refresh icons in LayoutSettingsWidget when customize toolbar is enabled
+    // Colors are already refreshed by Appearance.cpp, so we don't need to do it here
+    for (SettingsWidget *widget : *_settingsWidgets) {
+        if (widget && widget->inherits("LayoutSettingsWidget")) {
+            // Only refresh if the widget actually has icons visible (customize mode enabled)
+            QMetaObject::invokeMethod(widget, "refreshIcons", Qt::DirectConnection);
+            break; // Only one LayoutSettingsWidget exists
+        }
+    }
 }
 
 void SettingsDialog::submit() {

@@ -584,9 +584,6 @@ private:
     /** \brief Process next icon in queue */
     static void processNextQueuedIcon();
 
-    /** \brief Remove invalid actions from registry (automatic) */
-    static void cleanupIconRegistry();
-
 private:
     // === Color Index Conversion ===
 

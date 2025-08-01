@@ -81,6 +81,11 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
 
     int channel = tempByte & 0x0F;
 
+    // Safety check: ensure channel is in valid range for regular MIDI events
+    if (channel < 0 || channel > 15) {
+        channel = 0;
+    }
+
     switch (tempByte & 0xF0) {
         case 0x80: {
             // Note Off
@@ -311,6 +316,12 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                 textData.reserve(length);
 
                                 for (uint i = 0; i < length; i++) {
+                                    // Check if stream has ended unexpectedly
+                                    if (content->atEnd()) {
+                                        delete textEvent;
+                                        *ok = false;
+                                        return 0;
+                                    }
                                     (*content) >> tempByte;
                                     textData.append((char) tempByte);
                                 }
@@ -327,9 +338,26 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                 // read length
                                 int length = MidiFile::variableLengthvalue(content);
 
+                                // Safety check for unknown events
+                                if (length < 0) {
+                                    *ok = false;
+                                    return 0;
+                                }
+
+                                // 64KB limit for unknown events
+                                if (length > 65535) {
+                                    *ok = false;
+                                    return 0;
+                                }
+
                                 // content
                                 QByteArray array;
+                                array.reserve(length);
                                 for (int i = 0; i < length; i++) {
+                                    if (content->atEnd()) {
+                                        *ok = false;
+                                        return 0;
+                                    }
                                     (*content) >> tempByte;
                                     array.append((char) tempByte);
                                 }
@@ -367,6 +395,11 @@ MidiTrack *MidiEvent::track() {
 }
 
 void MidiEvent::setChannel(int ch, bool toProtocol) {
+    // Validate channel assignment - prevent regular events from using special channels
+    if (ch < 0 || ch > 18) {
+        ch = 0;
+    }
+
     int oldChannel = channel();
     ProtocolEntry *toCopy = copy();
     numChannel = ch;
@@ -381,6 +414,10 @@ void MidiEvent::setChannel(int ch, bool toProtocol) {
 }
 
 int MidiEvent::channel() {
+    // Add validation to prevent crashes from corrupted channel numbers
+    if (numChannel < 0 || numChannel > 18) {
+        return 0; // Return a safe default
+    }
     return numChannel;
 }
 

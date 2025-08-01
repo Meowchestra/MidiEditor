@@ -11,6 +11,7 @@
 #include "../tool/Selection.h"
 #include "MatrixWidget.h"
 #include "Appearance.h"
+#include "ChannelVisibilityManager.h"
 
 #include "../MidiEvent/ChannelPressureEvent.h"
 #include "../MidiEvent/ControlChangeEvent.h"
@@ -117,7 +118,8 @@ void MiscWidget::paintEvent(QPaintEvent *event) {
     if (mode == VelocityEditor) {
         QList<MidiEvent *> *list = matrixWidget->velocityEvents();
         foreach(MidiEvent* event, *list) {
-            if (!event->file()->channel(event->channel())->visible()) {
+            // Use global visibility manager to avoid corrupted MidiChannel access
+            if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
                 continue;
             }
 
@@ -148,7 +150,8 @@ void MiscWidget::paintEvent(QPaintEvent *event) {
         EventTool *t = dynamic_cast<EventTool *>(Tool::currentTool());
         if (t && t->showsSelection()) {
             foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-                if (!event->file()->channel(event->channel())->visible()) {
+                // Use global visibility manager to avoid corrupted MidiChannel access
+                if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
                     continue;
                 }
 
@@ -274,7 +277,8 @@ void MiscWidget::mouseMoveEvent(QMouseEvent *event) {
             if (!above) {
                 QList<MidiEvent *> *list = matrixWidget->velocityEvents();
                 foreach(MidiEvent* event, *list) {
-                    if (!event->file()->channel(event->channel())->visible()) {
+                    // Use global visibility manager to avoid corrupted MidiChannel access
+                    if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
                         continue;
                     }
 
@@ -373,7 +377,8 @@ void MiscWidget::mousePressEvent(QMouseEvent *event) {
             if (!clickHandlesSelected) {
                 QList<MidiEvent *> *list = matrixWidget->velocityEvents();
                 foreach(MidiEvent* event, *list) {
-                    if (!event->file()->channel(event->channel())->visible()) {
+                    // Use global visibility manager to avoid corrupted MidiChannel access
+                    if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
                         continue;
                     }
 
@@ -779,7 +784,8 @@ void MiscWidget::mouseReleaseEvent(QMouseEvent *event) {
                 } else {
                     QList<MidiEvent *> *list = matrixWidget->velocityEvents();
                     foreach(MidiEvent* event, *list) {
-                        if (!event->file()->channel(event->channel())->visible()) {
+                        // Use global visibility manager to avoid corrupted MidiChannel access
+                        if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
                             continue;
                         }
 
@@ -967,7 +973,7 @@ void MiscWidget::resetState() {
 void MiscWidget::keyPressEvent(QKeyEvent *event) {
     if (Tool::currentTool()) {
         if (Tool::currentTool()->pressKey(event->key())) {
-            repaint();
+            update();
         }
     }
 }
@@ -975,7 +981,7 @@ void MiscWidget::keyPressEvent(QKeyEvent *event) {
 void MiscWidget::keyReleaseEvent(QKeyEvent *event) {
     if (Tool::currentTool()) {
         if (Tool::currentTool()->releaseKey(event->key())) {
-            repaint();
+            update();
         }
     }
 }

@@ -9,6 +9,7 @@
 #include "MatrixWidget.h"
 #include "AppearanceSettingsWidget.h"
 #include "MidiSettingsWidget.h"
+#include "PerformanceSettingsWidget.h"
 #include "TrackListWidget.h"
 #include "ChannelListWidget.h"
 
@@ -238,7 +239,7 @@ QColor *Appearance::defaultColor(int n) {
         // Darker, more muted colors for dark mode (slightly darker shade)
         switch (n) {
             case 0: {
-                color = new QColor(180, 80, 60, 255); // Softer red for better dark mode visibility
+                color = new QColor(180, 80, 60, 255);
                 break;
             }
             case 1: {
@@ -254,7 +255,7 @@ QColor *Appearance::defaultColor(int n) {
                 break;
             }
             case 4: {
-                color = new QColor(80, 35, 180, 255);
+                color = new QColor(110, 85, 140, 255);
                 break;
             }
             case 5: {
@@ -274,7 +275,7 @@ QColor *Appearance::defaultColor(int n) {
                 break;
             }
             case 9: {
-                color = new QColor(120, 120, 120, 255); // Lighter gray for better visibility against strip grid
+                color = new QColor(120, 120, 120, 255);
                 break;
             }
             case 10: {
@@ -282,11 +283,11 @@ QColor *Appearance::defaultColor(int n) {
                 break;
             }
             case 11: {
-                color = new QColor(70, 120, 200, 255); // Softer, less harsh blue
+                color = new QColor(70, 120, 200, 255);
                 break;
             }
             case 12: {
-                color = new QColor(90, 140, 70, 255); // More pleasant green
+                color = new QColor(90, 140, 70, 255);
                 break;
             }
             case 13: {
@@ -302,7 +303,7 @@ QColor *Appearance::defaultColor(int n) {
                 break;
             }
             default: {
-                color = new QColor(80, 120, 200, 255); // Softer blue for Track 0
+                color = new QColor(80, 120, 200, 255);
                 break;
             }
         }
@@ -1155,34 +1156,15 @@ void Appearance::refreshAllIcons() {
         return;
     }
 
-    // Only cleanup if registry is getting large (avoid performance hit during MIDI loading)
-    if (registeredIconActions.size() > 100) {
-        cleanupIconRegistry(); // Remove invalid actions only when needed
-    }
-
-    // Update all icons immediately
-    auto it = registeredIconActions.begin();
-    while (it != registeredIconActions.end()) {
+    // Update all icons immediately - no cleanup needed since actions auto-unregister - destroyed() signal handles removal
+    for (auto it = registeredIconActions.begin(); it != registeredIconActions.end(); ++it) {
         QAction *action = it.key();
         const QString &iconPath = it.value();
 
         if (action) {
-            try {
-                // Test if action is still valid
-                action->objectName();
-
-                // Update the icon immediately
-                QIcon newIcon = adjustIconForDarkMode(iconPath);
-                action->setIcon(newIcon);
-
-                ++it;
-            } catch (...) {
-                // Action is invalid, remove it
-                it = registeredIconActions.erase(it);
-            }
-        } else {
-            // Remove null actions
-            it = registeredIconActions.erase(it);
+            // Update the icon immediately
+            QIcon newIcon = adjustIconForDarkMode(iconPath);
+            action->setIcon(newIcon);
         }
     }
 }
@@ -1235,9 +1217,25 @@ void Appearance::processNextQueuedIcon() {
 }
 
 void Appearance::registerIconAction(QAction *action, const QString &iconPath) {
-    if (action) {
-        registeredIconActions[action] = iconPath;
+    if (!action) return;
+
+    // Check if already registered
+    auto existing = registeredIconActions.find(action);
+    if (existing != registeredIconActions.end()) {
+        // Already registered - just update icon path if different
+        if (existing.value() != iconPath) {
+            existing.value() = iconPath;
+        }
+        return;
     }
+
+    // New registration - add to map and connect destruction signal
+    registeredIconActions[action] = iconPath;
+
+    // Auto-unregister when action is destroyed
+    QObject::connect(action, &QObject::destroyed, [action]() {
+        registeredIconActions.remove(action);
+    });
 }
 
 void Appearance::setActionIcon(QAction *action, const QString &iconPath) {
@@ -1287,7 +1285,6 @@ void Appearance::refreshColors() {
                 widget->style()->unpolish(widget);
                 widget->style()->polish(widget);
                 widget->update();
-                widget->repaint();
             } catch (...) {
                 // Widget style update failed - skip this widget but continue
                 continue;
@@ -1323,6 +1320,12 @@ void Appearance::refreshColors() {
                 additionalMidiWidget->refreshColors();
             }
 
+            // Refresh all PerformanceSettingsWidget colors for theme changes
+            QList<PerformanceSettingsWidget *> performanceWidgets = widget->findChildren<PerformanceSettingsWidget *>();
+            foreach(PerformanceSettingsWidget* performanceWidget, performanceWidgets) {
+                performanceWidget->refreshColors();
+            }
+
             // Refresh all TrackListWidget colors for theme changes
             QList<TrackListWidget *> trackListWidgets = widget->findChildren<TrackListWidget *>();
             foreach(TrackListWidget* trackListWidget, trackListWidgets) {
@@ -1342,16 +1345,12 @@ void Appearance::refreshColors() {
                 QMetaObject::invokeMethod(layoutWidget, "refreshIcons", Qt::DirectConnection);
             }
 
-            // Refresh MainWindow toolbar icons for theme changes
-            // BUT: Don't trigger rebuilds during style changes - just refresh icons
+            // Refresh toolbar icons for widgets that support it
             if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
-                // Only refresh icons, don't rebuild toolbar structure
+                // MainWindow has refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
-
-                // DON'T call rebuildToolbarFromSettings during style changes
-                // This prevents the cascade that causes flickering
-            } else {
-                // For non-MainWindow widgets, use the original call
+            } else if (widget->objectName() == "SettingsDialog" || widget->inherits("SettingsDialog")) {
+                // SettingsDialog has its own refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
             }
 
@@ -1380,7 +1379,7 @@ void Appearance::refreshColors() {
                         QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
                         // Force complete redraw - this might be the crash source
-                        matrixWidget->forceCompleteRedraw();
+                        matrixWidget->updateRenderingSettings();
                     } catch (...) {
                         // MatrixWidget update failed - skip this widget but continue with others
                         // This prevents one bad widget from crashing the entire theme change
@@ -1423,36 +1422,4 @@ void Appearance::connectToSystemThemeChanges() {
             });
         });
     });
-}
-
-void Appearance::cleanupIconRegistry() {
-    // Prevent cleanup during style changes to avoid crashes
-    static bool isCleaningUp = false;
-    if (isCleaningUp) {
-        return;
-    }
-    isCleaningUp = true;
-
-    std::list<QAction *> *remove_map = new std::list<QAction *>();
-    int invalidCount = 0;
-
-    for (QMap<QAction *, QString>::iterator iter = registeredIconActions.begin(); iter != registeredIconActions.end(); iter++) {
-        if (!iter.key()) {
-            remove_map->push_back(iter.key());
-            invalidCount++;
-        } else {
-            // Use QPointer-style validation instead of try/catch
-            QObject *obj = qobject_cast<QObject *>(iter.key());
-            if (!obj) {
-                remove_map->push_back(iter.key());
-                invalidCount++;
-            }
-        }
-    }
-
-    for (std::list<QAction *>::iterator iter = remove_map->begin(); iter != remove_map->end(); iter++) {
-        registeredIconActions.take(*iter);
-    }
-    delete remove_map;
-    isCleaningUp = false;
 }

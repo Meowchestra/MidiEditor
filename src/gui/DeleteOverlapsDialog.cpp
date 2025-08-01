@@ -167,7 +167,6 @@ void DeleteOverlapsDialog::onModeChanged() {
     // Ensure the text is set and the widget is updated
     _modeDescriptionLabel->setText(description);
     _modeDescriptionLabel->update();
-    _modeDescriptionLabel->repaint();
 }
 
 void DeleteOverlapsDialog::paintEvent(QPaintEvent *event) {
@@ -190,7 +189,6 @@ void DeleteOverlapsDialog::moveEvent(QMoveEvent *event) {
         QTimer::singleShot(0, this, [this]() {
             if (_modeDescriptionLabel) {
                 _modeDescriptionLabel->update();
-                _modeDescriptionLabel->repaint();
             }
         });
     }

@@ -57,10 +57,10 @@ void ClickButton::leaveEvent(QEvent *event) {
 
 void ClickButton::buttonClick() {
     button_mouseClicked = true;
-    repaint();
+    update();
 }
 
 void ClickButton::setImageName(QString imageName) {
     image = new QImage(":/run_environment/graphics/tool/" + imageName);
-    repaint();
+    update();
 }

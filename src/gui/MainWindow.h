@@ -721,6 +721,11 @@ public slots:
      */
     void transposeSelectedNotesOctaveDown();
 
+    /**
+     * \brief Refreshes toolbar icons when theme changes.
+     */
+    void refreshToolbarIcons();
+
 protected:
     /**
      * \brief Handles close events to save work before closing.
@@ -862,11 +867,6 @@ private:
      * \return List of ToolbarActionInfo for default actions
      */
     QList<ToolbarActionInfo> getDefaultActionsForPlaceholder();
-
-    /**
-     * \brief Refreshes toolbar icons when theme changes.
-     */
-    void refreshToolbarIcons();
 
     int _quantizationGrid;
 

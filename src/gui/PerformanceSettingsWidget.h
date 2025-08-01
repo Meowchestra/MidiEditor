@@ -83,16 +83,16 @@ private slots:
     // === Rendering Quality Settings ===
 
     /**
+     * \brief Handles antialiasing setting changes.
+     * \param enabled True to enable antialiasing
+     */
+    void enableAntialiasingChanged(bool enabled);
+
+    /**
      * \brief Handles smooth pixmap transform setting changes.
      * \param enabled True to enable smooth pixmap transforms
      */
     void enableSmoothPixmapTransformChanged(bool enabled);
-
-    /**
-     * \brief Handles lossless image rendering setting changes.
-     * \param enabled True to enable lossless image rendering
-     */
-    void enableLosslessImageRenderingChanged(bool enabled);
 
     // === Hardware Acceleration Settings ===
 
@@ -159,8 +159,8 @@ private:
     QGroupBox *_renderingQualityGroup;
 
     /** \brief Checkboxes for rendering quality options */
+    QCheckBox *_enableAntialiasing;
     QCheckBox *_enableSmoothPixmapTransform;
-    QCheckBox *_enableLosslessImageRendering;
 
     // === Hardware Acceleration Controls ===
 
@@ -172,6 +172,9 @@ private:
 
     /** \brief Label showing backend information */
     QLabel *_backendInfoLabel;
+
+    /** \brief Info box widget for theme color updates */
+    QWidget *_infoBox;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H_

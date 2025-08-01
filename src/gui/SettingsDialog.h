@@ -83,6 +83,11 @@ public slots:
      */
     void submit();
 
+    /**
+     * \brief Refreshes toolbar icons when theme changes.
+     */
+    void refreshToolbarIcons();
+
 signals:
     /**
      * \brief Emitted when settings have been changed and applied.
