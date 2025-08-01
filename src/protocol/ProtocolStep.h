@@ -19,86 +19,91 @@
 #ifndef PROTOCOLSTEP_H_
 #define PROTOCOLSTEP_H_
 
+// Qt includes
 #include <QString>
 
+// Forward declarations
 class ProtocolItem;
 class QImage;
 
 /**
  * \class ProtocolStep
  *
- * \brief ProtocolStep represents a Step in the Protocol, containing one ore
- * more ProtocolItems.
+ * \brief A complete undo/redo step containing multiple related actions.
  *
- * Every ProtocolStep has a Stack with ProtocolItems. This items represent
- * a single Action in the Protocol. A new Item can be added with addItem().
- * Calling releaseStep() will release all single Items and copy them
- * to another ProtocolStep. This ProtocolStep is returned and represents
- * the undo Action of this ProtocolStep.
- * This is used to put a released undo-action onto the redo-stack of a
- * protocol.
+ * ProtocolStep represents a logical group of related actions that should be
+ * undone or redone together as a single unit. It contains a stack of
+ * ProtocolItems that represent individual state changes:
  *
+ * - **Action grouping**: Multiple related changes in one undo/redo step
+ * - **Stack management**: LIFO ordering for proper undo sequence
+ * - **Bidirectional**: Can be released to create the reverse step
+ * - **Visual identity**: Description and icon for UI display
+ * - **Atomic operations**: All items in a step are processed together
+ *
+ * For example, moving multiple selected notes would create one ProtocolStep
+ * containing multiple ProtocolItems (one for each moved note). When undone,
+ * all notes return to their original positions in a single operation.
  */
 class ProtocolStep {
 public:
     /**
-		 * \brief creates a new ProtocolStep with the given description.
-		 */
+     * \brief Creates a new ProtocolStep with the given description.
+     * \param description Human-readable description of this step
+     * \param img Optional icon image for UI display
+     */
     ProtocolStep(QString description, QImage *img = 0);
 
     /**
-		 * \brief deletes the ProtocolStep.
-		 */
+     * \brief Destroys the ProtocolStep and cleans up resources.
+     */
     ~ProtocolStep();
 
     /**
-		 * \brief adds item to the steps stack.
-		 *
-		 * Every item added with addItem() will be released on the call of
-		 * releaseStep()
-		 */
+     * \brief Adds a ProtocolItem to the step's stack.
+     * \param item The ProtocolItem to add
+     *
+     * Every item added will be released when releaseStep() is called.
+     */
     void addItem(ProtocolItem *item);
 
     /**
-		 * \brief returns the number of items on the stack.
-		 */
+     * \brief Gets the number of items in the stack.
+     * \return The number of ProtocolItems in this step
+     */
     int items();
 
     /**
-		 * \brief returns the steps Description.
-		 */
+     * \brief Gets the step's description.
+     * \return Human-readable description of this step
+     */
     QString description();
 
     /**
-		 * \brief returns the steps Image.
-		 */
+     * \brief Gets the step's icon image.
+     * \return Pointer to the QImage icon, or nullptr if none
+     */
     QImage *image();
 
     /**
-		 * \brief releases the ProtocolStep.
-		 *
-		 * Every item will be released. Every action will be written onto the
-		 * returned ProtocolStep in reverse order. When calling
-		 * ProtocolStep.releaseStep() from the undo stack, you can write the
-		 * returned ProtoclStep onto the redo stack.
-		 */
+     * \brief Releases the ProtocolStep by executing all items.
+     * \return A new ProtocolStep representing the reverse operation
+     *
+     * Every item in the stack will be released (undone) and the reverse
+     * actions will be written to the returned ProtocolStep in reverse order.
+     * This enables the undo operation to be placed on the redo stack.
+     */
     ProtocolStep *releaseStep();
 
 private:
-    /**
-		 * \brief Holds the Steps Description.
-		 */
+    /** \brief Human-readable description of this step */
     QString _stepDescription;
 
-    /**
-		 * \brief Holds the Steps Image.
-		 */
+    /** \brief Optional icon image for UI display */
     QImage *_image;
 
-    /**
-		 * \brief The itemStack saves all ProtocolItems of the Step.
-		 */
+    /** \brief Stack of ProtocolItems representing individual actions */
     QStack<ProtocolItem *> *_itemStack;
 };
 
-#endif
+#endif // PROTOCOLSTEP_H_

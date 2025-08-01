@@ -23,34 +23,104 @@
 
 #include <QLabel>
 
+/**
+ * \class KeyPressureEvent
+ *
+ * \brief MIDI Key Pressure event for polyphonic aftertouch control.
+ *
+ * KeyPressureEvent represents MIDI Key Pressure messages (also known as
+ * Polyphonic Aftertouch), which transmit pressure information for individual
+ * keys after the initial key press.
+ *
+ * Unlike Channel Pressure, Key Pressure allows different pressure values
+ * for each note currently playing, enabling more expressive control.
+ *
+ * Key features:
+ * - **Per-note pressure**: Each note can have its own pressure value
+ * - **Note-specific**: Identified by both note number and pressure value
+ * - **Value range**: 0-127 (0 = no pressure, 127 = maximum pressure)
+ * - **Expressive control**: Used for vibrato, timbre changes, volume swells
+ */
 class KeyPressureEvent : public MidiEvent {
 public:
+    /**
+     * \brief Creates a new KeyPressureEvent.
+     * \param channel MIDI channel (0-15)
+     * \param value Pressure value (0-127)
+     * \param note MIDI note number (0-127)
+     * \param track The MIDI track this event belongs to
+     */
     KeyPressureEvent(int channel, int value, int note, MidiTrack *track);
 
+    /**
+     * \brief Creates a new KeyPressureEvent copying another instance.
+     * \param other The KeyPressureEvent instance to copy
+     */
     KeyPressureEvent(KeyPressureEvent &other);
 
+    /**
+     * \brief Gets the display line for this event.
+     * \return The line number where this event should be displayed
+     */
     virtual int line();
 
+    /**
+     * \brief Gets a string representation of this event.
+     * \return String message describing the key pressure event
+     */
     QString toMessage();
 
+    /**
+     * \brief Saves the event data to a byte array.
+     * \return QByteArray containing the serialized event data
+     */
     QByteArray save();
 
+    /**
+     * \brief Creates a copy of this event for the protocol system.
+     * \return A new ProtocolEntry representing this event's state
+     */
     virtual ProtocolEntry *copy();
 
+    /**
+     * \brief Reloads the event's state from a protocol entry.
+     * \param entry The protocol entry to restore state from
+     */
     virtual void reloadState(ProtocolEntry *entry);
 
+    /**
+     * \brief Gets the type string for this event.
+     * \return String identifying this as a "Key Pressure" event
+     */
     QString typeString();
 
+    /**
+     * \brief Gets the pressure value.
+     * \return The pressure value (0-127)
+     */
     int value();
 
+    /**
+     * \brief Gets the note number.
+     * \return The MIDI note number (0-127)
+     */
     int note();
 
+    /**
+     * \brief Sets the pressure value.
+     * \param v The new pressure value (0-127)
+     */
     void setValue(int v);
 
+    /**
+     * \brief Sets the note number.
+     * \param n The new MIDI note number (0-127)
+     */
     void setNote(int n);
 
 private:
+    /** \brief Pressure value and note number */
     int _value, _note;
 };
 
-#endif
+#endif // KEYPRESSUREEVENT_H_

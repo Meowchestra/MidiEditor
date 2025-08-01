@@ -19,11 +19,37 @@
 #ifndef EVENTLISTWIDGET_H_
 #define EVENTLISTWIDGET_H_
 
+/**
+ * \class EventListWidget
+ *
+ * \brief Widget for displaying MIDI events in a list format.
+ *
+ * EventListWidget provides a list-based view of MIDI events, offering
+ * an alternative to the matrix view for event management. It features:
+ *
+ * - **List display**: Shows events in chronological order
+ * - **Event details**: Displays event type, time, and parameters
+ * - **Selection support**: Allows selecting and editing individual events
+ * - **Filtering**: Can filter events by type, channel, or other criteria
+ * - **Sorting**: Supports sorting by various event properties
+ *
+ * This widget is useful for detailed event inspection and editing,
+ * particularly for non-note events that may not be clearly visible
+ * in the matrix view.
+ *
+ * \note This class is currently a stub and may be implemented in future versions.
+ */
 class EventListWidget {
 public:
+    /**
+     * \brief Creates a new EventListWidget.
+     */
     EventListWidget();
 
+    /**
+     * \brief Destroys the EventListWidget.
+     */
     virtual ~EventListWidget();
 };
 
-#endif /* EVENTLISTWIDGET_H_ */
+#endif // EVENTLISTWIDGET_H_

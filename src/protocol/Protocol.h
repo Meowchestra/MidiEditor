@@ -16,11 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PROTOCOL_H
-#define PROTOCOL_H
+#ifndef PROTOCOL_H_
+#define PROTOCOL_H_
 
 #include <QObject>
 
+// Forward declarations
 class ProtocolItem;
 class ProtocolStep;
 class MidiFile;
@@ -48,24 +49,21 @@ class Protocol : public QObject {
 
 public:
     /**
-		 * \brief creates a new Protocol for the MidiFile f.
-		 */
+     * \brief Creates a new Protocol for the MidiFile f.
+     * \param f The MidiFile to track changes for
+     */
     Protocol(MidiFile *f);
 
     /**
-		 * \brief undo the first ProtocolStep on the undo stack.
-		 *
-		 * If emitChanged is true, the Protocol will emit the Signal
-		 * protocolChanged()
-		 */
+     * \brief Undoes the first ProtocolStep on the undo stack.
+     * \param emitChanged If true, emits the protocolChanged() signal
+     */
     void undo(bool emitChanged = true);
 
     /**
-		 * \brief redo the last ProtocolStep on the redo stack.
-		 *
-		 * If emitChanged is true, the Protocol will emit the Signal
-		 * protocolChanged()
-		 */
+     * \brief Redoes the last ProtocolStep on the redo stack.
+     * \param emitChanged If true, emits the protocolChanged() signal
+     */
     void redo(bool emitChanged = true);
 
     /**
@@ -155,4 +153,4 @@ private:
 		 */
     MidiFile *_file;
 };
-#endif
+#endif // PROTOCOL_H_

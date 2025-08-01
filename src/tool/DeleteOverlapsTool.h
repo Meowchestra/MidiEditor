@@ -21,6 +21,7 @@
 
 #include "EventTool.h"
 
+// Forward declarations
 class MidiEvent;
 class NoteOnEvent;
 
@@ -50,7 +51,8 @@ public:
     DeleteOverlapsTool();
 
     /**
-     * \brief Creates a new DeleteOverlapsTool copying &other.
+     * \brief Creates a new DeleteOverlapsTool copying another instance.
+     * \param other The DeleteOverlapsTool instance to copy
      */
     DeleteOverlapsTool(DeleteOverlapsTool &other);
 
@@ -147,4 +149,4 @@ private:
     void processPolyOverlaps(const QList<NoteOnEvent *> &notes);
 };
 
-#endif
+#endif // DELETEOVERLAPSTOOL_H_

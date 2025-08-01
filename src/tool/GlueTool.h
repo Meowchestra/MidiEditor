@@ -105,4 +105,4 @@ private:
     void mergeNoteGroup(const QList<NoteOnEvent *> &noteGroup);
 };
 
-#endif
+#endif // GLUETOOL_H_

@@ -22,6 +22,7 @@
 #include "EventTool.h"
 #include <QList>
 
+// Forward declarations
 class MidiEvent;
 class NoteOnEvent;
 
@@ -47,7 +48,8 @@ public:
     ScissorsTool();
 
     /**
-     * \brief Creates a new ScissorsTool copying &other.
+     * \brief Creates a new ScissorsTool copying another instance.
+     * \param other The ScissorsTool instance to copy
      */
     ScissorsTool(ScissorsTool &other);
 
@@ -112,4 +114,4 @@ private:
     int _splitTick; ///< The tick position where the split will occur
 };
 
-#endif
+#endif // SCISSORSTOOL_H_

@@ -16,26 +16,63 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TOOLBUTTON_H
-#define TOOLBUTTON_H
+#ifndef TOOLBUTTON_H_
+#define TOOLBUTTON_H_
 
+// Qt includes
 #include <QAction>
 #include <QKeySequence>
 
+// Forward declarations
 class Tool;
 
+/**
+ * \class ToolButton
+ *
+ * \brief UI button widget for tool selection and activation.
+ *
+ * ToolButton provides the user interface element for selecting and activating
+ * tools in the MIDI editor. It extends QAction to provide:
+ *
+ * - **Tool association**: Links UI buttons to Tool instances
+ * - **Keyboard shortcuts**: Supports hotkey activation of tools
+ * - **Visual feedback**: Shows tool icons and selection state
+ * - **Click handling**: Manages tool activation and deactivation
+ * - **Icon management**: Displays appropriate tool icons
+ *
+ * Each tool can have an associated ToolButton that appears in the toolbar,
+ * allowing users to switch between different editing tools quickly.
+ */
 class ToolButton : public QAction {
     Q_OBJECT
 
 public:
+    /**
+     * \brief Creates a new ToolButton.
+     * \param tool The Tool instance this button controls
+     * \param sequence Optional keyboard shortcut for the tool
+     * \param parent The parent widget
+     */
     ToolButton(Tool *tool, QKeySequence sequence = QKeySequence(), QWidget *parent = 0);
 
 public slots:
+    /**
+     * \brief Handles button click events to activate the tool.
+     */
     void buttonClick();
+
+    /**
+     * \brief Handles button release events.
+     */
     void releaseButton();
+
+    /**
+     * \brief Refreshes the button's icon display.
+     */
     void refreshIcon();
 
 private:
+    /** \brief The Tool instance controlled by this button */
     Tool *button_tool;
 };
-#endif
+#endif // TOOLBUTTON_H_

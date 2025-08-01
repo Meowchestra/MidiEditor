@@ -96,18 +96,43 @@ protected:
     void resizeEvent(QResizeEvent *event);
 
 private:
+    // === UI Components ===
+
+    /** \brief Radio button for monophonic mode */
     QRadioButton *_monoModeRadio;
+
+    /** \brief Radio button for polyphonic mode */
     QRadioButton *_polyModeRadio;
+
+    /** \brief Radio button for doubles mode */
     QRadioButton *_doublesModeRadio;
+
+    /** \brief Checkbox for respecting channel boundaries */
     QCheckBox *_respectChannelsCheckBox;
+
+    /** \brief Checkbox for respecting track boundaries */
     QCheckBox *_respectTracksCheckBox;
+
+    /** \brief Label showing mode description */
     QLabel *_modeDescriptionLabel;
+
+    /** \brief OK button */
     QPushButton *_okButton;
+
+    /** \brief Cancel button */
     QPushButton *_cancelButton;
 
+    // === Setup Methods ===
+
+    /**
+     * \brief Sets up the user interface.
+     */
     void setupUI();
 
+    /**
+     * \brief Sets up signal-slot connections.
+     */
     void setupConnections();
 };
 
-#endif
+#endif // DELETEOVERLAPSDIALOG_H_

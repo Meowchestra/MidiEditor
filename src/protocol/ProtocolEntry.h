@@ -16,60 +16,81 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PROTOCOLENTRY_H
-#define PROTOCOLENTRY_H
+#ifndef PROTOCOLENTRY_H_
+#define PROTOCOLENTRY_H_
 
+// Forward declarations
 class MidiFile;
 
 /**
  * \class ProtocolEntry
  *
- * \brief ProtocolEntry is the superclass for objects to protocol.
+ * \brief Base class for objects that can be recorded in the undo/redo protocol.
  *
- * ProtocolEntry is a Superclass for every kind of object which can be written
- * into the Programs Protocol.
- * To protocol the state of a ProtocolEntry, the object is copied
- * (ProtocolEntry *copy())). When the Protocols Method undo() or redo() is
- * called, the ProtocolEntry has to reload his old state from the copy in the
- * Protocol (void reloadState(ProtocolEntry *entry)). Both Methods have to be
- * implemented in the Subclass.
- * Before a ProtocolEntry is changed it has to copy its old state to oldObj.
- * After changing itself, the Method protocol(ProtocolEntry *oldObj,
- * ProtocolEntry *newObj) has to be called, with "this" as newObj.
+ * ProtocolEntry is the base class for all objects that can participate in the
+ * MIDI editor's undo/redo system. It provides the fundamental interface for
+ * state management and protocol recording.
+ *
+ * **Protocol System Workflow:**
+ * 1. Before modification: Create a copy of the current state using copy()
+ * 2. Perform the modification on the object
+ * 3. Record the change: Call protocol() with old and new states
+ * 4. For undo/redo: Use reloadState() to restore previous states
+ *
+ * **Key Responsibilities:**
+ * - **State Capture**: copy() must save all essential state information
+ * - **State Restoration**: reloadState() must restore the object to a previous state
+ * - **Protocol Integration**: protocol() records state changes for undo/redo
+ * - **File Association**: file() provides context for the protocol system
+ *
+ * **Implementation Notes:**
+ * - Layout information doesn't need to be saved (automatic relayout occurs)
+ * - All subclasses must implement copy() and reloadState()
+ * - State changes should be atomic and reversible
  */
 class ProtocolEntry {
 public:
+    /**
+     * \brief Virtual destructor for proper cleanup of derived classes.
+     */
     virtual ~ProtocolEntry();
 
     /**
-		 * \brief copies the ProtocolEntry.
-		 *
-		 * copy() should save the ProtocolEntrys state so that it will be able
-		 * to reload his old state in reloadState().
-		 * All important data has to be saved to the returned object; there is
-		 * no need to save Layoutinformation because the program will relayout
-		 * after every call of the protocol.
-		 */
+     * \brief Creates a copy of this ProtocolEntry for state preservation.
+     * \return A new ProtocolEntry containing the current state
+     *
+     * This method should save all essential state information needed to
+     * restore the object later via reloadState(). Layout information
+     * doesn't need to be saved as the program will relayout automatically
+     * after protocol operations.
+     */
     virtual ProtocolEntry *copy();
 
     /**
-		 * \brief reloads the state of entry.
-		 *
-		 * This Method has to reload the Objects old state, written to entry in
-		 * copy().
-		 */
+     * \brief Reloads the object's state from a previously saved entry.
+     * \param entry The ProtocolEntry containing the state to restore
+     *
+     * This method must restore the object to the exact state that was
+     * saved in the provided entry by a previous call to copy().
+     */
     virtual void reloadState(ProtocolEntry *entry);
 
     /**
-		 * \brief writes the old object oldObj and the new object newObj to the
-		 * protocol.
-		 */
+     * \brief Records a state change in the protocol system.
+     * \param oldObj The ProtocolEntry representing the old state
+     * \param newObj The ProtocolEntry representing the new state
+     *
+     * This method writes both the old and new states to the protocol,
+     * enabling undo/redo functionality. Typically called with "this"
+     * as the newObj parameter.
+     */
     virtual void protocol(ProtocolEntry *oldObj, ProtocolEntry *newObj);
 
     /**
-		 * \brief return the entries file.
-		 */
+     * \brief Gets the MIDI file associated with this entry.
+     * \return Pointer to the MidiFile containing this entry
+     */
     virtual MidiFile *file();
 };
 
-#endif
+#endif // PROTOCOLENTRY_H_
