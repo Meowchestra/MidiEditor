@@ -1,7 +1,7 @@
 name: build with qmake on windows
 on:
   push:
-    branches: [ main ]
+#    branches: [ main ]
   workflow_dispatch: # Allow manual triggering
 
 jobs:

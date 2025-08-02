@@ -57,9 +57,18 @@ QList<MidiEvent *> &Selection::selectedEvents() {
 
 void Selection::setSelection(QList<MidiEvent *> selections) {
     protocol(copy(), this);
-    _selectedEvents = selections;
+
+    // For large selections, use move semantics to avoid copying
+    // Use move semantics for selections with 100+ events to improve performance
+    if (selections.size() >= 100) {
+        _selectedEvents = std::move(selections);
+    } else {
+        _selectedEvents = selections;
+    }
+
     if (_eventWidget) {
         _eventWidget->setEvents(_selectedEvents);
+        // Note: reload() is commented out for performance - it's called elsewhere when needed
         //_eventWidget->reload();
     }
 }

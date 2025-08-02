@@ -83,6 +83,15 @@ public:
     static void clearSelection();
 
     /**
+     * \brief Efficiently selects multiple events in batch.
+     * \param events List of events to select
+     *
+     * This method is optimized for selecting large numbers of events
+     * by minimizing UI updates and protocol overhead.
+     */
+    static void batchSelectEvents(const QList<MidiEvent *> &events);
+
+    /**
      * \brief Paints visual feedback for selected events.
      * \param painter The QPainter to draw with
      */

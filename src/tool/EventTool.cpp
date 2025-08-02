@@ -26,6 +26,7 @@
 #include "../gui/MainWindow.h"
 #include "../gui/MatrixWidget.h"
 #include "../gui/Appearance.h"
+#include "../gui/ChannelVisibilityManager.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../midi/MidiPlayer.h"
@@ -55,7 +56,7 @@ EventTool::EventTool(EventTool &other)
 }
 
 void EventTool::selectEvent(MidiEvent *event, bool single, bool ignoreStr, bool setSelection) {
-    if (!event->file()->channel(event->channel())->visible()) {
+    if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
         return;
     }
 
@@ -103,6 +104,44 @@ void EventTool::clearSelection() {
     _mainWindow->eventWidget()->reportSelectionChangedByTool();
 }
 
+void EventTool::batchSelectEvents(const QList<MidiEvent *> &events) {
+    if (events.isEmpty()) {
+        return;
+    }
+
+    // Clear existing selection
+    QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
+    selected.clear();
+
+    // Reserve space for better performance with large selections
+    selected.reserve(events.size());
+
+    // Add all valid events to selection in batch
+    // Note: Events should already be pre-filtered for channel/track visibility
+    foreach(MidiEvent* event, events) {
+        // Double-check visibility as a safety measure using the global visibility manager
+        if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
+            continue;
+        }
+
+        if (event->track()->hidden()) {
+            continue;
+        }
+
+        // Skip OffEvents
+        OffEvent *offevent = dynamic_cast<OffEvent *>(event);
+        if (offevent) {
+            continue;
+        }
+
+        selected.append(event);
+    }
+
+    // Update selection state once at the end
+    Selection::instance()->setSelection(selected);
+    _mainWindow->eventWidget()->reportSelectionChangedByTool();
+}
+
 void EventTool::paintSelectedEvents(QPainter *painter) {
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         bool show = event->shown();
@@ -117,7 +156,7 @@ void EventTool::paintSelectedEvents(QPainter *painter) {
         if (event->track()->hidden()) {
             show = false;
         }
-        if (!(event->file()->channel(event->channel())->visible())) {
+        if (!ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
             show = false;
         }
 

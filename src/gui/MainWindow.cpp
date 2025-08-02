@@ -509,18 +509,10 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev) {
 
 void MainWindow::scrollPositionsChanged(int startMs, int maxMs, int startLine,
                                         int maxLine) {
-    // Temporarily disconnect scrollbar signals to prevent cascade
-    disconnect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    disconnect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
-
     hori->setMaximum(maxMs);
     hori->setValue(startMs);
     vert->setMaximum(maxLine);
     vert->setValue(startLine);
-
-    // Reconnect scrollbar signals
-    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
 }
 
 void MainWindow::setFile(MidiFile *newFile) {
@@ -529,6 +521,10 @@ void MainWindow::setFile(MidiFile *newFile) {
 
     EventTool::clearSelection();
     Selection::setFile(newFile);
+
+    // Reset channel visibility to show all channels when loading a new file
+    ChannelVisibilityManager::instance().resetAllVisible();
+
     Metronome::instance()->setFile(newFile);
     protocolWidget->setFile(newFile);
     channelWidget->setFile(newFile);
@@ -571,18 +567,10 @@ MatrixWidget *MainWindow::matrixWidget() {
 
 void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
                                    int vX, int vY) {
-    // Temporarily disconnect scrollbar signals to prevent cascade
-    disconnect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    disconnect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
-
     vert->setMaximum(maxScrollLine);
     hori->setMaximum(maxScrollTime);
     vert->setValue(vY);
     hori->setValue(vX);
-
-    // Reconnect scrollbar signals
-    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
 
     mw_matrixWidget->update();
 }
@@ -1845,13 +1833,23 @@ void MainWindow::selectAllFromChannel(QAction *action) {
     file->protocol()->startNewAction("Select all events from channel " + QString::number(channel));
     EventTool::clearSelection();
     file->channel(channel)->setVisible(true);
+
+    // Collect events for batch selection
+    QList<MidiEvent *> eventsToSelect;
     foreach(MidiEvent* e, file->channel(channel)->eventMap()->values()) {
         if (e->track()->hidden()) {
             e->track()->setHidden(false);
         }
-        EventTool::selectEvent(e, false, false, false);
+
+        // Skip OffEvents
+        OffEvent *offevent = dynamic_cast<OffEvent *>(e);
+        if (!offevent) {
+            eventsToSelect.append(e);
+        }
     }
-    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+
+    // Batch select all events
+    EventTool::batchSelectEvents(eventsToSelect);
 
     file->protocol()->endAction();
 }
@@ -1865,15 +1863,25 @@ void MainWindow::selectAllFromTrack(QAction *action) {
     file->protocol()->startNewAction("Select all events from track " + QString::number(track));
     EventTool::clearSelection();
     file->track(track)->setHidden(false);
+
+    // Collect events for batch selection
+    QList<MidiEvent *> eventsToSelect;
     for (int channel = 0; channel < 16; channel++) {
         foreach(MidiEvent* e, file->channel(channel)->eventMap()->values()) {
             if (e->track()->number() == track) {
                 file->channel(e->channel())->setVisible(true);
-                EventTool::selectEvent(e, false, false, false);
+
+                // Skip OffEvents
+                OffEvent *offevent = dynamic_cast<OffEvent *>(e);
+                if (!offevent) {
+                    eventsToSelect.append(e);
+                }
             }
         }
     }
-    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+
+    // Batch select all events
+    EventTool::batchSelectEvents(eventsToSelect);
     file->protocol()->endAction();
 }
 
@@ -1884,12 +1892,43 @@ void MainWindow::selectAll() {
 
     file->protocol()->startNewAction("Select all");
 
+    // Collect all valid events in a single pass for better performance
+    QList<MidiEvent *> eventsToSelect;
+
+    // Estimate total events across all channels for better memory allocation
+    int estimatedEvents = 0;
     for (int i = 0; i < 16; i++) {
-        foreach(MidiEvent* event, file->channel(i)->eventMap()->values()) {
-            EventTool::selectEvent(event, false, true, false);
+        if (ChannelVisibilityManager::instance().isChannelVisible(i)) {
+            estimatedEvents += file->channel(i)->eventMap()->size();
         }
     }
-    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+    eventsToSelect.reserve(estimatedEvents); // Reserve based on actual event count
+
+    for (int i = 0; i < 16; i++) {
+        // Only process visible channels using the global visibility manager
+        if (!ChannelVisibilityManager::instance().isChannelVisible(i)) {
+            continue;
+        }
+
+        const QMultiMap<int, MidiEvent *> *eventMap = file->channel(i)->eventMap();
+        foreach(MidiEvent* event, eventMap->values()) {
+            // Pre-filter events to avoid redundant checks later
+            if (event->track()->hidden()) {
+                continue;
+            }
+
+            // Skip OffEvents as they're handled by EventTool::selectEvent anyway
+            OffEvent *offevent = dynamic_cast<OffEvent *>(event);
+            if (offevent) {
+                continue;
+            }
+
+            eventsToSelect.append(event);
+        }
+    }
+
+    // Batch select all events at once to minimize UI updates
+    EventTool::batchSelectEvents(eventsToSelect);
 
     file->protocol()->endAction();
 }
