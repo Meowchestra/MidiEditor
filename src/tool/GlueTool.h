@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -42,7 +42,6 @@ class NoteOnEvent;
  *    of the first note to the end of the last note
  */
 class GlueTool : public EventTool {
-
 public:
     /**
      * \brief Creates a new GlueTool.
@@ -52,12 +51,12 @@ public:
     /**
      * \brief Creates a new GlueTool copying &other.
      */
-    GlueTool(GlueTool& other);
+    GlueTool(GlueTool &other);
 
     /**
      * \brief Draws the tool's visual feedback.
      */
-    void draw(QPainter* painter);
+    void draw(QPainter *painter);
 
     /**
      * \brief Handles mouse press events.
@@ -72,12 +71,12 @@ public:
     /**
      * \brief Creates a copy of this tool for the protocol system.
      */
-    ProtocolEntry* copy();
+    ProtocolEntry *copy();
 
     /**
      * \brief Reloads the tool's state from a protocol entry.
      */
-    void reloadState(ProtocolEntry* entry);
+    void reloadState(ProtocolEntry *entry);
 
     /**
      * \brief Returns whether this tool shows selection.
@@ -91,20 +90,19 @@ public:
     void performGlueOperation(bool respectChannels = true);
 
 private:
-
     /**
      * \brief Groups notes by pitch and track, optionally by channel.
      * \param events List of events to group
      * \param respectChannels If true, group by channel as well
      * \return Map of grouping keys to lists of NoteOnEvents
      */
-    QMap<QString, QList<NoteOnEvent*>> groupNotes(const QList<MidiEvent*>& events, bool respectChannels);
+    QMap<QString, QList<NoteOnEvent *> > groupNotes(const QList<MidiEvent *> &events, bool respectChannels);
 
     /**
      * \brief Merges a group of notes into a single note.
      * \param noteGroup List of notes to merge (sorted by start time)
      */
-    void mergeNoteGroup(const QList<NoteOnEvent*>& noteGroup);
+    void mergeNoteGroup(const QList<NoteOnEvent *> &noteGroup);
 };
 
-#endif
+#endif // GLUETOOL_H_

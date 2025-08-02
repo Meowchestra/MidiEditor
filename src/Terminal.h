@@ -21,77 +21,105 @@
 
 #include <QObject>
 
+// Forward declarations
 class QProcess;
 class QTextEdit;
 
+/**
+ * \class Terminal
+ *
+ * \brief Terminal interface for external MIDI processes and debugging.
+ *
+ * The Terminal class provides a console interface for running external MIDI
+ * processes and displaying their output. It's primarily used for:
+ *
+ * - Running external MIDI tools and utilities
+ * - Debugging MIDI connections and port configurations
+ * - Displaying process output and error messages
+ * - Managing MIDI port connections
+ *
+ * The terminal uses a singleton pattern and integrates with Qt's process
+ * management system to provide a unified interface for external tool execution.
+ */
 class Terminal : public QObject {
+    Q_OBJECT
 
-	Q_OBJECT
+public:
+    /**
+     * \brief Creates a new Terminal instance.
+     */
+    Terminal();
 
-	public:
+    /**
+     * \brief Initializes the terminal with a process and MIDI ports.
+     * \param startString Command string to start the external process
+     * \param inPort MIDI input port identifier
+     * \param outPort MIDI output port identifier
+     *
+     * Tries to start a process with the given command string. On success,
+     * it will attempt to open the MIDI ports with the specified identifiers.
+     */
+    static void initTerminal(QString startString, QString inPort,
+                             QString outPort);
 
-		Terminal();
+    /**
+     * \brief Gets the singleton terminal instance.
+     * \return Pointer to the global Terminal instance
+     */
+    static Terminal *terminal();
 
-		/**
-		 * \brief creates the terminal.
-		 *
-		 * tries to start a process with the given startstring - on success
-		 * it will try to open the ports starting with the given values.
-		 */
-		static void initTerminal(QString startString, QString inPort,
-				QString outPort);
+    /**
+     * \brief Writes a message to the terminal console.
+     * \param message The message to display in the terminal
+     */
+    void writeString(QString message);
 
-		/**
-		 * \brief returns the terminal
-		 */
-		static Terminal *terminal();
+    /**
+     * \brief Executes a command string with MIDI port configuration.
+     * \param startString Command string to execute
+     * \param inPort MIDI input port identifier
+     * \param outPort MIDI output port identifier
+     *
+     * Will connect to the specified MIDI ports if they are not empty.
+     * Will stop any currently running process before starting the new one.
+     */
+    void execute(QString startString, QString inPort,
+                 QString outPort);
 
-		/**
-		 * \brief writes message to the terminal.
-		 */
-		void writeString(QString message);
+    /**
+     * \brief Gets the terminal console widget.
+     * \return Pointer to the QTextEdit widget used as the console
+     */
+    QTextEdit *console();
 
-		/**
-		 * \brief executes the given string.
-		 *
-		 * Will connect to the ports starting with the given values if
-		 * they are not empty.
-		 * Will stop the current process.
-		 */
-		void execute(QString startString, QString inPort,
-				QString outPort);
+public slots:
+    /**
+     * \brief Called when a process has been started.
+     */
+    void processStarted();
 
-		/**
-		 * \the console.
-		 */
-		QTextEdit *console();
+    /**
+     * \brief Prints standard output from the process to the terminal.
+     */
+    void printToTerminal();
 
-	public slots:
+    /**
+     * \brief Prints error output from the process to the terminal.
+     */
+    void printErrorToTerminal();
 
-		/**
-		 * \brief Called, when a process has been finished.
-		 */
-		void processStarted();
+private:
+    /** \brief Singleton instance of the terminal */
+    static Terminal *_terminal;
 
-		/**
-		 * \brief print text from the process to the terminal.
-		 */
-		void printToTerminal();
+    /** \brief The external process being managed */
+    QProcess *_process;
 
-		/**
-		 * \brief print error from the process to the terminal.
-		 */
-		void printErrorToTerminal();
+    /** \brief The text widget used as the console display */
+    QTextEdit *_textEdit;
 
-	private:
-
-		static Terminal *_terminal;
-
-		QProcess *_process;
-
-		QTextEdit *_textEdit;
-
-		QString _inPort, _outPort;
+    /** \brief MIDI input and output port identifiers */
+    QString _inPort, _outPort;
 };
 
-#endif
+#endif // TERMINAL_H_

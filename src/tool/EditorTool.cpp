@@ -21,81 +21,69 @@
 #include "../gui/MatrixWidget.h"
 #include "ToolButton.h"
 
-MatrixWidget* EditorTool::matrixWidget = 0;
-MainWindow* EditorTool::_mainWindow = 0;
+MatrixWidget *EditorTool::matrixWidget = 0;
+MainWindow *EditorTool::_mainWindow = 0;
 
 EditorTool::EditorTool()
-    : Tool()
-{
+    : Tool() {
     etool_selected = false;
     mouseIn = false;
 }
 
-EditorTool::EditorTool(EditorTool& other)
-    : Tool(other)
-{
+EditorTool::EditorTool(EditorTool &other)
+    : Tool(other) {
     etool_selected = other.etool_selected;
     mouseIn = other.mouseIn;
 }
 
-void EditorTool::draw(QPainter* painter)
-{
+void EditorTool::draw(QPainter *painter) {
     Q_UNUSED(painter);
     return;
 }
 
-bool EditorTool::press(bool leftClick)
-{
+bool EditorTool::press(bool leftClick) {
     Q_UNUSED(leftClick);
     return false;
 }
 
-bool EditorTool::pressKey(int key)
-{
+bool EditorTool::pressKey(int key) {
     Q_UNUSED(key);
     return false;
 }
 
-bool EditorTool::releaseKey(int key)
-{
+bool EditorTool::releaseKey(int key) {
     Q_UNUSED(key);
     return false;
 }
 
-bool EditorTool::release()
-{
+bool EditorTool::release() {
     return false;
 }
 
-bool EditorTool::move(int mouseX, int mouseY)
-{
+bool EditorTool::move(int mouseX, int mouseY) {
     this->mouseX = mouseX;
     this->mouseY = mouseY;
     return false;
 }
 
-void EditorTool::exit()
-{
+void EditorTool::exit() {
     mouseIn = false;
     return;
 }
 
-void EditorTool::enter()
-{
+void EditorTool::enter() {
     mouseIn = true;
     return;
 }
 
-void EditorTool::deselect()
-{
+void EditorTool::deselect() {
     etool_selected = false;
     if (_button) {
         _button->setChecked(false);
     }
 }
 
-void EditorTool::select()
-{
+void EditorTool::select() {
     etool_selected = true;
     if (_button) {
         _button->setChecked(true);
@@ -103,13 +91,11 @@ void EditorTool::select()
     _mainWindow->toolChanged();
 }
 
-bool EditorTool::selected()
-{
+bool EditorTool::selected() {
     return etool_selected;
 }
 
-void EditorTool::buttonClick()
-{
+void EditorTool::buttonClick() {
     if (_currentTool) {
         _currentTool->deselect();
     }
@@ -117,17 +103,14 @@ void EditorTool::buttonClick()
     select();
 }
 
-ProtocolEntry* EditorTool::copy()
-{
+ProtocolEntry *EditorTool::copy() {
     return new EditorTool(*this);
 }
 
-void EditorTool::reloadState(ProtocolEntry* entry)
-{
-
+void EditorTool::reloadState(ProtocolEntry *entry) {
     Tool::reloadState(entry);
 
-    EditorTool* other = dynamic_cast<EditorTool*>(entry);
+    EditorTool *other = dynamic_cast<EditorTool *>(entry);
     if (!other) {
         return;
     }
@@ -135,22 +118,18 @@ void EditorTool::reloadState(ProtocolEntry* entry)
     mouseIn = other->mouseIn;
 }
 
-void EditorTool::setMatrixWidget(MatrixWidget* w)
-{
+void EditorTool::setMatrixWidget(MatrixWidget *w) {
     matrixWidget = w;
 }
 
-void EditorTool::setMainWindow(MainWindow* mw)
-{
+void EditorTool::setMainWindow(MainWindow *mw) {
     _mainWindow = mw;
 }
 
-bool EditorTool::pointInRect(int x, int y, int x_start, int y_start, int x_end, int y_end)
-{
+bool EditorTool::pointInRect(int x, int y, int x_start, int y_start, int x_end, int y_end) {
     return x >= x_start && x < x_end && y >= y_start && y <= y_end;
 }
 
-bool EditorTool::releaseOnly()
-{
+bool EditorTool::releaseOnly() {
     return false;
 }

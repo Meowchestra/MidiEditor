@@ -19,25 +19,63 @@
 #ifndef SENDERTHREAD_H_
 #define SENDERTHREAD_H_
 
+// Qt includes
 #include <QMutex>
 #include <QQueue>
 #include <QThread>
 #include <QWaitCondition>
 
+// Project includes
 #include "MidiOutput.h"
 
+/**
+ * \class SenderThread
+ *
+ * \brief Thread for queued MIDI message transmission.
+ *
+ * SenderThread handles the queued transmission of MIDI messages in a separate
+ * thread to ensure smooth MIDI output without blocking the main application.
+ * It provides:
+ *
+ * - **Queued transmission**: Buffered MIDI message sending
+ * - **Thread safety**: Mutex-protected queue operations
+ * - **Event prioritization**: Separate queues for different event types
+ * - **Non-blocking**: Doesn't interfere with UI responsiveness
+ * - **Automatic processing**: Continuous processing of queued events
+ *
+ * The thread maintains separate queues for different types of MIDI events
+ * and processes them in order, ensuring proper timing and delivery.
+ */
 class SenderThread : public QThread {
-
 public:
+    /**
+     * \brief Creates a new SenderThread.
+     */
     SenderThread();
+
+    /**
+     * \brief Main thread execution function.
+     */
     void run();
-    void enqueue(MidiEvent* event);
+
+    /**
+     * \brief Enqueues a MIDI event for transmission.
+     * \param event The MidiEvent to queue for sending
+     */
+    void enqueue(MidiEvent *event);
 
 private:
-    QQueue<MidiEvent*>* _eventQueue;
-    QQueue<MidiEvent*>* _noteQueue;
-    QMutex* _mutex;
-    QWaitCondition* _waitCondition;
+    /** \brief Queue for general MIDI events */
+    QQueue<MidiEvent *> *_eventQueue;
+
+    /** \brief Queue for note events */
+    QQueue<MidiEvent *> *_noteQueue;
+
+    /** \brief Mutex for thread-safe queue access */
+    QMutex *_mutex;
+
+    /** \brief Wait condition for thread synchronization */
+    QWaitCondition *_waitCondition;
 };
 
-#endif
+#endif // SENDERTHREAD_H_

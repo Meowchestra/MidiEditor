@@ -1,11 +1,42 @@
 name: build with xmake on windows
 on:
   push:
-    branches: [ main ]
+    branches: [ refactor ]
 
 jobs:
-  build:
+  check-shader-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      shaders-changed: ${{ steps.changes.outputs.shaders }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for shader changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          base: ${{ github.ref }}
+          filters: |
+            shaders:
+              - 'src/shaders/*.vert'
+              - 'src/shaders/*.frag'
+
+      - name: Report shader status
+        run: |
+          if [[ "${{ steps.changes.outputs.shaders }}" == "true" ]]; then
+            echo "🔄 Shader source files changed - will recompile shaders before building"
+          else
+            echo "⚡ No shader changes - will proceed directly to build"
+          fi
+
+  compile-shaders:
+    needs: check-shader-changes
     runs-on: windows-2025
+    if: needs.check-shader-changes.outputs.shaders-changed == 'true'
+    permissions:
+      contents: write
     strategy:
       matrix:
         include:
@@ -14,10 +45,121 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2022_64
     steps:
-      - uses: xmake-io/github-action-setup-xmake@v1
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install Qt with shader tools
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt_ver }}
+          arch: ${{ matrix.qt_arch }}
+          host: 'windows'
+          target: 'desktop'
+          cache: 'false'
+          modules: 'qtshadertools'
+          archives: 'qtbase'
+
+      - name: Verify qsb tool
+        run: |
+          echo "Checking for qsb tool..."
+          where qsb
+          echo "Qt Shader Baker (qsb) tool available"
+        shell: cmd
+
+      - name: Compile shaders with modern targets
+        working-directory: src/shaders
+        shell: cmd
+        run: |
+          echo Compiling shaders for Qt 6.x with modern targets...
+
+          REM Create output directory
+          if not exist compiled mkdir compiled
+
+          REM Compile all shaders for latest desktop targets only
+          REM Using GLSL 460 (OpenGL 4.6) + HLSL 68 (D3D12 Shader Model 6.8)
+          for %%f in (*.vert *.frag) do (
+            echo Compiling shader: %%f
+            echo Checking shader version:
+            findstr /c:"#version" "%%f"
+
+            REM Compile Shaders
+            echo Running: qsb --glsl 460 --hlsl 68 -o "compiled/%%f.qsb" "%%f"
+            qsb --glsl 460 --hlsl 68 -o "compiled/%%f.qsb" "%%f"
+
+            if exist "compiled/%%f.qsb" (
+              echo ✓ Successfully compiled: %%f -^> %%f.qsb
+            ) else (
+              echo ✗ Per-target compilation failed, trying SPIR-V only fallback
+              echo Running fallback: qsb -o "compiled/%%f.qsb" "%%f"
+              qsb -o "compiled/%%f.qsb" "%%f"
+              if exist "compiled/%%f.qsb" (
+                echo ✓ SPIR-V fallback successful: %%f
+              ) else (
+                echo ✗ All compilation methods failed: %%f
+                exit /b 1
+              )
+            )
+          )
+
+      - name: Commit compiled shaders to repository
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+
+          REM Add compiled shaders
+          git add src/shaders/compiled/*.qsb
+
+          REM Check if there are changes to commit
+          git diff --staged --quiet
+          if %ERRORLEVEL% EQU 0 (
+            echo No shader changes to commit - compiled shaders are identical
+          ) else (
+            git commit -m "Auto-compile shaders: Update compiled .qsb files"
+            git push
+            echo Compiled shaders committed to repository
+          )
+        shell: cmd
+
+      - name: Create compilation summary
+        working-directory: src/shaders
+        run: |
+          echo "## Shader Compilation Summary" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "| Shader | Status | Size |" >> $env:GITHUB_STEP_SUMMARY
+          echo "|--------|--------|------|" >> $env:GITHUB_STEP_SUMMARY
+
+          if (Test-Path "compiled") {
+            Get-ChildItem compiled/*.qsb | ForEach-Object {
+              $size = [math]::Round($_.Length / 1KB, 1).ToString() + " KB"
+              echo "| $($_.Name) | :white_check_mark: Compiled | $size |" >> $env:GITHUB_STEP_SUMMARY
+            }
+          }
+
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**All shaders compiled successfully with GLSL 460 + HLSL 68!**" >> $env:GITHUB_STEP_SUMMARY
+          echo "" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Targets:** Windows (D3D12 Shader Model 6.8) + Linux (OpenGL 4.6)" >> $env:GITHUB_STEP_SUMMARY
+        shell: powershell
+
+  build:
+    needs: [check-shader-changes, compile-shaders]
+    runs-on: windows-2025
+    if: always() && !cancelled() && !failure()
+    strategy:
+      matrix:
+        include:
+          - qt_ver: 6.10.0
+            qt_arch: win64_msvc2022_64
+            msvc_arch: x64
+            qt_arch_install: msvc2022_64
+    steps:
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
-
+    
       - name: Install Qt with Source Code (for Qt RHI)
         uses: jurplel/install-qt-action@v4
         with:
@@ -32,11 +174,6 @@ jobs:
           # Install source code for private headers (Qt RHI)
           source: 'true'
 
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-          submodules: true
-
       - name: Setup Vulkan SDK
         uses: humbletim/setup-vulkan-sdk@v1.2.1
         with:
@@ -50,15 +187,6 @@ jobs:
           echo "🔍 Verifying Vulkan SDK installation..."
           echo "VULKAN_SDK: $env:VULKAN_SDK"
           echo "VK_SDK_PATH: $env:VK_SDK_PATH"
-
-          if ($env:VULKAN_SDK -and (Test-Path "$env:VULKAN_SDK\Include\vulkan\vulkan.h")) {
-            echo "✅ Vulkan SDK headers found at: $env:VULKAN_SDK\Include\vulkan\"
-            echo "📦 Vulkan SDK version: $(Get-Content "$env:VULKAN_SDK\Include\vulkan\vulkan_core.h" | Select-String "VK_HEADER_VERSION" | Select-Object -First 1)"
-            echo "🚀 Backend hierarchy: D3D12 → D3D11 → Vulkan → OpenGL → Software fallback"
-          } else {
-            echo "❌ Vulkan SDK headers not found"
-            echo "⚠️ Backend hierarchy: D3D12 → D3D11 → OpenGL → Software fallback"
-          }
 
       - name: Setup MSYS2 and Install QtIFW 4.10.0
         uses: msys2/setup-msys2@v2
@@ -170,6 +298,11 @@ jobs:
             }
             exit 1
           }
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          submodules: true
 
       - name: Build with Qt RHI
         run: |

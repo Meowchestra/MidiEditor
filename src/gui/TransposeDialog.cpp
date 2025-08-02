@@ -27,29 +27,28 @@
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 
-TransposeDialog::TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file, QWidget* parent) {
-
+TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *file, QWidget *parent) {
     setWindowTitle(tr("Transpose Selection"));
 
-    QLabel* text = new QLabel(tr("Number of semitones: "), this);
+    QLabel *text = new QLabel(tr("Number of semitones: "), this);
     _valueBox = new QSpinBox(this);
     _valueBox->setMinimum(0);
     _valueBox->setMaximum(2147483647);
     _valueBox->setValue(0);
 
-    QButtonGroup* group = new QButtonGroup();
+    QButtonGroup *group = new QButtonGroup();
     _up = new QRadioButton(tr("up"), this);
     _down = new QRadioButton(tr("down"), this);
     _up->setChecked(true);
     group->addButton(_up);
     group->addButton(_down);
 
-    QPushButton* breakButton = new QPushButton(tr("Cancel"));
+    QPushButton *breakButton = new QPushButton(tr("Cancel"));
     connect(breakButton, SIGNAL(clicked()), this, SLOT(hide()));
-    QPushButton* acceptButton = new QPushButton(tr("Accept"));
+    QPushButton *acceptButton = new QPushButton(tr("Accept"));
     connect(acceptButton, SIGNAL(clicked()), this, SLOT(accept()));
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     layout->addWidget(text, 0, 0, 1, 1);
     layout->addWidget(_valueBox, 0, 1, 1, 2);
     layout->addWidget(_up, 1, 0, 1, 1);
@@ -64,14 +63,13 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file
 }
 
 void TransposeDialog::accept() {
-
     _file->protocol()->startNewAction(tr("Transpose selection"));
 
     int num = _valueBox->value();
     if (_down->isChecked()) {
         num *= -1;
     }
-    foreach (NoteOnEvent* onEvent, _toTranspose) {
+    foreach(NoteOnEvent* onEvent, _toTranspose) {
         int oldVal = onEvent->note();
 
         if (oldVal + num >= 0 && oldVal + num < 128) {

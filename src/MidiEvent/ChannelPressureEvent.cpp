@@ -18,44 +18,37 @@
 
 #include "ChannelPressureEvent.h"
 
-ChannelPressureEvent::ChannelPressureEvent(int channel, int value, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+ChannelPressureEvent::ChannelPressureEvent(int channel, int value, MidiTrack *track)
+    : MidiEvent(channel, track) {
     _value = value;
 }
 
-ChannelPressureEvent::ChannelPressureEvent(ChannelPressureEvent& other)
-    : MidiEvent(other)
-{
+ChannelPressureEvent::ChannelPressureEvent(ChannelPressureEvent &other)
+    : MidiEvent(other) {
     _value = other._value;
 }
 
-int ChannelPressureEvent::line()
-{
+int ChannelPressureEvent::line() {
     return CHANNEL_PRESSURE_LINE;
 }
 
-QString ChannelPressureEvent::toMessage()
-{
+QString ChannelPressureEvent::toMessage() {
     return "";
 }
 
-QByteArray ChannelPressureEvent::save()
-{
+QByteArray ChannelPressureEvent::save() {
     QByteArray array = QByteArray();
     array.append(0xD0 | channel());
     array.append(_value);
     return array;
 }
 
-ProtocolEntry* ChannelPressureEvent::copy()
-{
+ProtocolEntry *ChannelPressureEvent::copy() {
     return new ChannelPressureEvent(*this);
 }
 
-void ChannelPressureEvent::reloadState(ProtocolEntry* entry)
-{
-    ChannelPressureEvent* other = dynamic_cast<ChannelPressureEvent*>(entry);
+void ChannelPressureEvent::reloadState(ProtocolEntry *entry) {
+    ChannelPressureEvent *other = dynamic_cast<ChannelPressureEvent *>(entry);
     if (!other) {
         return;
     }
@@ -63,19 +56,16 @@ void ChannelPressureEvent::reloadState(ProtocolEntry* entry)
     _value = other->_value;
 }
 
-QString ChannelPressureEvent::typeString()
-{
+QString ChannelPressureEvent::typeString() {
     return "Channel Pressure Event";
 }
 
-void ChannelPressureEvent::setValue(int v)
-{
-    ProtocolEntry* toCopy = copy();
+void ChannelPressureEvent::setValue(int v) {
+    ProtocolEntry *toCopy = copy();
     _value = v;
     protocol(toCopy, this);
 }
 
-int ChannelPressureEvent::value()
-{
+int ChannelPressureEvent::value() {
     return _value;
 }

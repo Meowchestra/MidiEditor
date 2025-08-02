@@ -5,21 +5,20 @@
 #include <QLabel>
 #include <QPushButton>
 
-#include <QtCore/qmath.h>
+#include <cmath>
 
 int NToleQuantizationDialog::ntoleNNum = 3;
 int NToleQuantizationDialog::ntoleBeatNum = 3;
 int NToleQuantizationDialog::replaceNumNum = 1;
 int NToleQuantizationDialog::replaceDenomNum = 2;
 
-NToleQuantizationDialog::NToleQuantizationDialog(QWidget* parent)
+NToleQuantizationDialog::NToleQuantizationDialog(QWidget *parent)
     : QDialog(parent) {
-
     connect(this, SIGNAL(accepted()), this, SLOT(takeResults()));
 
     setWindowTitle(tr("Tuplet Quantization"));
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     layout->addWidget(new QLabel(tr("tuplet: "), this), 0, 0, 1, 1);
     layout->addWidget(new QLabel(tr("instead of: "), this), 1, 0, 1, 1);
 
@@ -48,7 +47,7 @@ NToleQuantizationDialog::NToleQuantizationDialog(QWidget* parent)
         } else if (i == 2) {
             text = tr("Quarter note");
         } else {
-            text = QString::number((int)qPow(2, i)) + tr("th note");
+            text = QString::number((int) qPow(2, i)) + tr("th note");
         }
 
         ntoleBeat->addItem(text);
@@ -60,11 +59,11 @@ NToleQuantizationDialog::NToleQuantizationDialog(QWidget* parent)
     replaceDenom->setCurrentIndex(replaceDenomNum);
     replaceNum->setCurrentIndex(replaceNumNum - 1);
 
-    QPushButton* ok = new QPushButton(tr("Ok"), this);
+    QPushButton *ok = new QPushButton(tr("Ok"), this);
     connect(ok, SIGNAL(clicked()), this, SLOT(accept()));
     layout->addWidget(ok, 2, 0, 1, 2);
 
-    QPushButton* close = new QPushButton(tr("Cancel"), this);
+    QPushButton *close = new QPushButton(tr("Cancel"), this);
     connect(close, SIGNAL(clicked()), this, SLOT(reject()));
     layout->addWidget(close, 2, 2, 1, 2);
 }

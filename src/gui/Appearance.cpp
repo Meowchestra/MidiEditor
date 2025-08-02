@@ -1,23 +1,15 @@
 #include "Appearance.h"
-#include <QApplication>
 #include <QStyleFactory>
-#include <QPalette>
-#include <QStyle>
-#include <QToolBar>
-#include <QWidget>
 #include <QStyleHints>
 #include <QTimer>
-#include <QPainter>
-#include <QPixmap>
-#include <QAction>
 #include <QDateTime>
 #include <QFile>
-#include <QTextStream>
 #include "../tool/ToolButton.h"
 #include "ProtocolWidget.h"
 #include "MatrixWidget.h"
 #include "AppearanceSettingsWidget.h"
 #include "MidiSettingsWidget.h"
+#include "PerformanceSettingsWidget.h"
 #include "TrackListWidget.h"
 #include "ChannelListWidget.h"
 
@@ -30,14 +22,14 @@ static QString cachedStyle = "";
 static QDateTime cacheTime;
 
 // Queue-based icon processing to prevent crashes
-static QTimer* iconUpdateTimer = nullptr;
-static QList<QPair<QAction*, QString>> iconUpdateQueue;
+static QTimer *iconUpdateTimer = nullptr;
+static QList<QPair<QAction *, QString> > iconUpdateQueue;
 
-QMap<int, QColor*> Appearance::channelColors = QMap<int, QColor*>();
-QMap<int, QColor*> Appearance::trackColors = QMap<int, QColor*>();
+QMap<int, QColor *> Appearance::channelColors = QMap<int, QColor *>();
+QMap<int, QColor *> Appearance::trackColors = QMap<int, QColor *>();
 QSet<int> Appearance::customChannelColors = QSet<int>();
 QSet<int> Appearance::customTrackColors = QSet<int>();
-QMap<QAction*, QString> Appearance::registeredIconActions = QMap<QAction*, QString>();
+QMap<QAction *, QString> Appearance::registeredIconActions = QMap<QAction *, QString>();
 int Appearance::_opacity = 100;
 Appearance::stripStyle Appearance::_strip = Appearance::onSharp;
 bool Appearance::_showRangeLines = false;
@@ -50,10 +42,10 @@ bool Appearance::_toolbarCustomizeEnabled = false;
 QStringList Appearance::_toolbarActionOrder = QStringList();
 QStringList Appearance::_toolbarEnabledActions = QStringList();
 
-void Appearance::init(QSettings *settings){
+void Appearance::init(QSettings *settings) {
     // CRITICAL: Load application style FIRST before creating any colors
     _opacity = settings->value("appearance_opacity", 100).toInt();
-    _strip = static_cast<Appearance::stripStyle>(settings->value("strip_style",Appearance::onSharp).toInt());
+    _strip = static_cast<Appearance::stripStyle>(settings->value("strip_style", Appearance::onSharp).toInt());
     _showRangeLines = settings->value("show_range_lines", false).toBool();
 
     // Set default style with fallback
@@ -80,13 +72,13 @@ void Appearance::init(QSettings *settings){
 
     // Load custom color tracking FIRST
     QList<QVariant> customChannels = settings->value("custom_channel_colors", QList<QVariant>()).toList();
-    foreach (const QVariant& var, customChannels) {
+    foreach(const QVariant& var, customChannels) {
         int channel = var.toInt();
         customChannelColors.insert(channel);
     }
 
     QList<QVariant> customTracks = settings->value("custom_track_colors", QList<QVariant>()).toList();
-    foreach (const QVariant& var, customTracks) {
+    foreach(const QVariant& var, customTracks) {
         int track = var.toInt();
         customTrackColors.insert(track);
     }
@@ -95,12 +87,12 @@ void Appearance::init(QSettings *settings){
     for (int channel = 0; channel < 17; channel++) {
         if (customChannelColors.contains(channel)) {
             // User has customized this channel - load their custom color from settings
-            QColor* customColor = decode("channel_color_" + QString::number(channel),
-                                        settings, defaultColor(channel));
+            QColor *customColor = decode("channel_color_" + QString::number(channel),
+                                         settings, defaultColor(channel));
             channelColors.insert(channel, customColor);
         } else {
             // User has NOT customized this channel - use current theme's default
-            QColor* themeDefaultColor = defaultColor(channel);
+            QColor *themeDefaultColor = defaultColor(channel);
             channelColors.insert(channel, themeDefaultColor);
         }
     }
@@ -108,25 +100,25 @@ void Appearance::init(QSettings *settings){
     for (int track = 0; track < 17; track++) {
         if (customTrackColors.contains(track)) {
             // User has customized this track - load their custom color from settings
-            QColor* customColor = decode("track_color_" + QString::number(track),
-                                        settings, defaultColor(track));
+            QColor *customColor = decode("track_color_" + QString::number(track),
+                                         settings, defaultColor(track));
             trackColors.insert(track, customColor);
         } else {
             // User has NOT customized this track - use current theme's default
-            QColor* themeDefaultColor = defaultColor(track);
+            QColor *themeDefaultColor = defaultColor(track);
             trackColors.insert(track, themeDefaultColor);
         }
     }
 
     // Validate custom color markings against actual colors
     QSet<int> invalidCustomChannels;
-    foreach (int channel, customChannelColors) {
-        QColor* currentColor = channelColors.value(channel, nullptr);
-        QColor* defaultColor = Appearance::defaultColor(channel);
+    foreach(int channel, customChannelColors) {
+        QColor *currentColor = channelColors.value(channel, nullptr);
+        QColor *defaultColor = Appearance::defaultColor(channel);
         if (currentColor && defaultColor) {
             bool actuallyCustom = (currentColor->red() != defaultColor->red() ||
-                                  currentColor->green() != defaultColor->green() ||
-                                  currentColor->blue() != defaultColor->blue());
+                                   currentColor->green() != defaultColor->green() ||
+                                   currentColor->blue() != defaultColor->blue());
             if (!actuallyCustom) {
                 invalidCustomChannels.insert(channel);
             }
@@ -135,13 +127,13 @@ void Appearance::init(QSettings *settings){
     }
 
     QSet<int> invalidCustomTracks;
-    foreach (int track, customTrackColors) {
-        QColor* currentColor = trackColors.value(track, nullptr);
-        QColor* defaultColor = Appearance::defaultColor(track);
+    foreach(int track, customTrackColors) {
+        QColor *currentColor = trackColors.value(track, nullptr);
+        QColor *defaultColor = Appearance::defaultColor(track);
         if (currentColor && defaultColor) {
             bool actuallyCustom = (currentColor->red() != defaultColor->red() ||
-                                  currentColor->green() != defaultColor->green() ||
-                                  currentColor->blue() != defaultColor->blue());
+                                   currentColor->green() != defaultColor->green() ||
+                                   currentColor->blue() != defaultColor->blue());
             if (!actuallyCustom) {
                 invalidCustomTracks.insert(track);
             }
@@ -150,10 +142,10 @@ void Appearance::init(QSettings *settings){
     }
 
     // Remove invalid custom markings
-    foreach (int channel, invalidCustomChannels) {
+    foreach(int channel, invalidCustomChannels) {
         customChannelColors.remove(channel);
     }
-    foreach (int track, invalidCustomTracks) {
+    foreach(int track, invalidCustomTracks) {
         customTrackColors.remove(track);
     }
 
@@ -167,7 +159,7 @@ void Appearance::init(QSettings *settings){
     connectToSystemThemeChanges();
 }
 
-QColor *Appearance::channelColor(int channel){
+QColor *Appearance::channelColor(int channel) {
     int index = channelToColorIndex(channel);
 
     // Get existing color or create default for current theme
@@ -201,19 +193,19 @@ QColor *Appearance::trackColor(int track) {
 
 void Appearance::writeSettings(QSettings *settings) {
     for (int channel = 0; channel < 17; channel++) {
-        QColor* color = channelColors.value(channel, nullptr);
+        QColor *color = channelColors.value(channel, nullptr);
         if (color) {
             write("channel_color_" + QString::number(channel), settings, color);
         }
     }
     for (int track = 0; track < 17; track++) {
-        QColor* color = trackColors.value(track, nullptr);
+        QColor *color = trackColors.value(track, nullptr);
         if (color) {
             write("track_color_" + QString::number(track), settings, color);
         }
     }
     settings->setValue("appearance_opacity", _opacity);
-    settings->setValue("strip_style",_strip);
+    settings->setValue("strip_style", _strip);
     settings->setValue("show_range_lines", _showRangeLines);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
@@ -226,13 +218,13 @@ void Appearance::writeSettings(QSettings *settings) {
 
     // Save custom color tracking
     QList<QVariant> customChannels;
-    foreach (int channel, customChannelColors) {
+    foreach(int channel, customChannelColors) {
         customChannels.append(channel);
     }
     settings->setValue("custom_channel_colors", customChannels);
 
     QList<QVariant> customTracks;
-    foreach (int track, customTrackColors) {
+    foreach(int track, customTrackColors) {
         customTracks.append(track);
     }
     settings->setValue("custom_track_colors", customTracks);
@@ -241,172 +233,172 @@ void Appearance::writeSettings(QSettings *settings) {
 QColor *Appearance::defaultColor(int n) {
     bool useDarkMode = shouldUseDarkMode();
 
-    QColor* color;
+    QColor *color;
 
     if (useDarkMode) {
         // Darker, more muted colors for dark mode (slightly darker shade)
         switch (n) {
-        case 0: {
-            color = new QColor(180, 80, 60, 255); // Softer red for better dark mode visibility
-            break;
-        }
-        case 1: {
-            color = new QColor(130, 160, 0, 255);
-            break;
-        }
-        case 2: {
-            color = new QColor(25, 130, 5, 255);
-            break;
-        }
-        case 3: {
-            color = new QColor(60, 160, 150, 255);
-            break;
-        }
-        case 4: {
-            color = new QColor(80, 35, 180, 255);
-            break;
-        }
-        case 5: {
-            color = new QColor(160, 80, 130, 255);
-            break;
-        }
-        case 6: {
-            color = new QColor(110, 140, 110, 255);
-            break;
-        }
-        case 7: {
-            color = new QColor(150, 130, 110, 255);
-            break;
-        }
-        case 8: {
-            color = new QColor(160, 130, 5, 255);
-            break;
-        }
-        case 9: {
-            color = new QColor(120, 120, 120, 255); // Lighter gray for better visibility against strip grid
-            break;
-        }
-        case 10: {
-            color = new QColor(130, 25, 80, 255);
-            break;
-        }
-        case 11: {
-            color = new QColor(70, 120, 200, 255); // Softer, less harsh blue
-            break;
-        }
-        case 12: {
-            color = new QColor(90, 140, 70, 255); // More pleasant green
-            break;
-        }
-        case 13: {
-            color = new QColor(160, 100, 40, 255);
-            break;
-        }
-        case 14: {
-            color = new QColor(60, 15, 60, 255);
-            break;
-        }
-        case 15: {
-            color = new QColor(25, 80, 80, 255);
-            break;
-        }
-        default: {
-            color = new QColor(80, 120, 200, 255); // Softer blue for Track 0
-            break;
-        }
+            case 0: {
+                color = new QColor(180, 80, 60, 255);
+                break;
+            }
+            case 1: {
+                color = new QColor(130, 160, 0, 255);
+                break;
+            }
+            case 2: {
+                color = new QColor(25, 130, 5, 255);
+                break;
+            }
+            case 3: {
+                color = new QColor(60, 160, 150, 255);
+                break;
+            }
+            case 4: {
+                color = new QColor(110, 85, 140, 255);
+                break;
+            }
+            case 5: {
+                color = new QColor(160, 80, 130, 255);
+                break;
+            }
+            case 6: {
+                color = new QColor(110, 140, 110, 255);
+                break;
+            }
+            case 7: {
+                color = new QColor(150, 130, 110, 255);
+                break;
+            }
+            case 8: {
+                color = new QColor(160, 130, 5, 255);
+                break;
+            }
+            case 9: {
+                color = new QColor(120, 120, 120, 255);
+                break;
+            }
+            case 10: {
+                color = new QColor(130, 25, 80, 255);
+                break;
+            }
+            case 11: {
+                color = new QColor(70, 120, 200, 255);
+                break;
+            }
+            case 12: {
+                color = new QColor(90, 140, 70, 255);
+                break;
+            }
+            case 13: {
+                color = new QColor(160, 100, 40, 255);
+                break;
+            }
+            case 14: {
+                color = new QColor(60, 15, 60, 255);
+                break;
+            }
+            case 15: {
+                color = new QColor(25, 80, 80, 255);
+                break;
+            }
+            default: {
+                color = new QColor(80, 120, 200, 255);
+                break;
+            }
         }
     } else {
         // Original bright colors for light mode
         switch (n) {
-        case 0: {
-            color = new QColor(241, 70, 57, 255);
-            break;
-        }
-        case 1: {
-            color = new QColor(205, 241, 0, 255);
-            break;
-        }
-        case 2: {
-            color = new QColor(50, 201, 20, 255);
-            break;
-        }
-        case 3: {
-            color = new QColor(107, 241, 231, 255);
-            break;
-        }
-        case 4: {
-            color = new QColor(127, 67, 255, 255);
-            break;
-        }
-        case 5: {
-            color = new QColor(241, 127, 200, 255);
-            break;
-        }
-        case 6: {
-            color = new QColor(170, 212, 170, 255);
-            break;
-        }
-        case 7: {
-            color = new QColor(222, 202, 170, 255);
-            break;
-        }
-        case 8: {
-            color = new QColor(241, 201, 20, 255);
-            break;
-        }
-        case 9: {
-            color = new QColor(80, 80, 80, 255);
-            break;
-        }
-        case 10: {
-            color = new QColor(202, 50, 127, 255);
-            break;
-        }
-        case 11: {
-            color = new QColor(0, 132, 255, 255);
-            break;
-        }
-        case 12: {
-            color = new QColor(102, 127, 37, 255);
-            break;
-        }
-        case 13: {
-            color = new QColor(241, 164, 80, 255);
-            break;
-        }
-        case 14: {
-            color = new QColor(107, 30, 107, 255);
-            break;
-        }
-        case 15: {
-            color = new QColor(50, 127, 127, 255);
-            break;
-        }
-        default: {
-            color = new QColor(50, 50, 255, 255);
-            break;
-        }
+            case 0: {
+                color = new QColor(241, 70, 57, 255);
+                break;
+            }
+            case 1: {
+                color = new QColor(205, 241, 0, 255);
+                break;
+            }
+            case 2: {
+                color = new QColor(50, 201, 20, 255);
+                break;
+            }
+            case 3: {
+                color = new QColor(107, 241, 231, 255);
+                break;
+            }
+            case 4: {
+                color = new QColor(127, 67, 255, 255);
+                break;
+            }
+            case 5: {
+                color = new QColor(241, 127, 200, 255);
+                break;
+            }
+            case 6: {
+                color = new QColor(170, 212, 170, 255);
+                break;
+            }
+            case 7: {
+                color = new QColor(222, 202, 170, 255);
+                break;
+            }
+            case 8: {
+                color = new QColor(241, 201, 20, 255);
+                break;
+            }
+            case 9: {
+                color = new QColor(80, 80, 80, 255);
+                break;
+            }
+            case 10: {
+                color = new QColor(202, 50, 127, 255);
+                break;
+            }
+            case 11: {
+                color = new QColor(0, 132, 255, 255);
+                break;
+            }
+            case 12: {
+                color = new QColor(102, 127, 37, 255);
+                break;
+            }
+            case 13: {
+                color = new QColor(241, 164, 80, 255);
+                break;
+            }
+            case 14: {
+                color = new QColor(107, 30, 107, 255);
+                break;
+            }
+            case 15: {
+                color = new QColor(50, 127, 127, 255);
+                break;
+            }
+            default: {
+                color = new QColor(50, 50, 255, 255);
+                break;
+            }
         }
     }
 
     return color;
 }
 
-QColor *Appearance::decode(QString name, QSettings *settings, QColor *defaultColor){
-   bool ok;
-   int r = settings->value(name + "_r").toInt(&ok);
-   if (!ok) {
-       return new QColor(*defaultColor);
-   }
-   int g = settings->value(name + "_g").toInt(&ok);
-   if (!ok) {
-       return defaultColor;
-   }
-   int b = settings->value(name + "_b").toInt(&ok);
-   if (!ok) {
-       return defaultColor;
-   }
-   return new QColor(r, g, b);
+QColor *Appearance::decode(QString name, QSettings *settings, QColor *defaultColor) {
+    bool ok;
+    int r = settings->value(name + "_r").toInt(&ok);
+    if (!ok) {
+        return new QColor(*defaultColor);
+    }
+    int g = settings->value(name + "_g").toInt(&ok);
+    if (!ok) {
+        return defaultColor;
+    }
+    int b = settings->value(name + "_b").toInt(&ok);
+    if (!ok) {
+        return defaultColor;
+    }
+    return new QColor(r, g, b);
 }
 
 void Appearance::write(QString name, QSettings *settings, QColor *color) {
@@ -417,17 +409,17 @@ void Appearance::write(QString name, QSettings *settings, QColor *color) {
 
 void Appearance::setTrackColor(int track, QColor color) {
     int index = trackToColorIndex(track);
-    QColor* oldColor = trackColors.value(index, nullptr);
+    QColor *oldColor = trackColors.value(index, nullptr);
 
     // Apply current opacity setting to the new color
     color.setAlpha(_opacity * 255 / 100);
     trackColors[index] = new QColor(color);
 
     // Only mark as custom if the color is different from current theme default
-    QColor* currentDefault = defaultColor(index);
+    QColor *currentDefault = defaultColor(index);
     bool isCustomColor = (currentDefault->red() != color.red() ||
-                         currentDefault->green() != color.green() ||
-                         currentDefault->blue() != color.blue());
+                          currentDefault->green() != color.green() ||
+                          currentDefault->blue() != color.blue());
 
     if (isCustomColor) {
         customTrackColors.insert(index);
@@ -441,19 +433,19 @@ void Appearance::setTrackColor(int track, QColor color) {
     }
 }
 
-void Appearance::setChannelColor(int channel, QColor color){
+void Appearance::setChannelColor(int channel, QColor color) {
     int index = channelToColorIndex(channel);
-    QColor* oldColor = channelColors.value(index, nullptr);
+    QColor *oldColor = channelColors.value(index, nullptr);
 
     // Apply current opacity setting to the new color
     color.setAlpha(_opacity * 255 / 100);
     channelColors[index] = new QColor(color);
 
     // Only mark as custom if the color is different from current theme default
-    QColor* currentDefault = defaultColor(index);
+    QColor *currentDefault = defaultColor(index);
     bool isCustomColor = (currentDefault->red() != color.red() ||
-                         currentDefault->green() != color.green() ||
-                         currentDefault->blue() != color.blue());
+                          currentDefault->green() != color.green() ||
+                          currentDefault->blue() != color.blue());
 
     if (isCustomColor) {
         customChannelColors.insert(index);
@@ -467,10 +459,10 @@ void Appearance::setChannelColor(int channel, QColor color){
     }
 }
 
-int Appearance::trackToColorIndex(int track){
-    int mod = (track-1) %17;
+int Appearance::trackToColorIndex(int track) {
+    int mod = (track - 1) % 17;
     if (mod < 0) {
-        mod+=17;
+        mod += 17;
     }
     return mod;
 }
@@ -490,23 +482,22 @@ void Appearance::reset() {
 }
 
 void Appearance::autoResetDefaultColors() {
-
     // Update ONLY non-custom colors to match current theme
     // Custom colors are NEVER changed - they stay exactly as the user set them
     int channelsUpdated = 0;
     for (int channel = 0; channel < 17; channel++) {
         if (!customChannelColors.contains(channel)) {
             // This is a DEFAULT color - update it to match current theme
-            QColor* existingColor = channelColors.value(channel, nullptr);
+            QColor *existingColor = channelColors.value(channel, nullptr);
             if (existingColor) {
                 QColor oldColor = *existingColor; // Save for logging
-                QColor* newThemeDefault = defaultColor(channel);
+                QColor *newThemeDefault = defaultColor(channel);
 
                 // Copy the new theme default values to existing color object
                 existingColor->setRgb(newThemeDefault->red(),
-                                     newThemeDefault->green(),
-                                     newThemeDefault->blue(),
-                                     newThemeDefault->alpha());
+                                      newThemeDefault->green(),
+                                      newThemeDefault->blue(),
+                                      newThemeDefault->alpha());
 
                 // Clean up the temporary color
                 delete newThemeDefault;
@@ -520,16 +511,16 @@ void Appearance::autoResetDefaultColors() {
     for (int track = 0; track < 17; track++) {
         if (!customTrackColors.contains(track)) {
             // This is a DEFAULT color - update it to match current theme
-            QColor* existingColor = trackColors.value(track, nullptr);
+            QColor *existingColor = trackColors.value(track, nullptr);
             if (existingColor) {
                 QColor oldColor = *existingColor; // Save for logging
-                QColor* newThemeDefault = defaultColor(track);
+                QColor *newThemeDefault = defaultColor(track);
 
                 // Copy the new theme default values to existing color object
                 existingColor->setRgb(newThemeDefault->red(),
-                                     newThemeDefault->green(),
-                                     newThemeDefault->blue(),
-                                     newThemeDefault->alpha());
+                                      newThemeDefault->green(),
+                                      newThemeDefault->blue(),
+                                      newThemeDefault->alpha());
 
                 // Clean up the temporary color
                 delete newThemeDefault;
@@ -543,9 +534,9 @@ void Appearance::autoResetDefaultColors() {
 void Appearance::forceResetAllColors() {
     // Force reset all colors to current theme defaults
     for (int channel = 0; channel < 17; channel++) {
-        QColor* existingColor = channelColors.value(channel, nullptr);
+        QColor *existingColor = channelColors.value(channel, nullptr);
         if (existingColor) {
-            QColor* newDefaultColor = defaultColor(channel);
+            QColor *newDefaultColor = defaultColor(channel);
             if (newDefaultColor) {
                 // Copy the color values safely
                 int r = newDefaultColor->red();
@@ -563,9 +554,9 @@ void Appearance::forceResetAllColors() {
     }
 
     for (int track = 0; track < 17; track++) {
-        QColor* existingColor = trackColors.value(track, nullptr);
+        QColor *existingColor = trackColors.value(track, nullptr);
         if (existingColor) {
-            QColor* newDefaultColor = defaultColor(track);
+            QColor *newDefaultColor = defaultColor(track);
             if (newDefaultColor) {
                 // Copy the color values safely
                 int r = newDefaultColor->red();
@@ -583,11 +574,11 @@ void Appearance::forceResetAllColors() {
     }
 }
 
-int Appearance::opacity(){
+int Appearance::opacity() {
     return _opacity;
 }
 
-void Appearance::setOpacity(int opacity){
+void Appearance::setOpacity(int opacity) {
     _opacity = opacity;
 
     // Update alpha values for all existing colors
@@ -608,27 +599,27 @@ void Appearance::setOpacity(int opacity){
     }
 }
 
-Appearance::stripStyle Appearance::strip(){
+Appearance::stripStyle Appearance::strip() {
     return _strip;
 }
 
-void Appearance::setStrip(Appearance::stripStyle render){
+void Appearance::setStrip(Appearance::stripStyle render) {
     _strip = render;
 }
 
-bool Appearance::showRangeLines(){
+bool Appearance::showRangeLines() {
     return _showRangeLines;
 }
 
-void Appearance::setShowRangeLines(bool enabled){
+void Appearance::setShowRangeLines(bool enabled) {
     _showRangeLines = enabled;
 }
 
-QString Appearance::applicationStyle(){
+QString Appearance::applicationStyle() {
     return _applicationStyle;
 }
 
-void Appearance::setApplicationStyle(const QString& style){
+void Appearance::setApplicationStyle(const QString &style) {
     // Prevent rapid successive theme changes that might cause crashes
     QDateTime now = QDateTime::currentDateTime();
     if (lastThemeChange.isValid() && lastThemeChange.msecsTo(now) < 500) {
@@ -644,7 +635,7 @@ void Appearance::setApplicationStyle(const QString& style){
     applyStyle();
 
     // Use a timer to debounce the expensive refresh operations
-    static QTimer* refreshTimer = nullptr;
+    static QTimer *refreshTimer = nullptr;
     if (!refreshTimer) {
         refreshTimer = new QTimer();
         refreshTimer->setSingleShot(true);
@@ -658,29 +649,29 @@ void Appearance::setApplicationStyle(const QString& style){
     refreshTimer->start(100); // Wait 100ms before refreshing
 }
 
-int Appearance::toolbarIconSize(){
+int Appearance::toolbarIconSize() {
     return _toolbarIconSize;
 }
 
-void Appearance::setToolbarIconSize(int size){
+void Appearance::setToolbarIconSize(int size) {
     _toolbarIconSize = size;
     notifyIconSizeChanged();
 }
 
-bool Appearance::ignoreSystemScaling(){
+bool Appearance::ignoreSystemScaling() {
     return _ignoreSystemScaling;
 }
 
-void Appearance::setIgnoreSystemScaling(bool ignore){
+void Appearance::setIgnoreSystemScaling(bool ignore) {
     _ignoreSystemScaling = ignore;
     // Note: This setting requires application restart to take effect
 }
 
-bool Appearance::useRoundedScaling(){
+bool Appearance::useRoundedScaling() {
     return _useRoundedScaling;
 }
 
-void Appearance::setUseRoundedScaling(bool useRounded){
+void Appearance::setUseRoundedScaling(bool useRounded) {
     _useRoundedScaling = useRounded;
     // Note: This setting requires application restart to take effect
 }
@@ -692,7 +683,7 @@ void Appearance::loadEarlySettings() {
     _useRoundedScaling = settings.value("use_rounded_scaling", false).toBool();
 }
 
-QFont Appearance::improveFont(const QFont& font) {
+QFont Appearance::improveFont(const QFont &font) {
     QFont improvedFont = font;
     improvedFont.setHintingPreference(QFont::PreferFullHinting);
     improvedFont.setStyleStrategy(QFont::PreferAntialias);
@@ -719,7 +710,7 @@ QStringList Appearance::toolbarActionOrder() {
     return _toolbarActionOrder;
 }
 
-void Appearance::setToolbarActionOrder(const QStringList& order) {
+void Appearance::setToolbarActionOrder(const QStringList &order) {
     _toolbarActionOrder = order;
 }
 
@@ -727,11 +718,11 @@ QStringList Appearance::toolbarEnabledActions() {
     return _toolbarEnabledActions;
 }
 
-void Appearance::setToolbarEnabledActions(const QStringList& enabled) {
+void Appearance::setToolbarEnabledActions(const QStringList &enabled) {
     _toolbarEnabledActions = enabled;
 }
 
-QStringList Appearance::availableStyles(){
+QStringList Appearance::availableStyles() {
     // Only return QWidget styles that actually work with QApplication::setStyle()
     // Qt Quick Controls styles (Material, Universal, FluentWinUI3, etc.) don't work with QWidget applications
     QStringList styles = QStyleFactory::keys();
@@ -739,8 +730,8 @@ QStringList Appearance::availableStyles(){
     return styles;
 }
 
-void Appearance::applyStyle(){
-    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+void Appearance::applyStyle() {
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
     if (!app) return;
 
     // Apply QWidget style first
@@ -751,29 +742,29 @@ void Appearance::applyStyle(){
     // Apply dark mode specific styling if needed
     if (shouldUseDarkMode()) {
         QString darkStyleSheet =
-            "QToolButton:checked { "
-            "    background-color: rgba(80, 80, 80, 150); "
-            "    border: 1px solid rgba(120, 120, 120, 150); "
-            "} "
-            "QToolBar::separator { "
-            "    background-color: rgba(120, 120, 120, 150); "
-            "    width: 1px; "
-            "    height: 1px; "
-            "    margin: 2px; "
-            "}";
+                "QToolButton:checked { "
+                "    background-color: rgba(80, 80, 80, 150); "
+                "    border: 1px solid rgba(120, 120, 120, 150); "
+                "} "
+                "QToolBar::separator { "
+                "    background-color: rgba(120, 120, 120, 150); "
+                "    width: 1px; "
+                "    height: 1px; "
+                "    margin: 2px; "
+                "}";
         app->setStyleSheet(darkStyleSheet);
     } else {
         app->setStyleSheet(""); // Clear custom styling for light mode
     }
 }
 
-void Appearance::notifyIconSizeChanged(){
+void Appearance::notifyIconSizeChanged() {
     // Find the main window and trigger a toolbar rebuild to apply new icon size
-    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
     if (!app) return;
 
     // Find all top-level widgets and look for the main window
-    foreach (QWidget* widget, app->topLevelWidgets()) {
+    foreach(QWidget* widget, app->topLevelWidgets()) {
         if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
             // Call the MainWindow's method to rebuild toolbar with new icon size
             QMetaObject::invokeMethod(widget, "rebuildToolbarFromSettings", Qt::QueuedConnection);
@@ -785,7 +776,7 @@ void Appearance::notifyIconSizeChanged(){
 // Dark mode detection and color scheme methods
 bool Appearance::isDarkModeEnabled() {
     // Use Qt's built-in dark mode detection
-    QStyleHints* hints = QApplication::styleHints();
+    QStyleHints *hints = QApplication::styleHints();
     Qt::ColorScheme scheme = hints->colorScheme();
     bool isDark = (scheme == Qt::ColorScheme::Dark);
     return isDark;
@@ -1107,7 +1098,7 @@ QColor Appearance::noteSelectionColor() {
     return Qt::darkBlue; // Original selection color for light mode
 }
 
-QPixmap Appearance::adjustIconForDarkMode(const QPixmap& original, const QString& iconName) {
+QPixmap Appearance::adjustIconForDarkMode(const QPixmap &original, const QString &iconName) {
     if (!shouldUseDarkMode()) {
         return original;
     }
@@ -1138,7 +1129,7 @@ QPixmap Appearance::adjustIconForDarkMode(const QPixmap& original, const QString
     return adjusted;
 }
 
-QIcon Appearance::adjustIconForDarkMode(const QString& iconPath) {
+QIcon Appearance::adjustIconForDarkMode(const QString &iconPath) {
     QPixmap original(iconPath);
 
     // Check if the pixmap loaded successfully
@@ -1165,34 +1156,15 @@ void Appearance::refreshAllIcons() {
         return;
     }
 
-    // Only cleanup if registry is getting large (avoid performance hit during MIDI loading)
-    if (registeredIconActions.size() > 100) {
-        cleanupIconRegistry(); // Remove invalid actions only when needed
-    }
-
-    // Update all icons immediately
-    auto it = registeredIconActions.begin();
-    while (it != registeredIconActions.end()) {
-        QAction* action = it.key();
-        const QString& iconPath = it.value();
+    // Update all icons immediately - no cleanup needed since actions auto-unregister - destroyed() signal handles removal
+    for (auto it = registeredIconActions.begin(); it != registeredIconActions.end(); ++it) {
+        QAction *action = it.key();
+        const QString &iconPath = it.value();
 
         if (action) {
-            try {
-                // Test if action is still valid
-                action->objectName();
-
-                // Update the icon immediately
-                QIcon newIcon = adjustIconForDarkMode(iconPath);
-                action->setIcon(newIcon);
-
-                ++it;
-            } catch (...) {
-                // Action is invalid, remove it
-                it = registeredIconActions.erase(it);
-            }
-        } else {
-            // Remove null actions
-            it = registeredIconActions.erase(it);
+            // Update the icon immediately
+            QIcon newIcon = adjustIconForDarkMode(iconPath);
+            action->setIcon(newIcon);
         }
     }
 }
@@ -1222,8 +1194,8 @@ void Appearance::processNextQueuedIcon() {
     }
 
     // Process only ONE icon per timer tick to prevent crashes
-    QPair<QAction*, QString> iconPair = iconUpdateQueue.takeFirst();
-    QAction* action = iconPair.first;
+    QPair<QAction *, QString> iconPair = iconUpdateQueue.takeFirst();
+    QAction *action = iconPair.first;
     QString iconPath = iconPair.second;
 
     if (!action) {
@@ -1238,20 +1210,35 @@ void Appearance::processNextQueuedIcon() {
         // Update the icon
         QIcon newIcon = adjustIconForDarkMode(iconPath);
         action->setIcon(newIcon);
-
     } catch (...) {
         // Action is invalid or update failed, just skip it
         // Don't crash the entire process
     }
 }
 
-void Appearance::registerIconAction(QAction* action, const QString& iconPath) {
-    if (action) {
-        registeredIconActions[action] = iconPath;
+void Appearance::registerIconAction(QAction *action, const QString &iconPath) {
+    if (!action) return;
+
+    // Check if already registered
+    auto existing = registeredIconActions.find(action);
+    if (existing != registeredIconActions.end()) {
+        // Already registered - just update icon path if different
+        if (existing.value() != iconPath) {
+            existing.value() = iconPath;
+        }
+        return;
     }
+
+    // New registration - add to map and connect destruction signal
+    registeredIconActions[action] = iconPath;
+
+    // Auto-unregister when action is destroyed
+    QObject::connect(action, &QObject::destroyed, [action]() {
+        registeredIconActions.remove(action);
+    });
 }
 
-void Appearance::setActionIcon(QAction* action, const QString& iconPath) {
+void Appearance::setActionIcon(QAction *action, const QString &iconPath) {
     if (action) {
         action->setIcon(adjustIconForDarkMode(iconPath));
         registerIconAction(action, iconPath);
@@ -1285,85 +1272,85 @@ void Appearance::refreshColors() {
     }
 
     // Update all widgets
-    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
     if (!app) {
         return;
     }
 
     // Update all top-level widgets with crash protection
-    foreach (QWidget* widget, app->topLevelWidgets()) {
+    foreach(QWidget* widget, app->topLevelWidgets()) {
         if (widget->isVisible()) {
             try {
                 // Force a complete repaint with style refresh
                 widget->style()->unpolish(widget);
                 widget->style()->polish(widget);
                 widget->update();
-                widget->repaint();
             } catch (...) {
                 // Widget style update failed - skip this widget but continue
                 continue;
             }
 
             // Refresh all ToolButton icons for theme changes
-            QList<ToolButton*> toolButtons = widget->findChildren<ToolButton*>();
-            foreach (ToolButton* toolButton, toolButtons) {
+            QList<ToolButton *> toolButtons = widget->findChildren<ToolButton *>();
+            foreach(ToolButton* toolButton, toolButtons) {
                 toolButton->refreshIcon();
             }
 
             // Refresh all ProtocolWidget colors for theme changes
-            QList<ProtocolWidget*> protocolWidgets = widget->findChildren<ProtocolWidget*>();
-            foreach (ProtocolWidget* protocolWidget, protocolWidgets) {
+            QList<ProtocolWidget *> protocolWidgets = widget->findChildren<ProtocolWidget *>();
+            foreach(ProtocolWidget* protocolWidget, protocolWidgets) {
                 protocolWidget->refreshColors();
             }
 
             // Refresh all AppearanceSettingsWidget colors for theme changes
-            QList<AppearanceSettingsWidget*> appearanceWidgets = widget->findChildren<AppearanceSettingsWidget*>();
-            foreach (AppearanceSettingsWidget* appearanceWidget, appearanceWidgets) {
+            QList<AppearanceSettingsWidget *> appearanceWidgets = widget->findChildren<AppearanceSettingsWidget *>();
+            foreach(AppearanceSettingsWidget* appearanceWidget, appearanceWidgets) {
                 appearanceWidget->refreshColors();
             }
 
             // Refresh all MidiSettingsWidget colors for theme changes
-            QList<MidiSettingsWidget*> midiWidgets = widget->findChildren<MidiSettingsWidget*>();
-            foreach (MidiSettingsWidget* midiWidget, midiWidgets) {
+            QList<MidiSettingsWidget *> midiWidgets = widget->findChildren<MidiSettingsWidget *>();
+            foreach(MidiSettingsWidget* midiWidget, midiWidgets) {
                 midiWidget->refreshColors();
             }
 
             // Refresh all AdditionalMidiSettingsWidget colors for theme changes
-            QList<AdditionalMidiSettingsWidget*> additionalMidiWidgets = widget->findChildren<AdditionalMidiSettingsWidget*>();
-            foreach (AdditionalMidiSettingsWidget* additionalMidiWidget, additionalMidiWidgets) {
+            QList<AdditionalMidiSettingsWidget *> additionalMidiWidgets = widget->findChildren<AdditionalMidiSettingsWidget *>();
+            foreach(AdditionalMidiSettingsWidget* additionalMidiWidget, additionalMidiWidgets) {
                 additionalMidiWidget->refreshColors();
             }
 
+            // Refresh all PerformanceSettingsWidget colors for theme changes
+            QList<PerformanceSettingsWidget *> performanceWidgets = widget->findChildren<PerformanceSettingsWidget *>();
+            foreach(PerformanceSettingsWidget* performanceWidget, performanceWidgets) {
+                performanceWidget->refreshColors();
+            }
+
             // Refresh all TrackListWidget colors for theme changes
-            QList<TrackListWidget*> trackListWidgets = widget->findChildren<TrackListWidget*>();
-            foreach (TrackListWidget* trackListWidget, trackListWidgets) {
+            QList<TrackListWidget *> trackListWidgets = widget->findChildren<TrackListWidget *>();
+            foreach(TrackListWidget* trackListWidget, trackListWidgets) {
                 trackListWidget->update();
             }
 
             // Refresh all ChannelListWidget colors for theme changes
-            QList<ChannelListWidget*> channelListWidgets = widget->findChildren<ChannelListWidget*>();
-            foreach (ChannelListWidget* channelListWidget, channelListWidgets) {
+            QList<ChannelListWidget *> channelListWidgets = widget->findChildren<ChannelListWidget *>();
+            foreach(ChannelListWidget* channelListWidget, channelListWidgets) {
                 channelListWidget->update();
             }
 
             // Refresh all LayoutSettingsWidget icons for theme changes
-            QList<QWidget*> layoutSettingsWidgets = widget->findChildren<QWidget*>("LayoutSettingsWidget");
-            foreach (QWidget* layoutWidget, layoutSettingsWidgets) {
+            QList<QWidget *> layoutSettingsWidgets = widget->findChildren<QWidget *>("LayoutSettingsWidget");
+            foreach(QWidget* layoutWidget, layoutSettingsWidgets) {
                 // Call refreshIcons method if it exists
                 QMetaObject::invokeMethod(layoutWidget, "refreshIcons", Qt::DirectConnection);
             }
 
-            // Refresh MainWindow toolbar icons for theme changes
-            // BUT: Don't trigger rebuilds during style changes - just refresh icons
+            // Refresh toolbar icons for widgets that support it
             if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
-                
-                // Only refresh icons, don't rebuild toolbar structure
+                // MainWindow has refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
-                
-                // DON'T call rebuildToolbarFromSettings during style changes
-                // This prevents the cascade that causes flickering
-            } else {
-                // For non-MainWindow widgets, use the original call
+            } else if (widget->objectName() == "SettingsDialog" || widget->inherits("SettingsDialog")) {
+                // SettingsDialog has its own refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
             }
 
@@ -1379,10 +1366,10 @@ void Appearance::refreshColors() {
     applyStyle();
 
     // Update MatrixWidgets with crash protection
-    foreach (QWidget* widget, app->topLevelWidgets()) {
+    foreach(QWidget* widget, app->topLevelWidgets()) {
         if (widget->isVisible()) {
-            QList<MatrixWidget*> matrixWidgets = widget->findChildren<MatrixWidget*>();
-            foreach (MatrixWidget* matrixWidget, matrixWidgets) {
+            QList<MatrixWidget *> matrixWidgets = widget->findChildren<MatrixWidget *>();
+            foreach(MatrixWidget* matrixWidget, matrixWidgets) {
                 if (matrixWidget && matrixWidget->isVisible()) {
                     try {
                         // Simple update first
@@ -1392,7 +1379,7 @@ void Appearance::refreshColors() {
                         QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
 
                         // Force complete redraw - this might be the crash source
-                        matrixWidget->forceCompleteRedraw();
+                        matrixWidget->updateRenderingSettings();
                     } catch (...) {
                         // MatrixWidget update failed - skip this widget but continue with others
                         // This prevents one bad widget from crashing the entire theme change
@@ -1413,11 +1400,11 @@ void Appearance::forceColorRefresh() {
 }
 
 void Appearance::connectToSystemThemeChanges() {
-    QApplication* app = qobject_cast<QApplication*>(QApplication::instance());
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
     if (!app) return;
 
     // Connect to system theme change detection
-    QStyleHints* hints = app->styleHints();
+    QStyleHints *hints = app->styleHints();
 
     // Connect to colorSchemeChanged signal
     QObject::connect(hints, &QStyleHints::colorSchemeChanged, [](Qt::ColorScheme colorScheme) {
@@ -1435,39 +1422,4 @@ void Appearance::connectToSystemThemeChanges() {
             });
         });
     });
-}
-
-void Appearance::cleanupIconRegistry()
-{
-    // Prevent cleanup during style changes to avoid crashes
-    static bool isCleaningUp = false;
-    if (isCleaningUp) {
-        return;
-    }
-    isCleaningUp = true;
-
-    std::list<QAction*> *remove_map = new std::list<QAction*>();
-    int invalidCount = 0;
-
-    for (QMap<QAction*, QString>::iterator iter = registeredIconActions.begin(); iter != registeredIconActions.end(); iter++)
-    {
-        if (!iter.key()) {
-            remove_map->push_back(iter.key());
-            invalidCount++;
-        } else {
-            // Use QPointer-style validation instead of try/catch
-            QObject* obj = qobject_cast<QObject*>(iter.key());
-            if (!obj) {
-                remove_map->push_back(iter.key());
-                invalidCount++;
-            }
-        }
-    }
-
-    for (std::list<QAction*>::iterator iter = remove_map->begin(); iter != remove_map->end(); iter++)
-    {
-        registeredIconActions.take(*iter);
-    }
-    delete remove_map;
-    isCleaningUp = false;
 }

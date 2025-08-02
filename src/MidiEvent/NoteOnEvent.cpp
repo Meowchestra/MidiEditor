@@ -20,9 +20,8 @@
 
 #include "OffEvent.h"
 
-NoteOnEvent::NoteOnEvent(int note, int velocity, int ch, MidiTrack* track)
-    : OnEvent(ch, track)
-{
+NoteOnEvent::NoteOnEvent(int note, int velocity, int ch, MidiTrack *track)
+    : OnEvent(ch, track) {
     _note = note;
     _velocity = velocity;
     // has to be done here because the line is not known in OnEvents constructor
@@ -30,26 +29,22 @@ NoteOnEvent::NoteOnEvent(int note, int velocity, int ch, MidiTrack* track)
     OffEvent::enterOnEvent(this);
 }
 
-NoteOnEvent::NoteOnEvent(NoteOnEvent& other)
-    : OnEvent(other)
-{
+NoteOnEvent::NoteOnEvent(NoteOnEvent &other)
+    : OnEvent(other) {
     _note = other._note;
     _velocity = other._velocity;
 }
 
-int NoteOnEvent::note()
-{
+int NoteOnEvent::note() {
     return _note;
 }
 
-int NoteOnEvent::velocity()
-{
+int NoteOnEvent::velocity() {
     return _velocity;
 }
 
-void NoteOnEvent::setVelocity(int v)
-{
-    ProtocolEntry* toCopy = copy();
+void NoteOnEvent::setVelocity(int v) {
+    ProtocolEntry *toCopy = copy();
     if (v < 0) {
         v = 0;
     }
@@ -60,26 +55,22 @@ void NoteOnEvent::setVelocity(int v)
     protocol(toCopy, this);
 }
 
-int NoteOnEvent::line()
-{
+int NoteOnEvent::line() {
     return 127 - _note;
 }
 
-void NoteOnEvent::setNote(int n)
-{
-    ProtocolEntry* toCopy = copy();
+void NoteOnEvent::setNote(int n) {
+    ProtocolEntry *toCopy = copy();
     _note = n;
     protocol(toCopy, this);
 }
 
-ProtocolEntry* NoteOnEvent::copy()
-{
+ProtocolEntry *NoteOnEvent::copy() {
     return new NoteOnEvent(*this);
 }
 
-void NoteOnEvent::reloadState(ProtocolEntry* entry)
-{
-    NoteOnEvent* other = dynamic_cast<NoteOnEvent*>(entry);
+void NoteOnEvent::reloadState(ProtocolEntry *entry) {
+    NoteOnEvent *other = dynamic_cast<NoteOnEvent *>(entry);
     if (!other) {
         return;
     }
@@ -89,18 +80,15 @@ void NoteOnEvent::reloadState(ProtocolEntry* entry)
     _velocity = other->_velocity;
 }
 
-QString NoteOnEvent::toMessage()
-{
+QString NoteOnEvent::toMessage() {
     return "noteon " + QString::number(channel()) + " " + QString::number(note()) + " " + QString::number(velocity());
 }
 
-QString NoteOnEvent::offEventMessage()
-{
+QString NoteOnEvent::offEventMessage() {
     return "noteoff " + QString::number(channel()) + " " + QString::number(note());
 }
 
-QByteArray NoteOnEvent::save()
-{
+QByteArray NoteOnEvent::save() {
     QByteArray array = QByteArray();
     array.append(0x90 | channel());
     array.append(note());
@@ -108,16 +96,14 @@ QByteArray NoteOnEvent::save()
     return array;
 }
 
-QByteArray NoteOnEvent::saveOffEvent()
-{
+QByteArray NoteOnEvent::saveOffEvent() {
     QByteArray array = QByteArray();
     array.append(0x80 | channel());
     array.append(note());
-    array.append((char)0x0);
+    array.append((char) 0x0);
     return array;
 }
 
-QString NoteOnEvent::typeString()
-{
+QString NoteOnEvent::typeString() {
     return "Note On Event";
 }

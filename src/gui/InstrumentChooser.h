@@ -19,27 +19,61 @@
 #ifndef INSTRUMENTCHOOSER_H_
 #define INSTRUMENTCHOOSER_H_
 
+// Qt includes
 #include <QDialog>
 
+// Forward declarations
 class MidiFile;
 class QComboBox;
 class QCheckBox;
 
+/**
+ * \class InstrumentChooser
+ *
+ * \brief Dialog for selecting MIDI instruments for channels.
+ *
+ * InstrumentChooser provides a user-friendly interface for selecting
+ * General MIDI instruments for specific MIDI channels. It features:
+ *
+ * - **Instrument selection**: Dropdown list of all 128 General MIDI instruments
+ * - **Channel assignment**: Associates the selected instrument with a specific channel
+ * - **Program change creation**: Automatically creates program change events
+ * - **Cleanup option**: Option to remove other program changes on the channel
+ * - **Preview support**: Can preview the selected instrument
+ *
+ * The dialog displays instrument names in a logical order and provides
+ * options for managing existing program changes on the channel.
+ */
 class InstrumentChooser : public QDialog {
-
     Q_OBJECT
 
 public:
-    InstrumentChooser(MidiFile* f, int channel, QWidget* parent = 0);
+    /**
+     * \brief Creates a new InstrumentChooser.
+     * \param f The MidiFile to add the program change to
+     * \param channel The MIDI channel to set the instrument for
+     * \param parent The parent widget
+     */
+    InstrumentChooser(MidiFile *f, int channel, QWidget *parent = 0);
 
 public slots:
+    /**
+     * \brief Accepts the dialog and applies the selected instrument.
+     */
     void accept();
 
 private:
-    MidiFile* _file;
-    QComboBox* _box;
-    QCheckBox* _removeOthers;
+    /** \brief The MIDI file to modify */
+    MidiFile *_file;
+
+    /** \brief Combo box for instrument selection */
+    QComboBox *_box;
+
+    /** \brief Checkbox for removing other program changes */
+    QCheckBox *_removeOthers;
+
+    /** \brief The MIDI channel number */
     int _channel;
 };
 
-#endif
+#endif // INSTRUMENTCHOOSER_H_

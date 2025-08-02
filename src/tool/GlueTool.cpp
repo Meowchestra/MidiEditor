@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -30,34 +30,28 @@
 #include "StandardTool.h"
 
 #include <QMap>
-#include <QPair>
 #include <algorithm>
 
 GlueTool::GlueTool()
-    : EventTool()
-{
+    : EventTool() {
     setImage(":/run_environment/graphics/tool/glue.png");
     setToolTipText("Glue notes");
 }
 
-GlueTool::GlueTool(GlueTool& other)
-    : EventTool(other)
-{
+GlueTool::GlueTool(GlueTool &other)
+    : EventTool(other) {
 }
 
-void GlueTool::draw(QPainter* painter)
-{
+void GlueTool::draw(QPainter *painter) {
     paintSelectedEvents(painter);
 }
 
-bool GlueTool::press(bool leftClick)
-{
+bool GlueTool::press(bool leftClick) {
     Q_UNUSED(leftClick);
     return true;
 }
 
-bool GlueTool::release()
-{
+bool GlueTool::release() {
     if (!file()) {
         return false;
     }
@@ -74,36 +68,32 @@ bool GlueTool::release()
     return true;
 }
 
-ProtocolEntry* GlueTool::copy()
-{
+ProtocolEntry *GlueTool::copy() {
     return new GlueTool(*this);
 }
 
-void GlueTool::reloadState(ProtocolEntry* entry)
-{
+void GlueTool::reloadState(ProtocolEntry *entry) {
     EventTool::reloadState(entry);
-    GlueTool* other = dynamic_cast<GlueTool*>(entry);
+    GlueTool *other = dynamic_cast<GlueTool *>(entry);
     if (!other) {
         return;
     }
 }
 
-bool GlueTool::showsSelection()
-{
+bool GlueTool::showsSelection() {
     return true;
 }
 
-void GlueTool::performGlueOperation(bool respectChannels)
-{
+void GlueTool::performGlueOperation(bool respectChannels) {
     // Only work on selected events
-    QList<MidiEvent*> eventsToProcess = Selection::instance()->selectedEvents();
+    QList<MidiEvent *> eventsToProcess = Selection::instance()->selectedEvents();
 
     if (eventsToProcess.isEmpty()) {
         return; // Nothing to glue
     }
 
     // Group notes by pitch and track, optionally by channel
-    QMap<QString, QList<NoteOnEvent*>> noteGroups = groupNotes(eventsToProcess, respectChannels);
+    QMap<QString, QList<NoteOnEvent *> > noteGroups = groupNotes(eventsToProcess, respectChannels);
 
     if (noteGroups.isEmpty()) {
         return;
@@ -116,12 +106,12 @@ void GlueTool::performGlueOperation(bool respectChannels)
 
     // Process each group
     for (auto it = noteGroups.begin(); it != noteGroups.end(); ++it) {
-        QList<NoteOnEvent*> notes = it.value();
+        QList<NoteOnEvent *> notes = it.value();
 
         if (notes.size() < 2) continue;
 
         // Sort notes by start time
-        std::sort(notes.begin(), notes.end(), [](NoteOnEvent* a, NoteOnEvent* b) {
+        std::sort(notes.begin(), notes.end(), [](NoteOnEvent *a, NoteOnEvent *b) {
             return a->midiTime() < b->midiTime();
         });
 
@@ -139,16 +129,15 @@ void GlueTool::performGlueOperation(bool respectChannels)
     }
 }
 
-QMap<QString, QList<NoteOnEvent*>> GlueTool::groupNotes(const QList<MidiEvent*>& events, bool respectChannels)
-{
-    QMap<QString, QList<NoteOnEvent*>> groups;
+QMap<QString, QList<NoteOnEvent *> > GlueTool::groupNotes(const QList<MidiEvent *> &events, bool respectChannels) {
+    QMap<QString, QList<NoteOnEvent *> > groups;
 
-    for (MidiEvent* event : events) {
-        NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
+    for (MidiEvent *event: events) {
+        NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
         if (!noteOn) continue;
 
         // Create grouping key: always include pitch and track
-        QString key = QString("pitch_%1_track_%2").arg(noteOn->note()).arg((quintptr)noteOn->track());
+        QString key = QString("pitch_%1_track_%2").arg(noteOn->note()).arg((quintptr) noteOn->track());
 
         // Optionally include channel
         if (respectChannels) {
@@ -162,12 +151,11 @@ QMap<QString, QList<NoteOnEvent*>> GlueTool::groupNotes(const QList<MidiEvent*>&
 }
 
 
-void GlueTool::mergeNoteGroup(const QList<NoteOnEvent*>& noteGroup)
-{
+void GlueTool::mergeNoteGroup(const QList<NoteOnEvent *> &noteGroup) {
     if (noteGroup.size() < 2) return;
 
-    NoteOnEvent* firstNote = noteGroup.first();
-    NoteOnEvent* lastNote = noteGroup.last();
+    NoteOnEvent *firstNote = noteGroup.first();
+    NoteOnEvent *lastNote = noteGroup.last();
 
     // Calculate the new end time (end of the last note)
     int newEndTime = lastNote->offEvent()->midiTime();
@@ -177,18 +165,16 @@ void GlueTool::mergeNoteGroup(const QList<NoteOnEvent*>& noteGroup)
 
     // Remove all other notes in the group
     for (int i = 1; i < noteGroup.size(); i++) {
-        NoteOnEvent* noteToRemove = noteGroup[i];
-        
+        NoteOnEvent *noteToRemove = noteGroup[i];
+
         // Remove from selection if selected
         deselectEvent(noteToRemove);
-        
+
         // Remove the note and its off event from the channel
-        MidiChannel* channel = file()->channel(noteToRemove->channel());
+        MidiChannel *channel = file()->channel(noteToRemove->channel());
         channel->removeEvent(noteToRemove);
         if (noteToRemove->offEvent()) {
             channel->removeEvent(noteToRemove->offEvent());
         }
     }
 }
-
-

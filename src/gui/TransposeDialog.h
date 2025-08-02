@@ -19,29 +19,64 @@
 #ifndef TRANSPOSEDIALOG_H_
 #define TRANSPOSEDIALOG_H_
 
+// Qt includes
 #include <QDialog>
 #include <QList>
 #include <QRadioButton>
 #include <QSpinBox>
 
+// Forward declarations
 class NoteOnEvent;
 class MidiFile;
 
+/**
+ * \class TransposeDialog
+ *
+ * \brief Dialog for transposing selected notes by a specified interval.
+ *
+ * TransposeDialog provides a user interface for transposing MIDI notes
+ * up or down by a specified number of semitones. It features:
+ *
+ * - **Direction selection**: Radio buttons for up or down transposition
+ * - **Interval specification**: Spin box for entering semitone intervals
+ * - **Range validation**: Ensures transposed notes stay within MIDI range (0-127)
+ * - **Batch processing**: Transposes multiple selected notes simultaneously
+ * - **Undo support**: Integrates with the protocol system for undo/redo
+ *
+ * The dialog validates that all transposed notes will remain within the
+ * valid MIDI note range and provides feedback if any notes would be
+ * out of range after transposition.
+ */
 class TransposeDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    TransposeDialog(QList<NoteOnEvent*> toTranspose, MidiFile* file, QWidget* parent = 0);
+    /**
+     * \brief Creates a new TransposeDialog.
+     * \param toTranspose List of NoteOnEvent objects to transpose
+     * \param file The MidiFile containing the notes
+     * \param parent The parent widget
+     */
+    TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *file, QWidget *parent = 0);
 
 public slots:
+    /**
+     * \brief Accepts the dialog and applies the transposition.
+     */
     void accept();
 
 private:
-    QList<NoteOnEvent*> _toTranspose;
-    QSpinBox* _valueBox;
+    /** \brief List of notes to transpose */
+    QList<NoteOnEvent *> _toTranspose;
+
+    /** \brief Spin box for entering the transposition interval */
+    QSpinBox *_valueBox;
+
+    /** \brief Radio buttons for direction selection */
     QRadioButton *_up, *_down;
-    MidiFile* _file;
+
+    /** \brief The MIDI file containing the notes */
+    MidiFile *_file;
 };
 
-#endif
+#endif // TRANSPOSEDIALOG_H_

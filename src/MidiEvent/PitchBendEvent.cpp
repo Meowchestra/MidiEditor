@@ -20,30 +20,25 @@
 
 #include "../midi/MidiFile.h"
 
-PitchBendEvent::PitchBendEvent(int channel, int value, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+PitchBendEvent::PitchBendEvent(int channel, int value, MidiTrack *track)
+    : MidiEvent(channel, track) {
     _value = value;
 }
 
-PitchBendEvent::PitchBendEvent(PitchBendEvent& other)
-    : MidiEvent(other)
-{
+PitchBendEvent::PitchBendEvent(PitchBendEvent &other)
+    : MidiEvent(other) {
     _value = other._value;
 }
 
-int PitchBendEvent::line()
-{
+int PitchBendEvent::line() {
     return PITCH_BEND_LINE;
 }
 
-QString PitchBendEvent::toMessage()
-{
+QString PitchBendEvent::toMessage() {
     return "cc " + QString::number(channel()) + " " + QString::number(_value);
 }
 
-QByteArray PitchBendEvent::save()
-{
+QByteArray PitchBendEvent::save() {
     QByteArray array = QByteArray();
     array.append(0xE0 | channel());
     array.append(_value & 0x7F);
@@ -51,14 +46,12 @@ QByteArray PitchBendEvent::save()
     return array;
 }
 
-ProtocolEntry* PitchBendEvent::copy()
-{
+ProtocolEntry *PitchBendEvent::copy() {
     return new PitchBendEvent(*this);
 }
 
-void PitchBendEvent::reloadState(ProtocolEntry* entry)
-{
-    PitchBendEvent* other = dynamic_cast<PitchBendEvent*>(entry);
+void PitchBendEvent::reloadState(ProtocolEntry *entry) {
+    PitchBendEvent *other = dynamic_cast<PitchBendEvent *>(entry);
     if (!other) {
         return;
     }
@@ -66,25 +59,21 @@ void PitchBendEvent::reloadState(ProtocolEntry* entry)
     _value = other->_value;
 }
 
-QString PitchBendEvent::typeString()
-{
+QString PitchBendEvent::typeString() {
     return "Pitch Bend Event";
 }
 
-int PitchBendEvent::value()
-{
+int PitchBendEvent::value() {
     return _value;
 }
 
-void PitchBendEvent::setValue(int v)
-{
-    ProtocolEntry* toCopy = copy();
+void PitchBendEvent::setValue(int v) {
+    ProtocolEntry *toCopy = copy();
     _value = v;
     protocol(toCopy, this);
 }
 
-bool PitchBendEvent::isOnEvent()
-{
+bool PitchBendEvent::isOnEvent() {
     //	return (_control < 64 && _control> 69) || _value > 64;
     return false;
 }

@@ -21,41 +21,34 @@
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 #include "OffEvent.h"
-#include <QBoxLayout>
 
-OnEvent::OnEvent(int ch, MidiTrack* track)
-    : MidiEvent(ch, track)
-{
+OnEvent::OnEvent(int ch, MidiTrack *track)
+    : MidiEvent(ch, track) {
     _offEvent = 0;
 
     return;
 }
 
-OnEvent::OnEvent(OnEvent& other)
-    : MidiEvent(other)
-{
+OnEvent::OnEvent(OnEvent &other)
+    : MidiEvent(other) {
     _offEvent = other._offEvent;
     return;
 }
 
-void OnEvent::setOffEvent(OffEvent* event)
-{
+void OnEvent::setOffEvent(OffEvent *event) {
     _offEvent = event;
 }
 
-OffEvent* OnEvent::offEvent()
-{
+OffEvent *OnEvent::offEvent() {
     return _offEvent;
 }
 
-ProtocolEntry* OnEvent::copy()
-{
+ProtocolEntry *OnEvent::copy() {
     return new OnEvent(*this);
 }
 
-void OnEvent::reloadState(ProtocolEntry* entry)
-{
-    OnEvent* other = dynamic_cast<OnEvent*>(entry);
+void OnEvent::reloadState(ProtocolEntry *entry) {
+    OnEvent *other = dynamic_cast<OnEvent *>(entry);
     if (!other) {
         return;
     }
@@ -63,18 +56,15 @@ void OnEvent::reloadState(ProtocolEntry* entry)
     _offEvent = other->_offEvent;
 }
 
-QByteArray OnEvent::saveOffEvent()
-{
+QByteArray OnEvent::saveOffEvent() {
     return QByteArray();
 }
 
-QString OnEvent::offEventMessage()
-{
+QString OnEvent::offEventMessage() {
     return "";
 }
 
-void OnEvent::moveToChannel(int channel)
-{
+void OnEvent::moveToChannel(int channel) {
     MidiEvent::moveToChannel(channel);
     offEvent()->moveToChannel(channel);
 }

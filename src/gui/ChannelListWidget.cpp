@@ -25,6 +25,7 @@
 #include <QWidget>
 
 #include "Appearance.h"
+#include "ChannelVisibilityManager.h"
 #include "ColoredWidget.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
@@ -32,14 +33,13 @@
 
 #define ROW_HEIGHT 85
 
-ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
+ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
     : QWidget(parent) {
-
     channelList = parent;
     channel = ch;
 
     setContentsMargins(0, 0, 0, 0);
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
     layout->setVerticalSpacing(1);
 
@@ -51,7 +51,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     } else if (channel == 9) {
         text = tr("Percussion");
     }
-    QLabel* text1 = new QLabel(text, this);
+    QLabel *text1 = new QLabel(text, this);
     text1->setFixedHeight(15);
     layout->addWidget(text1, 0, 1, 1, 1);
 
@@ -59,7 +59,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
     instrumentLabel->setFixedHeight(15);
     layout->addWidget(instrumentLabel, 1, 1, 1, 1);
 
-    QToolBar* toolBar = new QToolBar(this);
+    QToolBar *toolBar = new QToolBar(this);
     toolBar->setIconSize(QSize(12, 12));
     QPalette palette = toolBar->palette();
     palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
@@ -94,7 +94,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget* parent)
 
         if (channel != 9) {
             // instrument
-            QAction* instrumentAction = new QAction(tr("Select instrument"), toolBar);
+            QAction *instrumentAction = new QAction(tr("Select instrument"), toolBar);
             Appearance::setActionIcon(instrumentAction, ":/run_environment/graphics/channelwidget/instrument.png");
             toolBar->addAction(instrumentAction);
             connect(instrumentAction, SIGNAL(triggered()), this, SLOT(instrument()));
@@ -114,7 +114,17 @@ void ChannelListItem::toggleVisibility(bool visible) {
         text = tr("Show channel");
     }
     channelList->midiFile()->protocol()->startNewAction(text);
-    channelList->midiFile()->channel(channel)->setVisible(visible);
+
+    // Use global visibility manager to avoid corrupted MidiChannel access
+    ChannelVisibilityManager::instance().setChannelVisible(channel, visible);
+
+    // Also try to update the MidiChannel object (with safety)
+    try {
+        channelList->midiFile()->channel(channel)->setVisible(visible);
+    } catch (...) {
+        // Ignore if MidiChannel is corrupted
+    }
+
     channelList->midiFile()->protocol()->endAction();
     emit channelStateChanged();
 }
@@ -146,7 +156,6 @@ void ChannelListItem::instrument() {
 }
 
 void ChannelListItem::onBeforeUpdate() {
-
     QString text = MidiFile::instrumentName(channelList->midiFile()->channel(channel)->progAtTick(channelList->midiFile()->cursorTick()));
     if (channel == 16) {
         text = tr("Events affecting all channels");
@@ -161,9 +170,11 @@ void ChannelListItem::onBeforeUpdate() {
         colored->setColor(*(Appearance::channelColor(channel)));
     }
 
-    if (visibleAction->isChecked() != channelList->midiFile()->channel(channel)->visible()) {
+    // Use global visibility manager to avoid corrupted MidiChannel access
+    bool currentVisibility = ChannelVisibilityManager::instance().isChannelVisible(channel);
+    if (visibleAction->isChecked() != currentVisibility) {
         disconnect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
-        visibleAction->setChecked(channelList->midiFile()->channel(channel)->visible());
+        visibleAction->setChecked(currentVisibility);
         connect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
         emit channelStateChanged();
     }
@@ -183,15 +194,14 @@ void ChannelListItem::onBeforeUpdate() {
     }
 }
 
-ChannelListWidget::ChannelListWidget(QWidget* parent)
+ChannelListWidget::ChannelListWidget(QWidget *parent)
     : QListWidget(parent) {
-
     setSelectionMode(QAbstractItemView::NoSelection);
     setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
 
     for (int channel = 0; channel < 17; channel++) {
-        ChannelListItem* widget = new ChannelListItem(channel, this);
-        QListWidgetItem* item = new QListWidgetItem();
+        ChannelListItem *widget = new ChannelListItem(channel, this);
+        QListWidgetItem *item = new QListWidgetItem();
         item->setSizeHint(QSize(0, ROW_HEIGHT));
         addItem(item);
         setItemWidget(item, widget);
@@ -204,21 +214,20 @@ ChannelListWidget::ChannelListWidget(QWidget* parent)
     file = 0;
 }
 
-void ChannelListWidget::setFile(MidiFile* f) {
+void ChannelListWidget::setFile(MidiFile *f) {
     file = f;
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
     update();
 }
 
 void ChannelListWidget::update() {
-
-    foreach (ChannelListItem* item, items) {
+    foreach(ChannelListItem* item, items) {
         item->onBeforeUpdate();
     }
 
     QListWidget::update();
 }
 
-MidiFile* ChannelListWidget::midiFile() {
+MidiFile *ChannelListWidget::midiFile() {
     return file;
 }

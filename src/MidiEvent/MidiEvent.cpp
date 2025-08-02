@@ -20,7 +20,6 @@
 #include "../gui/EventWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
-#include "../midi/MidiTrack.h"
 #include "ChannelPressureEvent.h"
 #include "ControlChangeEvent.h"
 #include "KeyPressureEvent.h"
@@ -40,32 +39,27 @@
 #include "../midi/MidiChannel.h"
 
 quint8 MidiEvent::_startByte = 0;
-EventWidget* MidiEvent::_eventWidget = 0;
+EventWidget *MidiEvent::_eventWidget = 0;
 
-MidiEvent::MidiEvent(int channel, MidiTrack* track)
+MidiEvent::MidiEvent(int channel, MidiTrack *track)
     : ProtocolEntry()
-    , GraphicObject()
-{
+      , GraphicObject() {
     _track = track;
     numChannel = channel;
     timePos = 0;
     midiFile = 0;
 }
 
-MidiEvent::MidiEvent(MidiEvent& other)
+MidiEvent::MidiEvent(MidiEvent &other)
     : ProtocolEntry(other)
-    , GraphicObject()
-{
+      , GraphicObject() {
     _track = other._track;
     numChannel = other.numChannel;
     timePos = other.timePos;
     midiFile = other.midiFile;
 }
 
-MidiEvent* MidiEvent::loadMidiEvent(QDataStream* content, bool* ok,
-    bool* endEvent, MidiTrack* track, quint8 startByte, quint8 secondByte)
-{
-
+MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEvent, MidiTrack *track, quint8 startByte, quint8 secondByte) {
     // first try to load the event. If this does not work try to use
     // old first byte as new first byte. This is implemented in the end of this
     // method using recursive calls.
@@ -87,273 +81,294 @@ MidiEvent* MidiEvent::loadMidiEvent(QDataStream* content, bool* ok,
 
     int channel = tempByte & 0x0F;
 
+    // Safety check: ensure channel is in valid range for regular MIDI events
+    if (channel < 0 || channel > 15) {
+        channel = 0;
+    }
+
     switch (tempByte & 0xF0) {
-
-    case 0x80: {
-        // Note Off
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        int note = tempByte;
-        if (note < 0 || note > 127) {
-            *ok = false;
-            return 0;
-        }
-        // skip byte (velocity)
-        (*content) >> tempByte;
-
-        OffEvent* event = new OffEvent(channel, 127 - note, track);
-        *ok = true;
-        return event;
-    }
-
-    case 0x90: {
-        // Note On
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        int note = tempByte;
-        if (note < 0 || note > 127) {
-            *ok = false;
-            return 0;
-        }
-        (*content) >> tempByte;
-        int velocity = tempByte;
-        *ok = true;
-
-        if (velocity > 0) {
-            NoteOnEvent* event = new NoteOnEvent(note, velocity, channel, track);
-            return event;
-        } else {
-            OffEvent* event = new OffEvent(channel, 127 - note, track);
-            return event;
-        }
-    }
-
-    case 0xA0: {
-        // Key Pressure
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        int note = tempByte;
-        if (note < 0 || note > 127) {
-            *ok = false;
-            return 0;
-        }
-        (*content) >> tempByte;
-        int value = tempByte;
-
-        *ok = true;
-
-        return new KeyPressureEvent(channel, value, note, track);
-    }
-
-    case 0xB0: {
-        // Controller
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        int control = tempByte;
-        (*content) >> tempByte;
-        int value = tempByte;
-        *ok = true;
-        return new ControlChangeEvent(channel, control, value, track);
-    }
-
-    case 0xC0: {
-        // programm change
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        *ok = true;
-        return new ProgChangeEvent(channel, tempByte, track);
-    }
-
-    case 0xD0: {
-        // Key Pressure
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        int value = tempByte;
-
-        *ok = true;
-
-        return new ChannelPressureEvent(channel, value, track);
-    }
-
-    case 0xE0: {
-
-        // Pitch Wheel
-        if (!startByte) {
-            (*content) >> tempByte;
-        } else {
-            tempByte = secondByte;
-        }
-        quint8 first = tempByte;
-        (*content) >> tempByte;
-        quint8 second = tempByte;
-
-        int value = (second << 7) | first;
-
-        *ok = true;
-
-        return new PitchBendEvent(channel, value, track);
-    }
-
-    case 0xF0: {
-        // System Message
-        channel = 16; // 16 is channel without number
-
-        switch (tempByte & 0x0F) {
-
-        case 0x00: {
-
-            // SysEx
-            QByteArray array;
-            while (tempByte != 0xF7) {
-                (*content) >> tempByte;
-                if (tempByte != 0xF7) {
-                    array.append((char)tempByte);
-                }
-            }
-            *ok = true;
-            return new SysExEvent(channel, array, track);
-        }
-
-        case 0x0F: {
-            // MetaEvent
+        case 0x80: {
+            // Note Off
             if (!startByte) {
                 (*content) >> tempByte;
             } else {
                 tempByte = secondByte;
             }
-            switch (tempByte) {
-            case 0x51: {
-                // TempoChange
-                //(*content)>>tempByte;
-                //if(tempByte!=3){
-                //	*ok = false;
-                //	return 0;
-                //}
-                quint32 value;
-                (*content) >> value;
-                // 1te Stelle abziehen,
-                value -= 50331648;
-                return new TempoChangeEvent(17, (int)value, track);
-            }
-            case 0x58: {
-                // TimeSignature
-                (*content) >> tempByte;
-                if (tempByte != 4) {
-                    *ok = false;
-                    return 0;
-                }
-
-                (*content) >> tempByte;
-                int num = (int)tempByte;
-                (*content) >> tempByte;
-                int denom = (int)tempByte;
-                (*content) >> tempByte;
-                int metronome = (int)tempByte;
-                (*content) >> tempByte;
-                int num32 = (int)tempByte;
-                return new TimeSignatureEvent(18, num, denom, metronome, num32, track);
-            }
-            case 0x59: {
-                // keysignature
-                (*content) >> tempByte;
-                if (tempByte != 2) {
-                    *ok = false;
-                    return 0;
-                }
-                qint8 t;
-                (*content) >> t;
-                int tonality = (int)t;
-                (*content) >> tempByte;
-                bool minor = true;
-                if (tempByte == 0) {
-                    minor = false;
-                }
-                return new KeySignatureEvent(channel, tonality, minor, track);
-            }
-            case 0x2F: {
-                // end Event
-                *endEvent = true;
-                *ok = true;
+            int note = tempByte;
+            if (note < 0 || note > 127) {
+                *ok = false;
                 return 0;
             }
-            default: {
-                if (tempByte >= 0x01 && tempByte <= 0x07) {
+            // skip byte (velocity)
+            (*content) >> tempByte;
 
-                    // textevent
-                    // read type
-                    TextEvent* textEvent = new TextEvent(channel, track);
-                    textEvent->setType(tempByte);
-                    uint length = MidiFile::variableLengthvalue(content);
+            OffEvent *event = new OffEvent(channel, 127 - note, track);
+            *ok = true;
+            return event;
+        }
 
-                    // Safety check: prevent unreasonably large text events that could cause memory issues
-                    if (length > 65535) { // 64KB limit for text events
-                        *ok = false;
-                        delete textEvent;
-                        return 0;
-                    }
+        case 0x90: {
+            // Note On
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            int note = tempByte;
+            if (note < 0 || note > 127) {
+                *ok = false;
+                return 0;
+            }
+            (*content) >> tempByte;
+            int velocity = tempByte;
+            *ok = true;
 
-                    // Additional safety: check for zero-length text events
-                    if (length == 0) {
-                        textEvent->setText(QString());
-                        *ok = true;
-                        return textEvent;
-                    }
+            if (velocity > 0) {
+                NoteOnEvent *event = new NoteOnEvent(note, velocity, channel, track);
+                return event;
+            } else {
+                OffEvent *event = new OffEvent(channel, 127 - note, track);
+                return event;
+            }
+        }
 
-                    // Use QByteArray for safe dynamic memory management
-                    QByteArray textData;
-                    textData.reserve(length);
+        case 0xA0: {
+            // Key Pressure
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            int note = tempByte;
+            if (note < 0 || note > 127) {
+                *ok = false;
+                return 0;
+            }
+            (*content) >> tempByte;
+            int value = tempByte;
 
-                    for (uint i = 0; i < length; i++) {
-                        (*content) >> tempByte;
-                        textData.append((char)tempByte);
-                    }
+            *ok = true;
 
-                    // QString::fromUtf8() safely handles malformed UTF-8 by replacing
-                    // invalid sequences with Unicode replacement characters (U+FFFD)
-                    textEvent->setText(QString::fromUtf8(textData));
-                    *ok = true;
-                    return textEvent;
+            return new KeyPressureEvent(channel, value, note, track);
+        }
 
-                } else {
+        case 0xB0: {
+            // Controller
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            int control = tempByte;
+            (*content) >> tempByte;
+            int value = tempByte;
+            *ok = true;
+            return new ControlChangeEvent(channel, control, value, track);
+        }
 
-                    // tempByte is meta event type
-                    int typeByte = ((char)tempByte);
+        case 0xC0: {
+            // programm change
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            *ok = true;
+            return new ProgChangeEvent(channel, tempByte, track);
+        }
 
-                    // read length
-                    int length = MidiFile::variableLengthvalue(content);
+        case 0xD0: {
+            // Key Pressure
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            int value = tempByte;
 
-                    // content
+            *ok = true;
+
+            return new ChannelPressureEvent(channel, value, track);
+        }
+
+        case 0xE0: {
+            // Pitch Wheel
+            if (!startByte) {
+                (*content) >> tempByte;
+            } else {
+                tempByte = secondByte;
+            }
+            quint8 first = tempByte;
+            (*content) >> tempByte;
+            quint8 second = tempByte;
+
+            int value = (second << 7) | first;
+
+            *ok = true;
+
+            return new PitchBendEvent(channel, value, track);
+        }
+
+        case 0xF0: {
+            // System Message
+            channel = 16; // 16 is channel without number
+
+            switch (tempByte & 0x0F) {
+                case 0x00: {
+                    // SysEx
                     QByteArray array;
-                    for (int i = 0; i < length; i++) {
+                    while (tempByte != 0xF7) {
                         (*content) >> tempByte;
-                        array.append((char)tempByte);
+                        if (tempByte != 0xF7) {
+                            array.append((char) tempByte);
+                        }
                     }
                     *ok = true;
-                    return new UnknownEvent(channel, typeByte, array, track);
+                    return new SysExEvent(channel, array, track);
+                }
+
+                case 0x0F: {
+                    // MetaEvent
+                    if (!startByte) {
+                        (*content) >> tempByte;
+                    } else {
+                        tempByte = secondByte;
+                    }
+                    switch (tempByte) {
+                        case 0x51: {
+                            // TempoChange
+                            //(*content)>>tempByte;
+                            //if(tempByte!=3){
+                            //	*ok = false;
+                            //	return 0;
+                            //}
+                            quint32 value;
+                            (*content) >> value;
+                            // 1te Stelle abziehen,
+                            value -= 50331648;
+                            return new TempoChangeEvent(17, (int) value, track);
+                        }
+                        case 0x58: {
+                            // TimeSignature
+                            (*content) >> tempByte;
+                            if (tempByte != 4) {
+                                *ok = false;
+                                return 0;
+                            }
+
+                            (*content) >> tempByte;
+                            int num = (int) tempByte;
+                            (*content) >> tempByte;
+                            int denom = (int) tempByte;
+                            (*content) >> tempByte;
+                            int metronome = (int) tempByte;
+                            (*content) >> tempByte;
+                            int num32 = (int) tempByte;
+                            return new TimeSignatureEvent(18, num, denom, metronome, num32, track);
+                        }
+                        case 0x59: {
+                            // keysignature
+                            (*content) >> tempByte;
+                            if (tempByte != 2) {
+                                *ok = false;
+                                return 0;
+                            }
+                            qint8 t;
+                            (*content) >> t;
+                            int tonality = (int) t;
+                            (*content) >> tempByte;
+                            bool minor = true;
+                            if (tempByte == 0) {
+                                minor = false;
+                            }
+                            return new KeySignatureEvent(channel, tonality, minor, track);
+                        }
+                        case 0x2F: {
+                            // end Event
+                            *endEvent = true;
+                            *ok = true;
+                            return 0;
+                        }
+                        default: {
+                            if (tempByte >= 0x01 && tempByte <= 0x07) {
+                                // textevent
+                                // read type
+                                TextEvent *textEvent = new TextEvent(channel, track);
+                                textEvent->setType(tempByte);
+                                uint length = MidiFile::variableLengthvalue(content);
+
+                                // Safety check: prevent unreasonably large text events that could cause memory issues
+                                if (length > 65535) { // 64KB limit for text events
+                                    *ok = false;
+                                    delete textEvent;
+                                    return 0;
+                                }
+
+                                // Additional safety: check for zero-length text events
+                                if (length == 0) {
+                                    textEvent->setText(QString());
+                                    *ok = true;
+                                    return textEvent;
+                                }
+
+                                // Use QByteArray for safe dynamic memory management
+                                QByteArray textData;
+                                textData.reserve(length);
+
+                                for (uint i = 0; i < length; i++) {
+                                    // Check if stream has ended unexpectedly
+                                    if (content->atEnd()) {
+                                        delete textEvent;
+                                        *ok = false;
+                                        return 0;
+                                    }
+                                    (*content) >> tempByte;
+                                    textData.append((char) tempByte);
+                                }
+
+                                // QString::fromUtf8() safely handles malformed UTF-8 by replacing
+                                // invalid sequences with Unicode replacement characters (U+FFFD)
+                                textEvent->setText(QString::fromUtf8(textData));
+                                *ok = true;
+                                return textEvent;
+                            } else {
+                                // tempByte is meta event type
+                                int typeByte = ((char) tempByte);
+
+                                // read length
+                                int length = MidiFile::variableLengthvalue(content);
+
+                                // Safety check for unknown events
+                                if (length < 0) {
+                                    *ok = false;
+                                    return 0;
+                                }
+
+                                // 64KB limit for unknown events
+                                if (length > 65535) {
+                                    *ok = false;
+                                    return 0;
+                                }
+
+                                // content
+                                QByteArray array;
+                                array.reserve(length);
+                                for (int i = 0; i < length; i++) {
+                                    if (content->atEnd()) {
+                                        *ok = false;
+                                        return 0;
+                                    }
+                                    (*content) >> tempByte;
+                                    array.append((char) tempByte);
+                                }
+                                *ok = true;
+                                return new UnknownEvent(channel, typeByte, array, track);
+                            }
+                        }
+                    }
                 }
             }
-            }
         }
-        }
-    }
     }
 
     // if the event could not be loaded try to use old firstByte before the new
@@ -364,9 +379,8 @@ MidiEvent* MidiEvent::loadMidiEvent(QDataStream* content, bool* ok,
     return loadMidiEvent(content, ok, endEvent, track, _startByte, tempByte);
 }
 
-void MidiEvent::setTrack(MidiTrack* track, bool toProtocol)
-{
-    ProtocolEntry* toCopy = copy();
+void MidiEvent::setTrack(MidiTrack *track, bool toProtocol) {
+    ProtocolEntry *toCopy = copy();
 
     _track = track;
     if (toProtocol) {
@@ -376,15 +390,18 @@ void MidiEvent::setTrack(MidiTrack* track, bool toProtocol)
     }
 }
 
-MidiTrack* MidiEvent::track()
-{
+MidiTrack *MidiEvent::track() {
     return _track;
 }
 
-void MidiEvent::setChannel(int ch, bool toProtocol)
-{
+void MidiEvent::setChannel(int ch, bool toProtocol) {
+    // Validate channel assignment - prevent regular events from using special channels
+    if (ch < 0 || ch > 18) {
+        ch = 0;
+    }
+
     int oldChannel = channel();
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     numChannel = ch;
     if (toProtocol) {
         protocol(toCopy, this);
@@ -396,24 +413,23 @@ void MidiEvent::setChannel(int ch, bool toProtocol)
     }
 }
 
-int MidiEvent::channel()
-{
+int MidiEvent::channel() {
+    // Add validation to prevent crashes from corrupted channel numbers
+    if (numChannel < 0 || numChannel > 18) {
+        return 0; // Return a safe default
+    }
     return numChannel;
 }
 
-QString MidiEvent::toMessage()
-{
+QString MidiEvent::toMessage() {
     return "";
 }
 
-QByteArray MidiEvent::save()
-{
+QByteArray MidiEvent::save() {
     return QByteArray();
 }
 
-void MidiEvent::setMidiTime(int t, bool toProtocol)
-{
-
+void MidiEvent::setMidiTime(int t, bool toProtocol) {
     // if its once TimeSig / TempoChange at 0, dont delete event
     if (toProtocol && (channel() == 18 || channel() == 17)) {
         if (midiTime() == 0 && midiFile->channel(channel())->eventMap()->count(0) == 1) {
@@ -421,9 +437,8 @@ void MidiEvent::setMidiTime(int t, bool toProtocol)
         }
     }
 
-    ProtocolEntry* toCopy = nullptr;
-    if (toProtocol)
-    {
+    ProtocolEntry *toCopy = nullptr;
+    if (toProtocol) {
         toCopy = copy();
     }
 
@@ -439,42 +454,34 @@ void MidiEvent::setMidiTime(int t, bool toProtocol)
     file()->channelEvents(numChannel)->insert(timePos, this);
 }
 
-int MidiEvent::midiTime()
-{
+int MidiEvent::midiTime() {
     return timePos;
 }
 
-void MidiEvent::setFile(MidiFile* f)
-{
+void MidiEvent::setFile(MidiFile *f) {
     midiFile = f;
 }
 
-MidiFile* MidiEvent::file()
-{
+MidiFile *MidiEvent::file() {
     return midiFile;
 }
 
-int MidiEvent::line()
-{
+int MidiEvent::line() {
     return 0;
 }
 
-void MidiEvent::draw(QPainter* p, QColor c)
-{
+void MidiEvent::draw(QPainter *p, QColor c) {
     p->setPen(Appearance::borderColor());
     p->setBrush(c);
     p->drawRoundedRect(x(), y(), width(), height(), 1, 1);
 }
 
-ProtocolEntry* MidiEvent::copy()
-{
+ProtocolEntry *MidiEvent::copy() {
     return new MidiEvent(*this);
 }
 
-void MidiEvent::reloadState(ProtocolEntry* entry)
-{
-
-    MidiEvent* other = dynamic_cast<MidiEvent*>(entry);
+void MidiEvent::reloadState(ProtocolEntry *entry) {
+    MidiEvent *other = dynamic_cast<MidiEvent *>(entry);
     if (!other) {
         return;
     }
@@ -487,36 +494,30 @@ void MidiEvent::reloadState(ProtocolEntry* entry)
     midiFile = other->midiFile;
 }
 
-QString MidiEvent::typeString()
-{
+QString MidiEvent::typeString() {
     return "Midi Event";
 }
 
-void MidiEvent::setEventWidget(EventWidget* widget)
-{
+void MidiEvent::setEventWidget(EventWidget *widget) {
     _eventWidget = widget;
 }
 
-EventWidget* MidiEvent::eventWidget()
-{
+EventWidget *MidiEvent::eventWidget() {
     return _eventWidget;
 }
 
-bool MidiEvent::shownInEventWidget()
-{
+bool MidiEvent::shownInEventWidget() {
     if (!_eventWidget) {
         return false;
     }
     return _eventWidget->events().contains(this);
 }
 
-bool MidiEvent::isOnEvent()
-{
+bool MidiEvent::isOnEvent() {
     return true;
 }
 
-QMap<int, QString> MidiEvent::knownMetaTypes()
-{
+QMap<int, QString> MidiEvent::knownMetaTypes() {
     QMap<int, QString> meta;
     for (int i = 1; i < 8; i++) {
         meta.insert(i, "Text Event");
@@ -528,19 +529,15 @@ QMap<int, QString> MidiEvent::knownMetaTypes()
     return meta;
 }
 
-void MidiEvent::setTemporaryRecordID(int id)
-{
+void MidiEvent::setTemporaryRecordID(int id) {
     _tempID = id;
 }
 
-int MidiEvent::temporaryRecordID()
-{
+int MidiEvent::temporaryRecordID() {
     return _tempID;
 }
 
-void MidiEvent::moveToChannel(int ch)
-{
-
+void MidiEvent::moveToChannel(int ch) {
     int oldChannel = channel();
 
     if (oldChannel > 15) {
@@ -553,7 +550,7 @@ void MidiEvent::moveToChannel(int ch)
 
     midiFile->channel(oldChannel)->removeEvent(this);
 
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
 
     numChannel = ch;
 

@@ -18,7 +18,6 @@
 
 #include "Terminal.h"
 
-#include <QProcess>
 #include <QScrollBar>
 #include <QTextEdit>
 #include <QTimer>
@@ -26,7 +25,7 @@
 #include "midi/MidiInput.h"
 #include "midi/MidiOutput.h"
 
-Terminal* Terminal::_terminal = 0;
+Terminal *Terminal::_terminal = 0;
 
 Terminal::Terminal() {
     _process = 0;
@@ -43,7 +42,7 @@ void Terminal::initTerminal(QString startString, QString inPort,
     _terminal->execute(startString, inPort, outPort);
 }
 
-Terminal* Terminal::terminal() {
+Terminal *Terminal::terminal() {
     return _terminal;
 }
 
@@ -105,8 +104,8 @@ void Terminal::processStarted() {
     if (MidiInput::inputPort() == "" && _inPort != "") {
         writeString(QObject::tr("Trying to set Input Port to ") + _inPort);
 
-        foreach (QString portVariant, inputVariants) {
-            foreach (QString port, MidiInput::inputPorts()) {
+        foreach(QString portVariant, inputVariants) {
+            foreach(QString port, MidiInput::inputPorts()) {
                 if (port.startsWith(portVariant)) {
                     writeString(QObject::tr("Found port ") + port);
                     MidiInput::setInputPort(port);
@@ -123,8 +122,8 @@ void Terminal::processStarted() {
     if (MidiOutput::outputPort() == "" && _outPort != "") {
         writeString(QObject::tr("Trying to set Output Port to ") + _outPort);
 
-        foreach (QString portVariant, outputVariants) {
-            foreach (QString port, MidiOutput::outputPorts()) {
+        foreach(QString portVariant, outputVariants) {
+            foreach(QString port, MidiOutput::outputPorts()) {
                 if (port.startsWith(portVariant)) {
                     writeString(QObject::tr("Found port ") + port);
                     MidiOutput::setOutputPort(port);
@@ -140,7 +139,7 @@ void Terminal::processStarted() {
 
     // if not both are set, try again in 1 second
     if ((MidiOutput::outputPort() == "" && _outPort != "") || (MidiInput::inputPort() == "" && _inPort != "")) {
-        QTimer* timer = new QTimer();
+        QTimer *timer = new QTimer();
         connect(timer, SIGNAL(timeout()), this, SLOT(processStarted()));
         timer->setSingleShot(true);
         timer->start(1000);
@@ -155,6 +154,6 @@ void Terminal::printErrorToTerminal() {
     writeString(QString::fromLocal8Bit(_process->readAllStandardError()));
 }
 
-QTextEdit* Terminal::console() {
+QTextEdit *Terminal::console() {
     return _textEdit;
 }

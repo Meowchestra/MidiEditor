@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -30,34 +30,28 @@
 #include "StandardTool.h"
 
 #include <QMap>
-#include <QPair>
 #include <algorithm>
 
 DeleteOverlapsTool::DeleteOverlapsTool()
-    : EventTool()
-{
+    : EventTool() {
     setImage(":/run_environment/graphics/tool/deleteoverlap.png");
     setToolTipText("Delete overlapping notes");
 }
 
-DeleteOverlapsTool::DeleteOverlapsTool(DeleteOverlapsTool& other)
-    : EventTool(other)
-{
+DeleteOverlapsTool::DeleteOverlapsTool(DeleteOverlapsTool &other)
+    : EventTool(other) {
 }
 
-void DeleteOverlapsTool::draw(QPainter* painter)
-{
+void DeleteOverlapsTool::draw(QPainter *painter) {
     paintSelectedEvents(painter);
 }
 
-bool DeleteOverlapsTool::press(bool leftClick)
-{
+bool DeleteOverlapsTool::press(bool leftClick) {
     Q_UNUSED(leftClick);
     return true;
 }
 
-bool DeleteOverlapsTool::release()
-{
+bool DeleteOverlapsTool::release() {
     if (!file()) {
         return false;
     }
@@ -75,38 +69,34 @@ bool DeleteOverlapsTool::release()
     return true;
 }
 
-ProtocolEntry* DeleteOverlapsTool::copy()
-{
+ProtocolEntry *DeleteOverlapsTool::copy() {
     return new DeleteOverlapsTool(*this);
 }
 
-void DeleteOverlapsTool::reloadState(ProtocolEntry* entry)
-{
+void DeleteOverlapsTool::reloadState(ProtocolEntry *entry) {
     EventTool::reloadState(entry);
-    DeleteOverlapsTool* other = dynamic_cast<DeleteOverlapsTool*>(entry);
+    DeleteOverlapsTool *other = dynamic_cast<DeleteOverlapsTool *>(entry);
     if (!other) {
         return;
     }
 }
 
-bool DeleteOverlapsTool::showsSelection()
-{
+bool DeleteOverlapsTool::showsSelection() {
     return true;
 }
 
-void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool respectChannels, bool respectTracks)
-{
+void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool respectChannels, bool respectTracks) {
     // Only work on selected events
-    QList<MidiEvent*> eventsToProcess = Selection::instance()->selectedEvents();
+    QList<MidiEvent *> eventsToProcess = Selection::instance()->selectedEvents();
 
     if (eventsToProcess.isEmpty()) {
         return; // Nothing to process
     }
 
     // Filter to only NoteOnEvents
-    QList<NoteOnEvent*> notes;
-    for (MidiEvent* event : eventsToProcess) {
-        NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
+    QList<NoteOnEvent *> notes;
+    for (MidiEvent *event: eventsToProcess) {
+        NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
         if (noteOn) {
             notes.append(noteOn);
         }
@@ -129,7 +119,7 @@ void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool r
             actionName = QObject::tr("Delete doubles");
             break;
     }
-    
+
     currentProtocol()->startNewAction(actionName, image());
 
     // Perform the appropriate operation
@@ -151,17 +141,16 @@ void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool r
     Selection::instance()->clearSelection();
 }
 
-void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent*>& notes, bool respectChannels, bool respectTracks)
-{
+void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent *> &notes, bool respectChannels, bool respectTracks) {
     // Group notes by pitch, optionally by track and channel
-    QMap<QString, QList<NoteOnEvent*>> noteGroups;
+    QMap<QString, QList<NoteOnEvent *> > noteGroups;
 
-    for (NoteOnEvent* note : notes) {
+    for (NoteOnEvent *note: notes) {
         QString key = QString("pitch_%1").arg(note->note());
 
         // Optionally include track in grouping
         if (respectTracks) {
-            key += QString("_track_%1").arg((quintptr)note->track());
+            key += QString("_track_%1").arg((quintptr) note->track());
         }
 
         // Optionally include channel in grouping
@@ -174,22 +163,22 @@ void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent*>& notes, bo
 
     // Process each group
     for (auto it = noteGroups.begin(); it != noteGroups.end(); ++it) {
-        QList<NoteOnEvent*> groupNotes = it.value();
+        QList<NoteOnEvent *> groupNotes = it.value();
 
         if (groupNotes.size() < 2) continue;
 
         // Sort notes by start time
-        std::sort(groupNotes.begin(), groupNotes.end(), [](NoteOnEvent* a, NoteOnEvent* b) {
+        std::sort(groupNotes.begin(), groupNotes.end(), [](NoteOnEvent *a, NoteOnEvent *b) {
             return a->midiTime() < b->midiTime();
         });
 
         // Handle overlaps: prioritize longer notes, remove shorter overlapping ones
-        QList<NoteOnEvent*> notesToRemove;
+        QList<NoteOnEvent *> notesToRemove;
 
         for (int i = 0; i < groupNotes.size(); i++) {
             if (notesToRemove.contains(groupNotes[i])) continue;
 
-            NoteOnEvent* currentNote = groupNotes[i];
+            NoteOnEvent *currentNote = groupNotes[i];
             int currentStart = currentNote->midiTime();
             int currentEnd = currentNote->offEvent()->midiTime();
             int currentLength = currentEnd - currentStart;
@@ -197,7 +186,7 @@ void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent*>& notes, bo
             for (int j = i + 1; j < groupNotes.size(); j++) {
                 if (notesToRemove.contains(groupNotes[j])) continue;
 
-                NoteOnEvent* laterNote = groupNotes[j];
+                NoteOnEvent *laterNote = groupNotes[j];
                 int laterStart = laterNote->midiTime();
                 int laterEnd = laterNote->offEvent()->midiTime();
                 int laterLength = laterEnd - laterStart;
@@ -238,19 +227,18 @@ void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent*>& notes, bo
         }
 
         // Remove the notes marked for deletion
-        for (NoteOnEvent* note : notesToRemove) {
+        for (NoteOnEvent *note: notesToRemove) {
             removeNote(note);
         }
     }
 }
 
-void DeleteOverlapsTool::deleteOverlapsPoly(const QList<NoteOnEvent*>& notes, bool respectTracks)
-{
+void DeleteOverlapsTool::deleteOverlapsPoly(const QList<NoteOnEvent *> &notes, bool respectTracks) {
     if (respectTracks) {
         // Group notes by track and process each track separately
-        QMap<MidiTrack*, QList<NoteOnEvent*>> trackGroups;
+        QMap<MidiTrack *, QList<NoteOnEvent *> > trackGroups;
 
-        for (NoteOnEvent* note : notes) {
+        for (NoteOnEvent *note: notes) {
             trackGroups[note->track()].append(note);
         }
 
@@ -264,9 +252,8 @@ void DeleteOverlapsTool::deleteOverlapsPoly(const QList<NoteOnEvent*>& notes, bo
     }
 }
 
-void DeleteOverlapsTool::deleteDoubles(const QList<NoteOnEvent*>& notes, bool respectChannels, bool respectTracks)
-{
-    QList<NoteOnEvent*> notesToRemove;
+void DeleteOverlapsTool::deleteDoubles(const QList<NoteOnEvent *> &notes, bool respectChannels, bool respectTracks) {
+    QList<NoteOnEvent *> notesToRemove;
 
     // Compare each note with every other note to find exact duplicates
     for (int i = 0; i < notes.size(); i++) {
@@ -281,26 +268,25 @@ void DeleteOverlapsTool::deleteDoubles(const QList<NoteOnEvent*>& notes, bool re
     }
 
     // Remove the duplicate notes
-    for (NoteOnEvent* note : notesToRemove) {
+    for (NoteOnEvent *note: notesToRemove) {
         removeNote(note);
     }
 }
 
-void DeleteOverlapsTool::processPolyOverlaps(const QList<NoteOnEvent*>& notes)
-{
+void DeleteOverlapsTool::processPolyOverlaps(const QList<NoteOnEvent *> &notes) {
     // Sort all notes by start time regardless of pitch
-    QList<NoteOnEvent*> sortedNotes = notes;
-    std::sort(sortedNotes.begin(), sortedNotes.end(), [](NoteOnEvent* a, NoteOnEvent* b) {
+    QList<NoteOnEvent *> sortedNotes = notes;
+    std::sort(sortedNotes.begin(), sortedNotes.end(), [](NoteOnEvent *a, NoteOnEvent *b) {
         return a->midiTime() < b->midiTime();
     });
 
     // Process notes to make them monophonic
     for (int i = 0; i < sortedNotes.size() - 1; i++) {
-        NoteOnEvent* currentNote = sortedNotes[i];
+        NoteOnEvent *currentNote = sortedNotes[i];
         int currentEndTime = currentNote->offEvent()->midiTime();
 
         for (int j = i + 1; j < sortedNotes.size(); j++) {
-            NoteOnEvent* laterNote = sortedNotes[j];
+            NoteOnEvent *laterNote = sortedNotes[j];
             int laterStartTime = laterNote->midiTime();
 
             // If current note overlaps with any later note, shorten current note
@@ -316,8 +302,7 @@ void DeleteOverlapsTool::processPolyOverlaps(const QList<NoteOnEvent*>& notes)
     }
 }
 
-bool DeleteOverlapsTool::notesOverlap(NoteOnEvent* note1, NoteOnEvent* note2)
-{
+bool DeleteOverlapsTool::notesOverlap(NoteOnEvent *note1, NoteOnEvent *note2) {
     if (!note1 || !note2 || !note1->offEvent() || !note2->offEvent()) {
         return false;
     }
@@ -331,8 +316,7 @@ bool DeleteOverlapsTool::notesOverlap(NoteOnEvent* note1, NoteOnEvent* note2)
     return (note1Start < note2End && note2Start < note1End);
 }
 
-bool DeleteOverlapsTool::notesAreDuplicates(NoteOnEvent* note1, NoteOnEvent* note2, bool respectChannels, bool respectTracks)
-{
+bool DeleteOverlapsTool::notesAreDuplicates(NoteOnEvent *note1, NoteOnEvent *note2, bool respectChannels, bool respectTracks) {
     if (!note1 || !note2 || !note1->offEvent() || !note2->offEvent()) {
         return false;
     }
@@ -342,8 +326,8 @@ bool DeleteOverlapsTool::notesAreDuplicates(NoteOnEvent* note1, NoteOnEvent* not
     // - start time
     // - end time
     bool basicMatch = (note1->note() == note2->note() &&
-                      note1->midiTime() == note2->midiTime() &&
-                      note1->offEvent()->midiTime() == note2->offEvent()->midiTime());
+                       note1->midiTime() == note2->midiTime() &&
+                       note1->offEvent()->midiTime() == note2->offEvent()->midiTime());
 
     if (!basicMatch) {
         return false;
@@ -362,8 +346,7 @@ bool DeleteOverlapsTool::notesAreDuplicates(NoteOnEvent* note1, NoteOnEvent* not
     return true;
 }
 
-void DeleteOverlapsTool::removeNote(NoteOnEvent* note)
-{
+void DeleteOverlapsTool::removeNote(NoteOnEvent *note) {
     if (!note || !note->offEvent()) {
         return;
     }
@@ -372,7 +355,7 @@ void DeleteOverlapsTool::removeNote(NoteOnEvent* note)
     deselectEvent(note);
 
     // Remove the note and its off event from the channel
-    MidiChannel* channel = file()->channel(note->channel());
+    MidiChannel *channel = file()->channel(note->channel());
     if (channel) {
         channel->removeEvent(note);
         channel->removeEvent(note->offEvent());

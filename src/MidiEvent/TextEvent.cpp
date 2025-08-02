@@ -21,13 +21,13 @@
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
 
-TextEvent::TextEvent(int channel, MidiTrack* track)
+TextEvent::TextEvent(int channel, MidiTrack *track)
     : MidiEvent(channel, track) {
     _type = TEXT;
     _text = "";
 }
 
-TextEvent::TextEvent(TextEvent& other)
+TextEvent::TextEvent(TextEvent &other)
     : MidiEvent(other) {
     _type = other._type;
     _text = other._text;
@@ -38,7 +38,7 @@ QString TextEvent::text() {
 }
 
 void TextEvent::setText(QString text) {
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _text = text;
     protocol(toCopy, this);
 }
@@ -48,7 +48,7 @@ int TextEvent::type() {
 }
 
 void TextEvent::setType(int type) {
-    ProtocolEntry* toCopy = copy();
+    ProtocolEntry *toCopy = copy();
     _type = type;
     protocol(toCopy, this);
 }
@@ -72,12 +72,12 @@ QString TextEvent::typeString() {
     return QObject::tr("Text Event");
 }
 
-ProtocolEntry* TextEvent::copy() {
+ProtocolEntry *TextEvent::copy() {
     return new TextEvent(*this);
 }
 
-void TextEvent::reloadState(ProtocolEntry* entry) {
-    TextEvent* other = dynamic_cast<TextEvent*>(entry);
+void TextEvent::reloadState(ProtocolEntry *entry) {
+    TextEvent *other = dynamic_cast<TextEvent *>(entry);
     if (!other) {
         return;
     }
@@ -108,12 +108,10 @@ QString TextEvent::textTypeString(int type) {
 
 int TextEvent::typeForNewEvents = TEXT;
 
-void TextEvent::setTypeForNewEvents(int type)
-{
+void TextEvent::setTypeForNewEvents(int type) {
     typeForNewEvents = type;
 }
 
-int TextEvent::getTypeForNewEvents()
-{
+int TextEvent::getTypeForNewEvents() {
     return typeForNewEvents;
 }

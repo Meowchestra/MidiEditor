@@ -22,48 +22,40 @@
 
 #include "ProtocolItem.h"
 
-ProtocolStep::ProtocolStep(QString description, QImage* img)
-{
+ProtocolStep::ProtocolStep(QString description, QImage *img) {
     _stepDescription = description;
-    _itemStack = new QStack<ProtocolItem*>;
+    _itemStack = new QStack<ProtocolItem *>;
     _image = img;
 }
 
-ProtocolStep::~ProtocolStep()
-{
+ProtocolStep::~ProtocolStep() {
     delete _itemStack;
 }
 
-void ProtocolStep::addItem(ProtocolItem* item)
-{
+void ProtocolStep::addItem(ProtocolItem *item) {
     _itemStack->push(item);
 }
 
-ProtocolStep* ProtocolStep::releaseStep()
-{
-
+ProtocolStep *ProtocolStep::releaseStep() {
     // create the invere Step
-    ProtocolStep* step = new ProtocolStep(_stepDescription, _image);
+    ProtocolStep *step = new ProtocolStep(_stepDescription, _image);
 
     // Copy the Single steps and release them
     while (!_itemStack->isEmpty()) {
-        ProtocolItem* item = _itemStack->pop();
+        ProtocolItem *item = _itemStack->pop();
         step->addItem(item->release());
     }
     return step;
 }
 
-int ProtocolStep::items()
-{
+int ProtocolStep::items() {
     return _itemStack->size();
 }
 
-QString ProtocolStep::description()
-{
+QString ProtocolStep::description() {
     return _stepDescription;
 }
 
-QImage* ProtocolStep::image()
-{
+QImage *ProtocolStep::image() {
     return _image;
 }

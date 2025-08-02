@@ -16,42 +16,51 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PROTOCOLITEM_H
-#define PROTOCOLITEM_H
+#ifndef PROTOCOLITEM_H_
+#define PROTOCOLITEM_H_
 
+// Forward declarations
 class ProtocolEntry;
 
 /**
  * \class ProtocolItem
  *
- * \brief Single action saving the old object and the new object.
+ * \brief Single undo/redo action storing old and new object states.
  *
- * ProtocolItem saves a new ProtocolEntry and an old ProtocolEntry.
- * The old saves the state which will be reloaded by the new Object
- * on calling release().
+ * ProtocolItem represents a single reversible action in the undo/redo system.
+ * It stores both the old and new states of a ProtocolEntry, enabling
+ * bidirectional state transitions:
+ *
+ * - **State preservation**: Stores both before and after states
+ * - **Reversible actions**: Can undo and redo operations
+ * - **Efficient storage**: Only stores the changed object states
+ * - **Protocol integration**: Works with the Protocol system
+ *
+ * The item can be "released" to restore the old state and create
+ * a reverse ProtocolItem for redo functionality.
  */
 class ProtocolItem {
-
 public:
     /**
-		 * \brief Creates a new ProtocolItem.
-		 */
-    ProtocolItem(ProtocolEntry* oldObj, ProtocolEntry* newObj);
+     * \brief Creates a new ProtocolItem.
+     * \param oldObj The ProtocolEntry representing the old state
+     * \param newObj The ProtocolEntry representing the new state
+     */
+    ProtocolItem(ProtocolEntry *oldObj, ProtocolEntry *newObj);
 
     /**
-		 * \brief reloads the state of oldObj on newObj.
-		 *
-		 * Will call newObj.reloadState(newObj) and return a new ProtocolItem.
-		 * This new ProtocolItem will store the reverse order: it contains the
-		 * information needed to load the state of the new Object to the old
-		 * Object.
-		 */
-    ProtocolItem* release();
+     * \brief Releases the item by restoring the old state.
+     * \return A new ProtocolItem with reversed state order for redo
+     *
+     * This method calls newObj.reloadState(oldObj) to restore the old state
+     * and returns a new ProtocolItem with the states reversed, enabling
+     * redo functionality.
+     */
+    ProtocolItem *release();
 
 private:
-    /**
-		 * \brief Both states of the Object.
-		 */
+    /** \brief The old and new states of the object */
     ProtocolEntry *_oldObject, *_newObject;
 };
-#endif
+
+#endif // PROTOCOLITEM_H_

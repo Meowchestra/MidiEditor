@@ -18,11 +18,8 @@
 
 #include "SettingsDialog.h"
 
-#include <QFrame>
-#include <QGridLayout>
 #include <QList>
-#include <QListWidget>
-#include <QPushButton>
+#include <QMetaObject>
 #include <QStackedWidget>
 #include <QWidget>
 
@@ -32,24 +29,24 @@
 #include "PerformanceSettingsWidget.h"
 #include "SettingsWidget.h"
 
-SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* parent)
+SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *parent)
     : QDialog(parent) {
-
     setWindowTitle(title);
 
-    _settingsWidgets = new QList<SettingsWidget*>;
+    _settingsWidgets = new QList<SettingsWidget *>;
 
-    setMinimumHeight(400);
+    setMinimumSize(640, 450);
+    resize(640, 720);
 
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
     setLayout(layout);
 
     setModal(true);
 
     // the central widget
-    QWidget* central = new QWidget(this);
-    QGridLayout* centralLayout = new QGridLayout(central);
+    QWidget *central = new QWidget(this);
+    QGridLayout *centralLayout = new QGridLayout(central);
     central->setLayout(centralLayout);
 
     // the list on the left side
@@ -74,13 +71,13 @@ SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* pare
     layout->setRowStretch(1, 1);
 
     // buttons
-    QWidget* buttonBar = new QWidget(this);
-    QGridLayout* buttonLayout = new QGridLayout(buttonBar);
+    QWidget *buttonBar = new QWidget(this);
+    QGridLayout *buttonLayout = new QGridLayout(buttonBar);
 
     buttonBar->setLayout(buttonLayout);
 
     // ok
-    QPushButton* ok = new QPushButton(tr("Close"), buttonBar);
+    QPushButton *ok = new QPushButton(tr("Close"), buttonBar);
     buttonLayout->addWidget(ok, 0, 2, 1, 1);
     connect(ok, SIGNAL(clicked()), this, SLOT(submit()));
 
@@ -95,13 +92,12 @@ SettingsDialog::SettingsDialog(QString title, QSettings* settings, QWidget* pare
     addSetting(new PerformanceSettingsWidget(settings, central));
 }
 
-void SettingsDialog::addSetting(SettingsWidget* settingWidget) {
-
+void SettingsDialog::addSetting(SettingsWidget *settingWidget) {
     _settingsWidgets->append(settingWidget);
     _container->addWidget(settingWidget);
 
     // create the new ListEntry
-    QListWidgetItem* newItem = new QListWidgetItem(settingWidget->title());
+    QListWidgetItem *newItem = new QListWidgetItem(settingWidget->title());
     newItem->setIcon(settingWidget->icon());
     _listWidget->addItem(newItem);
 
@@ -120,6 +116,18 @@ void SettingsDialog::rowChanged(int row) {
         }
     }
     _container->setCurrentIndex(row);
+}
+
+void SettingsDialog::refreshToolbarIcons() {
+    // Only refresh icons in LayoutSettingsWidget when customize toolbar is enabled
+    // Colors are already refreshed by Appearance.cpp, so we don't need to do it here
+    for (SettingsWidget *widget : *_settingsWidgets) {
+        if (widget && widget->inherits("LayoutSettingsWidget")) {
+            // Only refresh if the widget actually has icons visible (customize mode enabled)
+            QMetaObject::invokeMethod(widget, "refreshIcons", Qt::DirectConnection);
+            break; // Only one LayoutSettingsWidget exists
+        }
+    }
 }
 
 void SettingsDialog::submit() {

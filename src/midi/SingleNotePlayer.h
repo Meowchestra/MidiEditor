@@ -19,26 +19,65 @@
 #ifndef SINGLENOTEPLAYER_H_
 #define SINGLENOTEPLAYER_H_
 
+// Qt includes
 #include <QObject>
 
+// Forward declarations
 class NoteOnEvent;
 class QTimer;
 
+/**
+ * \class SingleNotePlayer
+ *
+ * \brief Simple player for single note preview during editing.
+ *
+ * SingleNotePlayer provides immediate audio feedback when users interact
+ * with individual notes in the editor. It offers:
+ *
+ * - **Note preview**: Play individual notes for immediate feedback
+ * - **Automatic note-off**: Automatically stops notes after a duration
+ * - **Non-blocking**: Doesn't interfere with main playback system
+ * - **Simple interface**: Easy integration with editing tools
+ * - **Timer-based**: Uses QTimer for note duration management
+ *
+ * The player is commonly used when:
+ * - Clicking on notes in the piano roll
+ * - Creating new notes with tools
+ * - Testing note properties during editing
+ * - Providing audio feedback for user interactions
+ *
+ * It automatically handles note-off messages to prevent stuck notes.
+ */
 class SingleNotePlayer : public QObject {
-
     Q_OBJECT
 
 public:
+    /**
+     * \brief Creates a new SingleNotePlayer.
+     */
     SingleNotePlayer();
-    void play(NoteOnEvent* event);
+
+    /**
+     * \brief Plays a single note event for preview.
+     * \param event The NoteOnEvent to play
+     */
+    void play(NoteOnEvent *event);
 
 public slots:
+    /**
+     * \brief Handles timer timeout to stop the note.
+     */
     void timeout();
 
 private:
-    QTimer* timer;
+    /** \brief Timer for note duration */
+    QTimer *timer;
+
+    /** \brief Note-off message to send when stopping */
     QByteArray offMessage;
+
+    /** \brief Flag indicating if currently playing */
     bool playing;
 };
 
-#endif
+#endif // SINGLENOTEPLAYER_H_

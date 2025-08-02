@@ -19,24 +19,52 @@
 #ifndef FILELENGTHDIALOG_H_
 #define FILELENGTHDIALOG_H_
 
+// Qt includes
 #include <QDialog>
 
+// Forward declarations
 class MidiFile;
 class QSpinBox;
 
+/**
+ * \class FileLengthDialog
+ *
+ * \brief Dialog for setting the maximum length of a MIDI file.
+ *
+ * FileLengthDialog allows users to specify the maximum duration of a MIDI file
+ * in milliseconds. This setting affects:
+ *
+ * - **File duration**: Sets the total playback length
+ * - **Timeline display**: Determines the extent of the timeline
+ * - **Export behavior**: Controls the length of exported files
+ * - **Memory allocation**: Affects internal buffer sizes
+ *
+ * The dialog provides a simple spin box interface for entering the desired
+ * length in milliseconds, with validation to ensure reasonable values.
+ */
 class FileLengthDialog : public QDialog {
-
     Q_OBJECT
 
 public:
-    FileLengthDialog(MidiFile* f, QWidget* parent = 0);
+    /**
+     * \brief Creates a new FileLengthDialog.
+     * \param f The MidiFile to set the length for
+     * \param parent The parent widget
+     */
+    FileLengthDialog(MidiFile *f, QWidget *parent = 0);
 
 public slots:
+    /**
+     * \brief Accepts the dialog and applies the new file length.
+     */
     void accept();
 
 private:
-    MidiFile* _file;
-    QSpinBox* _box;
+    /** \brief The MIDI file to modify */
+    MidiFile *_file;
+
+    /** \brief Spin box for entering the length in milliseconds */
+    QSpinBox *_box;
 };
 
-#endif
+#endif // FILELENGTHDIALOG_H_

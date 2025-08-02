@@ -20,9 +20,8 @@
 #include "Tool.h"
 #include "../gui/Appearance.h"
 
-ToolButton::ToolButton(Tool* tool, QKeySequence sequence, QWidget* parent)
-    : QAction(reinterpret_cast<QObject*>(parent))
-{
+ToolButton::ToolButton(Tool *tool, QKeySequence sequence, QWidget *parent)
+    : QAction(reinterpret_cast<QObject *>(parent)) {
     button_tool = tool;
     tool->setButton(this);
     setText(button_tool->toolTip());
@@ -36,18 +35,15 @@ ToolButton::ToolButton(Tool* tool, QKeySequence sequence, QWidget* parent)
     setShortcut(sequence);
 }
 
-void ToolButton::buttonClick()
-{
+void ToolButton::buttonClick() {
     button_tool->buttonClick();
 }
 
-void ToolButton::releaseButton()
-{
+void ToolButton::releaseButton() {
     button_tool->buttonClick();
 }
 
-void ToolButton::refreshIcon()
-{
+void ToolButton::refreshIcon() {
     QImage image = *(button_tool->image());
     QPixmap pixmap = QPixmap::fromImage(image);
     // Apply dark mode adjustment if needed

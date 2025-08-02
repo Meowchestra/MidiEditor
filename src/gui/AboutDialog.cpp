@@ -30,23 +30,22 @@
 #include <QTextStream>
 #include <QVariant>
 
-AboutDialog::AboutDialog(QWidget* parent)
+AboutDialog::AboutDialog(QWidget *parent)
     : QDialog(parent) {
-
     setMinimumWidth(550);
     setMaximumHeight(450);
     setWindowTitle(tr("About"));
     // Note: setWindowIcon doesn't use QAction, so we keep the direct approach
     setWindowIcon(Appearance::adjustIconForDarkMode(":/run_environment/graphics/icon.png"));
-    QGridLayout* layout = new QGridLayout(this);
+    QGridLayout *layout = new QGridLayout(this);
 
-    QLabel* icon = new QLabel();
+    QLabel *icon = new QLabel();
     QPixmap iconPixmap = Appearance::adjustIconForDarkMode(QPixmap(":/run_environment/graphics/midieditor.png"), "midieditor");
     icon->setPixmap(iconPixmap.scaledToWidth(80, Qt::SmoothTransformation));
     icon->setFixedSize(80, 80);
     layout->addWidget(icon, 0, 0, 3, 1);
 
-    QLabel* title = new QLabel("<h1>" + QApplication::applicationName() + "</h1>", this);
+    QLabel *title = new QLabel("<h1>" + QApplication::applicationName() + "</h1>", this);
     layout->addWidget(title, 0, 1, 1, 2);
     if (Appearance::shouldUseDarkMode()) {
         title->setStyleSheet("color: white");
@@ -54,7 +53,7 @@ AboutDialog::AboutDialog(QWidget* parent)
         title->setStyleSheet("color: black");
     }
 
-    QLabel* version = new QLabel("Version: " + QApplication::applicationVersion() + " (" + QApplication::instance()->property("arch").toString() + "-Bit" + ")", this);
+    QLabel *version = new QLabel("Version: " + QApplication::applicationVersion() + " (" + QApplication::instance()->property("arch").toString() + "-Bit" + ")", this);
     layout->addWidget(version, 1, 1, 1, 2);
     if (Appearance::shouldUseDarkMode()) {
         version->setStyleSheet("color: #cccccc");
@@ -62,16 +61,16 @@ AboutDialog::AboutDialog(QWidget* parent)
         version->setStyleSheet("color: black");
     }
 
-    QScrollArea* a = new QScrollArea(this);
+    QScrollArea *a = new QScrollArea(this);
     QString contributors = "<p>";
     QString delim = "";
-    foreach (QString contributor, *loadContributors()) {
+    foreach(QString contributor, *loadContributors()) {
         contributors = contributors + delim + contributor;
         delim = "<br/>";
     }
     contributors = contributors + "</p>";
 
-    QLabel* content = new QLabel("<html>"
+    QLabel *content = new QLabel("<html>"
                                  "<body>"
                                  "<h3>Maintained with ♡</h3>"
                                  "<p>"
@@ -120,18 +119,17 @@ AboutDialog::AboutDialog(QWidget* parent)
     layout->setRowStretch(3, 1);
     layout->setColumnStretch(1, 1);
 
-    QFrame* f = new QFrame(this);
+    QFrame *f = new QFrame(this);
     f->setFrameStyle(QFrame::HLine | QFrame::Sunken);
     layout->addWidget(f, 4, 0, 1, 3);
 
-    QPushButton* close = new QPushButton("Close");
+    QPushButton *close = new QPushButton("Close");
     layout->addWidget(close, 5, 2, 1, 1);
     connect(close, SIGNAL(clicked()), this, SLOT(hide()));
 }
 
-QList<QString>* AboutDialog::loadContributors() {
-
-    QList<QString>* list = new QList<QString>();
+QList<QString> *AboutDialog::loadContributors() {
+    QList<QString> *list = new QList<QString>();
 
     QFile file(":/CONTRIBUTORS");
     if (!file.open(QFile::ReadOnly | QFile::Text))

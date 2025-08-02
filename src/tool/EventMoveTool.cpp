@@ -46,7 +46,7 @@ EventMoveTool::EventMoveTool(bool upDown, bool leftRight)
     }
 }
 
-EventMoveTool::EventMoveTool(EventMoveTool& other)
+EventMoveTool::EventMoveTool(EventMoveTool &other)
     : EventTool(other) {
     moveUpDown = other.moveUpDown;
     moveLeftRight = other.moveLeftRight;
@@ -55,13 +55,13 @@ EventMoveTool::EventMoveTool(EventMoveTool& other)
     startY = 0;
 }
 
-ProtocolEntry* EventMoveTool::copy() {
+ProtocolEntry *EventMoveTool::copy() {
     return new EventMoveTool(*this);
 }
 
-void EventMoveTool::reloadState(ProtocolEntry* entry) {
+void EventMoveTool::reloadState(ProtocolEntry *entry) {
     EventTool::reloadState(entry);
-    EventMoveTool* other = dynamic_cast<EventMoveTool*>(entry);
+    EventMoveTool *other = dynamic_cast<EventMoveTool *>(entry);
     if (!other) {
         return;
     }
@@ -73,7 +73,7 @@ void EventMoveTool::reloadState(ProtocolEntry* entry) {
     startY = 0;
 }
 
-void EventMoveTool::draw(QPainter* painter) {
+void EventMoveTool::draw(QPainter *painter) {
     paintSelectedEvents(painter);
     int currentX = computeRaster();
 
@@ -93,7 +93,7 @@ void EventMoveTool::draw(QPainter* painter) {
         } else {
             shiftY = nLines * lineHeight;
         }
-        foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
+        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             int customShiftY = shiftY;
             if (event->line() > 127) {
                 customShiftY = 0;
@@ -101,13 +101,10 @@ void EventMoveTool::draw(QPainter* painter) {
             if (event->shown()) {
                 painter->setPen(Qt::lightGray);
                 painter->setBrush(Qt::darkBlue);
-                painter->drawRoundedRect(event->x() - shiftX, event->y() - customShiftY,
-                                         event->width(), event->height(), 1, 1);
+                painter->drawRoundedRect(event->x() - shiftX, event->y() - customShiftY, event->width(), event->height(), 1, 1);
                 painter->setPen(Qt::gray);
-                painter->drawLine(event->x() - shiftX, 0, event->x() - shiftX,
-                                  matrixWidget->height());
-                painter->drawLine(event->x() + event->width() - shiftX, 0,
-                                  event->x() + event->width() - shiftX, matrixWidget->height());
+                painter->drawLine(event->x() - shiftX, 0, event->x() - shiftX, matrixWidget->height());
+                painter->drawLine(event->x() + event->width() - shiftX, 0, event->x() + event->width() - shiftX, matrixWidget->height());
                 painter->setPen(Qt::black);
             }
         }
@@ -161,9 +158,9 @@ bool EventMoveTool::release() {
 
     // backwards to hold stability
     for (int i = Selection::instance()->selectedEvents().count() - 1; i >= 0; i--) {
-        MidiEvent* event = Selection::instance()->selectedEvents().at(i);
-        NoteOnEvent* ev = dynamic_cast<NoteOnEvent*>(event);
-        OffEvent* off = dynamic_cast<OffEvent*>(event);
+        MidiEvent *event = Selection::instance()->selectedEvents().at(i);
+        NoteOnEvent *ev = dynamic_cast<NoteOnEvent *>(event);
+        OffEvent *off = dynamic_cast<OffEvent *>(event);
         if (ev) {
             int note = ev->note() + numLines;
             if (note < 0) {
@@ -214,7 +211,6 @@ bool EventMoveTool::showsSelection() {
 }
 
 int EventMoveTool::computeRaster() {
-
     if (!moveLeftRight) {
         return mouseX;
     }
@@ -223,13 +219,12 @@ int EventMoveTool::computeRaster() {
     int firstTick = -1;
     int lastTick = -1;
 
-    foreach (MidiEvent* event, Selection::instance()->selectedEvents()) {
-
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         if ((firstTick == -1) || (event->midiTime() < firstTick)) {
             firstTick = event->midiTime();
         }
 
-        NoteOnEvent* onEvent = dynamic_cast<NoteOnEvent*>(event);
+        NoteOnEvent *onEvent = dynamic_cast<NoteOnEvent *>(event);
         if (onEvent) {
             if ((lastTick == -1) || (onEvent->offEvent()->midiTime() > lastTick)) {
                 lastTick = onEvent->offEvent()->midiTime();

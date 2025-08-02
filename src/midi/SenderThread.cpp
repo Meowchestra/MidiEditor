@@ -21,16 +21,14 @@
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 
-SenderThread::SenderThread()
-{
-    _eventQueue = new QQueue<MidiEvent*>;
-    _noteQueue = new QQueue<MidiEvent*>;
+SenderThread::SenderThread() {
+    _eventQueue = new QQueue<MidiEvent *>;
+    _noteQueue = new QQueue<MidiEvent *>;
     _mutex = new QMutex();
     _waitCondition = new QWaitCondition();
 }
 
-void SenderThread::run()
-{
+void SenderThread::run() {
     _mutex->lock();
 
     while (true) {
@@ -53,14 +51,13 @@ void SenderThread::run()
     _mutex->unlock();
 }
 
-void SenderThread::enqueue(MidiEvent* event)
-{
+void SenderThread::enqueue(MidiEvent *event) {
     _mutex->lock();
 
     // If it is a NoteOnEvent or an OffEvent, we put it in _noteQueue.
-    if (dynamic_cast<NoteOnEvent*>(event) || dynamic_cast<OffEvent*>(event))
+    if (dynamic_cast<NoteOnEvent *>(event) || dynamic_cast<OffEvent *>(event))
         _noteQueue->push_back(event);
-    // Otherwise, it goes into _eventQueue.
+        // Otherwise, it goes into _eventQueue.
     else
         _eventQueue->push_back(event);
 

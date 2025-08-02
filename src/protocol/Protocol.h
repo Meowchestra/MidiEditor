@@ -16,12 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef PROTOCOL_H
-#define PROTOCOL_H
+#ifndef PROTOCOL_H_
+#define PROTOCOL_H_
 
-#include <QList>
 #include <QObject>
 
+// Forward declarations
 class ProtocolItem;
 class ProtocolStep;
 class MidiFile;
@@ -45,29 +45,25 @@ class QImage;
  * Starting a new Action will clear the redo stack.
  */
 class Protocol : public QObject {
-
     Q_OBJECT
 
 public:
     /**
-		 * \brief creates a new Protocol for the MidiFile f.
-		 */
-    Protocol(MidiFile* f);
+     * \brief Creates a new Protocol for the MidiFile f.
+     * \param f The MidiFile to track changes for
+     */
+    Protocol(MidiFile *f);
 
     /**
-		 * \brief undo the first ProtocolStep on the undo stack.
-		 *
-		 * If emitChanged is true, the Protocol will emit the Signal
-		 * protocolChanged()
-		 */
+     * \brief Undoes the first ProtocolStep on the undo stack.
+     * \param emitChanged If true, emits the protocolChanged() signal
+     */
     void undo(bool emitChanged = true);
 
     /**
-		 * \brief redo the last ProtocolStep on the redo stack.
-		 *
-		 * If emitChanged is true, the Protocol will emit the Signal
-		 * protocolChanged()
-		 */
+     * \brief Redoes the last ProtocolStep on the redo stack.
+     * \param emitChanged If true, emits the protocolChanged() signal
+     */
     void redo(bool emitChanged = true);
 
     /**
@@ -82,7 +78,7 @@ public:
 		 *
 		 * Clears the redo stack.
 		 */
-    void startNewAction(QString description, QImage* img = 0);
+    void startNewAction(QString description, QImage *img = 0);
 
     /**
 		 * \brief closes the current ProtocolStep.
@@ -104,17 +100,17 @@ public:
 		 *
 		 * You need to call startNewAction() to add a ProtocolItem.
 		 */
-    void enterUndoStep(ProtocolItem* item);
+    void enterUndoStep(ProtocolItem *item);
 
     /**
 		 * \brief returns the ProtocolStep of the undo Stack at Position i.
 		 */
-    ProtocolStep* undoStep(int i);
+    ProtocolStep *undoStep(int i);
 
     /**
 		 * \brief returns the ProtocolStep of the redo Stack at Position i.
 		 */
-    ProtocolStep* redoStep(int i);
+    ProtocolStep *redoStep(int i);
 
     /**
 		 * \brief Goes to the given ProtocolStep.
@@ -122,7 +118,7 @@ public:
 		 * redoes/undoes as often as necessary to have toGo as last Action on
 		 * undo Stack
 		 */
-    void goTo(ProtocolStep* toGo);
+    void goTo(ProtocolStep *toGo);
 
     /**
 		 * \brief Adds an empty Action with the given description.
@@ -136,6 +132,7 @@ signals:
 		 * \brief This Signal will be emitted when there has been an undo/redo
 		 */
     void protocolChanged();
+
     void actionFinished();
 
 private:
@@ -144,7 +141,7 @@ private:
 		 *
 		 * It will be 0 if there is no Action opened		 *
 		 */
-    ProtocolStep* _currentStep;
+    ProtocolStep *_currentStep;
 
     /**
 		 * \brief The two Stacks containing undo/redo Steps.
@@ -154,6 +151,6 @@ private:
     /**
 		 * \brief the MidiFile this Protocol is working with.
 		 */
-    MidiFile* _file;
+    MidiFile *_file;
 };
-#endif
+#endif // PROTOCOL_H_

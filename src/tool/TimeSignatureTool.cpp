@@ -8,16 +8,15 @@
 
 
 TimeSignatureTool::TimeSignatureTool()
-    : EventTool()
-{
+    : EventTool() {
     setImage(":/run_environment/graphics/tool/meter.png");
     setToolTipText("Edit time signatures");
 }
 
-TimeSignatureTool::TimeSignatureTool(TimeSignatureTool& other) : TimeSignatureTool(){
+TimeSignatureTool::TimeSignatureTool(TimeSignatureTool &other) : TimeSignatureTool() {
 }
 
-void TimeSignatureTool::draw(QPainter* painter){
+void TimeSignatureTool::draw(QPainter *painter) {
     int ms = matrixWidget->msOfXPos(mouseX);
     int tick = file()->tick(ms);
     int measureStartTick, measureEndTick;
@@ -26,14 +25,14 @@ void TimeSignatureTool::draw(QPainter* painter){
     int startX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureStartTick));
     int endX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureEndTick));
     painter->setOpacity(0.5);
-    painter->fillRect(startX, 0, endX-startX, matrixWidget->height(), Appearance::timeSignatureToolHighlightColor());
+    painter->fillRect(startX, 0, endX - startX, matrixWidget->height(), Appearance::timeSignatureToolHighlightColor());
 }
 
-bool TimeSignatureTool::press(bool leftClick){
+bool TimeSignatureTool::press(bool leftClick) {
     return false;
 }
 
-bool TimeSignatureTool::release(){
+bool TimeSignatureTool::release() {
     int ms = matrixWidget->msOfXPos(mouseX);
     int tick = file()->tick(ms);
     int measureStartTick, measureEndTick;
@@ -45,21 +44,21 @@ bool TimeSignatureTool::release(){
     return true;
 }
 
-bool TimeSignatureTool::releaseOnly(){
+bool TimeSignatureTool::releaseOnly() {
     return false;
 }
 
-bool TimeSignatureTool::move(int mouseX, int mouseY){
+bool TimeSignatureTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     return true;
 }
 
-ProtocolEntry* TimeSignatureTool::copy(){
+ProtocolEntry *TimeSignatureTool::copy() {
     return new TimeSignatureTool(*this);
 }
 
-void TimeSignatureTool::reloadState(ProtocolEntry* entry){
-    TimeSignatureTool* other = dynamic_cast<TimeSignatureTool*>(entry);
+void TimeSignatureTool::reloadState(ProtocolEntry *entry) {
+    TimeSignatureTool *other = dynamic_cast<TimeSignatureTool *>(entry);
     if (!other) {
         return;
     }

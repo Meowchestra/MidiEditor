@@ -19,38 +19,32 @@
 #include "TempoChangeEvent.h"
 #include "../midi/MidiFile.h"
 
-TempoChangeEvent::TempoChangeEvent(int channel, int value, MidiTrack* track)
-    : MidiEvent(channel, track)
-{
+TempoChangeEvent::TempoChangeEvent(int channel, int value, MidiTrack *track)
+    : MidiEvent(channel, track) {
     _beats = 60000000 / value;
 }
 
-TempoChangeEvent::TempoChangeEvent(TempoChangeEvent& other)
-    : MidiEvent(other)
-{
+TempoChangeEvent::TempoChangeEvent(TempoChangeEvent &other)
+    : MidiEvent(other) {
     _beats = other._beats;
 }
 
-int TempoChangeEvent::beatsPerQuarter()
-{
+int TempoChangeEvent::beatsPerQuarter() {
     return _beats;
 }
 
-double TempoChangeEvent::msPerTick()
-{
-    double quarters_per_second = (double)_beats / 60;
-    double ticks_per_second = (double)(file()->ticksPerQuarter()) * quarters_per_second;
+double TempoChangeEvent::msPerTick() {
+    double quarters_per_second = (double) _beats / 60;
+    double ticks_per_second = (double) (file()->ticksPerQuarter()) * quarters_per_second;
     return 1000 / (ticks_per_second);
 }
 
-ProtocolEntry* TempoChangeEvent::copy()
-{
+ProtocolEntry *TempoChangeEvent::copy() {
     return new TempoChangeEvent(*this);
 }
 
-void TempoChangeEvent::reloadState(ProtocolEntry* entry)
-{
-    TempoChangeEvent* other = dynamic_cast<TempoChangeEvent*>(entry);
+void TempoChangeEvent::reloadState(ProtocolEntry *entry) {
+    TempoChangeEvent *other = dynamic_cast<TempoChangeEvent *>(entry);
     if (!other) {
         return;
     }
@@ -58,13 +52,11 @@ void TempoChangeEvent::reloadState(ProtocolEntry* entry)
     _beats = other->_beats;
 }
 
-int TempoChangeEvent::line()
-{
+int TempoChangeEvent::line() {
     return MidiEvent::TEMPO_CHANGE_EVENT_LINE;
 }
 
-QByteArray TempoChangeEvent::save()
-{
+QByteArray TempoChangeEvent::save() {
     QByteArray array = QByteArray();
 
     array.append(char(0xFF));
@@ -78,15 +70,13 @@ QByteArray TempoChangeEvent::save()
     return array;
 }
 
-void TempoChangeEvent::setBeats(int beats)
-{
-    ProtocolEntry* toCopy = copy();
+void TempoChangeEvent::setBeats(int beats) {
+    ProtocolEntry *toCopy = copy();
     _beats = beats;
     file()->calcMaxTime();
     protocol(toCopy, this);
 }
 
-QString TempoChangeEvent::typeString()
-{
+QString TempoChangeEvent::typeString() {
     return "Tempo Change Event";
 }

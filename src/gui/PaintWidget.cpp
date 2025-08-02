@@ -18,9 +18,8 @@
 
 #include "PaintWidget.h"
 
-PaintWidget::PaintWidget(QWidget* parent)
-    : QWidget(parent)
-{
+PaintWidget::PaintWidget(QWidget *parent)
+    : QWidget(parent) {
     this->setMouseTracking(true);
     this->mouseOver = false;
     this->mousePressed = false;
@@ -37,22 +36,20 @@ PaintWidget::PaintWidget(QWidget* parent)
     this->enabled = true;
 }
 
-void PaintWidget::mouseMoveEvent(QMouseEvent* event)
-{
-
+void PaintWidget::mouseMoveEvent(QMouseEvent *event) {
     this->mouseOver = true;
 
     if (mousePinned) {
         // do not change mousePosition but lastMousePosition to get the
         // correct move distance
         QCursor::setPos(mapToGlobal(QPoint(mouseX, mouseY)));
-        mouseLastX = 2 * mouseX - event->x();
-        mouseLastY = 2 * mouseY - event->y();
+        mouseLastX = 2 * mouseX - qRound(event->position().x());
+        mouseLastY = 2 * mouseY - qRound(event->position().y());
     } else {
         this->mouseLastX = this->mouseX;
         this->mouseLastY = this->mouseY;
-        this->mouseX = event->x();
-        this->mouseY = event->y();
+        this->mouseX = qRound(event->position().x());
+        this->mouseY = qRound(event->position().y());
     }
     if (mousePressed) {
         inDrag = true;
@@ -67,9 +64,7 @@ void PaintWidget::mouseMoveEvent(QMouseEvent* event)
     }
 }
 
-void PaintWidget::enterEvent(QEvent* event)
-{
-
+void PaintWidget::enterEvent(QEvent *event) {
     this->mouseOver = true;
 
     if (!enabled) {
@@ -79,8 +74,7 @@ void PaintWidget::enterEvent(QEvent* event)
     update();
 }
 
-void PaintWidget::leaveEvent(QEvent* event)
-{
+void PaintWidget::leaveEvent(QEvent *event) {
     this->mouseOver = false;
 
     if (!enabled) {
@@ -90,9 +84,7 @@ void PaintWidget::leaveEvent(QEvent* event)
     update();
 }
 
-void PaintWidget::mousePressEvent(QMouseEvent* event)
-{
-
+void PaintWidget::mousePressEvent(QMouseEvent *event) {
     this->mousePressed = true;
     this->mouseReleased = false;
 
@@ -105,9 +97,7 @@ void PaintWidget::mousePressEvent(QMouseEvent* event)
     }
 }
 
-void PaintWidget::mouseReleaseEvent(QMouseEvent* event)
-{
-
+void PaintWidget::mouseReleaseEvent(QMouseEvent *event) {
     this->inDrag = false;
     this->mouseReleased = true;
     this->mousePressed = false;
@@ -121,18 +111,15 @@ void PaintWidget::mouseReleaseEvent(QMouseEvent* event)
     }
 }
 
-bool PaintWidget::mouseInRect(int x, int y, int width, int height)
-{
+bool PaintWidget::mouseInRect(int x, int y, int width, int height) {
     return mouseBetween(x, y, x + width, y + height);
 }
 
-bool PaintWidget::mouseInRect(QRectF rect)
-{
+bool PaintWidget::mouseInRect(QRectF rect) {
     return mouseInRect(rect.x(), rect.y(), rect.width(), rect.height());
 }
 
-bool PaintWidget::mouseBetween(int x1, int y1, int x2, int y2)
-{
+bool PaintWidget::mouseBetween(int x1, int y1, int x2, int y2) {
     int temp;
     if (x1 > x2) {
         temp = x1;
@@ -147,8 +134,7 @@ bool PaintWidget::mouseBetween(int x1, int y1, int x2, int y2)
     return mouseOver && mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
 }
 
-int PaintWidget::draggedX()
-{
+int PaintWidget::draggedX() {
     if (!inDrag) {
         return 0;
     }
@@ -157,8 +143,7 @@ int PaintWidget::draggedX()
     return i;
 }
 
-int PaintWidget::draggedY()
-{
+int PaintWidget::draggedY() {
     if (!inDrag) {
         return 0;
     }
@@ -167,23 +152,19 @@ int PaintWidget::draggedY()
     return i;
 }
 
-void PaintWidget::setRepaintOnMouseMove(bool b)
-{
+void PaintWidget::setRepaintOnMouseMove(bool b) {
     repaintOnMouseMove = b;
 }
 
-void PaintWidget::setRepaintOnMousePress(bool b)
-{
+void PaintWidget::setRepaintOnMousePress(bool b) {
     repaintOnMousePress = b;
 }
 
-void PaintWidget::setRepaintOnMouseRelease(bool b)
-{
+void PaintWidget::setRepaintOnMouseRelease(bool b) {
     repaintOnMouseRelease = b;
 }
 
-void PaintWidget::setEnabled(bool b)
-{
+void PaintWidget::setEnabled(bool b) {
     enabled = b;
     setMouseTracking(enabled);
     update();
