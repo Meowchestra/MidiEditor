@@ -8,12 +8,6 @@ layout(location = 1) in vec2 fragUV;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    // Simple triangle rendering with antialiasing
-    vec4 finalColor = fragColor;
-    
-    // Apply subtle gradient for 3D effect
-    float gradient = 1.0 - (fragUV.y * 0.2);
-    finalColor.rgb *= gradient;
-    
-    outColor = finalColor;
+    // Use solid colors exactly like software drawPolygon (no gradients or 3D effects)
+    outColor = fragColor;
 }

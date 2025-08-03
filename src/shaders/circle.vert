@@ -34,13 +34,9 @@ void main() {
     vec3 circlePos = position;
     circlePos.xy *= circleTransform.z * 2.0; // Scale by diameter
     circlePos.xy += circleTransform.xy;      // Translate to circle center
-    
-    // Convert to normalized device coordinates
-    vec2 screenPos = circlePos.xy / ubo.screenSize;
-    screenPos = screenPos * 2.0 - 1.0;
-    screenPos.y = -screenPos.y; // Flip Y coordinate
-    
-    gl_Position = vec4(screenPos, 0.0, 1.0);
+
+    // Use MVP matrix for consistent coordinate transformation
+    gl_Position = ubo.mvpMatrix * vec4(circlePos, 1.0);
     
     // Pass data to fragment shader
     fragColor = circleColor;

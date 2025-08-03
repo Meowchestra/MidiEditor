@@ -67,18 +67,7 @@ void main() {
         discard; // Don't render this fragment
     }
     
-    // Apply subtle gradient for 3D effect (EXACT COPY from MatrixWidget visual style)
-    vec4 baseColor = fragColor;
-    
-    // Add subtle lighting based on UV coordinates
-    float lightFactor = 1.0 - (fragUV.y * 0.1); // Slightly darker at bottom
-    baseColor.rgb *= lightFactor;
-    
-    // Add subtle border darkening
-    vec2 border = min(fragUV, 1.0 - fragUV);
-    float borderFactor = min(border.x, border.y);
-    borderFactor = smoothstep(0.0, 0.05, borderFactor); // 5% border
-    baseColor.rgb *= (0.8 + 0.2 * borderFactor);
-    
-    outColor = baseColor;
+    // Use solid colors exactly like software MatrixWidget (no gradients or effects)
+    // Software uses simple solid colors from Appearance class with no visual effects
+    outColor = fragColor;
 }

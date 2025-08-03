@@ -20,14 +20,12 @@ void main() {
         discard;
     }
     
-    // Apply smooth antialiasing at the edge
+    // Apply smooth antialiasing at the edge (matches software drawEllipse)
     float alpha = 1.0 - smoothstep(0.9, 1.0, distance);
-    
-    // Apply subtle gradient for 3D effect
-    float gradient = 1.0 - distance * 0.3;
+
+    // Use solid colors exactly like software drawEllipse (no gradients or 3D effects)
     vec4 finalColor = fragColor;
-    finalColor.rgb *= gradient;
     finalColor.a *= alpha;
-    
+
     outColor = finalColor;
 }

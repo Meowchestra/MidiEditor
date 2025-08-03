@@ -34,13 +34,9 @@ void main() {
     vec3 charPos = position;
     charPos.xy *= instancePosSize.zw; // Scale by character width, height
     charPos.xy += instancePosSize.xy; // Translate to character position
-    
-    // Convert to normalized device coordinates
-    vec2 screenPos = charPos.xy / ubo.screenSize;
-    screenPos = screenPos * 2.0 - 1.0;
-    screenPos.y = -screenPos.y; // Flip Y coordinate
-    
-    gl_Position = vec4(screenPos, 0.0, 1.0);
+
+    // Use MVP matrix for consistent coordinate transformation
+    gl_Position = ubo.mvpMatrix * vec4(charPos, 1.0);
     
     // Calculate atlas UV coordinates
     vec2 atlasUV = mix(instanceUV.xy, instanceUV.zw, uv);

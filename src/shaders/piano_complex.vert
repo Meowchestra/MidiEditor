@@ -36,13 +36,9 @@ void main() {
     vec3 keyPos = position;
     keyPos.xy *= keyTransform.zw; // Scale by width, height
     keyPos.xy += keyTransform.xy; // Translate to key position
-    
-    // Convert to normalized device coordinates
-    vec2 screenPos = keyPos.xy / ubo.screenSize;
-    screenPos = screenPos * 2.0 - 1.0;
-    screenPos.y = -screenPos.y; // Flip Y coordinate
-    
-    gl_Position = vec4(screenPos, 0.0, 1.0);
+
+    // Use MVP matrix for consistent coordinate transformation
+    gl_Position = ubo.mvpMatrix * vec4(keyPos, 1.0);
     
     // Pass data to fragment shader
     fragColor = keyColor;

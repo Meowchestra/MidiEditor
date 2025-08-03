@@ -33,11 +33,6 @@ void main() {
         alpha = 1.0 - smoothstep(cornerRadius - 0.01, cornerRadius, dist);
     }
     
-    // Apply the event color with rounded corner alpha
+    // Apply the event color with rounded corner alpha (matches software drawRoundedRect)
     outColor = vec4(fragColor.rgb, fragColor.a * alpha);
-    
-    // Add subtle gradient to match software rendering appearance
-    // Software rendering often has slight variations due to anti-aliasing
-    float gradient = 1.0 - fragTexCoord.y * 0.1; // Very subtle gradient
-    outColor.rgb *= gradient;
 }

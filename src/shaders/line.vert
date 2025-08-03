@@ -24,10 +24,7 @@ layout(std140, binding = 0) uniform UniformBuffer {
 layout(location = 0) out vec4 fragColor;
 
 void main() {
-    // Convert from screen coordinates to normalized device coordinates
-    vec2 ndc = (position / ubo.screenSize) * 2.0 - 1.0;
-    ndc.y = -ndc.y; // Flip Y coordinate
-    
-    gl_Position = vec4(ndc, 0.0, 1.0);
+    // Use MVP matrix for consistent coordinate transformation
+    gl_Position = ubo.mvpMatrix * vec4(position, 0.0, 1.0);
     fragColor = color;
 }

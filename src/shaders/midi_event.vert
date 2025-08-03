@@ -31,12 +31,9 @@ layout(location = 1) out vec2 fragTexCoord;
 void main() {
     // Transform quad vertex to instance position and size
     vec2 scaledPos = position * instancePosSize.zw + instancePosSize.xy;
-    
-    // Convert from screen coordinates to normalized device coordinates
-    vec2 ndc = (scaledPos / ubo.screenSize) * 2.0 - 1.0;
-    ndc.y = -ndc.y; // Flip Y coordinate
-    
-    gl_Position = vec4(ndc, 0.0, 1.0);
+
+    // Use MVP matrix for consistent coordinate transformation
+    gl_Position = ubo.mvpMatrix * vec4(scaledPos, 0.0, 1.0);
     
     // Pass color and texture coordinates to fragment shader
     fragColor = instanceColor;
