@@ -4,10 +4,10 @@
 layout(location = 0) in vec3 position;
 layout(location = 1) in vec2 uv;
 
-// Instance attributes (per character) - MUST MATCH existing text shader
-layout(location = 2) in vec4 instancePosSize; // x, y, width, height
-layout(location = 3) in vec4 instanceColor;   // r, g, b, a
-layout(location = 4) in vec4 instanceUV;      // u1, v1, u2, v2
+// Instance attributes (per piano key)
+layout(location = 2) in vec4 keyTransform;  // x, y, width, height
+layout(location = 3) in vec4 keyColor;      // r, g, b, a
+layout(location = 4) in vec4 keyParams;     // midiNote, isBlack, blackAbove, blackBelow
 
 // Uniform buffer (MUST MATCH other shaders exactly)
 layout(std140, binding = 0) uniform UniformBuffer {
@@ -27,25 +27,26 @@ layout(std140, binding = 0) uniform UniformBuffer {
 
 // Outputs to fragment shader
 layout(location = 0) out vec4 fragColor;
-layout(location = 1) out vec2 fragAtlasUV;
+layout(location = 1) out vec2 fragUV;
+layout(location = 2) out vec4 fragKeyParams;
+layout(location = 3) out vec4 fragKeyTransform;
 
 void main() {
-    // Transform vertex position to character space
-    vec3 charPos = position;
-    charPos.xy *= instancePosSize.zw; // Scale by character width, height
-    charPos.xy += instancePosSize.xy; // Translate to character position
+    // Transform vertex position to key space
+    vec3 keyPos = position;
+    keyPos.xy *= keyTransform.zw; // Scale by width, height
+    keyPos.xy += keyTransform.xy; // Translate to key position
     
     // Convert to normalized device coordinates
-    vec2 screenPos = charPos.xy / ubo.screenSize;
+    vec2 screenPos = keyPos.xy / ubo.screenSize;
     screenPos = screenPos * 2.0 - 1.0;
     screenPos.y = -screenPos.y; // Flip Y coordinate
     
     gl_Position = vec4(screenPos, 0.0, 1.0);
     
-    // Calculate atlas UV coordinates
-    vec2 atlasUV = mix(instanceUV.xy, instanceUV.zw, uv);
-    
     // Pass data to fragment shader
-    fragColor = instanceColor;
-    fragAtlasUV = atlasUV;
+    fragColor = keyColor;
+    fragUV = uv;
+    fragKeyParams = keyParams;
+    fragKeyTransform = keyTransform;
 }

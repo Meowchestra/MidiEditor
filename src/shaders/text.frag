@@ -1,26 +1,30 @@
 #version 460
 
-// Input from vertex shader
+// Inputs from vertex shader
 layout(location = 0) in vec4 fragColor;
-layout(location = 1) in vec2 fragTexCoord;
+layout(location = 1) in vec2 fragAtlasUV;
 
 // Font atlas texture
 layout(binding = 1) uniform sampler2D fontAtlas;
 
-// Output color
+// Output
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    // Render text exactly like software QPainter::drawText()
-    // Sample the alpha channel from the font atlas
-    float alpha = texture(fontAtlas, fragTexCoord).r;
+    // Sample the font atlas texture
+    vec4 atlasColor = texture(fontAtlas, fragAtlasUV);
     
-    // Apply the text color with the font atlas alpha
-    // This matches how QPainter renders text with anti-aliasing
-    outColor = vec4(fragColor.rgb, fragColor.a * alpha);
+    // Use the alpha channel from the atlas as the text mask
+    float textAlpha = atlasColor.a;
     
-    // Discard fully transparent pixels to avoid artifacts
-    if (outColor.a < 0.01) {
+    // Apply text color with atlas alpha
+    vec4 finalColor = fragColor;
+    finalColor.a *= textAlpha;
+    
+    // Discard fully transparent fragments
+    if (finalColor.a < 0.01) {
         discard;
     }
+    
+    outColor = finalColor;
 }
