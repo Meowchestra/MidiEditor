@@ -1,12 +1,8 @@
 #version 460
 
-// Per-vertex attributes (quad vertices)
+// MINIMAL TEST: Only per-vertex attributes (no instance data)
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 texCoord;
-
-// Per-instance attributes (MIDI event data)
-layout(location = 2) in vec4 instancePosSize; // x, y, width, height
-layout(location = 3) in vec4 instanceColor;   // r, g, b, a
 
 // Uniform buffer with dynamic colors and settings
 layout(std140, binding = 0) uniform UniformBuffer {
@@ -29,12 +25,12 @@ layout(location = 0) out vec4 fragColor;
 layout(location = 1) out vec2 fragTexCoord;
 
 void main() {
-    // Transform quad vertex to instance position and size
+    // Transform quad vertex to instance position and size (exactly like software)
     vec2 scaledPos = position * instancePosSize.zw + instancePosSize.xy;
 
-    // Use MVP matrix for consistent coordinate transformation
+    // Use MVP matrix for consistent coordinate transformation (like software MatrixWidget)
     gl_Position = ubo.mvpMatrix * vec4(scaledPos, 0.0, 1.0);
-    
+
     // Pass color and texture coordinates to fragment shader
     fragColor = instanceColor;
     fragTexCoord = texCoord;
