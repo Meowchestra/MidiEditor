@@ -177,6 +177,10 @@ void PerformanceSettingsWidget::enableHardwareAccelerationChanged(bool enabled) 
     // (Currently no software-only options remaining)
 
     updateInfoLabels();
+
+    // Emit signal to notify that hardware acceleration setting changed
+    // This will be connected to the MatrixWidgetManager to trigger widget switching
+    emit hardwareAccelerationChanged(enabled);
 }
 
 void PerformanceSettingsWidget::ignoreScalingChanged(bool enabled) {

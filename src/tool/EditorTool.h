@@ -24,6 +24,7 @@
 
 // Project includes
 #include "Tool.h"
+#include "../gui/IMatrixWidget.h"
 
 // Forward declarations
 class MatrixWidget;
@@ -173,6 +174,12 @@ public:
     static void setMatrixWidget(MatrixWidget *w);
 
     /**
+     * \brief Sets the matrix widget interface for all editor tools.
+     * \param w The IMatrixWidget interface to associate with tools
+     */
+    static void setIMatrixWidget(IMatrixWidget *w);
+
+    /**
      * \brief Sets the main window for all editor tools.
      * \param mw The MainWindow to associate with tools
      */
@@ -202,6 +209,9 @@ protected:
 
     /** \brief Static reference to the matrix widget */
     static MatrixWidget *matrixWidget;
+
+    /** \brief Static reference to the matrix widget interface */
+    static IMatrixWidget *iMatrixWidget;
 
     /** \brief Static reference to the main window */
     static MainWindow *_mainWindow;

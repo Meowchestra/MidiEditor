@@ -50,6 +50,7 @@
 #include "InstrumentChooser.h"
 #include "LayoutSettingsWidget.h"
 #include "MatrixWidget.h"
+#include "MatrixWidgetManager.h"
 #include "MiscWidget.h"
 #include "NToleQuantizationDialog.h"
 #include "ProtocolWidget.h"
@@ -187,23 +188,32 @@ MainWindow::MainWindow(QString initFile)
     QWidget *matrixArea = new QWidget(leftSplitter);
     leftSplitter->addWidget(matrixArea);
     matrixArea->setContentsMargins(0, 0, 0, 0);
-    mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
+
+    // Create MatrixWidgetManager for hardware/software switching
+    mw_matrixWidgetManager = new MatrixWidgetManager(_settings, matrixArea);
+    mw_matrixWidget = mw_matrixWidgetManager->matrixWidget();
+    mw_matrixWidgetInterface = mw_matrixWidgetManager->iMatrixWidget();
+
+    // Set up EditorTool integration with both interface and legacy pointer
+    EditorTool::setMatrixWidget(mw_matrixWidgetManager->softwareWidget()); // Always use software widget for legacy tools
+    EditorTool::setIMatrixWidget(mw_matrixWidgetManager->iMatrixWidget());  // Use active widget interface
+
     vert = new QScrollBar(Qt::Vertical, matrixArea);
     QGridLayout *matrixAreaLayout = new QGridLayout(matrixArea);
     matrixAreaLayout->setHorizontalSpacing(6);
     QWidget *placeholder0 = new QWidget(matrixArea);
     placeholder0->setFixedHeight(50);
     matrixAreaLayout->setContentsMargins(0, 0, 0, 0);
-    matrixAreaLayout->addWidget(mw_matrixWidget, 0, 0, 2, 1);
+    matrixAreaLayout->addWidget(mw_matrixWidgetManager->currentWidget(), 0, 0, 2, 1);
     matrixAreaLayout->addWidget(placeholder0, 0, 1, 1, 1);
     matrixAreaLayout->addWidget(vert, 1, 1, 1, 1);
     matrixAreaLayout->setColumnStretch(0, 1);
     matrixArea->setLayout(matrixAreaLayout);
 
     bool screenLocked = _settings->value("screen_locked", false).toBool();
-    mw_matrixWidget->setScreenLocked(screenLocked);
+    mw_matrixWidgetInterface->setScreenLocked(screenLocked);
     int div = _settings->value("div", 2).toInt();
-    mw_matrixWidget->setDiv(div);
+    mw_matrixWidgetInterface->setDiv(div);
 
     // VelocityArea
     QWidget *velocityArea = new QWidget(leftSplitter);
@@ -229,9 +239,16 @@ MainWindow::MainWindow(QString initFile)
     velocityAreaLayout->setRowStretch(0, 1);
     velocityArea->setLayout(velocityAreaLayout);
 
-    _miscWidget = new MiscWidget(mw_matrixWidget, velocityArea);
+    // Always pass the software widget to MiscWidget, even in hardware mode
+    // MiscWidget needs direct access to MatrixWidget methods that aren't in the interface
+    // The software widget is always created by MatrixWidgetManager as a fallback
+    _miscWidget = new MiscWidget(mw_matrixWidgetManager->softwareWidget(), velocityArea);
     _miscWidget->setContentsMargins(0, 0, 0, 0);
     velocityAreaLayout->addWidget(_miscWidget, 0, 1, 1, 1);
+
+    // Connect MiscWidget to MatrixWidgetManager signals for hardware acceleration support
+    // This ensures MiscWidget updates when using RhiMatrixWidget
+    connect(mw_matrixWidgetManager, SIGNAL(objectListChanged()), _miscWidget, SLOT(update()));
 
     // controls for velocity widget
     _miscControlLayout = new QGridLayout(_miscWidgetControl);
@@ -429,12 +446,12 @@ MainWindow::MainWindow(QString initFile)
     connect(_chooseEditTrack, SIGNAL(activated(int)), this, SLOT(editTrack(int)));
     chooserLayout->setColumnStretch(1, 1);
     // connect Scrollbars and Widgets
-    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
+    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(scrollYChanged(int)));
+    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(scrollXChanged(int)));
 
-    connect(channelWidget, SIGNAL(channelStateChanged()), mw_matrixWidget, SLOT(update()));
-    connect(mw_matrixWidget, SIGNAL(sizeChanged(int, int, int, int)), this, SLOT(matrixSizeChanged(int, int, int, int)));
-    connect(mw_matrixWidget, SIGNAL(scrollChanged(int, int, int, int)), this, SLOT(scrollPositionsChanged(int, int, int, int)));
+    connect(channelWidget, SIGNAL(channelStateChanged()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(update()));
+    connect(mw_matrixWidgetManager, SIGNAL(sizeChanged(int, int, int, int)), this, SLOT(matrixSizeChanged(int, int, int, int)));
+    connect(mw_matrixWidgetManager, SIGNAL(scrollChanged(int, int, int, int)), this, SLOT(scrollPositionsChanged(int, int, int, int)));
 
     setCentralWidget(central);
 
@@ -536,14 +553,14 @@ void MainWindow::setFile(MidiFile *newFile) {
     connect(newFile, SIGNAL(trackChanged()), this, SLOT(updateTrackMenu()));
     setWindowTitle(QApplication::applicationName() + " - " + newFile->path() + "[*]");
     connect(newFile, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
-    connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
+    connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(calcSizes()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
-    mw_matrixWidget->setFile(newFile);
+    mw_matrixWidgetManager->setFile(newFile);
     updateChannelMenu();
     updateTrackMenu();
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
     _miscWidget->update();
 
     // Update paste action state when file changes
@@ -572,7 +589,7 @@ void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
     vert->setValue(vY);
     hori->setValue(vX);
 
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::playStop() {
@@ -591,12 +608,12 @@ void MainWindow::play() {
         return;
     }
     if (file && !MidiInput::recording() && !MidiPlayer::isPlaying()) {
-        mw_matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+        mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(file->cursorTick()), true);
 
         _miscWidget->setEnabled(false);
         channelWidget->setEnabled(false);
         protocolWidget->setEnabled(false);
-        mw_matrixWidget->setEnabled(false);
+        mw_matrixWidgetInterface->setEnabled(false);
         _trackWidget->setEnabled(false);
         eventWidget()->setEnabled(false);
 
@@ -604,7 +621,7 @@ void MainWindow::play() {
         connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), this, SLOT(stop()));
 
 #ifdef __WINDOWS_MM__
-        connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
+        connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(timeMsChanged(int)));
 #endif
     }
 }
@@ -629,19 +646,19 @@ void MainWindow::record() {
                 file->setPauseTick(-1);
             }
 
-            mw_matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+            mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(file->cursorTick()), true);
 
             _miscWidget->setEnabled(false);
             channelWidget->setEnabled(false);
             protocolWidget->setEnabled(false);
-            mw_matrixWidget->setEnabled(false);
+            mw_matrixWidgetInterface->setEnabled(false);
             _trackWidget->setEnabled(false);
             eventWidget()->setEnabled(false);
             MidiPlayer::play(file);
             MidiInput::startInput();
             connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), this, SLOT(stop()));
 #ifdef __WINDOWS_MM__
-            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
+            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(timeMsChanged(int)));
 #endif
         }
     }
@@ -665,7 +682,7 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
 
     if (resetPause) {
         file->setPauseTick(-1);
-        mw_matrixWidget->update();
+        mw_matrixWidgetInterface->update();
     }
     if (!MidiInput::recording() && MidiPlayer::isPlaying()) {
         MidiPlayer::stop();
@@ -673,9 +690,9 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
         channelWidget->setEnabled(true);
         _trackWidget->setEnabled(true);
         protocolWidget->setEnabled(true);
-        mw_matrixWidget->setEnabled(true);
+        mw_matrixWidgetInterface->setEnabled(true);
         eventWidget()->setEnabled(true);
-        mw_matrixWidget->timeMsChanged(MidiPlayer::timeMs(), true);
+        mw_matrixWidgetInterface->timeMsChanged(MidiPlayer::timeMs(), true);
         _trackWidget->setEnabled(true);
         panic();
     }
@@ -691,7 +708,7 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
         _miscWidget->setEnabled(true);
         channelWidget->setEnabled(true);
         protocolWidget->setEnabled(true);
-        mw_matrixWidget->setEnabled(true);
+        mw_matrixWidgetInterface->setEnabled(true);
         _trackWidget->setEnabled(true);
         eventWidget()->setEnabled(true);
         QMultiMap<int, MidiEvent *> events = MidiInput::endInput(track);
@@ -732,9 +749,9 @@ void MainWindow::forward() {
     file->setPauseTick(-1);
     if (newTick <= file->endTick()) {
         file->setCursorTick(newTick);
-        mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(newTick), true);
     }
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::back() {
@@ -765,9 +782,9 @@ void MainWindow::back() {
     file->setPauseTick(-1);
     if (newTick >= 0) {
         file->setCursorTick(newTick);
-        mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(newTick), true);
     }
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::backToBegin() {
@@ -777,7 +794,7 @@ void MainWindow::backToBegin() {
     file->setPauseTick(0);
     file->setCursorTick(0);
 
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::forwardMarker() {
@@ -809,8 +826,8 @@ void MainWindow::forwardMarker() {
     if (newTick < 0) return;
     file->setPauseTick(newTick);
     file->setCursorTick(newTick);
-    mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(newTick), true);
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::backMarker() {
@@ -843,8 +860,8 @@ void MainWindow::backMarker() {
 
     file->setPauseTick(newTick);
     file->setCursorTick(newTick);
-    mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->timeMsChanged(file->msOfTick(newTick), true);
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::save() {
@@ -1091,11 +1108,11 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     _settings->setValue("open_path", startDirectory);
     _settings->setValue("alt_stop", MidiOutput::isAlternativePlayer);
     _settings->setValue("ticks_per_quarter", MidiFile::defaultTimePerQuarter);
-    _settings->setValue("screen_locked", mw_matrixWidget->screenLocked());
+    _settings->setValue("screen_locked", mw_matrixWidgetInterface->screenLocked());
     _settings->setValue("magnet", EventTool::magnetEnabled());
 
-    _settings->setValue("div", mw_matrixWidget->div());
-    _settings->setValue("colors_from_channel", mw_matrixWidget->colorsByChannel());
+    _settings->setValue("div", mw_matrixWidgetInterface->div());
+    _settings->setValue("colors_from_channel", mw_matrixWidgetInterface->colorsByChannel());
 
     _settings->setValue("metronome", Metronome::enabled());
     _settings->setValue("metronome_loudness", Metronome::loudness());
@@ -1201,7 +1218,7 @@ void MainWindow::panic() {
 }
 
 void MainWindow::screenLockPressed(bool enable) {
-    mw_matrixWidget->setScreenLocked(enable);
+    mw_matrixWidgetInterface->setScreenLocked(enable);
 }
 
 void MainWindow::scaleSelection() {
@@ -1373,7 +1390,7 @@ void MainWindow::resetView() {
     }
 
     // Call the matrix widget's reset view function
-    mw_matrixWidget->resetView();
+    mw_matrixWidgetInterface->resetView();
 }
 
 void MainWindow::deleteSelectedEvents() {
@@ -1676,7 +1693,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 
     // If the event wasn't accepted by a shortcut, forward it to the matrix widget
     if (!event->isAccepted()) {
-        mw_matrixWidget->takeKeyPressEvent(event);
+        mw_matrixWidgetInterface->takeKeyPressEvent(event);
     }
 }
 
@@ -1686,7 +1703,7 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
 
     // If the event wasn't accepted by a shortcut, forward it to the matrix widget
     if (!event->isAccepted()) {
-        mw_matrixWidget->takeKeyReleaseEvent(event);
+        mw_matrixWidgetInterface->takeKeyReleaseEvent(event);
     }
 }
 
@@ -1968,20 +1985,20 @@ void MainWindow::markEdited() {
 }
 
 void MainWindow::colorsByChannel() {
-    mw_matrixWidget->setColorsByChannel();
+    mw_matrixWidgetInterface->setColorsByChannel();
     _colorsByChannel->setChecked(true);
     _colorsByTracks->setChecked(false);
-    mw_matrixWidget->registerRelayout();
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->registerRelayout();
+    mw_matrixWidgetInterface->update();
     _miscWidget->update();
 }
 
 void MainWindow::colorsByTrack() {
-    mw_matrixWidget->setColorsByTracks();
+    mw_matrixWidgetInterface->setColorsByTracks();
     _colorsByChannel->setChecked(false);
     _colorsByTracks->setChecked(true);
-    mw_matrixWidget->registerRelayout();
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->registerRelayout();
+    mw_matrixWidgetInterface->update();
     _miscWidget->update();
 }
 
@@ -2758,28 +2775,28 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *zoomHorOutAction = new QAction(tr("Horizontal out"), this);
     zoomHorOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Minus)));
     Appearance::setActionIcon(zoomHorOutAction, ":/run_environment/graphics/tool/zoom_hor_out.png");
-    connect(zoomHorOutAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomHorOut()));
+    connect(zoomHorOutAction, SIGNAL(triggered()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(zoomHorOut()));
     zoomMenu->addAction(zoomHorOutAction);
     _actionMap["zoom_hor_out"] = zoomHorOutAction;
 
     QAction *zoomHorInAction = new QAction(tr("Horizontal in"), this);
     Appearance::setActionIcon(zoomHorInAction, ":/run_environment/graphics/tool/zoom_hor_in.png");
     zoomHorInAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Equal)));
-    connect(zoomHorInAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomHorIn()));
+    connect(zoomHorInAction, SIGNAL(triggered()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(zoomHorIn()));
     zoomMenu->addAction(zoomHorInAction);
     _actionMap["zoom_hor_in"] = zoomHorInAction;
 
     QAction *zoomVerOutAction = new QAction(tr("Vertical out"), this);
     Appearance::setActionIcon(zoomVerOutAction, ":/run_environment/graphics/tool/zoom_ver_out.png");
     zoomVerOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Minus)));
-    connect(zoomVerOutAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomVerOut()));
+    connect(zoomVerOutAction, SIGNAL(triggered()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(zoomVerOut()));
     zoomMenu->addAction(zoomVerOutAction);
     _actionMap["zoom_ver_out"] = zoomVerOutAction;
 
     QAction *zoomVerInAction = new QAction(tr("Vertical in"), this);
     Appearance::setActionIcon(zoomVerInAction, ":/run_environment/graphics/tool/zoom_ver_in.png");
     zoomVerInAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Equal)));
-    connect(zoomVerInAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomVerIn()));
+    connect(zoomVerInAction, SIGNAL(triggered()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
     _actionMap["zoom_ver_in"] = zoomVerInAction;
 
@@ -2787,7 +2804,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *zoomStdAction = new QAction(tr("Restore default zoom"), this);
     zoomStdAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Backspace)));
-    connect(zoomStdAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomStd()));
+    connect(zoomStdAction, SIGNAL(triggered()), mw_matrixWidgetManager->activeMatrixWidget(), SLOT(zoomStd()));
     zoomMenu->addAction(zoomStdAction);
 
     viewMB->addMenu(zoomMenu);
@@ -2835,7 +2852,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     divGroup->addAction(offAction);
     divMenu->addAction(offAction);
     offAction->setCheckable(true);
-    offAction->setChecked(-1 == mw_matrixWidget->div());
+    offAction->setChecked(-1 == mw_matrixWidgetInterface->div());
 
     divMenu->addSeparator();
 
@@ -2865,7 +2882,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(a);
         regularMenu->addAction(a);
         a->setCheckable(true);
-        a->setChecked(i == mw_matrixWidget->div());
+        a->setChecked(i == mw_matrixWidgetInterface->div());
     }
 
     divMenu->addSeparator();
@@ -2888,7 +2905,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(tripletAction);
         tripletsMenu->addAction(tripletAction);
         tripletAction->setCheckable(true);
-        tripletAction->setChecked((-100 - i) == mw_matrixWidget->div());
+        tripletAction->setChecked((-100 - i) == mw_matrixWidgetInterface->div());
     }
 
     divMenu->addSeparator();
@@ -2911,7 +2928,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(quintupletAction);
         quintupletsMenu->addAction(quintupletAction);
         quintupletAction->setCheckable(true);
-        quintupletAction->setChecked((-202 - i) == mw_matrixWidget->div());
+        quintupletAction->setChecked((-202 - i) == mw_matrixWidgetInterface->div());
     }
 
     // Sextuplets submenu
@@ -2928,7 +2945,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(sextupletAction);
         sextupletsMenu->addAction(sextupletAction);
         sextupletAction->setCheckable(true);
-        sextupletAction->setChecked((-302 - i) == mw_matrixWidget->div());
+        sextupletAction->setChecked((-302 - i) == mw_matrixWidgetInterface->div());
     }
 
     // Septuplets submenu
@@ -2945,7 +2962,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(septupletAction);
         septupletsMenu->addAction(septupletAction);
         septupletAction->setCheckable(true);
-        septupletAction->setChecked((-402 - i) == mw_matrixWidget->div());
+        septupletAction->setChecked((-402 - i) == mw_matrixWidgetInterface->div());
     }
 
     divMenu->addSeparator();
@@ -2967,7 +2984,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         divGroup->addAction(dottedAction);
         dottedMenu->addAction(dottedAction);
         dottedAction->setCheckable(true);
-        dottedAction->setChecked(rasterDottedValues[i] == mw_matrixWidget->div());
+        dottedAction->setChecked(rasterDottedValues[i] == mw_matrixWidgetInterface->div());
     }
 
     dottedMenu->addSeparator();
@@ -2978,7 +2995,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     divGroup->addAction(doubleDottedQuarter);
     dottedMenu->addAction(doubleDottedQuarter);
     doubleDottedQuarter->setCheckable(true);
-    doubleDottedQuarter->setChecked(-602 == mw_matrixWidget->div());
+    doubleDottedQuarter->setChecked(-602 == mw_matrixWidgetInterface->div());
 
     connect(divMenu, SIGNAL(triggered(QAction*)), this, SLOT(divChanged(QAction*)));
     viewMB->addMenu(divMenu);
@@ -3113,7 +3130,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     lockAction->setCheckable(true);
     connect(lockAction, SIGNAL(toggled(bool)), this, SLOT(screenLockPressed(bool)));
     playbackMB->addAction(lockAction);
-    lockAction->setChecked(mw_matrixWidget->screenLocked());
+    lockAction->setChecked(mw_matrixWidgetInterface->screenLocked());
     _actionMap["lock"] = lockAction;
 
     QAction *metronomeAction = new QAction(tr("Metronome"), this);
@@ -3126,7 +3143,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *pianoEmulationAction = new QAction(tr("Piano emulation"), this);
     pianoEmulationAction->setCheckable(true);
-    pianoEmulationAction->setChecked(mw_matrixWidget->getPianoEmulation());
+    pianoEmulationAction->setChecked(mw_matrixWidgetInterface->getPianoEmulation());
     connect(pianoEmulationAction, SIGNAL(toggled(bool)), this, SLOT(togglePianoEmulation(bool)));
     playbackMB->addAction(pianoEmulationAction);
 
@@ -3240,7 +3257,7 @@ void MainWindow::pasteToTrack(QAction *action) {
 }
 
 void MainWindow::divChanged(QAction *action) {
-    mw_matrixWidget->setDiv(action->data().toInt());
+    mw_matrixWidgetInterface->setDiv(action->data().toInt());
 }
 
 void MainWindow::enableMagnet(bool enable) {
@@ -4070,7 +4087,7 @@ QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
 }
 
 void MainWindow::togglePianoEmulation(bool mode) {
-    mw_matrixWidget->setPianoEmulation(mode);
+    mw_matrixWidgetInterface->setPianoEmulation(mode);
 }
 
 void MainWindow::quantizationChanged(QAction *action) {
@@ -4223,7 +4240,7 @@ void MainWindow::checkEnableActionsForSelection() {
 void MainWindow::toolChanged() {
     checkEnableActionsForSelection();
     _miscWidget->update();
-    mw_matrixWidget->update();
+    mw_matrixWidgetInterface->update();
 }
 
 void MainWindow::copiedEventsChanged() {
@@ -4243,7 +4260,7 @@ void MainWindow::updateAll() {
     // Update cached rendering settings when settings change
     // This ensures MatrixWidget uses the latest performance settings without
     // expensive QSettings I/O operations during paint events
-    mw_matrixWidget->updateRenderingSettings();
+    mw_matrixWidgetManager->updateRenderingSettings();
 
     // Update all widgets
     channelWidget->update();

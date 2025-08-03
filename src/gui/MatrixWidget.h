@@ -21,6 +21,7 @@
 
 // Project includes
 #include "PaintWidget.h"
+#include "IMatrixWidget.h"
 #include "Appearance.h"
 
 // Qt includes
@@ -29,6 +30,9 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QWidget>
+
+// Optional RHI includes for simple hardware acceleration
+// (RHI acceleration is implemented as a simple stub for now)
 
 // Forward declarations
 class MidiFile;
@@ -74,7 +78,7 @@ class QSettings;
  * - Tool system for different editing modes
  * - Settings system for user preferences
  */
-class MatrixWidget : public PaintWidget {
+class MatrixWidget : public PaintWidget, public virtual IMatrixWidget {
     Q_OBJECT
 
 public:
@@ -86,6 +90,11 @@ public:
      * \param parent Parent widget (optional)
      */
     MatrixWidget(QSettings *settings, QWidget *parent = nullptr);
+
+    /**
+     * \brief Destructor - cleans up resources including optional RHI acceleration.
+     */
+    ~MatrixWidget();
 
     // === File Management ===
 
@@ -117,9 +126,9 @@ public:
 
     /**
      * \brief Gets the list of graphic objects for rendering.
-     * \return List of GraphicObject pointers (recast from events)
+     * \return List of GraphicObject pointers (empty for MatrixWidget)
      */
-    QList<GraphicObject *> *getObjects() { return reinterpret_cast<QList<GraphicObject *> *>(objects); }
+    QList<GraphicObject *> *getObjects() override;
 
     // === Coordinate Conversion ===
 
@@ -195,10 +204,31 @@ public:
      * \brief Sets the width of the line name area (piano keys).
      * \param width Width in pixels for the piano key area
      */
-    void setLineNameWidth(int width) {
+    void setLineNameWidth(int width) override {
         lineNameWidth = width;
-        update();
+        PaintWidget::update();
     }
+
+    // === IMatrixWidget Interface Implementation ===
+
+    // Explicitly resolve ambiguous methods (not virtual in base classes)
+    void update() override { PaintWidget::update(); }
+    void setEnabled(bool enabled) override { this->enabled = enabled; PaintWidget::setEnabled(enabled); }
+    int width() const override { return PaintWidget::width(); }
+    int height() const override { return PaintWidget::height(); }
+
+    // Interface methods that delegate to existing MatrixWidget methods
+    void setScaleX(double scale) override { scaleX = scale; }
+    void setScaleY(double scale) override { scaleY = scale; }
+    int getLineNameWidth() override { return lineNameWidth; }
+    void setTimeHeight(int height) override { timeHeight = height; }
+    int getTimeHeight() override { return timeHeight; }
+    double getScaleX() override { return scaleX; }
+    double getScaleY() override { return scaleY; }
+    int getDiv() override { return div(); }
+    bool isEnabled() override { return enabled; }
+    void setColorsByChannels(bool byChannels) override { _colorsByChannels = byChannels; }
+    bool colorsByChannels() override { return _colorsByChannels; }
 
     /**
      * \brief Gets the current line name area width.
@@ -330,14 +360,14 @@ public slots:
      * \param ms Time in milliseconds
      * \param ignoreLocked If true, updates even when screen is locked
      */
-    void timeMsChanged(int ms, bool ignoreLocked = false);
+    void timeMsChanged(int ms, bool ignoreLocked = false) override;
 
     // === Layout and Rendering ===
 
     /**
      * \brief Registers that a layout recalculation is needed.
      */
-    void registerRelayout();
+    void registerRelayout() override;
 
     /**
      * \brief Recalculates widget sizes and layout.
@@ -349,6 +379,24 @@ public slots:
      * Call this when rendering settings have changed to refresh the cache.
      */
     void updateRenderingSettings();
+
+    /**
+     * \brief Checks if hardware acceleration is enabled and available.
+     * \return True if hardware acceleration should be used
+     */
+    bool shouldUseHardwareAcceleration() const;
+
+    /**
+     * \brief Gets the current rendering mode.
+     * \return True if using hardware acceleration, false for software
+     */
+    bool isUsingHardwareAcceleration() const { return _usingHardwareAcceleration; }
+
+    /**
+     * \brief Switches between hardware and software rendering.
+     * \param useHardware True to use hardware acceleration, false for software
+     */
+    void setHardwareAcceleration(bool useHardware);
 
     /**
      * \brief Updates cached appearance colors from Appearance system.
@@ -496,6 +544,13 @@ private:
     void paintChannel(QPainter *painter, int channel);
 
     /**
+     * \brief Attempts to use RHI acceleration for painting MIDI events.
+     * \param painter The QPainter to draw with
+     * \return True if RHI acceleration was used, false if fallback to software needed
+     */
+    bool tryRhiAcceleratedEventPainting(QPainter *painter);
+
+    /**
      * \brief Paints a single piano key in the piano area.
      * \param painter The QPainter to draw with
      * \param number MIDI note number (0-127)
@@ -532,6 +587,9 @@ private:
 
     /** \brief Flag to prevent cascading repaints during scroll operations */
     bool _suppressScrollRepaints;
+
+    /** \brief Flag indicating if hardware acceleration is currently being used */
+    bool _usingHardwareAcceleration;
 
     /** \brief Cached background color to avoid expensive theme checks */
     QColor _cachedBackgroundColor;
@@ -663,6 +721,9 @@ private:
      * Used for piano key hit testing and display.
      */
     QMap<int, QRect> pianoKeys;
+
+    // === RHI Hardware Acceleration (Optional) ===
+    // Simple RHI acceleration for MIDI events only (when enabled in settings)
 
     // === Constants ===
 

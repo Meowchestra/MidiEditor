@@ -22,6 +22,7 @@
 #include "ToolButton.h"
 
 MatrixWidget *EditorTool::matrixWidget = 0;
+IMatrixWidget *EditorTool::iMatrixWidget = 0;
 MainWindow *EditorTool::_mainWindow = 0;
 
 EditorTool::EditorTool()
@@ -120,6 +121,13 @@ void EditorTool::reloadState(ProtocolEntry *entry) {
 
 void EditorTool::setMatrixWidget(MatrixWidget *w) {
     matrixWidget = w;
+    iMatrixWidget = w;  // MatrixWidget implements IMatrixWidget
+}
+
+void EditorTool::setIMatrixWidget(IMatrixWidget *w) {
+    iMatrixWidget = w;
+    // Note: matrixWidget pointer is set separately via setMatrixWidget()
+    // and always points to the software widget for legacy tool compatibility
 }
 
 void EditorTool::setMainWindow(MainWindow *mw) {

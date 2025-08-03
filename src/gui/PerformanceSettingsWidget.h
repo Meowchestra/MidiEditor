@@ -73,6 +73,13 @@ public:
      */
     QIcon icon() override;
 
+signals:
+    /**
+     * \brief Emitted when hardware acceleration setting changes.
+     * \param enabled True if hardware acceleration was enabled
+     */
+    void hardwareAccelerationChanged(bool enabled);
+
 public slots:
     /**
      * \brief Refreshes colors when theme changes.

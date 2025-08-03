@@ -27,6 +27,7 @@
 
 // Project includes
 #include "ToolbarActionInfo.h"
+#include "IMatrixWidget.h"
 
 // Forward declarations
 class MatrixWidget;
@@ -756,6 +757,12 @@ private:
 
     /** \brief Main matrix widget for MIDI editing */
     MatrixWidget *mw_matrixWidget;
+
+    /** \brief Interface to the active matrix widget (software or hardware) */
+    class IMatrixWidget *mw_matrixWidgetInterface;
+
+    /** \brief Manager for switching between software and hardware matrix widgets */
+    class MatrixWidgetManager *mw_matrixWidgetManager;
 
     /** \brief Vertical and horizontal scroll bars */
     QScrollBar *vert, *hori;

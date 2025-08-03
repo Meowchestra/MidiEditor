@@ -36,6 +36,9 @@
 #include "../gui/ChannelVisibilityManager.h"
 #include "../midi/MidiOutput.h"
 
+// RHI includes for simple hardware acceleration (to be implemented)
+// #include <rhi/qrhi.h> // Will be added when RHI acceleration is implemented
+
 #include <QList>
 #include <QSettings>
 #include <cmath>
@@ -84,8 +87,15 @@ MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
     // Initialize scroll repaint suppression flag
     _suppressScrollRepaints = false;
 
+    // Initialize hardware acceleration flag for MIDI event rendering
+    _usingHardwareAcceleration = _settings->value("rendering/rhi_midi_events", false).toBool();
+
     // Cache appearance colors to avoid expensive theme checks on every paint event
     updateCachedAppearanceColors();
+}
+
+MatrixWidget::~MatrixWidget() {
+    // Clean up resources (RHI cleanup will be implemented when RHI acceleration is added)
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -491,8 +501,28 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         pixpainter->setClipRect(lineNameWidth, timeHeight, width() - lineNameWidth,
                                 height() - timeHeight);
 
-        for (int i = 0; i < 19; i++) {
-            paintChannel(pixpainter, i);
+        // Try RHI acceleration for MIDI events if enabled and many events are visible
+        bool usedRhiAcceleration = false;
+        if (_usingHardwareAcceleration) {
+            // Count total visible events across all channels
+            int totalVisibleEvents = 0;
+            for (int i = 0; i < 19; i++) {
+                if (ChannelVisibilityManager::instance().isChannelVisible(i)) {
+                    totalVisibleEvents += file->channelEvents(i)->size();
+                }
+            }
+
+            // Use RHI acceleration if we have many events (threshold: 500)
+            if (totalVisibleEvents > 500) {
+                usedRhiAcceleration = tryRhiAcceleratedEventPainting(pixpainter);
+            }
+        }
+
+        // Fallback to software rendering if RHI wasn't used or failed
+        if (!usedRhiAcceleration) {
+            for (int i = 0; i < 19; i++) {
+                paintChannel(pixpainter, i);
+            }
         }
 
         pixpainter->setClipping(false);
@@ -1130,10 +1160,38 @@ void MatrixWidget::updateRenderingSettings() {
     _antialiasing = _settings->value("rendering/antialiasing", true).toBool();
     _smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
 
+    // Check if hardware acceleration setting has changed
+    bool hardwareAccelEnabled = _settings->value("rendering/hardware_acceleration", false).toBool();
+    if (hardwareAccelEnabled != _usingHardwareAcceleration) {
+        setHardwareAcceleration(hardwareAccelEnabled);
+    }
+
     // Update cached appearance colors to avoid expensive theme checks
     updateCachedAppearanceColors();
 
     // Force a redraw to apply the new settings
+    registerRelayout();
+    update();
+}
+
+bool MatrixWidget::shouldUseHardwareAcceleration() const {
+    return _settings->value("rendering/hardware_acceleration", false).toBool();
+}
+
+void MatrixWidget::setHardwareAcceleration(bool useHardware) {
+    if (_usingHardwareAcceleration == useHardware) {
+        return;  // No change needed
+    }
+
+    _usingHardwareAcceleration = useHardware;
+
+    // Note: In a full implementation, this would trigger widget replacement
+    // in the parent container (MainWindow) to switch between MatrixWidget
+    // and RhiMatrixWidget instances. For now, we just update the flag.
+
+    qDebug() << "MatrixWidget: Hardware acceleration" << (useHardware ? "enabled" : "disabled");
+
+    // Force a complete redraw
     registerRelayout();
     update();
 }
@@ -1504,4 +1562,33 @@ QList<QPair<int, int> > MatrixWidget::divs() {
 
 int MatrixWidget::div() {
     return _div;
+}
+
+QList<GraphicObject *> *MatrixWidget::getObjects() {
+    // MatrixWidget uses MidiEvent objects, not GraphicObject
+    // Return empty list for interface compatibility
+    static QList<GraphicObject *> empty;
+    return &empty;
+}
+
+// === RHI Hardware Acceleration Implementation ===
+
+bool MatrixWidget::tryRhiAcceleratedEventPainting(QPainter *painter) {
+    Q_UNUSED(painter)
+
+    // TODO: Implement simple RHI-accelerated MIDI event rendering
+    // This would be a much simpler implementation than RhiMatrixWidget:
+    // 1. Create a simple RHI context if not exists
+    // 2. Render MIDI events as instanced quads to an offscreen texture
+    // 3. Composite the texture back to the QPainter
+    // 4. Keep everything else (piano, grid, UI) in software rendering
+
+    // For now, always return false to use software fallback
+    static bool loggedOnce = false;
+    if (!loggedOnce) {
+        qDebug() << "MatrixWidget: RHI MIDI event acceleration not yet implemented, using software rendering";
+        loggedOnce = true;
+    }
+
+    return false; // Always use software fallback for now
 }
