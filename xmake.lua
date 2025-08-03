@@ -30,65 +30,11 @@ target("MidiEditor") do
         "QtCore",
         "QtNetwork",
         "QtXml",
-        "QtMultimedia",
-        "QtMultimediaWidgets"
+        "QtMultimedia"
     })
 
     -- Qt RHI for hardware acceleration
     add_frameworks("QtGuiPrivate")
-
-    -- Add third-party dependencies for Qt RHI (D3D12 Memory Allocator)
-    add_includedirs("src/third-party")
-    print("Added third-party include directory for D3D12MemAlloc.h")
-
-    -- Hardware acceleration shaders (uses pre-compiled .qsb files from GitHub Actions)
-    local compiled_shaders_dir = "src/shaders/compiled"
-    local has_compiled_shaders = os.isdir(compiled_shaders_dir)
-
-    if not has_compiled_shaders then
-        print("Warning: No compiled shaders found at " .. compiled_shaders_dir)
-        print("Hardware acceleration will use fallback rendering.")
-        print("Run GitHub Actions 'Compile Shaders' workflow to generate shaders")
-    end
-
-    -- Add Vulkan SDK support if available
-    local vulkan_sdk = os.getenv("VULKAN_SDK")
-    if vulkan_sdk then
-        add_includedirs(vulkan_sdk .. "/Include")
-        print("Added Vulkan SDK include directory: " .. vulkan_sdk .. "/Include")
-    else
-        print("Vulkan SDK not found - Vulkan backend may not be available")
-    end
-
-    -- Add Qt source include paths for private headers
-    local qt_rhi_source = os.getenv("QT_RHI_SOURCE_PATH")
-    local qt_dir = os.getenv("QT_ROOT_DIR") or os.getenv("Qt6_DIR")
-
-    if qt_rhi_source then
-        -- Normalize the path (convert to forward slashes for xmake)
-        local normalized_path = qt_rhi_source:gsub("\\", "/")
-        -- Add the main source directory
-        add_includedirs(normalized_path)
-        print("Added Qt RHI source paths: " .. normalized_path)
-        print("Expected RHI header location: " .. normalized_path .. "/rhi/qrhi_p.h")
-
-        -- Also try to add the versioned private header path if it exists
-        local versioned_private = qt_dir .. "/include/QtGui/" .. "6.10.0" .. "/QtGui/private"
-        add_includedirs(versioned_private)
-        print("Added versioned Qt RHI private headers: " .. versioned_private)
-    elseif qt_dir then
-        -- Try standard Qt private headers
-        local private_dir = qt_dir .. "/include/QtGui/private"
-        add_includedirs(private_dir)
-        print("Added Qt RHI private headers from: " .. private_dir)
-
-        -- Also try versioned private headers
-        local versioned_private = qt_dir .. "/include/QtGui/" .. "6.10.0" .. "/QtGui/private"
-        add_includedirs(versioned_private)
-        print("Added versioned Qt RHI private headers: " .. versioned_private)
-    else
-        print("Warning: No Qt directory found, Qt RHI headers may not be available")
-    end
 
     -- Add source files, including only the main rtmidi files (not examples/tests)
     add_files("src/*.cpp")
@@ -109,8 +55,6 @@ target("MidiEditor") do
     -- Add only the main rtmidi header files
     add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")
-
-    -- Note: Compiled shaders are embedded via main resources.qrc under /shaders prefix
 
     if is_arch("x64", "x86_64") then
         add_defines("__ARCH64__")

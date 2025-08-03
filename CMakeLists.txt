@@ -94,14 +94,6 @@ if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(STATUS "If you encounter linking errors, try using Qt6 compiled for MinGW or switch to MSVC compiler.")
 endif()
 
-# Find Vulkan SDK
-find_package(Vulkan QUIET)
-if(Vulkan_FOUND)
-    message(STATUS "Added Vulkan SDK include directory: ${Vulkan_INCLUDE_DIRS}")
-else()
-    message(STATUS "Vulkan SDK not found - Vulkan backend may not be available")
-endif()
-
 # Enable Qt6 MOC, UIC, and RCC processing
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
@@ -122,7 +114,6 @@ target_link_libraries(MidiEditor PRIVATE
         Qt6::Network
         Qt6::Xml
         Qt6::Multimedia
-        Qt6::MultimediaWidgets
 )
 
 # Additional linking for MinGW compatibility
@@ -144,81 +135,8 @@ target_include_directories(MidiEditor PRIVATE
     src/MidiEvent
     src/protocol
     src/tool
-    src/third-party
 )
 message(STATUS "Added project include directories")
-
-# Hardware acceleration shaders
-set(COMPILED_SHADERS_DIR "src/shaders/compiled")
-if(EXISTS "${CMAKE_SOURCE_DIR}/${COMPILED_SHADERS_DIR}")
-    message(STATUS "Found compiled shaders at ${COMPILED_SHADERS_DIR}")
-else()
-    message(WARNING "No compiled shaders found at ${COMPILED_SHADERS_DIR}")
-    message(STATUS "Hardware acceleration will use fallback rendering.")
-    message(STATUS "Run GitHub Actions 'Compile Shaders' workflow to generate shaders")
-endif()
-
-# Vulkan includes
-if(Vulkan_FOUND)
-    target_include_directories(MidiEditor PRIVATE ${Vulkan_INCLUDE_DIRS})
-endif()
-
-# Qt RHI source paths
-if(DEFINED ENV{QT_RHI_SOURCE_PATH})
-    file(TO_CMAKE_PATH "$ENV{QT_RHI_SOURCE_PATH}" QT_RHI_SOURCE_NORMALIZED)
-    target_include_directories(MidiEditor PRIVATE ${QT_RHI_SOURCE_NORMALIZED})
-    message(STATUS "Added Qt RHI source paths: ${QT_RHI_SOURCE_NORMALIZED}")
-    message(STATUS "Expected RHI header location: ${QT_RHI_SOURCE_NORMALIZED}/rhi/qrhi_p.h")
-
-    if(DEFINED ENV{QT_ROOT_DIR})
-        # Try to find versioned private headers dynamically
-        file(GLOB QT_VERSIONED_PRIVATE "$ENV{QT_ROOT_DIR}/include/QtGui/*/QtGui/private")
-        if(QT_VERSIONED_PRIVATE)
-            list(GET QT_VERSIONED_PRIVATE 0 QT_VERSIONED_DIR)
-            target_include_directories(MidiEditor PRIVATE "${QT_VERSIONED_DIR}")
-            message(STATUS "Added versioned Qt RHI private headers: ${QT_VERSIONED_DIR}")
-        endif()
-    endif()
-elseif(DEFINED ENV{QT_ROOT_DIR} OR DEFINED ENV{Qt6_DIR})
-    if(DEFINED ENV{QT_ROOT_DIR})
-        set(QT_DIR "$ENV{QT_ROOT_DIR}")
-    else()
-        set(QT_DIR "$ENV{Qt6_DIR}")
-    endif()
-
-    # Add standard private headers
-    if(EXISTS "${QT_DIR}/include/QtGui/private")
-        target_include_directories(MidiEditor PRIVATE "${QT_DIR}/include/QtGui/private")
-        message(STATUS "Added Qt RHI private headers from: ${QT_DIR}/include/QtGui/private")
-    endif()
-
-    # Try to find versioned private headers dynamically
-    file(GLOB QT_VERSIONED_PRIVATE "${QT_DIR}/include/QtGui/*/QtGui/private")
-    if(QT_VERSIONED_PRIVATE)
-        list(GET QT_VERSIONED_PRIVATE 0 QT_VERSIONED_DIR)
-        target_include_directories(MidiEditor PRIVATE "${QT_VERSIONED_DIR}")
-        message(STATUS "Added versioned Qt RHI private headers: ${QT_VERSIONED_DIR}")
-    endif()
-else()
-    if(DEFINED Qt6_DIR)
-        get_filename_component(QT_DETECTED_DIR "${Qt6_DIR}/../../.." ABSOLUTE)
-
-        # Add standard private headers
-        if(EXISTS "${QT_DETECTED_DIR}/include/QtGui/private")
-            target_include_directories(MidiEditor PRIVATE "${QT_DETECTED_DIR}/include/QtGui/private")
-            message(STATUS "Added Qt RHI private headers from detected Qt: ${QT_DETECTED_DIR}/include/QtGui/private")
-        endif()
-
-        file(GLOB QT_VERSIONED_PRIVATE "${QT_DETECTED_DIR}/include/QtGui/*/QtGui/private")
-        if(QT_VERSIONED_PRIVATE)
-            list(GET QT_VERSIONED_PRIVATE 0 QT_VERSIONED_DIR)
-            target_include_directories(MidiEditor PRIVATE "${QT_VERSIONED_DIR}")
-            message(STATUS "Added versioned Qt RHI private headers from detected Qt: ${QT_VERSIONED_DIR}")
-        endif()
-    else()
-        message(WARNING "No Qt directory found, Qt RHI headers may not be available")
-    endif()
-endif()
 
 # Source files - be more specific to avoid test/doc/example files
 file(GLOB SOURCES_MAIN "src/*.cpp")

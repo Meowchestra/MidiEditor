@@ -18,65 +18,6 @@ QT += widgets \
 # Qt RHI for hardware acceleration
 QT += gui-private
 
-# Add third-party dependencies for Qt RHI (D3D12 Memory Allocator)
-INCLUDEPATH += src/third-party
-message("📁 Added third-party include directory for D3D12MemAlloc.h")
-
-# Add Vulkan SDK support if available
-VULKAN_SDK = $$(VULKAN_SDK)
-!isEmpty(VULKAN_SDK) {
-    INCLUDEPATH += $$VULKAN_SDK/Include
-    message("📁 Added Vulkan SDK include directory: $$VULKAN_SDK/Include")
-} else {
-    message("⚠️ Vulkan SDK not found - Vulkan backend may not be available")
-}
-
-# Add Qt RHI include paths
-QT_RHI_SOURCE_PATH = $$(QT_RHI_SOURCE_PATH)
-QT_ROOT_DIR = $$(QT_ROOT_DIR)
-Qt6_DIR = $$(Qt6_DIR)
-
-message("🔍 Qt RHI Debug Information:")
-message("QT_RHI_SOURCE_PATH = $$QT_RHI_SOURCE_PATH")
-message("QT_ROOT_DIR = $$QT_ROOT_DIR")
-message("Qt6_DIR = $$Qt6_DIR")
-
-!isEmpty(QT_RHI_SOURCE_PATH) {
-    message("✅ Using Qt RHI source headers from: $$QT_RHI_SOURCE_PATH")
-    INCLUDEPATH += $$QT_RHI_SOURCE_PATH
-    message("📁 Expected RHI header location: $$QT_RHI_SOURCE_PATH/rhi/qrhi_p.h")
-
-    # Also try to add versioned private header path if Qt directory is available
-    !isEmpty(QT_ROOT_DIR) {
-        QT_VERSIONED_PRIVATE = $$QT_ROOT_DIR/include/QtGui/6.10.0/QtGui/private
-        INCLUDEPATH += $$QT_VERSIONED_PRIVATE
-        message("📁 Added versioned Qt RHI private headers: $$QT_VERSIONED_PRIVATE")
-    }
-} else:!isEmpty(QT_ROOT_DIR) {
-    QT_PRIVATE_HEADERS = $$QT_ROOT_DIR/include/QtGui/private
-    message("✅ Using Qt RHI private headers from Qt installation: $$QT_PRIVATE_HEADERS")
-    INCLUDEPATH += $$QT_PRIVATE_HEADERS
-
-    # Also add versioned private headers
-    QT_VERSIONED_PRIVATE = $$QT_ROOT_DIR/include/QtGui/6.10.0/QtGui/private
-    INCLUDEPATH += $$QT_VERSIONED_PRIVATE
-    message("📁 Added versioned Qt RHI private headers: $$QT_VERSIONED_PRIVATE")
-} else:!isEmpty(Qt6_DIR) {
-    QT_PRIVATE_HEADERS = $$Qt6_DIR/include/QtGui/private
-    message("✅ Using Qt RHI private headers from Qt6_DIR: $$QT_PRIVATE_HEADERS")
-    INCLUDEPATH += $$QT_PRIVATE_HEADERS
-
-    # Also add versioned private headers
-    QT_VERSIONED_PRIVATE = $$Qt6_DIR/include/QtGui/6.10.0/QtGui/private
-    INCLUDEPATH += $$QT_VERSIONED_PRIVATE
-    message("📁 Added versioned Qt RHI private headers: $$QT_VERSIONED_PRIVATE")
-} else {
-    message("❌ Error: No Qt directory found! Qt RHI headers are required for hardware acceleration.")
-    message("Please set QT_ROOT_DIR or Qt6_DIR environment variable.")
-    error("Qt RHI private headers not found - build cannot continue")
-}
-
-message("📁 Final INCLUDEPATH: $$INCLUDEPATH")
 HEADERS += $$files(**.h, true)
 HEADERS -= $$files(src/midi/rtmidi/**.h, true)
 HEADERS += src/midi/rtmidi/RtMidi.h
@@ -86,8 +27,6 @@ SOURCES += src/midi/rtmidi/RtMidi.cpp
 CONFIG += static
 FORMS += 
 RESOURCES += resources.qrc
-# Note: Hardware acceleration shaders are compiled via GitHub Actions
-# and included in resources.qrc under /shaders prefix
 # Enhanced architecture detection
 ARCH_FORCE = $$(OVERRIDE_ARCH)
 contains(ARCH_FORCE, 64){
