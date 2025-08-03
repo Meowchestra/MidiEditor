@@ -35,20 +35,20 @@ function(compile_shader SHADER_NAME)
     set(QSB_VERT "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.vert.qsb")
     set(QSB_FRAG "${CMAKE_CURRENT_BINARY_DIR}/${SHADER_NAME}.frag.qsb")
     
-    # Compile vertex shader (modern desktop targets: GLSL 460 + HLSL 68)
+    # Compile vertex shader (modern desktop targets: GLSL 460 + HLSL 67)
     add_custom_command(
         OUTPUT ${QSB_VERT}
-        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 68 -o ${QSB_VERT} ${GLSL_VERT}
+        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 67 -o ${QSB_VERT} ${GLSL_VERT}
         DEPENDS ${GLSL_VERT}
-        COMMENT "Compiling vertex shader: ${SHADER_NAME}.vert (GLSL 460 + HLSL 68)"
+        COMMENT "Compiling vertex shader: ${SHADER_NAME}.vert (GLSL 460 + HLSL 67)"
     )
 
-    # Compile fragment shader (modern desktop targets: GLSL 460 + HLSL 68)
+    # Compile fragment shader (modern desktop targets: GLSL 460 + HLSL 67)
     add_custom_command(
         OUTPUT ${QSB_FRAG}
-        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 68 -o ${QSB_FRAG} ${GLSL_FRAG}
+        COMMAND ${QSB_TOOL} --glsl 460 --hlsl 67 -o ${QSB_FRAG} ${GLSL_FRAG}
         DEPENDS ${GLSL_FRAG}
-        COMMENT "Compiling fragment shader: ${SHADER_NAME}.frag (GLSL 460 + HLSL 68)"
+        COMMENT "Compiling fragment shader: ${SHADER_NAME}.frag (GLSL 460 + HLSL 67)"
     )
     
     # Add to shader target

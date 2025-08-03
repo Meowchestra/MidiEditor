@@ -1,8 +1,14 @@
-name: build with qmake on windows
+name: build with xmake on windows
 on:
   push:
-#    branches: [ main ]
-  workflow_dispatch: # Allow manual triggering
+    branches: [ main ]
+  workflow_dispatch:
+    inputs:
+      force_shader_recompile:
+        description: 'Force shader recompilation even if no changes detected'
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   check-shader-changes:
@@ -26,8 +32,8 @@ jobs:
 
       - name: Report shader status
         run: |
-          if [[ "${{ steps.changes.outputs.shaders }}" == "true" ]]; then
-            echo "🔄 Shader source files changed - will recompile shaders before building"
+          if [[ "${{ steps.changes.outputs.shaders }}" == "true" ]] || [[ "${{ github.event.inputs.force_shader_recompile }}" == "true" ]]; then
+            echo "🔄 Shader source files changed or forced recompilation - will recompile shaders before building"
           else
             echo "⚡ No shader changes - will proceed directly to build"
           fi
@@ -35,7 +41,7 @@ jobs:
   compile-shaders:
     needs: check-shader-changes
     runs-on: windows-2025
-    if: needs.check-shader-changes.outputs.shaders-changed == 'true'
+    if: needs.check-shader-changes.outputs.shaders-changed == 'true' || github.event.inputs.force_shader_recompile == 'true'
     permissions:
       contents: write
     strategy:
@@ -79,15 +85,15 @@ jobs:
           if not exist compiled mkdir compiled
 
           REM Compile all shaders for latest desktop targets only
-          REM Using GLSL 460 (OpenGL 4.6) + HLSL 68 (D3D12 Shader Model 6.8)
+          REM Using GLSL 460 (OpenGL 4.6) + HLSL 67 (D3D12 Shader Model 6.7)
           for %%f in (*.vert *.frag) do (
             echo Compiling shader: %%f
             echo Checking shader version:
             findstr /c:"#version" "%%f"
 
             REM Compile Shaders
-            echo Running: qsb --glsl 460 --hlsl 68 -o "compiled/%%f.qsb" "%%f"
-            qsb --glsl 460 --hlsl 68 -o "compiled/%%f.qsb" "%%f"
+            echo Running: qsb --glsl 460 --hlsl 67 -o "compiled/%%f.qsb" "%%f"
+            qsb --glsl 460 --hlsl 67 -o "compiled/%%f.qsb" "%%f"
 
             if exist "compiled/%%f.qsb" (
               echo ✓ Successfully compiled: %%f -^> %%f.qsb
@@ -139,18 +145,15 @@ jobs:
           }
 
           echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "**All shaders compiled successfully with GLSL 460 + HLSL 68!**" >> $env:GITHUB_STEP_SUMMARY
+          echo "**All shaders compiled successfully with GLSL 460 + HLSL 67!**" >> $env:GITHUB_STEP_SUMMARY
           echo "" >> $env:GITHUB_STEP_SUMMARY
-          echo "**Targets:** Windows (D3D12 Shader Model 6.8) + Linux (OpenGL 4.6)" >> $env:GITHUB_STEP_SUMMARY
+          echo "**Targets:** Windows (D3D12 Shader Model 6.7) + Linux (OpenGL 4.6)" >> $env:GITHUB_STEP_SUMMARY
         shell: powershell
 
   build:
     needs: [check-shader-changes, compile-shaders]
     runs-on: windows-2025
     if: always() && !cancelled() && !failure()
-    env:
-      MIDIEDITOR_RELEASE_VERSION_STRING: "\"continuous integration triggered by ${{ github.sha }}\""
-      MIDIEDITOR_RELEASE_DATE: ""
     strategy:
       matrix:
         include:
@@ -159,6 +162,11 @@ jobs:
             msvc_arch: x64
             qt_arch_install: msvc2022_64
     steps:
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+    
       - name: Install Qt with Source Code (for Qt RHI)
         uses: jurplel/install-qt-action@v4
         with:
@@ -302,25 +310,20 @@ jobs:
         with:
           fetch-depth: 1
           submodules: true
-          
-      - name: msvc-build with Qt RHI
-        id: build
-        shell: cmd
+
+      - name: Build with Qt RHI
         run: |
-          echo Building with Qt RHI hardware acceleration...
-          echo 🔍 Environment variables:
-          echo QT_ROOT_DIR: %QT_ROOT_DIR%
-          echo Qt6_DIR: %Qt6_DIR%
-          echo QT_RHI_SOURCE_PATH: %QT_RHI_SOURCE_PATH%
+          echo "Building with Qt RHI hardware acceleration..."
+          echo "🔍 Environment variables:"
+          echo "QT_ROOT_DIR: $env:QT_ROOT_DIR"
+          echo "Qt6_DIR: $env:Qt6_DIR"
+          echo "QT_RHI_SOURCE_PATH: $env:QT_RHI_SOURCE_PATH"
 
-          set MIDIEDITOR_RELEASE_DATE="%DATE%"
-          call "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat" ${{ matrix.msvc_arch }}
+          echo "🔧 Configuring xmake..."
+          xmake config --yes --arch=x64 --toolchain=msvc --mode=release
 
-          echo 🔧 Running qmake...
-          qmake
-
-          echo 🔨 Building with nmake...
-          nmake
+          echo "🔨 Building..."
+          xmake build --jobs=2
 
       - name: Copy Files
         shell: pwsh
@@ -341,8 +344,8 @@ jobs:
           echo "Using binarycreator at: $binaryCreator"
           & $binaryCreator --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
-      - name: Upload
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: midieditor-qmake-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
+          name: MidiEditor-Installer
           path: Install.exe
