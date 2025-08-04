@@ -79,8 +79,14 @@ public slots:
      */
     void refreshColors();
 
+signals:
+    /**
+     * \brief Emitted when rendering mode changes and should be applied immediately.
+     */
+    void renderingModeChanged();
+
 private slots:
-    // === Rendering Quality Settings ===
+    // === Software Rendering Settings ===
 
     /**
      * \brief Handles antialiasing setting changes.
@@ -102,6 +108,24 @@ private slots:
      */
     void enableHardwareAccelerationChanged(bool enabled);
 
+    /**
+     * \brief Handles multisampling setting changes.
+     * \param index Selected multisampling index
+     */
+    void multisamplingChanged(int index);
+
+    /**
+     * \brief Handles hardware smooth transforms setting changes.
+     * \param enabled True to enable hardware smooth transforms
+     */
+    void enableHardwareSmoothTransformsChanged(bool enabled);
+
+    /**
+     * \brief Handles VSync setting changes.
+     * \param enabled True to enable VSync
+     */
+    void enableVSyncChanged(bool enabled);
+
     // === DPI Scaling Settings ===
 
     /**
@@ -115,6 +139,12 @@ private slots:
      * \param enabled True to use rounded scaling factors
      */
     void roundedScalingChanged(bool enabled);
+
+    /**
+     * \brief Handles font scaling ignore setting changes.
+     * \param enabled True to ignore system font scaling
+     */
+    void ignoreFontScalingChanged(bool enabled);
 
     // === Reset to Defaults ===
 
@@ -137,11 +167,6 @@ private:
     void loadSettings();
 
     /**
-     * \brief Updates information labels with current backend info.
-     */
-    void updateInfoLabels();
-
-    /**
      * \brief Gets a description for a rendering backend.
      * \param backend The backend name to get description for
      * \return String description of the backend
@@ -152,6 +177,9 @@ private:
 
     /** \brief Settings storage */
     QSettings *_settings;
+
+    /** \brief Flag to prevent change events during loading */
+    bool _isLoading;
 
     // === Rendering Quality Controls ===
 
@@ -170,11 +198,31 @@ private:
     /** \brief Checkbox for hardware acceleration options */
     QCheckBox *_enableHardwareAcceleration;
 
+    /** \brief Checkbox for hardware smooth transforms */
+    QCheckBox *_enableHardwareSmoothTransforms;
+
+    /** \brief Checkbox for VSync */
+    QCheckBox *_enableVSync;
+
+    /** \brief Combo box for multisampling options */
+    QComboBox *_multisamplingCombo;
+
     /** \brief Label showing backend information */
     QLabel *_backendInfoLabel;
 
     /** \brief Info box widget for theme color updates */
     QWidget *_infoBox;
+
+    // === DPI Scaling Controls ===
+
+    /** \brief Checkbox for ignoring system UI scaling */
+    QCheckBox *_ignoreSystemUIScaling;
+
+    /** \brief Checkbox for ignoring system font scaling */
+    QCheckBox *_ignoreSystemFontScaling;
+
+    /** \brief Checkbox for using rounded scaling behavior */
+    QCheckBox *_useRoundedScaling;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H_

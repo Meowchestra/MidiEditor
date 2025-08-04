@@ -30,11 +30,19 @@ target("MidiEditor") do
         "QtCore",
         "QtNetwork",
         "QtXml",
-        "QtMultimedia"
+        "QtMultimedia",
+        "QtOpenGL",
+        "QtOpenGLWidgets"
     })
 
-    -- Qt RHI for hardware acceleration
-    add_frameworks("QtGuiPrivate")
+    -- Link system OpenGL libraries for cross-platform compatibility
+    if is_plat("windows") then
+        add_syslinks("opengl32")
+    elseif is_plat("linux") then
+        add_syslinks("GL", "GLU")
+    elseif is_plat("macosx") then
+        add_frameworks("OpenGL")
+    end
 
     -- Add source files, including only the main rtmidi files (not examples/tests)
     add_files("src/*.cpp")

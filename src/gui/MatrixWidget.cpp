@@ -562,7 +562,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 if (_cachedShouldUseDarkMode) {
                     painter->setPen(QColor(200, 200, 200)); // Light gray for dark mode
                 } else {
-                    painter->setPen(_cachedForegroundColor);
+                    painter->setPen(_cachedDarkGrayColor); // Use dark gray for better contrast in light mode
                 }
                 QFont font = Appearance::improveFont(painter->font());
                 font.setPixelSize(10);
@@ -691,67 +691,68 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
 
         MidiEvent *event = currentEvent; // The event we'll process (may be reassigned to onEvent)
 
-            int x, width;
-            int y = yPosOfLine(line);
-            int height = lineHeight();
+        int x, width;
+        int y = yPosOfLine(line);
+        int height = lineHeight();
 
-            if (onEvent || offEvent) {
-                if (onEvent) {
-                    offEvent = onEvent->offEvent();
-                } else if (offEvent) {
-                    onEvent = dynamic_cast<OnEvent *>(offEvent->onEvent());
-                }
-
-                // Calculate raw coordinates
-                int rawX = xPosOfMs(msOfTick(onEvent->midiTime()));
-                int rawEndX = xPosOfMs(msOfTick(offEvent->midiTime()));
-
-                // Clamp coordinates to viewport for partially visible notes
-                x = qMax(rawX, lineNameWidth);  // Don't start before the piano area
-                int endX = qMin(rawEndX, this->width());  // Don't extend beyond widget width
-                width = qMax(endX - x, 1);  // Ensure minimum width of 1 pixel
-
-                event = onEvent;
-                if (objects->contains(event)) {
-                    continue;
-                }
-            } else {
-                width = PIXEL_PER_EVENT;
-                x = xPosOfMs(msOfTick(currentEvent->midiTime()));
+        if (onEvent || offEvent) {
+            if (onEvent) {
+                offEvent = onEvent->offEvent();
+            } else if (offEvent) {
+                onEvent = dynamic_cast<OnEvent *>(offEvent->onEvent());
             }
 
-            event->setX(x);
-            event->setY(y);
-            event->setWidth(width);
-            event->setHeight(height);
+            // Calculate raw coordinates
+            int rawX = xPosOfMs(msOfTick(onEvent->midiTime()));
+            int rawEndX = xPosOfMs(msOfTick(offEvent->midiTime()));
 
-            if (!(event->track()->hidden())) {
-                if (!_colorsByChannels) {
-                    cC = *event->track()->color();
-                }
-                event->draw(painter, cC);
+            // Clamp coordinates to viewport for partially visible notes
+            x = qMax(rawX, lineNameWidth); // Don't start before the piano area
+            int endX = qMin(rawEndX, this->width()); // Don't extend beyond widget width
+            width = qMax(endX - x, 1); // Ensure minimum width of 1 pixel
 
-                if (Selection::instance()->selectedEvents().contains(event)) {
-                    painter->setPen(Qt::gray);
-                    painter->drawLine(lineNameWidth, y, this->width(), y);
-                    painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
-                    painter->setPen(_cachedForegroundColor);
-                }
-                objects->prepend(event);
+            event = onEvent;
+            if (objects->contains(event)) {
+                continue;
             }
+        } else {
+            width = PIXEL_PER_EVENT;
+            x = xPosOfMs(msOfTick(currentEvent->midiTime()));
+        }
 
-            // append event to velocityObjects if its not a offEvent and if it
-            // is in the x-Area
-            MidiEvent *originalEvent = (onEvent || offEvent) ? currentEvent : event;
-            if (!(originalEvent->track()->hidden())) {
-                OffEvent *velocityOffEvent = dynamic_cast<OffEvent *>(originalEvent);
-                if (!velocityOffEvent && originalEvent->midiTime() >= startTick && originalEvent->midiTime() <= endTick && !velocityObjects->contains(originalEvent)) {
-                    originalEvent->setX(xPosOfMs(msOfTick(originalEvent->midiTime())));
-                    velocityObjects->prepend(originalEvent);
-                }
+        event->setX(x);
+        event->setY(y);
+        event->setWidth(width);
+        event->setHeight(height);
+
+        if (!(event->track()->hidden())) {
+            if (!_colorsByChannels) {
+                cC = *event->track()->color();
+            }
+            event->draw(painter, cC);
+
+            if (Selection::instance()->selectedEvents().contains(event)) {
+                painter->setPen(Qt::gray);
+                painter->drawLine(lineNameWidth, y, this->width(), y);
+                painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
+                painter->setPen(_cachedForegroundColor);
+            }
+            objects->prepend(event);
+        }
+
+        // append event to velocityObjects if its not a offEvent and if it
+        // is in the x-Area
+        MidiEvent *originalEvent = (onEvent || offEvent) ? currentEvent : event;
+        if (!(originalEvent->track()->hidden())) {
+            OffEvent *velocityOffEvent = dynamic_cast<OffEvent *>(originalEvent);
+            if (!velocityOffEvent && originalEvent->midiTime() >= startTick && originalEvent->midiTime() <= endTick && !
+                velocityObjects->contains(originalEvent)) {
+                originalEvent->setX(xPosOfMs(msOfTick(originalEvent->midiTime())));
+                velocityObjects->prepend(originalEvent);
             }
         }
     }
+}
 
 void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
                                  int width, int height) {
@@ -1049,7 +1050,7 @@ double MatrixWidget::lineHeight() {
     return (double) (height() - timeHeight) / (double) (endLineY - startLineY);
 }
 
-void MatrixWidget::enterEvent(QEvent *event) {
+void MatrixWidget::enterEvent(QEnterEvent *event) {
     PaintWidget::enterEvent(event);
     if (Tool::currentTool()) {
         Tool::currentTool()->enter();
@@ -1443,7 +1444,7 @@ void MatrixWidget::wheelEvent(QWheelEvent *event) {
         if (verScrollAmount != 0) {
             // Calculate normal scroll amount based on zoom level
             double scrollDelta = -verScrollAmount / (scaleY * PIXEL_PER_LINE);
-            int linesToScroll = (int)round(scrollDelta);
+            int linesToScroll = (int) round(scrollDelta);
 
             // Ensure we always move at least 1 line when zoomed in to avoid "dead" scrolls
             if (linesToScroll == 0 && verScrollAmount != 0) {

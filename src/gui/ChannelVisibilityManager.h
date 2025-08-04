@@ -13,7 +13,7 @@ public:
      * \brief Gets the singleton instance
      * \return Reference to the global visibility manager
      */
-    static ChannelVisibilityManager& instance();
+    static ChannelVisibilityManager &instance();
 
     /**
      * \brief Checks if a channel is visible
@@ -36,7 +36,7 @@ public:
 
 private:
     ChannelVisibilityManager();
-    
+
     /** \brief Channel visibility storage (corruption-proof) */
     bool channelVisibility[19];
 };

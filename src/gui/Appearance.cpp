@@ -36,7 +36,10 @@ bool Appearance::_showRangeLines = false;
 QString Appearance::_applicationStyle = "windowsvista";
 int Appearance::_toolbarIconSize = 20;
 bool Appearance::_ignoreSystemScaling = false;
+bool Appearance::_ignoreFontScaling = false;
 bool Appearance::_useRoundedScaling = false;
+int Appearance::_msaaSamples = 2;
+bool Appearance::_enableVSync = false;
 bool Appearance::_toolbarTwoRowMode = false;
 bool Appearance::_toolbarCustomizeEnabled = false;
 QStringList Appearance::_toolbarActionOrder = QStringList();
@@ -64,6 +67,7 @@ void Appearance::init(QSettings *settings) {
     _applicationStyle = settings->value("application_style", defaultStyle).toString();
     _toolbarIconSize = settings->value("toolbar_icon_size", 20).toInt();
     _ignoreSystemScaling = settings->value("ignore_system_scaling", false).toBool();
+    _ignoreFontScaling = settings->value("ignore_font_scaling", false).toBool();
     _useRoundedScaling = settings->value("use_rounded_scaling", false).toBool();
     _toolbarTwoRowMode = settings->value("toolbar_two_row_mode", false).toBool();
     _toolbarCustomizeEnabled = settings->value("toolbar_customize_enabled", false).toBool();
@@ -210,6 +214,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
     settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
+    settings->setValue("ignore_font_scaling", _ignoreFontScaling);
     settings->setValue("use_rounded_scaling", _useRoundedScaling);
     settings->setValue("toolbar_two_row_mode", _toolbarTwoRowMode);
     settings->setValue("toolbar_customize_enabled", _toolbarCustomizeEnabled);
@@ -663,7 +668,18 @@ bool Appearance::ignoreSystemScaling() {
 }
 
 void Appearance::setIgnoreSystemScaling(bool ignore) {
+    qDebug() << "Appearance: Setting ignore system scaling to" << ignore;
     _ignoreSystemScaling = ignore;
+    // Note: This setting requires application restart to take effect
+}
+
+bool Appearance::ignoreFontScaling() {
+    return _ignoreFontScaling;
+}
+
+void Appearance::setIgnoreFontScaling(bool ignore) {
+    qDebug() << "Appearance: Setting ignore font scaling to" << ignore;
+    _ignoreFontScaling = ignore;
     // Note: This setting requires application restart to take effect
 }
 
@@ -672,15 +688,34 @@ bool Appearance::useRoundedScaling() {
 }
 
 void Appearance::setUseRoundedScaling(bool useRounded) {
+    qDebug() << "Appearance: Setting use rounded scaling to" << useRounded;
     _useRoundedScaling = useRounded;
     // Note: This setting requires application restart to take effect
+}
+
+int Appearance::msaaSamples() {
+    return _msaaSamples;
+}
+
+bool Appearance::enableVSync() {
+    return _enableVSync;
 }
 
 void Appearance::loadEarlySettings() {
     // Load only the settings needed before QApplication is created
     QSettings settings(QString("MidiEditor"), QString("NONE"));
     _ignoreSystemScaling = settings.value("ignore_system_scaling", false).toBool();
+    _ignoreFontScaling = settings.value("ignore_font_scaling", false).toBool();
     _useRoundedScaling = settings.value("use_rounded_scaling", false).toBool();
+    _msaaSamples = settings.value("rendering/msaa_samples", 2).toInt();
+    _enableVSync = settings.value("rendering/enable_vsync", false).toBool();
+
+    qDebug() << "Appearance::loadEarlySettings() - Loaded values:";
+    qDebug() << "  ignore_system_scaling:" << _ignoreSystemScaling;
+    qDebug() << "  ignore_font_scaling:" << _ignoreFontScaling;
+    qDebug() << "  use_rounded_scaling:" << _useRoundedScaling;
+    qDebug() << "  msaa_samples:" << _msaaSamples;
+    qDebug() << "  enable_vsync:" << _enableVSync;
 }
 
 QFont Appearance::improveFont(const QFont &font) {

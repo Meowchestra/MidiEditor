@@ -13,10 +13,14 @@ QT += widgets \
     gui \
     network \
     xml \
-    multimedia
+    multimedia \
+    opengl \
+    openglwidgets
 
-# Qt RHI for hardware acceleration
-QT += gui-private
+# Link OpenGL library
+win32: LIBS += -lopengl32
+unix:!macx: LIBS += -lGL
+macx: LIBS += -framework OpenGL
 
 HEADERS += $$files(**.h, true)
 HEADERS -= $$files(src/midi/rtmidi/**.h, true)

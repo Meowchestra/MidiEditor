@@ -25,6 +25,7 @@
 
 // Qt includes
 #include <QApplication>
+#include <QEnterEvent>
 #include <QMap>
 #include <QMouseEvent>
 #include <QPainter>
@@ -435,7 +436,7 @@ protected:
      * \brief Handles mouse enter events.
      * \param event The enter event
      */
-    void enterEvent(QEvent *event);
+    void enterEvent(QEnterEvent *event);
 
     /**
      * \brief Handles mouse leave events.
@@ -505,8 +506,6 @@ private:
      * \param height Height of the key in pixels
      */
     void paintPianoKey(QPainter *painter, int number, int x, int y, int width, int height);
-
-
 
     // === Configuration ===
 

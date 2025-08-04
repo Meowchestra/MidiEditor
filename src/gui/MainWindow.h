@@ -30,6 +30,8 @@
 
 // Forward declarations
 class MatrixWidget;
+class OpenGLMatrixWidget;
+class OpenGLMiscWidget;
 class MidiEvent;
 class MidiFile;
 class ChannelListWidget;
@@ -142,6 +144,11 @@ public slots:
      * \brief Updates all widgets and components.
      */
     void updateAll();
+
+    /**
+     * \brief Updates rendering mode when settings change.
+     */
+    void updateRenderingMode();
 
     /**
      * \brief Loads the initial file specified at startup.
@@ -754,8 +761,14 @@ private:
 
     // === Core Widgets ===
 
-    /** \brief Main matrix widget for MIDI editing */
+    /** \brief Main matrix widget for MIDI editing (internal widget for data access) */
     MatrixWidget *mw_matrixWidget;
+
+    /** \brief OpenGL matrix widget for hardware acceleration (nullptr in software mode) */
+    OpenGLMatrixWidget *_openglMatrixWidget;
+
+    /** \brief Container for the displayed misc widget (OpenGL or software) */
+    QWidget *_miscWidgetContainer;
 
     /** \brief Vertical and horizontal scroll bars */
     QScrollBar *vert, *hori;

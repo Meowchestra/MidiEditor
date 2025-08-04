@@ -112,6 +112,14 @@ public slots:
      */
     void setControl(int ctrl);
 
+    // === Widget Integration Support ===
+
+    /**
+     * \brief Gets the associated MatrixWidget.
+     * \return Pointer to the MatrixWidget
+     */
+    MatrixWidget *getMatrixWidget() const { return matrixWidget; }
+
 protected:
     /**
      * \brief Handles paint events to draw the editor interface.

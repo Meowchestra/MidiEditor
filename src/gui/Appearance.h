@@ -243,6 +243,18 @@ public:
     static bool ignoreSystemScaling();
 
     /**
+     * \brief Sets whether to ignore system font scaling.
+     * \param ignore True to ignore font scaling, false to use it
+     */
+    static void setIgnoreFontScaling(bool ignore);
+
+    /**
+     * \brief Gets whether system font scaling is ignored.
+     * \return True if ignoring font scaling
+     */
+    static bool ignoreFontScaling();
+
+    /**
      * \brief Sets whether to use rounded scaling factors.
      * \param useRounded True to use rounded scaling, false for precise scaling
      */
@@ -258,6 +270,18 @@ public:
      * \brief Loads settings needed before QApplication creation.
      */
     static void loadEarlySettings();
+
+    /**
+     * \brief Gets the MSAA samples setting loaded early.
+     * \return Number of MSAA samples (0, 2, 4, or 8)
+     */
+    static int msaaSamples();
+
+    /**
+     * \brief Gets the VSync setting loaded early.
+     * \return True if VSync should be enabled
+     */
+    static bool enableVSync();
 
     // === Font and Style Management ===
 
@@ -668,8 +692,17 @@ private:
     /** \brief Whether to ignore system DPI scaling */
     static bool _ignoreSystemScaling;
 
+    /** \brief Whether to ignore system font scaling */
+    static bool _ignoreFontScaling;
+
     /** \brief Whether to use rounded scaling factors */
     static bool _useRoundedScaling;
+
+    /** \brief MSAA samples setting loaded early */
+    static int _msaaSamples;
+
+    /** \brief VSync setting loaded early */
+    static bool _enableVSync;
 };
 
 #endif // APPEARANCE_H_

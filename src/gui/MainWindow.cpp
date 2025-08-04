@@ -50,7 +50,10 @@
 #include "InstrumentChooser.h"
 #include "LayoutSettingsWidget.h"
 #include "MatrixWidget.h"
+#include "OpenGLMatrixWidget.h"
+#include "OpenGLMiscWidget.h"
 #include "MiscWidget.h"
+#include "PerformanceSettingsWidget.h"
 #include "NToleQuantizationDialog.h"
 #include "ProtocolWidget.h"
 #include "RecordDialog.h"
@@ -187,14 +190,47 @@ MainWindow::MainWindow(QString initFile)
     QWidget *matrixArea = new QWidget(leftSplitter);
     leftSplitter->addWidget(matrixArea);
     matrixArea->setContentsMargins(0, 0, 0, 0);
-    mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
+
+    // Create MatrixWidget - use direct OpenGL acceleration approach
+    bool useHardwareAcceleration = _settings->value("rendering/hardware_acceleration", false).toBool();
+
+    // Check for high DPI scaling issues with OpenGL
+    qreal dpr = devicePixelRatio();
+    bool hasHighDpiScaling = (dpr != 1.0 && !Appearance::ignoreSystemScaling());
+
+    if (useHardwareAcceleration && hasHighDpiScaling) {
+        qWarning() << "MainWindow: High DPI scaling detected (DPR:" << dpr << ") with hardware acceleration enabled.";
+        qWarning() << "MainWindow: Automatically disabling hardware acceleration due to Qt6 high DPI compatibility issues.";
+        qWarning() << "MainWindow: To use hardware acceleration, enable 'Ignore system UI scaling' in Performance settings.";
+        useHardwareAcceleration = false; // Automatically disable to prevent rendering issues
+    }
+
+    QWidget *matrixContainer;
+
+    if (useHardwareAcceleration) {
+        // Use direct OpenGL acceleration
+        OpenGLMatrixWidget *openglMatrix = new OpenGLMatrixWidget(_settings, matrixArea);
+        mw_matrixWidget = openglMatrix->getMatrixWidget(); // Get the internal MatrixWidget for data access
+        _openglMatrixWidget = openglMatrix; // Store OpenGL widget for signal connections
+        matrixContainer = openglMatrix;
+        // Direct OpenGL acceleration - no separate accelerator needed
+        qDebug() << "Created MatrixWidget with direct OpenGL acceleration";
+    } else {
+        // Use software rendering
+        mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
+        _openglMatrixWidget = nullptr; // No OpenGL widget in software mode
+        matrixContainer = mw_matrixWidget;
+        // Software rendering - no accelerator needed
+        qDebug() << "Created MatrixWidget with software rendering";
+    }
+
     vert = new QScrollBar(Qt::Vertical, matrixArea);
     QGridLayout *matrixAreaLayout = new QGridLayout(matrixArea);
     matrixAreaLayout->setHorizontalSpacing(6);
     QWidget *placeholder0 = new QWidget(matrixArea);
     placeholder0->setFixedHeight(50);
     matrixAreaLayout->setContentsMargins(0, 0, 0, 0);
-    matrixAreaLayout->addWidget(mw_matrixWidget, 0, 0, 2, 1);
+    matrixAreaLayout->addWidget(matrixContainer, 0, 0, 2, 1);
     matrixAreaLayout->addWidget(placeholder0, 0, 1, 1, 1);
     matrixAreaLayout->addWidget(vert, 1, 1, 1, 1);
     matrixAreaLayout->setColumnStretch(0, 1);
@@ -229,9 +265,29 @@ MainWindow::MainWindow(QString initFile)
     velocityAreaLayout->setRowStretch(0, 1);
     velocityArea->setLayout(velocityAreaLayout);
 
-    _miscWidget = new MiscWidget(mw_matrixWidget, velocityArea);
+    // Create MiscWidget - use direct OpenGL acceleration approach
+    QWidget *miscContainer;
+
+    if (useHardwareAcceleration) {
+        // Use direct OpenGL acceleration
+        // Connect MiscWidget to the internal MatrixWidget for data access
+        OpenGLMiscWidget *openglMisc = new OpenGLMiscWidget(mw_matrixWidget, _settings, velocityArea);
+        _miscWidget = openglMisc->getMiscWidget(); // Get the internal MiscWidget for data access
+        _miscWidgetContainer = openglMisc; // Store the displayed widget for UI operations
+        miscContainer = openglMisc;
+        // Direct OpenGL acceleration - no separate accelerator needed
+        qDebug() << "Created MiscWidget with direct OpenGL acceleration";
+    } else {
+        // Use software rendering
+        _miscWidget = new MiscWidget(mw_matrixWidget, velocityArea);
+        _miscWidgetContainer = _miscWidget; // Same widget for both data and UI
+        miscContainer = _miscWidget;
+        // Software rendering - no accelerator needed
+        qDebug() << "Created MiscWidget with software rendering";
+    }
+
     _miscWidget->setContentsMargins(0, 0, 0, 0);
-    velocityAreaLayout->addWidget(_miscWidget, 0, 1, 1, 1);
+    velocityAreaLayout->addWidget(miscContainer, 0, 1, 1, 1);
 
     // controls for velocity widget
     _miscControlLayout = new QGridLayout(_miscWidgetControl);
@@ -255,7 +311,7 @@ MainWindow::MainWindow(QString initFile)
     }
     _miscController->view()->setMinimumWidth(_miscController->minimumSizeHint().width());
     _miscControlLayout->addWidget(_miscController, 3, 0, 1, 3);
-    connect(_miscController, SIGNAL(currentIndexChanged(int)), _miscWidget, SLOT(setControl(int)));
+    connect(_miscController, SIGNAL(currentIndexChanged(int)), _miscWidgetContainer, SLOT(setControl(int)));
 
     //_miscControlLayout->addWidget(new QLabel("Channel:", _miscWidgetControl), 4, 0, 1, 3);
     _miscChannel = new QComboBox(_miscWidgetControl);
@@ -264,7 +320,7 @@ MainWindow::MainWindow(QString initFile)
     }
     _miscChannel->view()->setMinimumWidth(_miscChannel->minimumSizeHint().width());
     _miscControlLayout->addWidget(_miscChannel, 5, 0, 1, 3);
-    connect(_miscChannel, SIGNAL(currentIndexChanged(int)), _miscWidget, SLOT(setChannel(int)));
+    connect(_miscChannel, SIGNAL(currentIndexChanged(int)), _miscWidgetContainer, SLOT(setChannel(int)));
     _miscControlLayout->setRowStretch(6, 1);
     _miscMode->setCurrentIndex(0);
     _miscChannel->setEnabled(false);
@@ -429,10 +485,11 @@ MainWindow::MainWindow(QString initFile)
     connect(_chooseEditTrack, SIGNAL(activated(int)), this, SLOT(editTrack(int)));
     chooserLayout->setColumnStretch(1, 1);
     // connect Scrollbars and Widgets
-    connect(vert, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollYChanged(int)));
-    connect(hori, SIGNAL(valueChanged(int)), mw_matrixWidget, SLOT(scrollXChanged(int)));
+    // Connect to the actual displayed widget (OpenGL or software)
+    connect(vert, SIGNAL(valueChanged(int)), matrixContainer, SLOT(scrollYChanged(int)));
+    connect(hori, SIGNAL(valueChanged(int)), matrixContainer, SLOT(scrollXChanged(int)));
 
-    connect(channelWidget, SIGNAL(channelStateChanged()), mw_matrixWidget, SLOT(update()));
+    connect(channelWidget, SIGNAL(channelStateChanged()), matrixContainer, SLOT(update()));
     connect(mw_matrixWidget, SIGNAL(sizeChanged(int, int, int, int)), this, SLOT(matrixSizeChanged(int, int, int, int)));
     connect(mw_matrixWidget, SIGNAL(scrollChanged(int, int, int, int)), this, SLOT(scrollPositionsChanged(int, int, int, int)));
 
@@ -536,7 +593,21 @@ void MainWindow::setFile(MidiFile *newFile) {
     connect(newFile, SIGNAL(trackChanged()), this, SLOT(updateTrackMenu()));
     setWindowTitle(QApplication::applicationName() + " - " + newFile->path() + "[*]");
     connect(newFile, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
-    connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
+
+    // Connect cursor position changes to OpenGL widgets for proper cursor display
+    if (_openglMatrixWidget) {
+        // We're using OpenGL widgets - connect cursor position updates for both widgets
+        // Use repaint() for immediate cursor position feedback
+        connect(newFile, SIGNAL(cursorPositionChanged()), _openglMatrixWidget, SLOT(repaint()));
+        connect(newFile, SIGNAL(cursorPositionChanged()), _miscWidgetContainer, SLOT(repaint()));
+    }
+
+    // Connect recalcWidgetSize to the appropriate widget based on rendering mode
+    if (_openglMatrixWidget) {
+        connect(newFile, SIGNAL(recalcWidgetSize()), _openglMatrixWidget, SLOT(calcSizes()));
+    } else {
+        connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
+    }
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
@@ -544,7 +615,7 @@ void MainWindow::setFile(MidiFile *newFile) {
     updateChannelMenu();
     updateTrackMenu();
     mw_matrixWidget->update();
-    _miscWidget->update();
+    _miscWidgetContainer->update();
 
     // Update paste action state when file changes
     copiedEventsChanged();
@@ -572,7 +643,12 @@ void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
     vert->setValue(vY);
     hori->setValue(vX);
 
-    mw_matrixWidget->update();
+    // Update the visible widget (OpenGL or software)
+    if (_openglMatrixWidget) {
+        _openglMatrixWidget->update();
+    } else {
+        mw_matrixWidget->update();
+    }
 }
 
 void MainWindow::playStop() {
@@ -603,9 +679,14 @@ void MainWindow::play() {
         MidiPlayer::play(file);
         connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), this, SLOT(stop()));
 
-#ifdef __WINDOWS_MM__
-        connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
-#endif
+        // Connect playback cursor updates for all platforms (not just Windows)
+        // This is essential for the playback cursor to move during playback
+        // Connect to OpenGL widget if using hardware acceleration, otherwise to software widget
+        if (_openglMatrixWidget) {
+            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _openglMatrixWidget, SLOT(timeMsChanged(int)));
+        } else {
+            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
+        }
     }
 }
 
@@ -640,9 +721,15 @@ void MainWindow::record() {
             MidiPlayer::play(file);
             MidiInput::startInput();
             connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), this, SLOT(stop()));
-#ifdef __WINDOWS_MM__
-            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
-#endif
+
+            // Connect playback cursor updates for all platforms (not just Windows)
+            // This is essential for the playback cursor to move during playback
+            // Connect to OpenGL widget if using hardware acceleration, otherwise to software widget
+            if (_openglMatrixWidget) {
+                connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _openglMatrixWidget, SLOT(timeMsChanged(int)));
+            } else {
+                connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
+            }
         }
     }
 }
@@ -1973,7 +2060,7 @@ void MainWindow::colorsByChannel() {
     _colorsByTracks->setChecked(false);
     mw_matrixWidget->registerRelayout();
     mw_matrixWidget->update();
-    _miscWidget->update();
+    _miscWidgetContainer->update();
 }
 
 void MainWindow::colorsByTrack() {
@@ -1982,7 +2069,7 @@ void MainWindow::colorsByTrack() {
     _colorsByTracks->setChecked(true);
     mw_matrixWidget->registerRelayout();
     mw_matrixWidget->update();
-    _miscWidget->update();
+    _miscWidgetContainer->update();
 }
 
 void MainWindow::editChannel(int i, bool assign) {
@@ -2106,7 +2193,12 @@ void MainWindow::manual() {
 }
 
 void MainWindow::changeMiscMode(int mode) {
-    _miscWidget->setMode(mode);
+    // Use the container widget for UI operations (handles both OpenGL and software)
+    if (OpenGLMiscWidget *openglMisc = qobject_cast<OpenGLMiscWidget*>(_miscWidgetContainer)) {
+        openglMisc->setMode(mode);
+    } else if (MiscWidget *miscWidget = qobject_cast<MiscWidget*>(_miscWidgetContainer)) {
+        miscWidget->setMode(mode);
+    }
     if (mode == VelocityEditor || mode == TempoEditor) {
         _miscChannel->setEnabled(false);
     } else {
@@ -2133,14 +2225,27 @@ void MainWindow::changeMiscMode(int mode) {
 }
 
 void MainWindow::selectModeChanged(QAction *action) {
+    // Use the container widget for UI operations (handles both OpenGL and software)
     if (action == setSingleMode) {
-        _miscWidget->setEditMode(SINGLE_MODE);
+        if (OpenGLMiscWidget *openglMisc = qobject_cast<OpenGLMiscWidget*>(_miscWidgetContainer)) {
+            openglMisc->setEditMode(SINGLE_MODE);
+        } else if (MiscWidget *miscWidget = qobject_cast<MiscWidget*>(_miscWidgetContainer)) {
+            miscWidget->setEditMode(SINGLE_MODE);
+        }
     }
     if (action == setLineMode) {
-        _miscWidget->setEditMode(LINE_MODE);
+        if (OpenGLMiscWidget *openglMisc = qobject_cast<OpenGLMiscWidget*>(_miscWidgetContainer)) {
+            openglMisc->setEditMode(LINE_MODE);
+        } else if (MiscWidget *miscWidget = qobject_cast<MiscWidget*>(_miscWidgetContainer)) {
+            miscWidget->setEditMode(LINE_MODE);
+        }
     }
     if (action == setFreehandMode) {
-        _miscWidget->setEditMode(MOUSE_MODE);
+        if (OpenGLMiscWidget *openglMisc = qobject_cast<OpenGLMiscWidget*>(_miscWidgetContainer)) {
+            openglMisc->setEditMode(MOUSE_MODE);
+        } else if (MiscWidget *miscWidget = qobject_cast<MiscWidget*>(_miscWidgetContainer)) {
+            miscWidget->setEditMode(MOUSE_MODE);
+        }
     }
 }
 
@@ -3250,6 +3355,19 @@ void MainWindow::enableMagnet(bool enable) {
 void MainWindow::openConfig() {
     SettingsDialog *d = new SettingsDialog(tr("Settings"), _settings, this);
     connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
+    // Note: We don't connect settingsChanged() to updateRenderingMode() here because
+    // we connect directly to PerformanceSettingsWidget for immediate updates
+
+    // Connect to PerformanceSettingsWidget for immediate updates
+    // Find the PerformanceSettingsWidget in the dialog and connect to its renderingModeChanged signal
+    QList<PerformanceSettingsWidget*> perfWidgets = d->findChildren<PerformanceSettingsWidget*>();
+    if (!perfWidgets.isEmpty()) {
+        PerformanceSettingsWidget *perfWidget = perfWidgets.first();
+        connect(perfWidget, &PerformanceSettingsWidget::renderingModeChanged,
+                this, &MainWindow::updateRenderingMode);
+        qDebug() << "Connected PerformanceSettingsWidget for immediate rendering updates";
+    }
+
     d->show();
 }
 
@@ -4222,7 +4340,7 @@ void MainWindow::checkEnableActionsForSelection() {
 
 void MainWindow::toolChanged() {
     checkEnableActionsForSelection();
-    _miscWidget->update();
+    _miscWidgetContainer->update();
     mw_matrixWidget->update();
 }
 
@@ -4248,7 +4366,22 @@ void MainWindow::updateAll() {
     // Update all widgets
     channelWidget->update();
     _trackWidget->update();
-    _miscWidget->update();
+    _miscWidgetContainer->update();
+}
+
+void MainWindow::updateRenderingMode() {
+    // SIMPLIFIED: Hardware acceleration toggle - requires restart for now
+    bool hardwareAccelEnabled = _settings->value("rendering/hardware_acceleration", false).toBool();
+
+    qDebug() << "MainWindow::updateRenderingMode() called - Hardware acceleration" << (hardwareAccelEnabled ? "enabled" : "disabled");
+
+    // For now, just log the change - the new OpenGL widgets are created at startup
+    // Runtime switching can be implemented later if needed
+    if (hardwareAccelEnabled) {
+        qDebug() << "MainWindow: Hardware acceleration enabled - using direct OpenGL widgets";
+    } else {
+        qDebug() << "MainWindow: Hardware acceleration disabled - using software widgets";
+    }
 }
 
 void MainWindow::rebuildToolbarFromSettings() {

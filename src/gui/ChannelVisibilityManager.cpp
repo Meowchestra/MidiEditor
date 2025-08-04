@@ -7,7 +7,7 @@ ChannelVisibilityManager::ChannelVisibilityManager() {
     }
 }
 
-ChannelVisibilityManager& ChannelVisibilityManager::instance() {
+ChannelVisibilityManager &ChannelVisibilityManager::instance() {
     static ChannelVisibilityManager instance;
     return instance;
 }
@@ -17,12 +17,12 @@ bool ChannelVisibilityManager::isChannelVisible(int channel) {
     if (channel < 0 || channel >= 19) {
         return true; // Default to visible for invalid channels
     }
-    
+
     // Special inheritance: channels > 16 inherit from channel 16
     if (channel > 16) {
         return channelVisibility[16];
     }
-    
+
     return channelVisibility[channel];
 }
 
@@ -31,7 +31,7 @@ void ChannelVisibilityManager::setChannelVisible(int channel, bool visible) {
     if (channel < 0 || channel >= 19) {
         return; // Ignore invalid channels
     }
-    
+
     channelVisibility[channel] = visible;
 }
 
