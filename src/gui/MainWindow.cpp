@@ -211,14 +211,14 @@ MainWindow::MainWindow(QString initFile)
         // Use direct OpenGL acceleration
         OpenGLMatrixWidget *openglMatrix = new OpenGLMatrixWidget(_settings, matrixArea);
         mw_matrixWidget = openglMatrix->getMatrixWidget(); // Get the internal MatrixWidget for data access
-        _openglMatrixWidget = openglMatrix; // Store OpenGL widget for signal connections
+        _matrixWidgetContainer = openglMatrix; // Store the displayed widget for UI operations
         matrixContainer = openglMatrix;
         // Direct OpenGL acceleration - no separate accelerator needed
         qDebug() << "Created MatrixWidget with direct OpenGL acceleration";
     } else {
         // Use software rendering
         mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
-        _openglMatrixWidget = nullptr; // No OpenGL widget in software mode
+        _matrixWidgetContainer = mw_matrixWidget; // Same widget for both data and UI
         matrixContainer = mw_matrixWidget;
         // Software rendering - no accelerator needed
         qDebug() << "Created MatrixWidget with software rendering";
@@ -564,11 +564,11 @@ void MainWindow::performEarlyCleanup() {
     }
 
     // Clean up OpenGL widgets explicitly while OpenGL context is still valid
-    if (_openglMatrixWidget) {
+    if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
         qDebug() << "MainWindow: Early cleanup of OpenGL matrix widget";
-        _openglMatrixWidget->setParent(nullptr);
-        delete _openglMatrixWidget;
-        _openglMatrixWidget = nullptr;
+        openglMatrix->setParent(nullptr);
+        delete openglMatrix;
+        _matrixWidgetContainer = nullptr;
         mw_matrixWidget = nullptr;
     }
 
@@ -655,24 +655,19 @@ void MainWindow::setFile(MidiFile *newFile) {
     setWindowTitle(QApplication::applicationName() + " - " + newFile->path() + "[*]");
     connect(newFile, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
 
-    // Connect cursor position changes to OpenGL widgets for proper cursor display
-    if (_openglMatrixWidget) {
-        // We're using OpenGL widgets - connect cursor position updates for both widgets
-        // Use repaint() for immediate cursor position feedback
-        connect(newFile, SIGNAL(cursorPositionChanged()), _openglMatrixWidget, SLOT(repaint()));
-        connect(newFile, SIGNAL(cursorPositionChanged()), _miscWidgetContainer, SLOT(repaint()));
-    }
-
-    // Connect recalcWidgetSize to the appropriate widget based on rendering mode
-    if (_openglMatrixWidget) {
-        connect(newFile, SIGNAL(recalcWidgetSize()), _openglMatrixWidget, SLOT(calcSizes()));
-    } else {
-        connect(newFile, SIGNAL(recalcWidgetSize()), mw_matrixWidget, SLOT(calcSizes()));
-    }
+    // Connect recalcWidgetSize to the matrix widget container
+    connect(newFile, SIGNAL(recalcWidgetSize()), _matrixWidgetContainer, SLOT(calcSizes()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
-    mw_matrixWidget->setFile(newFile);
+    // Set file on the appropriate widget based on rendering mode
+    if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        // Using OpenGL acceleration - set file on OpenGL widget (which delegates to internal widget)
+        openglMatrix->setFile(newFile);
+    } else {
+        // Using software rendering - set file directly on MatrixWidget
+        mw_matrixWidget->setFile(newFile);
+    }
     updateChannelMenu();
     updateTrackMenu();
     mw_matrixWidget->update();
@@ -704,12 +699,8 @@ void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
     vert->setValue(vY);
     hori->setValue(vX);
 
-    // Update the visible widget (OpenGL or software)
-    if (_openglMatrixWidget) {
-        _openglMatrixWidget->update();
-    } else {
-        mw_matrixWidget->update();
-    }
+    // Update the matrix widget
+    mw_matrixWidget->update();
 }
 
 void MainWindow::playStop() {
@@ -742,12 +733,7 @@ void MainWindow::play() {
 
         // Connect playback cursor updates for all platforms (not just Windows)
         // This is essential for the playback cursor to move during playback
-        // Connect to OpenGL widget if using hardware acceleration, otherwise to software widget
-        if (_openglMatrixWidget) {
-            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _openglMatrixWidget, SLOT(timeMsChanged(int)));
-        } else {
-            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
-        }
+        connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _matrixWidgetContainer, SLOT(timeMsChanged(int)));
     }
 }
 
@@ -782,15 +768,9 @@ void MainWindow::record() {
             MidiPlayer::play(file);
             MidiInput::startInput();
             connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), this, SLOT(stop()));
-
             // Connect playback cursor updates for all platforms (not just Windows)
             // This is essential for the playback cursor to move during playback
-            // Connect to OpenGL widget if using hardware acceleration, otherwise to software widget
-            if (_openglMatrixWidget) {
-                connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _openglMatrixWidget, SLOT(timeMsChanged(int)));
-            } else {
-                connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), mw_matrixWidget, SLOT(timeMsChanged(int)));
-            }
+            connect(MidiPlayer::playerThread(), SIGNAL(timeMsChanged(int)), _matrixWidgetContainer, SLOT(timeMsChanged(int)));
         }
     }
 }
@@ -2939,28 +2919,28 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *zoomHorOutAction = new QAction(tr("Horizontal out"), this);
     zoomHorOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Minus)));
     Appearance::setActionIcon(zoomHorOutAction, ":/run_environment/graphics/tool/zoom_hor_out.png");
-    connect(zoomHorOutAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomHorOut()));
+    connect(zoomHorOutAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomHorOut()));
     zoomMenu->addAction(zoomHorOutAction);
     _actionMap["zoom_hor_out"] = zoomHorOutAction;
 
     QAction *zoomHorInAction = new QAction(tr("Horizontal in"), this);
     Appearance::setActionIcon(zoomHorInAction, ":/run_environment/graphics/tool/zoom_hor_in.png");
     zoomHorInAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Equal)));
-    connect(zoomHorInAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomHorIn()));
+    connect(zoomHorInAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomHorIn()));
     zoomMenu->addAction(zoomHorInAction);
     _actionMap["zoom_hor_in"] = zoomHorInAction;
 
     QAction *zoomVerOutAction = new QAction(tr("Vertical out"), this);
     Appearance::setActionIcon(zoomVerOutAction, ":/run_environment/graphics/tool/zoom_ver_out.png");
     zoomVerOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Minus)));
-    connect(zoomVerOutAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomVerOut()));
+    connect(zoomVerOutAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomVerOut()));
     zoomMenu->addAction(zoomVerOutAction);
     _actionMap["zoom_ver_out"] = zoomVerOutAction;
 
     QAction *zoomVerInAction = new QAction(tr("Vertical in"), this);
     Appearance::setActionIcon(zoomVerInAction, ":/run_environment/graphics/tool/zoom_ver_in.png");
     zoomVerInAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Equal)));
-    connect(zoomVerInAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomVerIn()));
+    connect(zoomVerInAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
     _actionMap["zoom_ver_in"] = zoomVerInAction;
 
@@ -2968,7 +2948,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *zoomStdAction = new QAction(tr("Restore default zoom"), this);
     zoomStdAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Backspace)));
-    connect(zoomStdAction, SIGNAL(triggered()), mw_matrixWidget, SLOT(zoomStd()));
+    connect(zoomStdAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomStd()));
     zoomMenu->addAction(zoomStdAction);
 
     viewMB->addMenu(zoomMenu);

@@ -774,8 +774,8 @@ private:
     /** \brief Main matrix widget for MIDI editing (internal widget for data access) */
     MatrixWidget *mw_matrixWidget;
 
-    /** \brief OpenGL matrix widget for hardware acceleration (nullptr in software mode) */
-    OpenGLMatrixWidget *_openglMatrixWidget;
+    /** \brief Container for the displayed matrix widget (OpenGL or software) */
+    QWidget *_matrixWidgetContainer;
 
     /** \brief Container for the displayed misc widget (OpenGL or software) */
     QWidget *_miscWidgetContainer;
@@ -891,18 +891,36 @@ private:
      */
     QList<ToolbarActionInfo> getDefaultActionsForPlaceholder();
 
+    // === Quantization and Timing ===
+
+    /** \brief Current quantization grid setting */
     int _quantizationGrid;
 
+    /**
+     * \brief Quantizes a time value to the nearest grid position.
+     * \param t Time value to quantize
+     * \param ticks List of available tick positions
+     * \return Quantized time value
+     */
     int quantize(int t, QList<int> ticks);
 
+    // === Action Management ===
+
+    /** \brief Actions that should be activated when selections are made */
     QList<QAction *> _activateWithSelections;
 
+    /** \brief Main toolbar widget container */
     QWidget *_toolbarWidget;
 
+    /** \brief Map of action IDs to QAction objects for quick lookup */
     QMap<QString, QAction *> _actionMap;
 
+    // === Advanced Features ===
+
+    /** \brief Current tweak target for parameter adjustment */
     TweakTarget *currentTweakTarget;
 
+    /** \brief Navigator for selection management */
     SelectionNavigator *selectionNavigator;
 };
 

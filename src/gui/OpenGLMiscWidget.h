@@ -64,28 +64,57 @@ public:
      */
     MiscWidget *getMiscWidget() const { return _miscWidget; }
 
-    // Forward all public MiscWidget methods with smooth visual feedback
+    // === MiscWidget API Delegation ===
+    // All methods delegate to the internal MiscWidget instance
+
+    /**
+     * \brief Converts a mode constant to a human-readable string.
+     * \param mode The mode constant to convert
+     * \return String representation of the mode
+     */
     static QString modeToString(int mode) { return MiscWidget::modeToString(mode); }
 
+    /**
+     * \brief Sets the editor mode (velocity, controller, etc.).
+     * \param mode The editor mode constant
+     */
     void setMode(int mode) {
         _miscWidget->setMode(mode);
         update();
     }
 
+    /**
+     * \brief Sets the editing interaction mode.
+     * \param mode The edit mode (SINGLE_MODE, LINE_MODE, MOUSE_MODE)
+     */
     void setEditMode(int mode) {
         _miscWidget->setEditMode(mode);
         update();
     }
 
+    /**
+     * \brief Gets the associated MatrixWidget.
+     * \return Pointer to the MatrixWidget
+     */
     MatrixWidget *getMatrixWidget() const { return _miscWidget->getMatrixWidget(); }
 
 public slots:
-    // Forward all MiscWidget slots with smooth visual feedback
+    // === MiscWidget Slot Delegation ===
+    // All slots delegate to the internal MiscWidget and trigger OpenGL updates
+
+    /**
+     * \brief Sets the active MIDI channel for editing.
+     * \param channel The MIDI channel (0-15)
+     */
     void setChannel(int channel) {
         _miscWidget->setChannel(channel);
         update();
     }
 
+    /**
+     * \brief Sets the active controller number for controller editing.
+     * \param ctrl The controller number (0-127)
+     */
     void setControl(int ctrl) {
         _miscWidget->setControl(ctrl);
         update();
@@ -99,25 +128,65 @@ protected:
     void paintContent(QPainter *painter) override;
 
     // === Event Handlers ===
+    // All event handlers delegate to the internal MiscWidget
+
+    /**
+     * \brief Handles mouse press events for value editing.
+     * \param event The mouse press event
+     */
     void mousePressEvent(QMouseEvent *event) override;
 
+    /**
+     * \brief Handles mouse release events for value editing.
+     * \param event The mouse release event
+     */
     void mouseReleaseEvent(QMouseEvent *event) override;
 
+    /**
+     * \brief Handles mouse move events for value editing and selection.
+     * \param event The mouse move event
+     */
     void mouseMoveEvent(QMouseEvent *event) override;
 
+    /**
+     * \brief Handles wheel events for zooming and scrolling.
+     * \param event The wheel event
+     */
     void wheelEvent(QWheelEvent *event) override;
 
+    /**
+     * \brief Handles mouse enter events.
+     * \param event The enter event
+     */
     void enterEvent(QEnterEvent *event) override;
 
+    /**
+     * \brief Handles mouse leave events.
+     * \param event The leave event
+     */
     void leaveEvent(QEvent *event) override;
 
+    /**
+     * \brief Handles key press events for shortcuts.
+     * \param event The key press event
+     */
     void keyPressEvent(QKeyEvent *event) override;
 
+    /**
+     * \brief Handles key release events.
+     * \param event The key release event
+     */
     void keyReleaseEvent(QKeyEvent *event) override;
 
+    /**
+     * \brief Handles resize events to update the internal widget.
+     * \param event The resize event
+     */
     void resizeEvent(QResizeEvent *event) override;
 
 private:
+    // === Internal Components ===
+
     /** \brief Internal MiscWidget instance that handles all the logic */
     MiscWidget *_miscWidget;
 };

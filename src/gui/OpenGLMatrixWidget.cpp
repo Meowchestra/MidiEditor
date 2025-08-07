@@ -17,6 +17,8 @@
  */
 
 #include "OpenGLMatrixWidget.h"
+#include "../protocol/Protocol.h"
+#include "../midi/MidiFile.h"
 #include <QDebug>
 #include <QApplication>
 
@@ -154,5 +156,27 @@ void OpenGLMatrixWidget::keyReleaseEvent(QKeyEvent *event) {
     // Forward to internal MatrixWidget
     if (_matrixWidget) {
         _matrixWidget->takeKeyReleaseEvent(event);
+    }
+}
+
+void OpenGLMatrixWidget::setFile(MidiFile *file) {
+    // Delegate to internal MatrixWidget
+    if (_matrixWidget) {
+        // Get the old file to disconnect from its protocol
+        MidiFile *oldFile = _matrixWidget->midiFile();
+        if (oldFile && oldFile->protocol()) {
+            disconnect(oldFile->protocol(), &Protocol::actionFinished, this, &OpenGLMatrixWidget::registerRelayout);
+            disconnect(oldFile->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::repaint));
+        }
+
+        _matrixWidget->setFile(file);
+
+        // CRITICAL: Connect to protocol actionFinished signal for OpenGL updates
+        // The internal MatrixWidget is hidden, so its calls don't trigger OpenGL updates
+        // Set up both connections that MatrixWidget has: registerRelayout() and repaint()
+        if (file && file->protocol()) {
+            connect(file->protocol(), &Protocol::actionFinished, this, &OpenGLMatrixWidget::registerRelayout);
+            connect(file->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::repaint));
+        }
     }
 }
