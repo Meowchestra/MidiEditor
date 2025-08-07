@@ -1023,7 +1023,7 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (!MidiPlayer::isPlaying() && Tool::currentTool()) {
-        Tool::currentTool()->move(event->x(), event->y());
+        Tool::currentTool()->move(qRound(event->position().x()), qRound(event->position().y()));
     }
 
     if (!MidiPlayer::isPlaying()) {
