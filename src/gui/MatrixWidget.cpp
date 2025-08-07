@@ -1317,8 +1317,10 @@ void MatrixWidget::resetView() {
 }
 
 void MatrixWidget::zoomHorIn() {
-    scaleX += 0.1;
-    calcSizes();
+    if (scaleX <= 3.0) { // Prevent excessive zoom in
+        scaleX += 0.1;
+        calcSizes();
+    }
 }
 
 void MatrixWidget::zoomHorOut() {
@@ -1329,8 +1331,10 @@ void MatrixWidget::zoomHorOut() {
 }
 
 void MatrixWidget::zoomVerIn() {
-    scaleY += 0.1;
-    calcSizes();
+    if (scaleY <= 3.0) { // Prevent excessive zoom in
+        scaleY += 0.1;
+        calcSizes();
+    }
 }
 
 void MatrixWidget::zoomVerOut() {
@@ -1418,6 +1422,13 @@ void MatrixWidget::wheelEvent(QWheelEvent *event) {
                 zoomHorIn();
             } else if (pixelDeltaLinear < 0) {
                 zoomHorOut();
+            }
+        } else if (km == (Qt::ControlModifier | Qt::ShiftModifier)) {
+            // Ctrl+Shift+wheel for scroll bar-like vertical scrolling (multiple lines at once)
+            if (pixelDeltaLinear != 0) {
+                // Use a larger scroll multiplier to match scroll bar behavior
+                int scrollMultiplier = 5; // Scroll 5x more than normal wheel scrolling
+                verScrollAmount = pixelDeltaLinear * scrollMultiplier;
             }
         } else if (km == Qt::AltModifier) {
             horScrollAmount = pixelDeltaLinear;
