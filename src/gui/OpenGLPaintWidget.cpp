@@ -112,12 +112,15 @@ void OpenGLPaintWidget::paintGL() {
         return;
     }
 
-    // Update paint device size if needed (minimize allocations)
+    // PERFORMANCE: Minimize OpenGL state changes and allocations
+    // Update paint device size only when needed to reduce GPU memory allocations
     QSize currentSize = size();
-    if (_paintDevice->size() != currentSize) {
+    static QSize lastSize;
+    if (_paintDevice->size() != currentSize || lastSize != currentSize) {
         _paintDevice->setSize(currentSize);
         _paintDevice->setDevicePixelRatio(1.0);
         _paintDevice->setPaintFlipped(false);
+        lastSize = currentSize;
     }
 
     // Create OpenGL-accelerated QPainter

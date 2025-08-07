@@ -173,7 +173,8 @@ public:
     QList<MidiEvent *> *velocityEvents() { return _matrixWidget->velocityEvents(); }
     QList<GraphicObject *> *getObjects() { return _matrixWidget->getObjects(); }
     bool colorsByChannel() { return _matrixWidget->colorsByChannel(); }
-    void setColorsByChannel() { _matrixWidget->setColorsByChannel(); }
+    void setColorsByChannel() { _matrixWidget->setColorsByChannel(); update(); }
+    void setColorsByTracks() { _matrixWidget->setColorsByTracks(); update(); }
 
 public slots:
     // === MatrixWidget Slot Delegation ===

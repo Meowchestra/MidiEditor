@@ -733,7 +733,9 @@ void MainWindow::play() {
         _miscWidgetContainer->setEnabled(false);
         channelWidget->setEnabled(false);
         protocolWidget->setEnabled(false);
-        _matrixWidgetContainer->setEnabled(false);
+        // PERFORMANCE: Don't disable matrix widget during playback to allow mouse wheel scrolling
+        // The widget itself handles playback state checks for editing operations
+        // _matrixWidgetContainer->setEnabled(false);
         _trackWidget->setEnabled(false);
         eventWidget()->setEnabled(false);
 
@@ -776,7 +778,9 @@ void MainWindow::record() {
             _miscWidgetContainer->setEnabled(false);
             channelWidget->setEnabled(false);
             protocolWidget->setEnabled(false);
-            _matrixWidgetContainer->setEnabled(false);
+            // PERFORMANCE: Don't disable matrix widget during playback to allow mouse wheel scrolling
+            // The widget itself handles playback state checks for editing operations
+            // _matrixWidgetContainer->setEnabled(false);
             _trackWidget->setEnabled(false);
             eventWidget()->setEnabled(false);
             MidiPlayer::play(file);
@@ -815,7 +819,8 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
         channelWidget->setEnabled(true);
         _trackWidget->setEnabled(true);
         protocolWidget->setEnabled(true);
-        _matrixWidgetContainer->setEnabled(true);
+        // Matrix widget was never disabled, so no need to re-enable
+        // _matrixWidgetContainer->setEnabled(true);
         eventWidget()->setEnabled(true);
         // Update playback cursor position using the appropriate widget type
         if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {

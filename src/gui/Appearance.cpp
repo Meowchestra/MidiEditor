@@ -25,8 +25,9 @@ static QDateTime cacheTime;
 static QTimer *iconUpdateTimer = nullptr;
 static QList<QPair<QAction *, QString> > iconUpdateQueue;
 
-QMap<int, QColor *> Appearance::channelColors = QMap<int, QColor *>();
-QMap<int, QColor *> Appearance::trackColors = QMap<int, QColor *>();
+// PERFORMANCE: Use QHash instead of QMap for O(1) color lookups instead of O(log n)
+QHash<int, QColor *> Appearance::channelColors = QHash<int, QColor *>();
+QHash<int, QColor *> Appearance::trackColors = QHash<int, QColor *>();
 QSet<int> Appearance::customChannelColors = QSet<int>();
 QSet<int> Appearance::customTrackColors = QSet<int>();
 QMap<QAction *, QString> Appearance::registeredIconActions = QMap<QAction *, QString>();

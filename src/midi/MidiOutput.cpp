@@ -29,11 +29,9 @@
 
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
-#include "SenderThread.h"
 
 RtMidiOut *MidiOutput::_midiOut = 0;
 QString MidiOutput::_outPort = "";
-SenderThread *MidiOutput::_sender = new SenderThread();
 QMap<int, QList<int> > MidiOutput::playedNotes = QMap<int, QList<int> >();
 bool MidiOutput::isAlternativePlayer = false;
 
@@ -46,7 +44,7 @@ void MidiOutput::init() {
     } catch (RtMidiError &error) {
         error.printMessage();
     }
-    _sender->start(QThread::TimeCriticalPriority);
+    // PERFORMANCE: No SenderThread - send MIDI directly to eliminate NtWaitForSingleObject overhead
 }
 
 void MidiOutput::sendCommand(QByteArray array) {
@@ -55,7 +53,7 @@ void MidiOutput::sendCommand(QByteArray array) {
 
 void MidiOutput::sendCommand(MidiEvent *e) {
     if (e->channel() >= 0 && e->channel() < 16 || e->line() == MidiEvent::SYSEX_LINE) {
-        _sender->enqueue(e);
+        sendEnqueuedCommand(e->save());
 
         if (isAlternativePlayer) {
             NoteOnEvent *n = dynamic_cast<NoteOnEvent *>(e);

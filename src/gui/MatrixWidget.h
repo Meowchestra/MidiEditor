@@ -22,10 +22,12 @@
 // Project includes
 #include "PaintWidget.h"
 #include "Appearance.h"
+#include "../midi/MidiTrack.h"
 
 // Qt includes
 #include <QApplication>
 #include <QEnterEvent>
+#include <QHash>
 #include <QMap>
 #include <QMouseEvent>
 #include <QPainter>
@@ -507,6 +509,12 @@ private:
      */
     void paintPianoKey(QPainter *painter, int number, int x, int y, int width, int height);
 
+    /**
+     * \brief Invalidates performance caches when MIDI data changes.
+     * Should be called when tracks are added/removed or colors change.
+     */
+    void invalidatePerformanceCache();
+
     // === Configuration ===
 
     /** \brief Application settings for configuration persistence */
@@ -662,6 +670,21 @@ private:
      * Used for piano key hit testing and display.
      */
     QMap<int, QRect> pianoKeys;
+
+    // === Performance Optimization Cache ===
+
+    /**
+     * \brief Cache for track colors to eliminate expensive std::map lookups during rendering.
+     * Addresses VTune hotspot showing std::_Tree operations
+     */
+    mutable QHash<MidiTrack*, QColor> _trackColorCache;
+
+    /**
+     * \brief Cache for last visible time range to avoid redundant calculations.
+     */
+    mutable int _lastVisibleStartMs;
+    mutable int _lastVisibleEndMs;
+    mutable bool _trackColorCacheValid;
 
     // === Constants ===
 

@@ -643,9 +643,9 @@ private:
 
     // === Static Data Members ===
 
-    /** \brief Maps for storing colors */
-    static QMap<int, QColor *> channelColors;
-    static QMap<int, QColor *> trackColors;
+    /** \brief Maps for storing colors - using QHash for O(1) lookup instead of O(log n) */
+    static QHash<int, QColor *> channelColors;
+    static QHash<int, QColor *> trackColors;
     static QSet<int> customChannelColors;                  ///< Track which channel colors are custom
     static QSet<int> customTrackColors;                    ///< Track which track colors are custom
     static QMap<QAction *, QString> registeredIconActions; ///< Track actions with their icon paths

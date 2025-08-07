@@ -27,7 +27,6 @@
 class MidiEvent;
 class RtMidiIn;
 class RtMidiOut;
-class SenderThread;
 
 /**
  * \class MidiOutput
@@ -147,9 +146,6 @@ private:
 
     /** \brief RtMidi output interface */
     static RtMidiOut *_midiOut;
-
-    /** \brief Thread for queued message transmission */
-    static SenderThread *_sender;
 
     /** \brief Standard/default MIDI channel */
     static int _stdChannel;
