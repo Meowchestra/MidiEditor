@@ -204,11 +204,21 @@ bool StandardTool::move(int mouseX, int mouseY) {
                         ev->y() + ev->height())
             || pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),
                            ev->x() + ev->width() + 2, ev->y() + ev->height())) {
-            matrixWidget->setCursor(Qt::SplitHCursor);
+            // Set cursor on OpenGL container if available, otherwise on matrix widget
+            if (_openglContainer) {
+                _openglContainer->setCursor(Qt::SplitHCursor);
+            } else {
+                matrixWidget->setCursor(Qt::SplitHCursor);
+            }
             return false;
         }
     }
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     return false;
 }
 
@@ -228,7 +238,12 @@ void StandardTool::reloadState(ProtocolEntry *entry) {
 }
 
 bool StandardTool::release() {
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     return true;
 }
 

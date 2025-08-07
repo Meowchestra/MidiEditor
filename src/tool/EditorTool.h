@@ -173,6 +173,15 @@ public:
     static void setMatrixWidget(MatrixWidget *w);
 
     /**
+     * \brief Sets the OpenGL container widget for cursor operations.
+     * \param container The OpenGL container widget that should receive cursor changes
+     *
+     * When using OpenGL acceleration, cursor changes should be applied to the
+     * visible container widget rather than the hidden internal widget.
+     */
+    static void setOpenGLContainer(QWidget *container);
+
+    /**
      * \brief Sets the main window for all editor tools.
      * \param mw The MainWindow to associate with tools
      */
@@ -202,6 +211,9 @@ protected:
 
     /** \brief Static reference to the matrix widget */
     static MatrixWidget *matrixWidget;
+
+    /** \brief Static reference to the OpenGL container widget for cursor operations */
+    static QWidget *_openglContainer;
 
     /** \brief Static reference to the main window */
     static MainWindow *_mainWindow;

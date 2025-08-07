@@ -65,9 +65,9 @@ void OpenGLMiscWidget::mousePressEvent(QMouseEvent *event) {
     // Forward to internal MiscWidget for business logic
     if (_miscWidget) {
         QApplication::sendEvent(_miscWidget, event);
-        // Use immediate repaint for responsive interaction feedback
-        // Hidden widget's repaint doesn't trigger OpenGL repaint
-        repaint();
+        // Use asynchronous update for consistent behavior with software rendering
+        // This prevents GPU pipeline stalls during interactive operations
+        update();
     }
 }
 
@@ -78,8 +78,9 @@ void OpenGLMiscWidget::mouseReleaseEvent(QMouseEvent *event) {
     // Forward to internal MiscWidget for business logic
     if (_miscWidget) {
         QApplication::sendEvent(_miscWidget, event);
-        // Use immediate repaint for responsive editing feedback
-        repaint();
+        // Use asynchronous update for consistent behavior with software rendering
+        // This prevents GPU pipeline stalls during interactive operations
+        update();
     }
 }
 
@@ -90,8 +91,9 @@ void OpenGLMiscWidget::mouseMoveEvent(QMouseEvent *event) {
     // Forward to internal MiscWidget for business logic
     if (_miscWidget) {
         QApplication::sendEvent(_miscWidget, event);
-        // Use immediate repaint for responsive drawing/editing feedback
-        repaint();
+        // Use asynchronous update for smooth drag operations
+        // This prevents GPU pipeline stalls and eliminates flickering during editing
+        update();
     }
 }
 
@@ -125,6 +127,9 @@ void OpenGLMiscWidget::keyPressEvent(QKeyEvent *event) {
     // Forward to internal MiscWidget for keyboard shortcuts
     if (_miscWidget) {
         QApplication::sendEvent(_miscWidget, event);
+        // Hidden widget's conditional update() doesn't trigger OpenGL repaint
+        // Update unconditionally since we can't check the tool's return value
+        update();
     }
 }
 
@@ -132,6 +137,9 @@ void OpenGLMiscWidget::keyReleaseEvent(QKeyEvent *event) {
     // Forward to internal MiscWidget for keyboard shortcuts
     if (_miscWidget) {
         QApplication::sendEvent(_miscWidget, event);
+        // Hidden widget's conditional update() doesn't trigger OpenGL repaint
+        // Update unconditionally since we can't check the tool's return value
+        update();
     }
 }
 

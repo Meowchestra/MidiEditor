@@ -57,7 +57,12 @@ void SizeChangeTool::reloadState(ProtocolEntry *entry) {
 void SizeChangeTool::draw(QPainter *painter) {
     int currentX = rasteredX(mouseX);
 
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     if (!inDrag) {
         paintSelectedEvents(painter);
         return;
@@ -84,10 +89,20 @@ void SizeChangeTool::draw(QPainter *painter) {
         if (show) {
             painter->fillRect(event->x() + startEventShift, event->y(), event->width() - startEventShift + endEventShift, event->height(), Qt::black);
             if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2 + endEventShift, event->y(), event->x() + event->width() + 2 + endEventShift, event->y() + event->height())) {
-                matrixWidget->setCursor(Qt::SplitHCursor);
+                // Set cursor on OpenGL container if available, otherwise on matrix widget
+                if (_openglContainer) {
+                    _openglContainer->setCursor(Qt::SplitHCursor);
+                } else {
+                    matrixWidget->setCursor(Qt::SplitHCursor);
+                }
             }
             if (pointInRect(mouseX, mouseY, event->x() - 2 + startEventShift, event->y(), event->x() + 2 + startEventShift, event->y() + event->height())) {
-                matrixWidget->setCursor(Qt::SplitHCursor);
+                // Set cursor on OpenGL container if available, otherwise on matrix widget
+                if (_openglContainer) {
+                    _openglContainer->setCursor(Qt::SplitHCursor);
+                } else {
+                    matrixWidget->setCursor(Qt::SplitHCursor);
+                }
             }
         }
     }
@@ -153,7 +168,12 @@ bool SizeChangeTool::release() {
         }
         currentProtocol()->endAction();
     }
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     if (_standardTool) {
         Tool::setCurrentTool(_standardTool);
         _standardTool->move(mouseX, mouseY);
@@ -166,15 +186,30 @@ bool SizeChangeTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         if (pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height())) {
-            matrixWidget->setCursor(Qt::SplitHCursor);
+            // Set cursor on OpenGL container if available, otherwise on matrix widget
+            if (_openglContainer) {
+                _openglContainer->setCursor(Qt::SplitHCursor);
+            } else {
+                matrixWidget->setCursor(Qt::SplitHCursor);
+            }
             return inDrag;
         }
         if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height())) {
-            matrixWidget->setCursor(Qt::SplitHCursor);
+            // Set cursor on OpenGL container if available, otherwise on matrix widget
+            if (_openglContainer) {
+                _openglContainer->setCursor(Qt::SplitHCursor);
+            } else {
+                matrixWidget->setCursor(Qt::SplitHCursor);
+            }
             return inDrag;
         }
     }
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     return inDrag;
 }
 

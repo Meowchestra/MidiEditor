@@ -213,6 +213,8 @@ MainWindow::MainWindow(QString initFile)
         mw_matrixWidget = openglMatrix->getMatrixWidget(); // Get the internal MatrixWidget for data access
         _matrixWidgetContainer = openglMatrix; // Store the displayed widget for UI operations
         matrixContainer = openglMatrix;
+        // Set up OpenGL container for cursor operations
+        EditorTool::setOpenGLContainer(openglMatrix);
         // Direct OpenGL acceleration - no separate accelerator needed
         qDebug() << "Created MatrixWidget with direct OpenGL acceleration";
     } else {
@@ -220,6 +222,8 @@ MainWindow::MainWindow(QString initFile)
         mw_matrixWidget = new MatrixWidget(_settings, matrixArea);
         _matrixWidgetContainer = mw_matrixWidget; // Same widget for both data and UI
         matrixContainer = mw_matrixWidget;
+        // No OpenGL container needed for software rendering
+        EditorTool::setOpenGLContainer(nullptr);
         // Software rendering - no accelerator needed
         qDebug() << "Created MatrixWidget with software rendering";
     }
@@ -670,7 +674,7 @@ void MainWindow::setFile(MidiFile *newFile) {
     }
     updateChannelMenu();
     updateTrackMenu();
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
     _miscWidgetContainer->update();
 
     // Update paste action state when file changes
@@ -700,7 +704,7 @@ void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
     hori->setValue(vX);
 
     // Update the matrix widget
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::playStop() {
@@ -719,12 +723,17 @@ void MainWindow::play() {
         return;
     }
     if (file && !MidiInput::recording() && !MidiPlayer::isPlaying()) {
-        mw_matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+        // Update playback cursor position using the appropriate widget type
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+        }
 
-        _miscWidget->setEnabled(false);
+        _miscWidgetContainer->setEnabled(false);
         channelWidget->setEnabled(false);
         protocolWidget->setEnabled(false);
-        mw_matrixWidget->setEnabled(false);
+        _matrixWidgetContainer->setEnabled(false);
         _trackWidget->setEnabled(false);
         eventWidget()->setEnabled(false);
 
@@ -757,12 +766,17 @@ void MainWindow::record() {
                 file->setPauseTick(-1);
             }
 
-            mw_matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+            // Update playback cursor position using the appropriate widget type
+            if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+                openglMatrix->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+            } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+                matrixWidget->timeMsChanged(file->msOfTick(file->cursorTick()), true);
+            }
 
-            _miscWidget->setEnabled(false);
+            _miscWidgetContainer->setEnabled(false);
             channelWidget->setEnabled(false);
             protocolWidget->setEnabled(false);
-            mw_matrixWidget->setEnabled(false);
+            _matrixWidgetContainer->setEnabled(false);
             _trackWidget->setEnabled(false);
             eventWidget()->setEnabled(false);
             MidiPlayer::play(file);
@@ -793,17 +807,22 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
 
     if (resetPause) {
         file->setPauseTick(-1);
-        mw_matrixWidget->update();
+        _matrixWidgetContainer->update();
     }
     if (!MidiInput::recording() && MidiPlayer::isPlaying()) {
         MidiPlayer::stop();
-        _miscWidget->setEnabled(true);
+        _miscWidgetContainer->setEnabled(true);
         channelWidget->setEnabled(true);
         _trackWidget->setEnabled(true);
         protocolWidget->setEnabled(true);
-        mw_matrixWidget->setEnabled(true);
+        _matrixWidgetContainer->setEnabled(true);
         eventWidget()->setEnabled(true);
-        mw_matrixWidget->timeMsChanged(MidiPlayer::timeMs(), true);
+        // Update playback cursor position using the appropriate widget type
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->timeMsChanged(MidiPlayer::timeMs(), true);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->timeMsChanged(MidiPlayer::timeMs(), true);
+        }
         _trackWidget->setEnabled(true);
         panic();
     }
@@ -816,10 +835,10 @@ void MainWindow::stop(bool autoConfirmRecord, bool addEvents, bool resetPause) {
     if (MidiInput::recording()) {
         MidiPlayer::stop();
         panic();
-        _miscWidget->setEnabled(true);
+        _miscWidgetContainer->setEnabled(true);
         channelWidget->setEnabled(true);
         protocolWidget->setEnabled(true);
-        mw_matrixWidget->setEnabled(true);
+        _matrixWidgetContainer->setEnabled(true);
         _trackWidget->setEnabled(true);
         eventWidget()->setEnabled(true);
         QMultiMap<int, MidiEvent *> events = MidiInput::endInput(track);
@@ -860,9 +879,14 @@ void MainWindow::forward() {
     file->setPauseTick(-1);
     if (newTick <= file->endTick()) {
         file->setCursorTick(newTick);
-        mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        // Update playback cursor position using the appropriate widget type
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->timeMsChanged(file->msOfTick(newTick), true);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        }
     }
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::back() {
@@ -893,9 +917,14 @@ void MainWindow::back() {
     file->setPauseTick(-1);
     if (newTick >= 0) {
         file->setCursorTick(newTick);
-        mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        // Update playback cursor position using the appropriate widget type
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->timeMsChanged(file->msOfTick(newTick), true);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+        }
     }
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::backToBegin() {
@@ -905,7 +934,7 @@ void MainWindow::backToBegin() {
     file->setPauseTick(0);
     file->setCursorTick(0);
 
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::forwardMarker() {
@@ -937,8 +966,13 @@ void MainWindow::forwardMarker() {
     if (newTick < 0) return;
     file->setPauseTick(newTick);
     file->setCursorTick(newTick);
-    mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
-    mw_matrixWidget->update();
+    // Update playback cursor position using the appropriate widget type
+    if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        openglMatrix->timeMsChanged(file->msOfTick(newTick), true);
+    } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+        matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+    }
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::backMarker() {
@@ -971,8 +1005,13 @@ void MainWindow::backMarker() {
 
     file->setPauseTick(newTick);
     file->setCursorTick(newTick);
-    mw_matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
-    mw_matrixWidget->update();
+    // Update playback cursor position using the appropriate widget type
+    if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        openglMatrix->timeMsChanged(file->msOfTick(newTick), true);
+    } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+        matrixWidget->timeMsChanged(file->msOfTick(newTick), true);
+    }
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::save() {
@@ -1515,8 +1554,12 @@ void MainWindow::resetView() {
         return;
     }
 
-    // Call the matrix widget's reset view function
-    mw_matrixWidget->resetView();
+    // Call the matrix widget's reset view function using the appropriate widget type
+    if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        openglMatrix->resetView();
+    } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+        matrixWidget->resetView();
+    }
 }
 
 void MainWindow::deleteSelectedEvents() {
@@ -1819,7 +1862,11 @@ void MainWindow::keyPressEvent(QKeyEvent *event) {
 
     // If the event wasn't accepted by a shortcut, forward it to the matrix widget
     if (!event->isAccepted()) {
-        mw_matrixWidget->takeKeyPressEvent(event);
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->takeKeyPressEvent(event);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->takeKeyPressEvent(event);
+        }
     }
 }
 
@@ -1829,7 +1876,11 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
 
     // If the event wasn't accepted by a shortcut, forward it to the matrix widget
     if (!event->isAccepted()) {
-        mw_matrixWidget->takeKeyReleaseEvent(event);
+        if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+            openglMatrix->takeKeyReleaseEvent(event);
+        } else if (MatrixWidget *matrixWidget = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+            matrixWidget->takeKeyReleaseEvent(event);
+        }
     }
 }
 
@@ -2115,7 +2166,7 @@ void MainWindow::colorsByChannel() {
     _colorsByChannel->setChecked(true);
     _colorsByTracks->setChecked(false);
     mw_matrixWidget->registerRelayout();
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
     _miscWidgetContainer->update();
 }
 
@@ -2124,7 +2175,7 @@ void MainWindow::colorsByTrack() {
     _colorsByChannel->setChecked(false);
     _colorsByTracks->setChecked(true);
     mw_matrixWidget->registerRelayout();
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
     _miscWidgetContainer->update();
 }
 
@@ -4397,7 +4448,7 @@ void MainWindow::checkEnableActionsForSelection() {
 void MainWindow::toolChanged() {
     checkEnableActionsForSelection();
     _miscWidgetContainer->update();
-    mw_matrixWidget->update();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::copiedEventsChanged() {

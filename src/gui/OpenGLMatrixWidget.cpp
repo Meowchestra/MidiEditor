@@ -68,9 +68,9 @@ void OpenGLMatrixWidget::mousePressEvent(QMouseEvent *event) {
     // Forward to internal MatrixWidget for business logic
     if (_matrixWidget) {
         QApplication::sendEvent(_matrixWidget, event);
-        // MatrixWidget::mousePressEvent() calls update() but hidden widget doesn't repaint screen
-        // Use immediate repaint() for responsive tool feedback
-        repaint();
+        // Use asynchronous update for consistent behavior with software rendering
+        // This prevents GPU pipeline stalls during interactive operations
+        update();
     }
 }
 
@@ -81,8 +81,9 @@ void OpenGLMatrixWidget::mouseReleaseEvent(QMouseEvent *event) {
     // Forward to internal MatrixWidget for business logic
     if (_matrixWidget) {
         QApplication::sendEvent(_matrixWidget, event);
-        // Use immediate repaint for responsive tool feedback
-        repaint();
+        // Use asynchronous update for consistent behavior with software rendering
+        // This prevents GPU pipeline stalls during interactive operations
+        update();
     }
 }
 
@@ -93,9 +94,9 @@ void OpenGLMatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     // Forward to internal MatrixWidget for business logic
     if (_matrixWidget) {
         QApplication::sendEvent(_matrixWidget, event);
-        // Use immediate repaint for responsive tool feedback during drag operations
-        // This is critical for tools like SelectTool, EventMoveTool, SizeChangeTool, NewNoteTool
-        repaint();
+        // Use asynchronous update for smooth drag operations
+        // This prevents GPU pipeline stalls and eliminates flickering during note selection/dragging
+        update();
     }
 }
 
@@ -103,8 +104,8 @@ void OpenGLMatrixWidget::mouseDoubleClickEvent(QMouseEvent *event) {
     // Forward to internal MatrixWidget for timeline cursor positioning
     if (_matrixWidget) {
         QApplication::sendEvent(_matrixWidget, event);
-        // Use immediate repaint for cursor position feedback
-        repaint();
+        // Use asynchronous update for consistent behavior with software rendering
+        update();
     }
 }
 
@@ -149,6 +150,9 @@ void OpenGLMatrixWidget::keyPressEvent(QKeyEvent *event) {
     // Forward to internal MatrixWidget
     if (_matrixWidget) {
         _matrixWidget->takeKeyPressEvent(event);
+        // Hidden widget's conditional update() doesn't trigger OpenGL repaint
+        // Update unconditionally since we can't check the tool's return value
+        update();
     }
 }
 
@@ -156,6 +160,9 @@ void OpenGLMatrixWidget::keyReleaseEvent(QKeyEvent *event) {
     // Forward to internal MatrixWidget
     if (_matrixWidget) {
         _matrixWidget->takeKeyReleaseEvent(event);
+        // Hidden widget's conditional update() doesn't trigger OpenGL repaint
+        // Update unconditionally since we can't check the tool's return value
+        update();
     }
 }
 
@@ -166,17 +173,17 @@ void OpenGLMatrixWidget::setFile(MidiFile *file) {
         MidiFile *oldFile = _matrixWidget->midiFile();
         if (oldFile && oldFile->protocol()) {
             disconnect(oldFile->protocol(), &Protocol::actionFinished, this, &OpenGLMatrixWidget::registerRelayout);
-            disconnect(oldFile->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::repaint));
+            disconnect(oldFile->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::update));
         }
 
         _matrixWidget->setFile(file);
 
         // CRITICAL: Connect to protocol actionFinished signal for OpenGL updates
         // The internal MatrixWidget is hidden, so its calls don't trigger OpenGL updates
-        // Set up both connections that MatrixWidget has: registerRelayout() and repaint()
+        // Set up both connections that MatrixWidget has: registerRelayout() and update()
         if (file && file->protocol()) {
             connect(file->protocol(), &Protocol::actionFinished, this, &OpenGLMatrixWidget::registerRelayout);
-            connect(file->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::repaint));
+            connect(file->protocol(), &Protocol::actionFinished, this, QOverload<>::of(&QWidget::update));
         }
     }
 }

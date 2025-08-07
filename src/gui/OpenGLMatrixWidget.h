@@ -186,7 +186,7 @@ public slots:
      */
     void timeMsChanged(int ms, bool ignoreLocked = false) {
         _matrixWidget->timeMsChanged(ms, ignoreLocked);
-        repaint(); // Use immediate repaint for smooth playback cursor
+        update(); // Use asynchronous update for consistent behavior with software rendering
     }
 
     /**

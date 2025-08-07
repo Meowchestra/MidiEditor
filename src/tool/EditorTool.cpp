@@ -22,6 +22,7 @@
 #include "ToolButton.h"
 
 MatrixWidget *EditorTool::matrixWidget = 0;
+QWidget *EditorTool::_openglContainer = 0;
 MainWindow *EditorTool::_mainWindow = 0;
 
 EditorTool::EditorTool()
@@ -120,6 +121,10 @@ void EditorTool::reloadState(ProtocolEntry *entry) {
 
 void EditorTool::setMatrixWidget(MatrixWidget *w) {
     matrixWidget = w;
+}
+
+void EditorTool::setOpenGLContainer(QWidget *container) {
+    _openglContainer = container;
 }
 
 void EditorTool::setMainWindow(MainWindow *mw) {

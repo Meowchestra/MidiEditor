@@ -5,6 +5,7 @@
 [![build windows](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yml/badge.svg)](https://github.com/Meowchestra/MidiEditor/actions/workflows/xmake.yml)
 
 Downloads : [latest release](https://github.com/Meowchestra/MidiEditor/releases)
+
 Project Page & Manual : [https://meowchestra.github.io/MidiEditor/](https://meowchestra.github.io/MidiEditor/)
 
 Updated MidiEditor with additional improvements, custom changes, & merged pull-requests ahead of upstream. Based on [jingkaimori's fork](https://github.com/jingkaimori/midieditor/) of [ProMidEdit](https://github.com/PROPHESSOR/ProMidEdit), built on top of [MidiEditor](https://github.com/markusschwenk/midieditor).

@@ -99,12 +99,27 @@ void EventMoveTool::draw(QPainter *painter) {
                 customShiftY = 0;
             }
             if (event->shown()) {
+                // Calculate unclipped coordinates for drag preview to show full note length
+                int dragX, dragWidth;
+                NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
+                if (noteOn && noteOn->offEvent()) {
+                    // For notes, calculate raw coordinates without viewport clipping
+                    int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->midiTime()));
+                    int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->offEvent()->midiTime()));
+                    dragX = rawX;
+                    dragWidth = rawEndX - rawX;
+                } else {
+                    // For non-note events, use the stored coordinates
+                    dragX = event->x();
+                    dragWidth = event->width();
+                }
+
                 painter->setPen(Qt::lightGray);
                 painter->setBrush(Qt::darkBlue);
-                painter->drawRoundedRect(event->x() - shiftX, event->y() - customShiftY, event->width(), event->height(), 1, 1);
+                painter->drawRoundedRect(dragX - shiftX, event->y() - customShiftY, dragWidth, event->height(), 1, 1);
                 painter->setPen(Qt::gray);
-                painter->drawLine(event->x() - shiftX, 0, event->x() - shiftX, matrixWidget->height());
-                painter->drawLine(event->x() + event->width() - shiftX, 0, event->x() + event->width() - shiftX, matrixWidget->height());
+                painter->drawLine(dragX - shiftX, 0, dragX - shiftX, matrixWidget->height());
+                painter->drawLine(dragX + dragWidth - shiftX, 0, dragX + dragWidth - shiftX, matrixWidget->height());
                 painter->setPen(Qt::black);
             }
         }
@@ -117,12 +132,20 @@ bool EventMoveTool::press(bool leftClick) {
     startX = mouseX;
     startY = mouseY;
     if (Selection::instance()->selectedEvents().count() > 0) {
+        QCursor dragCursor;
         if (moveUpDown && moveLeftRight) {
-            matrixWidget->setCursor(Qt::SizeAllCursor);
+            dragCursor = Qt::SizeAllCursor;
         } else if (moveUpDown) {
-            matrixWidget->setCursor(Qt::SizeVerCursor);
+            dragCursor = Qt::SizeVerCursor;
         } else {
-            matrixWidget->setCursor(Qt::SizeHorCursor);
+            dragCursor = Qt::SizeHorCursor;
+        }
+
+        // Set cursor on OpenGL container if available, otherwise on matrix widget
+        if (_openglContainer) {
+            _openglContainer->setCursor(dragCursor);
+        } else {
+            matrixWidget->setCursor(dragCursor);
         }
     }
     return true;
@@ -130,7 +153,12 @@ bool EventMoveTool::press(bool leftClick) {
 
 bool EventMoveTool::release() {
     inDrag = false;
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     int currentX = computeRaster();
     int shiftX = startX - currentX;
     if (!moveLeftRight) {
@@ -195,7 +223,12 @@ bool EventMoveTool::move(int mouseX, int mouseY) {
 
 bool EventMoveTool::releaseOnly() {
     inDrag = false;
-    matrixWidget->setCursor(Qt::ArrowCursor);
+    // Set cursor on OpenGL container if available, otherwise on matrix widget
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::ArrowCursor);
+    } else {
+        matrixWidget->setCursor(Qt::ArrowCursor);
+    }
     startX = 0;
     startY = 0;
     return true;
