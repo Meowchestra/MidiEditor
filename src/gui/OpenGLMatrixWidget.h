@@ -82,7 +82,6 @@ public:
     double lineHeight() { return _matrixWidget->lineHeight(); }
     void registerRelayout() { _matrixWidget->registerRelayout(); }
     void updateRenderingSettings() { _matrixWidget->updateRenderingSettings(); }
-    void calcSizes() { _matrixWidget->calcSizes(); }
     void setDiv(int div) { _matrixWidget->setDiv(div); }
     int div() { return _matrixWidget->div(); }
     void takeKeyPressEvent(QKeyEvent *event) { _matrixWidget->takeKeyPressEvent(event); }
@@ -147,6 +146,12 @@ public slots:
     void resetView() {
         _matrixWidget->resetView();
         // Hidden widget's calcSizes()->update() doesn't trigger OpenGL repaint
+        update();
+    }
+
+    void calcSizes() {
+        _matrixWidget->calcSizes();
+        // Hidden widget's update() doesn't trigger OpenGL repaint
         update();
     }
 

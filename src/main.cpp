@@ -64,6 +64,7 @@ int main(int argc, char *argv[]) {
     bool ignoreFontScaling = Appearance::ignoreFontScaling();
     int msaaSamples = Appearance::msaaSamples();
     bool enableVSync = Appearance::enableVSync();
+    bool useHardwareAcceleration = Appearance::useHardwareAcceleration();
 
     // Debug output to verify scaling settings
     qDebug() << "=== DPI Scaling Configuration ===";
@@ -72,6 +73,7 @@ int main(int argc, char *argv[]) {
     qDebug() << "Use rounded scaling:" << useRoundedScaling;
     qDebug() << "MSAA samples:" << msaaSamples;
     qDebug() << "VSync enabled:" << enableVSync;
+    qDebug() << "Hardware acceleration:" << useHardwareAcceleration;
 
     // High DPI scaling is always enabled in Qt 6, so we only need to configure the scaling policy
     if (ignoreSystemScaling) {
@@ -143,39 +145,43 @@ int main(int argc, char *argv[]) {
     QFontMetrics fm(defaultFont);
     qDebug() << "Font metrics height:" << fm.height() << "ascent:" << fm.ascent();
 
-    // Initialize OpenGL 4.6 for maximum performance
-    qDebug() << "=== Initializing OpenGL 4.6 for Maximum Performance ===";
-    QSurfaceFormat format;
+    // Initialize OpenGL only if hardware acceleration is enabled
+    if (useHardwareAcceleration) {
+        qDebug() << "=== Initializing OpenGL 4.6 for Maximum Performance ===";
+        QSurfaceFormat format;
 
-    // Request OpenGL 4.6 Core Profile for latest features and best performance
-    format.setVersion(4, 6);
-    format.setProfile(QSurfaceFormat::CoreProfile);
+        // Request OpenGL 4.6 Core Profile for latest features and best performance
+        format.setVersion(4, 6);
+        format.setProfile(QSurfaceFormat::CoreProfile);
 
-    // Enable all performance features
-    format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
-    format.setRenderableType(QSurfaceFormat::OpenGL);
+        // Enable all performance features
+        format.setSwapBehavior(QSurfaceFormat::DoubleBuffer);
+        format.setRenderableType(QSurfaceFormat::OpenGL);
 
-    // High-quality rendering settings
-    format.setDepthBufferSize(24);
-    format.setStencilBufferSize(8);
-    format.setRedBufferSize(8);
-    format.setGreenBufferSize(8);
-    format.setBlueBufferSize(8);
-    format.setAlphaBufferSize(8);
+        // High-quality rendering settings
+        format.setDepthBufferSize(24);
+        format.setStencilBufferSize(8);
+        format.setRedBufferSize(8);
+        format.setGreenBufferSize(8);
+        format.setBlueBufferSize(8);
+        format.setAlphaBufferSize(8);
 
-    // Enable multisampling based on user settings (loaded early from QSettings)
-    format.setSamples(msaaSamples); // Use configured MSAA level
+        // Enable multisampling based on user settings (loaded early from QSettings)
+        format.setSamples(msaaSamples); // Use configured MSAA level
 
-    // Configure VSync based on user preference for balance between responsiveness and smoothness
-    // VSync setting loaded from Appearance::enableVSync() (from user settings)
-    format.setSwapInterval(enableVSync ? 1 : 0); // 0 = VSync off, 1 = VSync on
+        // Configure VSync based on user preference for balance between responsiveness and smoothness
+        // VSync setting loaded from Appearance::enableVSync() (from user settings)
+        format.setSwapInterval(enableVSync ? 1 : 0); // 0 = VSync off, 1 = VSync on
 
-    QSurfaceFormat::setDefaultFormat(format);
+        QSurfaceFormat::setDefaultFormat(format);
 
-    qDebug() << "OpenGL 4.6 Core Profile format set:" << format;
-    qDebug() << "MSAA samples configured:" << msaaSamples << "(from user settings)";
-    qDebug() << "VSync configured:" << (enableVSync ? "ENABLED (smooth playback)" : "DISABLED (responsive editing)");
-    qDebug() << "OpenGL module type:" << QOpenGLContext::openGLModuleType();
+        qDebug() << "OpenGL 4.6 Core Profile format set:" << format;
+        qDebug() << "MSAA samples configured:" << msaaSamples << "(from user settings)";
+        qDebug() << "VSync configured:" << (enableVSync ? "Enabled (smooth playback)" : "Disabled (responsive editing)");
+    } else {
+        qDebug() << "=== Hardware Acceleration Disabled ===";
+        qDebug() << "Skipping OpenGL initialization - using software rendering";
+    }
 
     a.setApplicationVersion("4.1.0");
     a.setApplicationName("MeowMidiEditor");

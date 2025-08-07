@@ -83,6 +83,16 @@ public:
     MainWindow(QString initFile = "");
 
     /**
+     * \brief Destroys the MainWindow and cleans up resources.
+     */
+    ~MainWindow();
+
+    /**
+     * \brief Performs early cleanup of OpenGL resources to prevent shutdown issues.
+     */
+    void performEarlyCleanup();
+
+    /**
      * \brief Sets the current MIDI file.
      * \param f The MidiFile to set as current
      */

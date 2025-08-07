@@ -28,10 +28,6 @@ OpenGLMatrixWidget::OpenGLMatrixWidget(QSettings *settings, QWidget *parent)
     // Hide the internal widget since we'll render its content through OpenGL
     _matrixWidget->hide();
 
-    // CRITICAL: Connect internal widget's update requests to OpenGL update
-    connect(_matrixWidget, QOverload<>::of(&QWidget::update),
-            this, QOverload<>::of(&QWidget::update));
-
     // Connect signals to forward them
     connect(_matrixWidget, &MatrixWidget::objectListChanged,
             this, &OpenGLMatrixWidget::onObjectListChanged);

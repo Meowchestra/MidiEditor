@@ -300,9 +300,56 @@ void OpenGLPaintWidget::setRepaintOnMouseRelease(bool b) {
 }
 
 OpenGLPaintWidget::~OpenGLPaintWidget() {
-    // Clean up OpenGL resources
-    if (_paintDevice) {
-        delete _paintDevice;
-        _paintDevice = nullptr;
+    // Ensure proper OpenGL resource cleanup to prevent QRhi resource leaks
+    qDebug() << "OpenGLPaintWidget: Starting destructor cleanup";
+
+    // Check if we still have a valid OpenGL context
+    QOpenGLContext *context = QOpenGLContext::currentContext();
+    bool hadContext = (context != nullptr);
+
+    if (!hadContext) {
+        // Try to make our context current for cleanup
+        try {
+            makeCurrent();
+            context = QOpenGLContext::currentContext();
+        } catch (...) {
+            // makeCurrent() failed, context is likely already destroyed
+            context = nullptr;
+        }
     }
+
+    if (context) {
+        qDebug() << "OpenGLPaintWidget: Cleaning up with valid OpenGL context";
+
+        // Clean up OpenGL resources while context is valid
+        if (_paintDevice) {
+            // Force the paint device to release all its resources
+            _paintDevice->setSize(QSize(1, 1)); // Minimize size to reduce resource usage
+            delete _paintDevice;
+            _paintDevice = nullptr;
+        }
+
+        // Ensure all OpenGL operations are completed and flush all commands
+        QOpenGLFunctions *f = context->functions();
+        if (f) {
+            f->glFlush();  // Flush all commands
+            f->glFinish(); // Wait for all OpenGL commands to complete
+        }
+
+        // Force Qt to clean up any cached OpenGL resources
+        context->doneCurrent();
+
+        // Release the context
+        doneCurrent();
+    } else {
+        qDebug() << "OpenGLPaintWidget: No valid OpenGL context for cleanup (normal during application shutdown)";
+
+        // Clean up what we can without OpenGL context
+        if (_paintDevice) {
+            delete _paintDevice;
+            _paintDevice = nullptr;
+        }
+    }
+
+    qDebug() << "OpenGLPaintWidget: Destructor cleanup completed";
 }

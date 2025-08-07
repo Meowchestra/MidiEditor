@@ -525,6 +525,67 @@ MainWindow::MainWindow(QString initFile)
     loadInitFile();
 }
 
+MainWindow::~MainWindow() {
+    // Ensure proper cleanup order to prevent QRhi resource leaks and QPixmap errors
+    qDebug() << "MainWindow: Starting destructor cleanup sequence";
+
+    // Perform early cleanup if it hasn't been done already
+    performEarlyCleanup();
+
+    // Clean up shared clipboard resources
+    SharedClipboard::instance()->cleanup();
+
+    // Clean up static appearance resources to prevent QPixmap/QColor issues after QApplication shutdown
+    Appearance::cleanup();
+
+    qDebug() << "MainWindow: Destructor cleanup sequence completed";
+}
+
+void MainWindow::performEarlyCleanup() {
+    static bool cleanupPerformed = false;
+    if (cleanupPerformed) {
+        return; // Prevent multiple cleanup calls
+    }
+    cleanupPerformed = true;
+
+    qDebug() << "MainWindow: Performing early OpenGL cleanup";
+
+    // Set shutdown flag immediately to prevent any QPixmap creation during cleanup
+    Appearance::setShuttingDown(true);
+
+    // Stop any ongoing MIDI operations first
+    if (MidiPlayer::isPlaying()) {
+        MidiPlayer::stop();
+    }
+
+    // End any ongoing MIDI input recording
+    if (MidiInput::recording()) {
+        MidiInput::endInput(nullptr); // Pass nullptr since we're just stopping, not saving
+    }
+
+    // Clean up OpenGL widgets explicitly while OpenGL context is still valid
+    if (_openglMatrixWidget) {
+        qDebug() << "MainWindow: Early cleanup of OpenGL matrix widget";
+        _openglMatrixWidget->setParent(nullptr);
+        delete _openglMatrixWidget;
+        _openglMatrixWidget = nullptr;
+        mw_matrixWidget = nullptr;
+    }
+
+    if (_miscWidgetContainer && _miscWidgetContainer != _miscWidget) {
+        qDebug() << "MainWindow: Early cleanup of OpenGL misc widget";
+        _miscWidgetContainer->setParent(nullptr);
+        delete _miscWidgetContainer;
+        _miscWidgetContainer = nullptr;
+        _miscWidget = nullptr;
+    }
+
+    // Force immediate processing of any pending events
+    QApplication::processEvents(QEventLoop::AllEvents);
+
+    qDebug() << "MainWindow: Early OpenGL cleanup completed";
+}
+
 void MainWindow::initializeSharedClipboard() {
     // Initialize shared clipboard
     SharedClipboard::instance()->initialize();
@@ -1154,13 +1215,25 @@ void MainWindow::allChannelsInvisible() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    bool shouldClose = false;
+
     if (!file || file->saved()) {
+        shouldClose = true;
         event->accept();
     } else {
         bool sbc = saveBeforeClose();
 
-        if (sbc) event->accept();
-        else event->ignore();
+        if (sbc) {
+            shouldClose = true;
+            event->accept();
+        } else {
+            event->ignore();
+        }
+    }
+
+    // Only perform early cleanup if we're actually closing
+    if (shouldClose) {
+        performEarlyCleanup();
     }
 
     if (MidiOutput::outputPort() != "") {
@@ -1178,12 +1251,15 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     _settings->setValue("open_path", startDirectory);
     _settings->setValue("alt_stop", MidiOutput::isAlternativePlayer);
     _settings->setValue("ticks_per_quarter", MidiFile::defaultTimePerQuarter);
-    _settings->setValue("screen_locked", mw_matrixWidget->screenLocked());
+
+    // Only save matrix widget settings if the widget is still valid
+    if (mw_matrixWidget) {
+        _settings->setValue("screen_locked", mw_matrixWidget->screenLocked());
+        _settings->setValue("div", mw_matrixWidget->div());
+        _settings->setValue("colors_from_channel", mw_matrixWidget->colorsByChannel());
+    }
+
     _settings->setValue("magnet", EventTool::magnetEnabled());
-
-    _settings->setValue("div", mw_matrixWidget->div());
-    _settings->setValue("colors_from_channel", mw_matrixWidget->colorsByChannel());
-
     _settings->setValue("metronome", Metronome::enabled());
     _settings->setValue("metronome_loudness", Metronome::loudness());
     _settings->setValue("thru", MidiInput::thru());

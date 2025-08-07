@@ -29,10 +29,6 @@ OpenGLMiscWidget::OpenGLMiscWidget(MatrixWidget *matrixWidget, QSettings *settin
     // Hide the internal widget since we'll render its content through OpenGL
     _miscWidget->hide();
 
-    // CRITICAL: Connect internal widget's update requests to OpenGL update
-    connect(_miscWidget, QOverload<>::of(&QWidget::update),
-            this, QOverload<>::of(&QWidget::update));
-
     // Also connect to the MatrixWidget's objectListChanged signal for updates
     connect(matrixWidget, &MatrixWidget::objectListChanged,
             this, QOverload<>::of(&QWidget::update));

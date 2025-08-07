@@ -19,6 +19,7 @@
 #include "ToolButton.h"
 #include "Tool.h"
 #include "../gui/Appearance.h"
+#include <QApplication>
 
 ToolButton::ToolButton(Tool *tool, QKeySequence sequence, QWidget *parent)
     : QAction(reinterpret_cast<QObject *>(parent)) {
@@ -44,6 +45,12 @@ void ToolButton::releaseButton() {
 }
 
 void ToolButton::refreshIcon() {
+    // Check if application is shutting down to prevent QPixmap creation
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
+    if (!app || app->closingDown()) {
+        return; // Don't create QPixmap during shutdown
+    }
+
     QImage image = *(button_tool->image());
     QPixmap pixmap = QPixmap::fromImage(image);
     // Apply dark mode adjustment if needed

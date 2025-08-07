@@ -40,10 +40,12 @@ bool Appearance::_ignoreFontScaling = false;
 bool Appearance::_useRoundedScaling = false;
 int Appearance::_msaaSamples = 2;
 bool Appearance::_enableVSync = false;
+bool Appearance::_useHardwareAcceleration = false;
 bool Appearance::_toolbarTwoRowMode = false;
 bool Appearance::_toolbarCustomizeEnabled = false;
 QStringList Appearance::_toolbarActionOrder = QStringList();
 QStringList Appearance::_toolbarEnabledActions = QStringList();
+bool Appearance::_shuttingDown = false;
 
 void Appearance::init(QSettings *settings) {
     // CRITICAL: Load application style FIRST before creating any colors
@@ -701,6 +703,10 @@ bool Appearance::enableVSync() {
     return _enableVSync;
 }
 
+bool Appearance::useHardwareAcceleration() {
+    return _useHardwareAcceleration;
+}
+
 void Appearance::loadEarlySettings() {
     // Load only the settings needed before QApplication is created
     QSettings settings(QString("MidiEditor"), QString("NONE"));
@@ -709,6 +715,7 @@ void Appearance::loadEarlySettings() {
     _useRoundedScaling = settings.value("use_rounded_scaling", false).toBool();
     _msaaSamples = settings.value("rendering/msaa_samples", 2).toInt();
     _enableVSync = settings.value("rendering/enable_vsync", false).toBool();
+    _useHardwareAcceleration = settings.value("rendering/hardware_acceleration", false).toBool();
 
     qDebug() << "Appearance::loadEarlySettings() - Loaded values:";
     qDebug() << "  ignore_system_scaling:" << _ignoreSystemScaling;
@@ -716,6 +723,7 @@ void Appearance::loadEarlySettings() {
     qDebug() << "  use_rounded_scaling:" << _useRoundedScaling;
     qDebug() << "  msaa_samples:" << _msaaSamples;
     qDebug() << "  enable_vsync:" << _enableVSync;
+    qDebug() << "  use_hardware_acceleration:" << _useHardwareAcceleration;
 }
 
 QFont Appearance::improveFont(const QFont &font) {
@@ -1134,6 +1142,11 @@ QColor Appearance::noteSelectionColor() {
 }
 
 QPixmap Appearance::adjustIconForDarkMode(const QPixmap &original, const QString &iconName) {
+    // Prevent QPixmap operations during application shutdown
+    if (_shuttingDown) {
+        return QPixmap(); // Return empty pixmap to avoid crashes
+    }
+
     if (!shouldUseDarkMode()) {
         return original;
     }
@@ -1165,6 +1178,11 @@ QPixmap Appearance::adjustIconForDarkMode(const QPixmap &original, const QString
 }
 
 QIcon Appearance::adjustIconForDarkMode(const QString &iconPath) {
+    // Prevent QPixmap operations during application shutdown
+    if (_shuttingDown) {
+        return QIcon(); // Return empty icon to avoid crashes
+    }
+
     QPixmap original(iconPath);
 
     // Check if the pixmap loaded successfully
@@ -1457,4 +1475,32 @@ void Appearance::connectToSystemThemeChanges() {
             });
         });
     });
+}
+
+void Appearance::cleanup() {
+    qDebug() << "Appearance: Starting cleanup of static resources";
+
+    // Set shutdown flag to prevent any new QPixmap creation
+    _shuttingDown = true;
+
+    // Clean up color maps to prevent QColor destructor issues after QApplication shutdown
+    qDeleteAll(channelColors);
+    channelColors.clear();
+
+    qDeleteAll(trackColors);
+    trackColors.clear();
+
+    // Clear custom color sets
+    customChannelColors.clear();
+    customTrackColors.clear();
+
+    // Clear registered icon actions map
+    // Note: We don't delete the QAction objects as they're owned by other components
+    registeredIconActions.clear();
+
+    qDebug() << "Appearance: Static resource cleanup completed";
+}
+
+void Appearance::setShuttingDown(bool shuttingDown) {
+    _shuttingDown = shuttingDown;
 }

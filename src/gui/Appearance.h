@@ -54,6 +54,16 @@ public:
      */
     static void writeSettings(QSettings *settings);
 
+    /**
+     * \brief Cleans up static resources to prevent shutdown issues.
+     */
+    static void cleanup();
+
+    /**
+     * \brief Sets the application shutdown flag to prevent QPixmap creation during shutdown.
+     */
+    static void setShuttingDown(bool shuttingDown);
+
     // === Color Management ===
 
     /**
@@ -282,6 +292,12 @@ public:
      * \return True if VSync should be enabled
      */
     static bool enableVSync();
+
+    /**
+     * \brief Gets the hardware acceleration setting loaded early.
+     * \return True if hardware acceleration should be enabled
+     */
+    static bool useHardwareAcceleration();
 
     // === Font and Style Management ===
 
@@ -703,6 +719,12 @@ private:
 
     /** \brief VSync setting loaded early */
     static bool _enableVSync;
+
+    /** \brief Hardware acceleration setting loaded early */
+    static bool _useHardwareAcceleration;
+
+    /** \brief Flag to prevent QPixmap creation during application shutdown */
+    static bool _shuttingDown;
 };
 
 #endif // APPEARANCE_H_
