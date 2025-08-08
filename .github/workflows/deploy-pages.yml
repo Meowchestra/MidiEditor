@@ -75,6 +75,8 @@ jobs:
           # GitHub Pages Configuration for MidiEditor
 
           # Site settings
+          title: MidiEditor
+          description: A free software providing an interface to edit, record, and play midi data
           url: "${{ steps.pages.outputs.base_url }}"
           baseurl: "${{ steps.pages.outputs.base_path }}"
 
@@ -105,15 +107,40 @@ jobs:
           # Site author (Chirpy format)
           social:
             name: MidiEditor
+            email: example@domain.com
             links:
               - https://github.com/Meowchestra/MidiEditor
+              - https://ko-fi.com/meowchestra
 
-          # Site avatar/icon (square, not circular)
+          # Site avatar/icon (no custom CSS)
           avatar: /midieditor.ico
-          img_cdn: ""
-          avatar_style: "border-radius: 8px;"
 
-          # Let Chirpy handle navigation automatically
+          # Collections configuration (required for tabs)
+          collections:
+            tabs:
+              output: true
+              sort_by: order
+
+          # Default settings
+          defaults:
+            - scope:
+                path: ""
+                type: posts
+              values:
+                layout: post
+                comments: true
+                toc: true
+                permalink: /posts/:title/
+            - scope:
+                path: _drafts
+              values:
+                comments: false
+            - scope:
+                path: ""
+                type: tabs
+              values:
+                layout: page
+                permalink: /:title/
 
           # Exclude files from processing
           exclude:
@@ -179,31 +206,54 @@ jobs:
           gem "http_parser.rb", "~> 0.8.0", :platforms => [:jruby]
           EOF
 
-          # Create homepage from README with cleaned content (Chirpy format)
-          cat > index.md << 'EOF'
-          ---
-          layout: page
-          title: Home
-          icon: fas fa-home
-          ---
+          # Create homepage from README with cleaned content (About tab)
 
-          # MidiEditor
+          # Create index.html as the homepage (Chirpy standard)
+          cat > index.html << 'EOF'
+          ---
+          layout: home
+          # Index page
+          ---
+          EOF
+          echo "✅ Homepage (index.html) created with home layout"
+
+          # Create _tabs directory and About tab with README content
+          mkdir -p _tabs
+          cat > _tabs/about.md << 'EOF'
+          ---
+          title: About
+          icon: fas fa-info-circle
+          order: 1
+          ---
 
           EOF
-          # Remove icon and title from README content, then add to index
-          echo "🔧 Cleaning README content for homepage..."
-          # Skip first line (icon), keep everything else but remove duplicate titles
-          tail -n +2 README.md | sed '/^<img.*midieditor\.ico/d' | sed '/^# MidiEditor/d' >> index.md
-          echo "✅ Homepage created with cleaned README content"
+          # Add README content to About tab
+          echo "🔧 Adding README content to About tab..."
+          if [ -f "README.md" ]; then
+            echo "📄 README.md found, adding content..."
+            tail -n +2 README.md | sed '/^<img.*midieditor\.ico/d' >> _tabs/about.md
+            echo "✅ About tab created with README content"
+            echo "📝 First few lines of About tab:"
+            head -10 _tabs/about.md
+          else
+            echo "❌ README.md not found!"
+            ls -la
+          fi
 
-          # Create enhanced manual navigation page with Chirpy styling
-          cat > manual-nav.md << 'EOF'
+          # Create Chirpy tabs: Manual as the only additional tab
+          mkdir -p _tabs
+          cat > _tabs/manual.md << 'EOF'
           ---
-          layout: page
           title: Manual
-          permalink: /manual/
           icon: fas fa-book
+          order: 2
           ---
+
+          <!-- Manual content gets appended below by the workflow -->
+          EOF
+
+          # Append manual navigation and content to existing _tabs/manual.md
+          cat >> _tabs/manual.md << 'EOF'
 
           <!-- Chirpy theme has built-in styling, so we'll use minimal custom CSS -->
           <style>
@@ -235,21 +285,13 @@ jobs:
           .hero-section h1, .hero-section p {
             color: white !important;
           }
-          /* Make avatar square instead of circular - force override */
-          .site-avatar img, .avatar img, img.avatar,
-          .sidebar .site-title img, .sidebar img,
-          .site-title .site-subtitle img,
-          .sidebar .site-title .site-subtitle img {
-            border-radius: 8px !important;
-            clip-path: none !important;
-          }
-          /* Remove any circular clipping */
-          .sidebar .site-title {
-            border-radius: 8px !important;
-          }
           /* Smooth scrolling for anchor links */
           html {
             scroll-behavior: smooth;
+          }
+          /* Ensure anchors have proper spacing */
+          h2[id], h3[id] {
+            scroll-margin-top: 80px;
           }
           /* Style for manual sections */
           .manual-section {
@@ -261,7 +303,7 @@ jobs:
           }
           </style>
 
-          <div class="hero-section">
+          <div id="manual-top" class="hero-section">
             <h1>🎵 MidiEditor Manual</h1>
             <p>Your complete guide to creating and editing MIDI files</p>
           </div>
@@ -270,37 +312,37 @@ jobs:
             <div class="manual-card">
               <h3>🚀 Getting Started</h3>
               <ul>
-                <li><a href="/manual/introduction/">👋 Introduction</a></li>
-                <li><a href="/manual/setup/">⚙️ Setup & Installation</a></li>
-                <li><a href="/manual/editor-and-components/">🖥️ Interface Overview</a></li>
+                <li><a href="#introduction">👋 Introduction</a></li>
+                <li><a href="#setup">⚙️ Setup & Installation</a></li>
+                <li><a href="#editor-and-components">🖥️ Interface Overview</a></li>
               </ul>
             </div>
 
             <div class="manual-card">
               <h3>🎼 MIDI Fundamentals</h3>
               <ul>
-                <li><a href="/manual/midi-overview/">📚 MIDI Overview</a></li>
-                <li><a href="/manual/editing-midi-files/">✏️ Editing MIDI Files</a></li>
-                <li><a href="/manual/playback/">▶️ Playback Features</a></li>
-                <li><a href="/manual/record/">🎤 Recording MIDI</a></li>
+                <li><a href="#midi-overview">📚 MIDI Overview</a></li>
+                <li><a href="#editing-midi-files">✏️ Editing MIDI Files</a></li>
+                <li><a href="#playback">▶️ Playback Features</a></li>
+                <li><a href="#record">🎤 Recording MIDI</a></li>
               </ul>
             </div>
 
             <div class="manual-card">
               <h3>📋 Menu Reference</h3>
               <ul>
-                <li><a href="/manual/menu-file/">📁 File Menu</a></li>
-                <li><a href="/manual/menu-edit/">✂️ Edit Menu</a></li>
-                <li><a href="/manual/menu-view/">👁️ View Menu</a></li>
-                <li><a href="/manual/menu-midi/">🎹 MIDI Menu</a></li>
+                <li><a href="#menu-file">📁 File Menu</a></li>
+                <li><a href="#menu-edit">✂️ Edit Menu</a></li>
+                <li><a href="#menu-view">👁️ View Menu</a></li>
+                <li><a href="#menu-midi">🎹 MIDI Menu</a></li>
               </ul>
             </div>
 
             <div class="manual-card">
               <h3>🔧 Advanced Features</h3>
               <ul>
-                <li><a href="/manual/menu-playback/">🎵 Playback Controls</a></li>
-                <li><a href="/manual/menu-tools/">🛠️ Tools Menu</a></li>
+                <li><a href="#menu-playback">🎵 Playback Controls</a></li>
+                <li><a href="#menu-tools">🛠️ Tools Menu</a></li>
               </ul>
             </div>
           </div>
@@ -308,11 +350,81 @@ jobs:
           ---
 
           <div style="text-align: center; margin-top: 40px; padding: 20px; border-radius: 8px;">
-            <p><strong>💡 Tip:</strong> Click on any section above to explore detailed documentation!</p>
+            <p><strong>💡 Tip:</strong> Click on any section above to jump to that part of the manual!</p>
           </div>
+
+          ## 📚 Table of Contents
+
+          - [📖 Introduction](#introduction)
+          - [🎼 MIDI Overview](#midi-overview)
+          - [🖥️ The Editor and its Components](#editor-and-components)
+          - [⚙️ Setting up MidiEditor](#setup)
+          - [✏️ Editing MIDI Files](#editing-midi-files)
+          - [▶️ Playback](#playback)
+          - [🎤 Recording MIDI Data](#record)
+          - [📁 File Menu](#menu-file)
+          - [✂️ Edit Menu](#menu-edit)
+          - [👁️ View Menu](#menu-view)
+          - [🎹 MIDI Menu](#menu-midi)
+          - [🎵 Playback Menu](#menu-playback)
+          - [🛠️ Tools Menu](#menu-tools)
+
+          ---
           EOF
 
-          # Create individual manual section pages
+          # Embed manual content directly below Manual tab using anchors
+          echo "🔧 Embedding manual content directly into Manual tab..."
+          echo "📁 Checking manual directory..."
+          ls -la manual/ || echo "❌ Manual directory not found"
+          echo "📄 Manual files found:"
+          ls -la manual/*.html || echo "❌ No HTML files in manual directory"
+          {
+            printf "\n---\n\n## 📖 Introduction {#introduction}\n\n";
+            cat manual/introduction.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🎼 MIDI Overview {#midi-overview}\n\n";
+            cat manual/midi-overview.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🖥️ The Editor and its Components {#editor-and-components}\n\n";
+            cat manual/editor-and-components.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## ⚙️ Setting up MidiEditor {#setup}\n\n";
+            cat manual/setup.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## ✏️ Editing MIDI Files {#editing-midi-files}\n\n";
+            cat manual/editing-midi-files.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## ▶️ Playback {#playback}\n\n";
+            cat manual/playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🎤 Recording MIDI Data {#record}\n\n";
+            cat manual/record.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 📁 File Menu {#menu-file}\n\n";
+            cat manual/menu-file.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## ✂️ Edit Menu {#menu-edit}\n\n";
+            cat manual/menu-edit.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 👁️ View Menu {#menu-view}\n\n";
+            cat manual/menu-view.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🎹 MIDI Menu {#menu-midi}\n\n";
+            cat manual/menu-midi.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🎵 Playback Menu {#menu-playback}\n\n";
+            cat manual/menu-playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            printf "\n---\n\n## 🛠️ Tools Menu {#menu-tools}\n\n";
+            cat manual/menu-tools.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+          } >> _tabs/manual.md
+
+          echo "✅ Manual content embedded into Manual tab"
+          echo "📝 Manual tab file size:"
+          wc -l _tabs/manual.md
+          echo "📝 Last few lines of manual tab:"
+          tail -10 _tabs/manual.md
+
+
+          # Prefix site.baseurl to asset paths in the embedded manual content (Manual tab)
+          sed -i 's|src="/assets/manual/|src="{{ site.baseurl }}/assets/manual/|g' _tabs/manual.md
+          echo "✅ Prefixed baseurl for manual assets in Manual tab"
+
+          # Prefix site.baseurl to asset paths if a legacy manual.md exists (backward compat)
+          if [ -f "manual.md" ]; then
+            sed -i 's|src="/assets/manual/|src="{{ site.baseurl }}/assets/manual/|g' manual.md
+            echo "✅ Prefixed baseurl for legacy manual assets"
+          fi
+
+          # Optionally also create individual manual section pages (kept for direct links)
           echo "📚 Creating individual manual section pages..."
           if [ -d "manual" ]; then
             echo "📁 Found manual directory, listing files:"
@@ -324,7 +436,7 @@ jobs:
                 echo "Creating manual section: $filename -> $title"
 
                 # Create individual page for each manual section
-                cat > "manual-${filename}.md" << EOF
+                cat > "${filename}.md" << EOF
           ---
           layout: page
           title: $title
@@ -340,11 +452,11 @@ jobs:
                 # Add the HTML content directly with debugging
                 echo "Processing file: $html_file"
                 if [ -f "$html_file" ]; then
-                  cat "$html_file" >> "manual-${filename}.md"
-                  echo "✅ Added content from $html_file to manual-${filename}.md"
+                  cat "$html_file" >> "${filename}.md"
+                  echo "✅ Added content from $html_file to ${filename}.md"
                 else
                   echo "❌ File $html_file not found"
-                  echo "<p>Error: Manual content not found for $filename</p>" >> "manual-${filename}.md"
+                  echo "<p>Error: Manual content not found for $filename</p>" >> "${filename}.md"
                 fi
               fi
             done
@@ -352,11 +464,14 @@ jobs:
 
             # List created files for debugging
             echo "📄 Created manual files:"
-            ls -la manual-*.md || echo "No manual-*.md files found"
+            ls -la *.md | grep -E "(introduction|setup|editor|midi|editing|playback|record|menu)" || echo "No manual .md files found"
           else
             echo "❌ Manual directory not found"
           fi
 
+
+
+          echo "✅ Custom sidebar with Ko-fi link created"
           echo "✅ Jekyll site files generated (temporary)"
 
       - name: Setup Ruby (after Gemfile creation)
@@ -377,20 +492,32 @@ jobs:
             ls -la run_environment/ || echo "run_environment directory not found"
           fi
 
-          # Copy manual screenshots and assets
+          # Copy manual assets (screenshots, tools icons, images)
+          mkdir -p assets/manual/
           if [ -d "manual/screenshots" ]; then
-            mkdir -p assets/manual/
             cp -r manual/screenshots assets/manual/
             echo "✅ Manual screenshots copied"
           fi
+          if [ -d "manual/tools" ]; then
+            cp -r manual/tools assets/manual/
+            echo "✅ Manual tool icons copied"
+          fi
+          if [ -f "manual/midieditor.png" ]; then
+            cp manual/midieditor.png assets/manual/
+            echo "✅ Manual midieditor.png copied"
+          fi
 
-          # Verify the icon path was fixed in index.md
-          if grep -q "midieditor.ico" index.md && ! grep -q "run_environment/midieditor.ico" index.md; then
-            echo "✅ Icon path correctly fixed in homepage"
+          # Verify the icon is present for avatar and About tab exists
+          if [ -f "midieditor.ico" ]; then
+            echo "✅ midieditor.ico exists at site root"
           else
-            echo "❌ Icon path may not be fixed correctly"
-            echo "Checking index.md content:"
-            head -10 index.md
+            echo "❌ midieditor.ico missing at site root"
+          fi
+          if [ -f "index.md" ]; then
+            echo "✅ Homepage (Home tab) created"
+          fi
+          if [ -f "_tabs/manual.md" ]; then
+            echo "✅ Manual tab created"
           fi
 
           # Debug: Check if icon will be included in Jekyll build

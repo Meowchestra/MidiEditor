@@ -2,6 +2,10 @@ name: build with qmake on windows
 on:
 #  push:
 #    branches: [ main ]
+#    paths-ignore:
+#      - '.github/workflows/deploy-pages.yml'
+#      - 'README.md'
+#      - 'manual/**'
   workflow_dispatch:
 
 jobs:
