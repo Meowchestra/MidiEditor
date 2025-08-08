@@ -20,6 +20,58 @@ target("MidiEditor") do
     set_languages("cxxlatest")
     set_targetdir("bin")
 
+    -- Performance optimizations (MIDI-safe: no -ffast-math due to timing precision requirements)
+    if is_mode("release") then
+        -- Use xmake's built-in optimization and add additional flags
+        set_optimize("fastest")  -- Sets -O3 for GCC/Clang, /Ox for MSVC
+        add_cxxflags("-DNDEBUG")
+        set_strip("all")  -- Strip debug symbols in release
+
+        -- MSVC specific optimizations (Windows platform)
+        if is_plat("windows") then
+            -- Explicitly override with maximum optimization (in case set_optimize doesn't work)
+            add_cxxflags("/Ox")  -- Maximum optimization (override any -O2)
+            add_cxxflags("/Ob2", "/Oi", "/Ot", "/GL")  -- Inline expansion, intrinsics, favor speed, whole program optimization
+            add_cxxflags("/arch:AVX2")  -- x86-64-v3 compatibility
+
+            -- Advanced MSVC optimizations
+            add_cxxflags("/Gy")  -- Function-level linking
+            add_cxxflags("/Gw")  -- Global data optimization
+            add_cxxflags("/GA")  -- Optimize for Windows applications
+            -- No /favor flag for optimal performance on both Intel and AMD
+
+            add_ldflags("/LTCG", "/OPT:REF", "/OPT:ICF")  -- Link-time code generation and optimization
+        end
+
+        -- GCC/Clang specific optimizations (Linux/macOS)
+        if is_plat("linux", "macosx") then
+            -- -O3 is already set by set_optimize("fastest"), add additional optimizations
+            add_cxxflags("-fomit-frame-pointer")
+            add_cxxflags("-march=x86-64-v3", "-mtune=generic")
+            add_cxxflags("-funroll-loops", "-fprefetch-loop-arrays")
+
+            -- Advanced optimization flags
+            add_cxxflags("-fvectorize", "-fslp-vectorize")  -- Enhanced vectorization
+            add_cxxflags("-ffunction-sections", "-fdata-sections")  -- Dead code elimination
+            add_cxxflags("-falign-functions=32", "-falign-loops=32")  -- Cache-friendly alignment
+            add_cxxflags("-fmerge-all-constants")  -- Merge identical constants
+            add_cxxflags("-fmodulo-sched", "-fmodulo-sched-allow-regmoves")  -- Loop scheduling
+
+            -- Safe floating-point optimizations (no -ffast-math)
+            add_cxxflags("-fno-math-errno", "-ffinite-math-only")
+            add_cxxflags("-fno-signed-zeros", "-fno-trapping-math")  -- Additional safe FP opts
+
+            -- Link-time optimization with advanced flags
+            add_cxxflags("-flto=thin")  -- Thin LTO for faster builds
+            add_ldflags("-flto=thin", "-Wl,-O3", "-Wl,--as-needed")
+            add_ldflags("-Wl,--gc-sections", "-Wl,--icf=all")  -- Aggressive dead code removal
+        end
+    elseif is_mode("debug") then
+        set_optimize("none")
+        add_cxxflags("-g")
+        set_symbols("debug")
+    end
+
     add_packages({
         "qt6widgets"
     })

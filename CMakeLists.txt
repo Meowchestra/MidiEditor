@@ -6,6 +6,64 @@ project(MidiEditor VERSION ${MIDIEDITOR_RELEASE_VERSION_STRING} LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Performance optimizations
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# Enable interprocedural optimization (LTO) for release builds
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported OUTPUT ipo_error)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    message(STATUS "Building optimized ${CMAKE_BUILD_TYPE} version")
+
+    # Aggressive optimization flags (MIDI-safe: no -ffast-math due to timing precision requirements)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_CXX_FLAGS_RELEASE "-O3 -DNDEBUG -fomit-frame-pointer -funroll-loops -fprefetch-loop-arrays")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 -g -DNDEBUG -fomit-frame-pointer")
+
+        # CPU-specific optimizations (x86-64-v3 for modern CPUs with AVX2)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -march=x86-64-v3 -mtune=generic")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=x86-64-v3 -mtune=generic")
+
+        # Advanced optimization flags
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvectorize -fslp-vectorize")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffunction-sections -fdata-sections")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -falign-functions=32 -falign-loops=32")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmerge-all-constants")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmodulo-sched -fmodulo-sched-allow-regmoves")
+
+        # Safe floating-point optimizations (no -ffast-math)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-math-errno -ffinite-math-only")
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fno-signed-zeros -fno-trapping-math")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-math-errno -ffinite-math-only")
+
+        # Link-time optimizations with advanced flags
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -s")
+
+    elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+        set(CMAKE_CXX_FLAGS_RELEASE "/Ox /Ob2 /Oi /Ot /GL /DNDEBUG /arch:AVX2")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "/Ox /Ob2 /Oi /Ot /GL /Zi /DNDEBUG /arch:AVX2")
+        # Advanced MSVC optimizations (optimal for both Intel and AMD)
+        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Gy /Gw /GA")
+        set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} /Gy /Gw /GA")
+        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG /OPT:REF /OPT:ICF")
+        set(CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO "/LTCG /OPT:REF /OPT:ICF /DEBUG")
+    endif()
+
+    # Enable LTO if supported
+    if(ipo_supported)
+        message(STATUS "IPO/LTO enabled")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
+    else()
+        message(STATUS "IPO/LTO not supported: ${ipo_error}")
+    endif()
+else()
+    message(STATUS "Building debug version with optimizations disabled")
+endif()
+
 # Platform detection
 if(WIN32)
     set(PLAT_WINDOWS TRUE)
@@ -106,6 +164,13 @@ endif()
 
 # Main target
 add_executable(MidiEditor)
+
+# Apply performance optimizations to target
+if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    if(ipo_supported)
+        set_property(TARGET MidiEditor PROPERTY INTERPROCEDURAL_OPTIMIZATION TRUE)
+    endif()
+endif()
 
 target_link_libraries(MidiEditor PRIVATE
         Qt6::Core

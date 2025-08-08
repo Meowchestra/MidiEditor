@@ -84,10 +84,10 @@ jobs:
 
       - name: Build
         run: |
-          echo "🔧 Configuring xmake..."
+          echo "🔧 Configuring xmake for optimized release build..."
           xmake config --yes --arch=x64 --toolchain=msvc --mode=release
-          echo "🔨 Building..."
-          xmake build --jobs=2
+          echo "🔨 Building with performance optimizations..."
+          xmake build --jobs=2 --verbose
 
       - name: Copy Files
         shell: pwsh

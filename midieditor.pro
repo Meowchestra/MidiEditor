@@ -8,6 +8,57 @@ force_64bit {
     message(Forcing 64-bit build)
 }
 
+# Performance optimizations (MIDI-safe: no -ffast-math due to timing precision requirements)
+CONFIG(release, debug|release) {
+    message(Building optimized release version)
+
+    # Enable aggressive optimizations
+    QMAKE_CXXFLAGS_RELEASE -= -O2
+    QMAKE_CXXFLAGS_RELEASE += -O3 -DNDEBUG -fomit-frame-pointer
+
+    # CPU-specific optimizations (x86-64-v3 for modern CPUs with AVX2)
+    QMAKE_CXXFLAGS_RELEASE += -march=x86-64-v3 -mtune=generic
+
+    # Advanced GCC/Clang optimizations
+    gcc|clang {
+        # Advanced optimization flags
+        QMAKE_CXXFLAGS_RELEASE += -fvectorize -fslp-vectorize
+        QMAKE_CXXFLAGS_RELEASE += -ffunction-sections -fdata-sections
+        QMAKE_CXXFLAGS_RELEASE += -falign-functions=32 -falign-loops=32
+        QMAKE_CXXFLAGS_RELEASE += -fmerge-all-constants
+        QMAKE_CXXFLAGS_RELEASE += -fmodulo-sched -fmodulo-sched-allow-regmoves
+
+        # Safe floating-point optimizations (no -ffast-math)
+        QMAKE_CXXFLAGS_RELEASE += -fno-math-errno -ffinite-math-only
+        QMAKE_CXXFLAGS_RELEASE += -fno-signed-zeros -fno-trapping-math
+
+        # Link-time optimization with advanced flags
+        QMAKE_CXXFLAGS_RELEASE += -flto=thin
+        QMAKE_LFLAGS_RELEASE += -flto=thin -Wl,-O3 -Wl,--as-needed
+        QMAKE_LFLAGS_RELEASE += -Wl,--gc-sections -Wl,--icf=all
+    }
+
+    # MSVC optimizations (maximum optimization /Ox equivalent to GCC -O3)
+    msvc {
+        QMAKE_CXXFLAGS_RELEASE -= /O2  # Remove default /O2
+        QMAKE_CXXFLAGS_RELEASE += /Ox /Ob2 /Oi /Ot /GL /arch:AVX2
+        # Advanced MSVC optimizations (optimal for both Intel and AMD)
+        QMAKE_CXXFLAGS_RELEASE += /Gy /Gw /GA
+        QMAKE_LFLAGS_RELEASE += /LTCG /OPT:REF /OPT:ICF
+    }
+
+    # Additional performance flags
+    QMAKE_CXXFLAGS_RELEASE += -funroll-loops -fprefetch-loop-arrays
+
+    # Strip debug symbols
+    QMAKE_LFLAGS_RELEASE += -s
+}
+
+CONFIG(debug, debug|release) {
+    message(Building debug version with optimizations disabled)
+    QMAKE_CXXFLAGS_DEBUG += -O0 -g
+}
+
 QT += widgets \
     core \
     gui \
