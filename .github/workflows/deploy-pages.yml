@@ -112,6 +112,17 @@ jobs:
               - https://github.com/Meowchestra/MidiEditor
               - https://ko-fi.com/meowchestra
 
+          # Social media usernames (Chirpy format)
+          github:
+            username: Meowchestra
+
+          # Custom social links
+          social_links:
+            - platform: github
+              url: https://github.com/Meowchestra/MidiEditor
+            - platform: kofi
+              url: https://ko-fi.com/meowchestra
+
           # Site avatar/icon (no custom CSS)
           avatar: /midieditor.ico
 
@@ -208,33 +219,21 @@ jobs:
 
           # Create homepage from README with cleaned content (About tab)
 
-          # Create index.html as the homepage (Chirpy standard)
-          cat > index.html << 'EOF'
+          # Create index.md as the homepage with README content
+          cat > index.md << 'EOF'
           ---
-          layout: home
-          # Index page
-          ---
-          EOF
-          echo "✅ Homepage (index.html) created with home layout"
-
-          # Create _tabs directory and About tab with README content
-          mkdir -p _tabs
-          cat > _tabs/about.md << 'EOF'
-          ---
-          title: About
-          icon: fas fa-info-circle
-          order: 1
+          layout: page
           ---
 
           EOF
-          # Add README content to About tab
-          echo "🔧 Adding README content to About tab..."
+          # Add README content to the homepage
+          echo "🔧 Adding README content to homepage..."
           if [ -f "README.md" ]; then
             echo "📄 README.md found, adding content..."
-            tail -n +2 README.md | sed '/^<img.*midieditor\.ico/d' >> _tabs/about.md
-            echo "✅ About tab created with README content"
-            echo "📝 First few lines of About tab:"
-            head -10 _tabs/about.md
+            tail -n +2 README.md | sed '/^<img.*midieditor\.ico/d' >> index.md
+            echo "✅ Homepage created with README content"
+            echo "📝 First few lines of homepage:"
+            head -10 index.md
           else
             echo "❌ README.md not found!"
             ls -la
@@ -242,11 +241,13 @@ jobs:
 
           # Create Chirpy tabs: Manual as the only additional tab
           mkdir -p _tabs
+          # Create _tabs directory and Manual tab
+          mkdir -p _tabs
           cat > _tabs/manual.md << 'EOF'
           ---
           title: Manual
           icon: fas fa-book
-          order: 2
+          order: 1
           ---
 
           <!-- Manual content gets appended below by the workflow -->
@@ -353,23 +354,7 @@ jobs:
             <p><strong>💡 Tip:</strong> Click on any section above to jump to that part of the manual!</p>
           </div>
 
-          ## 📚 Table of Contents
 
-          - [📖 Introduction](#introduction)
-          - [🎼 MIDI Overview](#midi-overview)
-          - [🖥️ The Editor and its Components](#editor-and-components)
-          - [⚙️ Setting up MidiEditor](#setup)
-          - [✏️ Editing MIDI Files](#editing-midi-files)
-          - [▶️ Playback](#playback)
-          - [🎤 Recording MIDI Data](#record)
-          - [📁 File Menu](#menu-file)
-          - [✂️ Edit Menu](#menu-edit)
-          - [👁️ View Menu](#menu-view)
-          - [🎹 MIDI Menu](#menu-midi)
-          - [🎵 Playback Menu](#menu-playback)
-          - [🛠️ Tools Menu](#menu-tools)
-
-          ---
           EOF
 
           # Embed manual content directly below Manual tab using anchors
@@ -380,31 +365,31 @@ jobs:
           ls -la manual/*.html || echo "❌ No HTML files in manual directory"
           {
             printf "\n---\n\n## 📖 Introduction {#introduction}\n\n";
-            cat manual/introduction.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/introduction.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🎼 MIDI Overview {#midi-overview}\n\n";
-            cat manual/midi-overview.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/midi-overview.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🖥️ The Editor and its Components {#editor-and-components}\n\n";
-            cat manual/editor-and-components.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/editor-and-components.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## ⚙️ Setting up MidiEditor {#setup}\n\n";
-            cat manual/setup.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/setup.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## ✏️ Editing MIDI Files {#editing-midi-files}\n\n";
-            cat manual/editing-midi-files.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/editing-midi-files.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## ▶️ Playback {#playback}\n\n";
-            cat manual/playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🎤 Recording MIDI Data {#record}\n\n";
-            cat manual/record.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/record.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 📁 File Menu {#menu-file}\n\n";
-            cat manual/menu-file.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-file.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## ✂️ Edit Menu {#menu-edit}\n\n";
-            cat manual/menu-edit.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-edit.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 👁️ View Menu {#menu-view}\n\n";
-            cat manual/menu-view.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-view.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🎹 MIDI Menu {#menu-midi}\n\n";
-            cat manual/menu-midi.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-midi.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🎵 Playback Menu {#menu-playback}\n\n";
-            cat manual/menu-playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-playback.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
             printf "\n---\n\n## 🛠️ Tools Menu {#menu-tools}\n\n";
-            cat manual/menu-tools.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|src="screenshots/|src="{{ site.baseurl }}/assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="{{ site.baseurl }}/assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="{{ site.baseurl }}/assets/manual/midieditor.png"|g';
+            cat manual/menu-tools.html | sed -E 's|href="([^"#]+)\.html#([^"]+)"|href="#\2"|g' | sed -E 's|href="([^"#]+)\.html"|href="#\1"|g' | sed -E 's|href=#([^>]+)>|href="#\1">|g' | sed -E 's|src="screenshots/|src="assets/manual/screenshots/|g' | sed -E 's|src="tools/|src="assets/manual/tools/|g' | sed -E 's|src="midieditor\.png"|src="assets/manual/midieditor.png"|g';
           } >> _tabs/manual.md
 
           echo "✅ Manual content embedded into Manual tab"
@@ -414,9 +399,7 @@ jobs:
           tail -10 _tabs/manual.md
 
 
-          # Prefix site.baseurl to asset paths in the embedded manual content (Manual tab)
-          sed -i 's|src="/assets/manual/|src="{{ site.baseurl }}/assets/manual/|g' _tabs/manual.md
-          echo "✅ Prefixed baseurl for manual assets in Manual tab"
+          echo "✅ Manual assets already have correct baseurl paths"
 
           # Prefix site.baseurl to asset paths if a legacy manual.md exists (backward compat)
           if [ -f "manual.md" ]; then
@@ -519,6 +502,10 @@ jobs:
           if [ -f "_tabs/manual.md" ]; then
             echo "✅ Manual tab created"
           fi
+
+          # Debug: Check what tabs exist
+          echo "📁 Tabs directory contents:"
+          ls -la _tabs/ || echo "No _tabs directory found"
 
           # Debug: Check if icon will be included in Jekyll build
           echo "📁 Files in root directory:"
