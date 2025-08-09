@@ -104,25 +104,6 @@ jobs:
           lang: en
           timezone: UTC
 
-          # Site author (Chirpy format)
-          social:
-            name: MidiEditor
-            email: example@domain.com
-            links:
-              - https://github.com/Meowchestra/MidiEditor
-              - https://ko-fi.com/meowchestra
-
-          # Social media usernames (Chirpy format)
-          github:
-            username: Meowchestra
-
-          # Custom social links
-          social_links:
-            - platform: github
-              url: https://github.com/Meowchestra/MidiEditor
-            - platform: kofi
-              url: https://ko-fi.com/meowchestra
-
           # Site avatar/icon (no custom CSS)
           avatar: /midieditor.ico
 
@@ -176,6 +157,19 @@ jobs:
           # Include manual directory but exclude its index
           include:
             - manual/
+          EOF
+
+          # Create Chirpy contact data for sidebar social icons
+          mkdir -p _data
+          cat > _data/contact.yml <<- 'EOF'
+          # Sidebar contact icons (Chirpy)
+          # See: https://github.com/cotes2020/jekyll-theme-chirpy/blob/master/_data/contact.yml
+          - type: github-repo
+            icon: "fab fa-github"
+            url: "https://github.com/Meowchestra/MidiEditor"
+          - type: ko-fi
+            icon: "fas fa-coffee"
+            url: "https://ko-fi.com/meowchestra"
           EOF
 
           # Create Gemfile with latest Jekyll
@@ -438,8 +432,6 @@ jobs:
 
           echo "📝 Manual tab file size:"
           wc -l _tabs/manual.md
-          echo "📝 Last few lines of manual tab:"
-          tail -10 _tabs/manual.md
 
           # Optionally also create individual manual section pages (kept for direct links)
           echo "📚 Creating individual manual section pages..."
@@ -486,9 +478,6 @@ jobs:
             echo "❌ Manual directory not found"
           fi
 
-
-
-          echo "✅ Custom sidebar with Ko-fi link created"
           echo "✅ Jekyll site files generated (temporary)"
 
       - name: Setup Ruby (after Gemfile creation)
