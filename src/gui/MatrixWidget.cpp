@@ -1173,6 +1173,9 @@ void MatrixWidget::updateRenderingSettings() {
     // Update cached appearance colors to avoid expensive theme checks
     updateCachedAppearanceColors();
 
+    // Invalidate color/performance cache so new theme/track colors are used immediately
+    invalidatePerformanceCache();
+
     // Force a redraw to apply the new settings
     registerRelayout();
     update();

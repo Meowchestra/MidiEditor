@@ -642,19 +642,23 @@ void Appearance::setApplicationStyle(const QString &style) {
 
     applyStyle();
 
-    // Use a timer to debounce the expensive refresh operations
-    static QTimer *refreshTimer = nullptr;
-    if (!refreshTimer) {
-        refreshTimer = new QTimer();
-        refreshTimer->setSingleShot(true);
-        QObject::connect(refreshTimer, &QTimer::timeout, []() {
-            refreshColors();
-        });
-    }
+    // Coalesce refreshes through a single shared debounce timer
+    // Implemented as a static in this translation unit
+    auto queueRefreshColors = [](int delayMs) {
+        static QTimer *s_refreshDebounceTimer = nullptr;
+        if (!s_refreshDebounceTimer) {
+            s_refreshDebounceTimer = new QTimer();
+            s_refreshDebounceTimer->setSingleShot(true);
+            QObject::connect(s_refreshDebounceTimer, &QTimer::timeout, []() {
+                refreshColors();
+            });
+        }
+        s_refreshDebounceTimer->stop();
+        s_refreshDebounceTimer->start(delayMs);
+    };
 
-    // Debounce refresh to prevent multiple rapid updates
-    refreshTimer->stop();
-    refreshTimer->start(100); // Wait 100ms before refreshing
+    // Request a single refresh soon (no stacked timers)
+    queueRefreshColors(120);
 }
 
 int Appearance::toolbarIconSize() {
@@ -1317,6 +1321,17 @@ void Appearance::refreshColors() {
     isRefreshingColors = true;
     lastRefresh = now;
 
+    // Determine if effective color scheme (light/dark) actually changed
+    bool newScheme = shouldUseDarkMode();
+    static int s_lastScheme = -1; // -1 unknown, 0 light, 1 dark
+    bool schemeChanged = (s_lastScheme == -1) || (s_lastScheme != (newScheme ? 1 : 0));
+    s_lastScheme = newScheme ? 1 : 0;
+
+    // Detect application style name change (e.g., windowsvista -> windows11)
+    static QString s_lastStyleName = QString();
+    bool styleNameChanged = (s_lastStyleName.isEmpty() || s_lastStyleName != _applicationStyle);
+    s_lastStyleName = _applicationStyle;
+
     try {
         // Auto-reset default colors for the new theme
         autoResetDefaultColors();
@@ -1334,15 +1349,17 @@ void Appearance::refreshColors() {
     // Update all top-level widgets with crash protection
     foreach(QWidget* widget, app->topLevelWidgets()) {
         if (widget->isVisible()) {
-            try {
-                // Force a complete repaint with style refresh
-                widget->style()->unpolish(widget);
-                widget->style()->polish(widget);
-                widget->update();
-            } catch (...) {
-                // Widget style update failed - skip this widget but continue
-                continue;
+            // Only do full style unpolish/polish if the actual application style changed
+            if (styleNameChanged) {
+                try {
+                    widget->style()->unpolish(widget);
+                    widget->style()->polish(widget);
+                } catch (...) {
+                    // If style repolish fails for some widget, skip it
+                }
             }
+            // Always update to schedule a repaint, but avoid redundant unpolish/polish
+            try { widget->update(); } catch (...) {}
 
             // Refresh all ToolButton icons for theme changes
             QList<ToolButton *> toolButtons = widget->findChildren<ToolButton *>();
@@ -1419,27 +1436,21 @@ void Appearance::refreshColors() {
     // Reapply styling for theme changes
     applyStyle();
 
-    // Update MatrixWidgets with crash protection
+    // Update MatrixWidgets efficiently
     foreach(QWidget* widget, app->topLevelWidgets()) {
-        if (widget->isVisible()) {
-            QList<MatrixWidget *> matrixWidgets = widget->findChildren<MatrixWidget *>();
-            foreach(MatrixWidget* matrixWidget, matrixWidgets) {
-                if (matrixWidget && matrixWidget->isVisible()) {
-                    try {
-                        // Simple update first
-                        matrixWidget->update();
+        QList<MatrixWidget *> matrixWidgets = widget->findChildren<MatrixWidget *>();
+        foreach (MatrixWidget* matrixWidget, matrixWidgets) {
+            if (!matrixWidget) continue;
 
-                        // Process events to prevent Qt event queue overload
-                        QApplication::processEvents(QEventLoop::ExcludeUserInputEvents);
+            // Always refresh cached appearance colors (cheap)
+            try { matrixWidget->updateCachedAppearanceColors(); } catch (...) {}
 
-                        // Force complete redraw - this might be the crash source
-                        matrixWidget->updateRenderingSettings();
-                    } catch (...) {
-                        // MatrixWidget update failed - skip this widget but continue with others
-                        // This prevents one bad widget from crashing the entire theme change
-                        continue;
-                    }
-                }
+            // Only drop pixmaps and invalidate track color cache if scheme actually changed
+            if (schemeChanged) {
+                try { matrixWidget->updateRenderingSettings(); } catch (...) {}
+            } else {
+                // No effective scheme change; a simple update is enough
+                try { matrixWidget->update(); } catch (...) {}
             }
         }
     }
@@ -1467,14 +1478,18 @@ void Appearance::connectToSystemThemeChanges() {
         // Invalidate cache when system theme changes
         cachedStyle = "";
 
-        // Refresh colors when system theme changes - use a timer to ensure it happens after the system has fully switched
-        QTimer::singleShot(100, []() {
-            refreshColors();
-            // Force another refresh after a short delay to catch any delayed updates
-            QTimer::singleShot(500, []() {
+        // Refresh colors when system theme changes using the same shared debounce
+        // We defer slightly to allow the platform to finalize its palette/style
+        static QTimer *s_refreshDebounceTimer = nullptr;
+        if (!s_refreshDebounceTimer) {
+            s_refreshDebounceTimer = new QTimer();
+            s_refreshDebounceTimer->setSingleShot(true);
+            QObject::connect(s_refreshDebounceTimer, &QTimer::timeout, []() {
                 refreshColors();
             });
-        });
+        }
+        s_refreshDebounceTimer->stop();
+        s_refreshDebounceTimer->start(150);
     });
 }
 

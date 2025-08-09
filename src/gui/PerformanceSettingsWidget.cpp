@@ -31,7 +31,8 @@
 PerformanceSettingsWidget::PerformanceSettingsWidget(QSettings *settings, QWidget *parent)
     : SettingsWidget(tr("System & Performance"), parent)
       , _settings(settings)
-      , _isLoading(false) {
+      , _isLoading(false)
+      , _infoBox(nullptr) {
     setupUI();
     loadSettings();
 }
