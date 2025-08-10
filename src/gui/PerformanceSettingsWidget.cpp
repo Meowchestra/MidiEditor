@@ -78,6 +78,17 @@ void PerformanceSettingsWidget::setupUI() {
     roundedDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     scalingLayout->addWidget(roundedDesc, 5, 0, 1, 2);
 
+    _unlockWidgetSizes = new QCheckBox(tr("Unlock widget minimum sizes"), this);
+    _unlockWidgetSizes->setChecked(_settings->value("unlock_widget_sizes", false).toBool());
+    _unlockWidgetSizes->setToolTip(tr("When enabled, allows widget tabs to be resized to very small sizes without snapping closed. Useful for compact layouts."));
+    connect(_unlockWidgetSizes, &QCheckBox::toggled, this, &PerformanceSettingsWidget::widgetSizeUnlockChanged);
+    scalingLayout->addWidget(_unlockWidgetSizes, 6, 0, 1, 2);
+
+    QLabel *widgetSizeDesc = new QLabel(tr("Allows resizing widgets smaller than their normal minimum size.\nChanges apply on restart."), this);
+    widgetSizeDesc->setWordWrap(true);
+    widgetSizeDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
+    scalingLayout->addWidget(widgetSizeDesc, 7, 0, 1, 2);
+
     mainLayout->addWidget(scalingGroup);
 
     // Rendering Quality Group
@@ -359,6 +370,11 @@ void PerformanceSettingsWidget::roundedScalingChanged(bool enabled) {
     Appearance::setUseRoundedScaling(enabled);
 }
 
+void PerformanceSettingsWidget::widgetSizeUnlockChanged(bool enabled) {
+    qDebug() << "PerformanceSettingsWidget: Widget size unlock changed to" << enabled;
+    _settings->setValue("unlock_widget_sizes", enabled);
+}
+
 void PerformanceSettingsWidget::resetToDefaults() {
     // Rendering quality defaults
     _enableAntialiasing->setChecked(true);
@@ -374,4 +390,5 @@ void PerformanceSettingsWidget::resetToDefaults() {
     _ignoreSystemUIScaling->setChecked(false);
     _ignoreSystemFontScaling->setChecked(false);
     _useRoundedScaling->setChecked(false);
+    _unlockWidgetSizes->setChecked(false);
 }

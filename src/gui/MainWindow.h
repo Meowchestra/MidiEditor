@@ -39,6 +39,7 @@ class ProtocolWidget;
 class EventWidget;
 class ClickButton;
 class QTabWidget;
+class QSplitter;
 class QMenu;
 class TrackListWidget;
 class QComboBox;
@@ -743,6 +744,11 @@ public slots:
      */
     void refreshToolbarIcons();
 
+    /**
+     * \brief Applies widget size constraints at startup based on settings.
+     */
+    void applyWidgetSizeConstraints();
+
 protected:
     /**
      * \brief Handles close events to save work before closing.
@@ -815,6 +821,24 @@ private:
 
     /** \brief Lower tab widget for additional panels */
     QTabWidget *lowerTabWidget;
+
+    /** \brief Upper tab widget for tracks and channels */
+    QTabWidget *upperTabWidget;
+
+    /** \brief Chooser widget for track/channel selection */
+    QWidget *chooserWidget;
+
+    /** \brief Tracks container widget */
+    QWidget *tracksWidget;
+
+    /** \brief Channels container widget */
+    QWidget *channelsWidget;
+
+    /** \brief Right splitter containing the tab widgets */
+    QSplitter *rightSplitter;
+
+    /** \brief Main horizontal splitter */
+    QSplitter *mainSplitter;
 
     /** \brief Actions for color mode selection */
     QAction *_colorsByChannel, *_colorsByTracks;

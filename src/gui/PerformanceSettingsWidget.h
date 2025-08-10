@@ -141,6 +141,12 @@ private slots:
     void roundedScalingChanged(bool enabled);
 
     /**
+     * \brief Handles widget size unlock setting changes.
+     * \param enabled True to unlock widget minimum sizes
+     */
+    void widgetSizeUnlockChanged(bool enabled);
+
+    /**
      * \brief Handles font scaling ignore setting changes.
      * \param enabled True to ignore system font scaling
      */
@@ -223,6 +229,9 @@ private:
 
     /** \brief Checkbox for using rounded scaling behavior */
     QCheckBox *_useRoundedScaling;
+
+    /** \brief Checkbox for unlocking widget minimum sizes */
+    QCheckBox *_unlockWidgetSizes;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H_

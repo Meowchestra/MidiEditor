@@ -158,7 +158,7 @@ MainWindow::MainWindow(QString initFile)
     centralLayout->setContentsMargins(3, 3, 3, 5);
 
     // there is a vertical split
-    QSplitter *mainSplitter = new QSplitter(Qt::Horizontal, central);
+    mainSplitter = new QSplitter(Qt::Horizontal, central);
     //mainSplitter->setHandleWidth(0);
 
     // The left side
@@ -168,7 +168,7 @@ MainWindow::MainWindow(QString initFile)
     leftSplitter->setContentsMargins(0, 0, 0, 0);
 
     // The right side
-    QSplitter *rightSplitter = new QSplitter(Qt::Vertical, mainSplitter);
+    rightSplitter = new QSplitter(Qt::Vertical, mainSplitter);
     //rightSplitter->setHandleWidth(0);
     mainSplitter->addWidget(rightSplitter);
 
@@ -178,7 +178,7 @@ MainWindow::MainWindow(QString initFile)
     mainSplitter->setContentsMargins(0, 0, 0, 0);
 
     // the channelWidget and the trackWidget are tabbed
-    QTabWidget *upperTabWidget = new QTabWidget(rightSplitter);
+    upperTabWidget = new QTabWidget(rightSplitter);
     rightSplitter->addWidget(upperTabWidget);
     rightSplitter->setContentsMargins(0, 0, 0, 0);
 
@@ -364,10 +364,10 @@ MainWindow::MainWindow(QString initFile)
     leftSplitter->setStretchFactor(1, 1);
 
     // Track
-    QWidget *tracks = new QWidget(upperTabWidget);
-    QGridLayout *tracksLayout = new QGridLayout(tracks);
-    tracks->setLayout(tracksLayout);
-    QToolBar *tracksTB = new QToolBar(tracks);
+    tracksWidget = new QWidget(upperTabWidget);
+    QGridLayout *tracksLayout = new QGridLayout(tracksWidget);
+    tracksWidget->setLayout(tracksLayout);
+    QToolBar *tracksTB = new QToolBar(tracksWidget);
     tracksTB->setIconSize(QSize(20, 20));
     tracksLayout->addWidget(tracksTB, 0, 0, 1, 1);
 
@@ -405,19 +405,19 @@ MainWindow::MainWindow(QString initFile)
             SLOT(allTracksInvisible()));
     tracksTB->addAction(_allTracksInvisible);
 
-    _trackWidget = new TrackListWidget(tracks);
+    _trackWidget = new TrackListWidget(tracksWidget);
     connect(_trackWidget, SIGNAL(trackRenameClicked(int)), this, SLOT(renameTrack(int)), Qt::QueuedConnection);
     connect(_trackWidget, SIGNAL(trackRemoveClicked(int)), this, SLOT(removeTrack(int)), Qt::QueuedConnection);
     connect(_trackWidget, SIGNAL(trackClicked(MidiTrack*)), this, SLOT(editTrackAndChannel(MidiTrack*)), Qt::QueuedConnection);
 
     tracksLayout->addWidget(_trackWidget, 1, 0, 1, 1);
-    upperTabWidget->addTab(tracks, tr("Tracks"));
+    upperTabWidget->addTab(tracksWidget, tr("Tracks"));
 
     // Channels
-    QWidget *channels = new QWidget(upperTabWidget);
-    QGridLayout *channelsLayout = new QGridLayout(channels);
-    channels->setLayout(channelsLayout);
-    QToolBar *channelsTB = new QToolBar(channels);
+    channelsWidget = new QWidget(upperTabWidget);
+    QGridLayout *channelsLayout = new QGridLayout(channelsWidget);
+    channelsWidget->setLayout(channelsLayout);
+    QToolBar *channelsTB = new QToolBar(channelsWidget);
     channelsTB->setIconSize(QSize(20, 20));
     channelsLayout->addWidget(channelsTB, 0, 0, 1, 1);
 
@@ -443,11 +443,11 @@ MainWindow::MainWindow(QString initFile)
     connect(_allChannelsInvisible, SIGNAL(triggered()), this, SLOT(allChannelsInvisible()));
     channelsTB->addAction(_allChannelsInvisible);
 
-    channelWidget = new ChannelListWidget(channels);
+    channelWidget = new ChannelListWidget(channelsWidget);
     connect(channelWidget, SIGNAL(channelStateChanged()), this, SLOT(updateChannelMenu()), Qt::QueuedConnection);
     connect(channelWidget, SIGNAL(selectInstrumentClicked(int)), this, SLOT(setInstrumentForChannel(int)), Qt::QueuedConnection);
     channelsLayout->addWidget(channelWidget, 1, 0, 1, 1);
-    upperTabWidget->addTab(channels, tr("Channels"));
+    upperTabWidget->addTab(channelsWidget, tr("Channels"));
 
     // terminal
     Terminal::initTerminal(_settings->value("start_cmd", "").toString(),
@@ -466,15 +466,15 @@ MainWindow::MainWindow(QString initFile)
     MidiEvent::setEventWidget(_eventWidget);
 
     // below add two rows for choosing track/channel new events shall be assigned to
-    QWidget *chooser = new QWidget(rightSplitter);
-    chooser->setMinimumWidth(350);
-    rightSplitter->addWidget(chooser);
-    QGridLayout *chooserLayout = new QGridLayout(chooser);
+    chooserWidget = new QWidget(rightSplitter);
+    chooserWidget->setMinimumWidth(350);
+    rightSplitter->addWidget(chooserWidget);
+    QGridLayout *chooserLayout = new QGridLayout(chooserWidget);
     QLabel *trackchannelLabel = new QLabel(tr("Add new events to ..."));
     chooserLayout->addWidget(trackchannelLabel, 0, 0, 1, 2);
-    QLabel *channelLabel = new QLabel(tr("Channel: "), chooser);
+    QLabel *channelLabel = new QLabel(tr("Channel: "), chooserWidget);
     chooserLayout->addWidget(channelLabel, 2, 0, 1, 1);
-    _chooseEditChannel = new QComboBox(chooser);
+    _chooseEditChannel = new QComboBox(chooserWidget);
     for (int i = 0; i < 16; i++) {
         if (i == 9) _chooseEditChannel->addItem(tr("Percussion channel"));
         else _chooseEditChannel->addItem(tr("Channel ") + QString::number(i)); // TODO: Display channel instrument | UDP: But **file** is *nullptr*
@@ -482,9 +482,9 @@ MainWindow::MainWindow(QString initFile)
     connect(_chooseEditChannel, SIGNAL(activated(int)), this, SLOT(editChannel(int)));
 
     chooserLayout->addWidget(_chooseEditChannel, 2, 1, 1, 1);
-    QLabel *trackLabel = new QLabel(tr("Track: "), chooser);
+    QLabel *trackLabel = new QLabel(tr("Track: "), chooserWidget);
     chooserLayout->addWidget(trackLabel, 1, 0, 1, 1);
-    _chooseEditTrack = new QComboBox(chooser);
+    _chooseEditTrack = new QComboBox(chooserWidget);
     chooserLayout->addWidget(_chooseEditTrack, 1, 1, 1, 1);
     connect(_chooseEditTrack, SIGNAL(activated(int)), this, SLOT(editTrack(int)));
     chooserLayout->setColumnStretch(1, 1);
@@ -524,6 +524,9 @@ MainWindow::MainWindow(QString initFile)
 
     // Initialize shared clipboard immediately
     initializeSharedClipboard();
+
+    // Apply widget size constraints based on settings
+    applyWidgetSizeConstraints();
 
     // Load initial file immediately - no need for artificial delay
     loadInitFile();
@@ -4725,5 +4728,72 @@ void MainWindow::removeTrailingSeparators(QToolBar *toolbar) {
     while (!actions.isEmpty() && actions.last()->isSeparator()) {
         QAction *lastAction = actions.takeLast();
         toolbar->removeAction(lastAction);
+    }
+}
+
+void MainWindow::applyWidgetSizeConstraints() {
+    // Check if widget size unlocking is enabled (requires restart)
+    bool unlockSizes = _settings->value("unlock_widget_sizes", false).toBool();
+
+    if (unlockSizes) {
+        // Remove minimum size constraints to allow full resizing
+        if (upperTabWidget) {
+            upperTabWidget->setMinimumSize(0, 0);
+            upperTabWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        }
+        if (lowerTabWidget) {
+            lowerTabWidget->setMinimumSize(0, 0);
+            lowerTabWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        }
+        if (chooserWidget) {
+            chooserWidget->setMinimumWidth(0); // Allow width to resize/clip
+            // Fix the height to prevent stretching when there are gaps
+            chooserWidget->setMaximumHeight(chooserWidget->sizeHint().height());
+            chooserWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+        }
+        if (tracksWidget) {
+            tracksWidget->setMinimumSize(0, 0);
+            tracksWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        }
+        if (channelsWidget) {
+            channelsWidget->setMinimumSize(0, 0);
+            channelsWidget->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        }
+        if (rightSplitter) {
+            rightSplitter->setChildrenCollapsible(true);
+            // Allow all widgets in the splitter to collapse to very small sizes
+            for (int i = 0; i < rightSplitter->count(); ++i) {
+                rightSplitter->setCollapsible(i, true);
+            }
+            // Allow the rightSplitter itself to resize smaller and clip content
+            rightSplitter->setMinimumSize(0, 0);
+            rightSplitter->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored);
+        }
+        if (mainSplitter) {
+            mainSplitter->setChildrenCollapsible(true);
+            // Allow the right side (index 1) to be collapsible but don't change stretch factors
+            mainSplitter->setCollapsible(1, true);
+        }
+    }
+    else
+    {
+        if (chooserWidget)
+        {
+            chooserWidget->setMaximumHeight(chooserWidget->sizeHint().height());
+            chooserWidget->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        }
+
+        // Ensure the splitter can still collapse chooserWidget
+        if (rightSplitter)
+        {
+            rightSplitter->setChildrenCollapsible(true);
+
+            // Find chooserWidget's index in the splitter
+            int chooserIndex = rightSplitter->indexOf(chooserWidget);
+            if (chooserIndex != -1)
+            {
+                rightSplitter->setCollapsible(chooserIndex, true);
+            }
+        }
     }
 }
