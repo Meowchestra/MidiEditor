@@ -163,7 +163,7 @@ MainWindow::MainWindow(QString initFile)
 
     // The left side
     QSplitter *leftSplitter = new QSplitter(Qt::Vertical, mainSplitter);
-    leftSplitter->setHandleWidth(0);
+    leftSplitter->setHandleWidth(2); // Enable handle width for misc widget collapse/expand
     mainSplitter->addWidget(leftSplitter);
     leftSplitter->setContentsMargins(0, 0, 0, 0);
 
@@ -249,9 +249,7 @@ MainWindow::MainWindow(QString initFile)
     QWidget *velocityArea = new QWidget(leftSplitter);
     velocityArea->setContentsMargins(0, 0, 0, 0);
     leftSplitter->addWidget(velocityArea);
-    hori = new QScrollBar(Qt::Horizontal, velocityArea);
-    hori->setSingleStep(500);
-    hori->setPageStep(5000);
+    
     QGridLayout *velocityAreaLayout = new QGridLayout(velocityArea);
     velocityAreaLayout->setContentsMargins(0, 0, 0, 0);
     velocityAreaLayout->setHorizontalSpacing(6);
@@ -265,11 +263,43 @@ MainWindow::MainWindow(QString initFile)
     scrollNothing->setMinimum(0);
     scrollNothing->setMaximum(0);
     velocityAreaLayout->addWidget(scrollNothing, 0, 2, 1, 1);
-    velocityAreaLayout->addWidget(hori, 1, 1, 1, 1);
     velocityAreaLayout->setRowStretch(0, 1);
     velocityArea->setLayout(velocityAreaLayout);
 
-    // Create MiscWidget - use direct OpenGL acceleration approach
+    // Create horizontal scrollbar container as separate splitter widget - but make it non-resizable
+    QWidget *scrollBarArea = new QWidget(leftSplitter);
+    scrollBarArea->setContentsMargins(0, 0, 0, 0);
+    scrollBarArea->setFixedHeight(20);
+    scrollBarArea->setMinimumHeight(20);
+    scrollBarArea->setMaximumHeight(20);
+    scrollBarArea->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    leftSplitter->addWidget(scrollBarArea);
+    
+    // Make scrollbar area completely non-collapsible and non-resizable
+    leftSplitter->setCollapsible(leftSplitter->count() - 1, false);
+    leftSplitter->handle(leftSplitter->count() - 1)->setDisabled(true);
+    leftSplitter->handle(leftSplitter->count() - 1)->hide();
+    
+    // Ensure the handle between matrixArea and velocityArea remains functional
+    // and has higher priority than the scrollbar area
+    if (leftSplitter->count() >= 2) {
+        leftSplitter->handle(0)->setEnabled(true);
+        leftSplitter->handle(0)->show();
+        leftSplitter->handle(0)->raise(); // Bring to front for priority over scrollbar
+    }
+    
+    hori = new QScrollBar(Qt::Horizontal, scrollBarArea);
+    hori->setMinimum(0);
+    hori->setValue(0);
+    hori->setSingleStep(500);
+    hori->setPageStep(5000);
+    
+    QHBoxLayout *scrollBarLayout = new QHBoxLayout(scrollBarArea);
+    scrollBarLayout->setContentsMargins(110, 0, 0, 0); // Align with matrix widget
+    scrollBarLayout->addWidget(hori);
+    scrollBarArea->setLayout(scrollBarLayout);
+
+    // Create MiscWidget
     QWidget *miscContainer;
 
     if (useHardwareAcceleration) {
@@ -360,8 +390,9 @@ MainWindow::MainWindow(QString initFile)
     _miscControlLayout->addWidget(btnLine, 9, 2, 1, 1);
 
     // Set the sizes of leftSplitter
-    leftSplitter->setStretchFactor(0, 8);
-    leftSplitter->setStretchFactor(1, 1);
+    leftSplitter->setStretchFactor(0, 8);  // matrixArea
+    leftSplitter->setStretchFactor(1, 1);  // velocityArea
+    leftSplitter->setStretchFactor(2, 0);  // scrollBarArea (fixed height, non-resizable)
 
     // Track
     tracksWidget = new QWidget(upperTabWidget);
@@ -634,8 +665,11 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev) {
 
 void MainWindow::scrollPositionsChanged(int startMs, int maxMs, int startLine,
                                         int maxLine) {
+    hori->setMinimum(0);
     hori->setMaximum(maxMs);
-    hori->setValue(startMs);
+    // Force startMs to 0 if it's very close to 0 to eliminate dead space
+    int clampedStartMs = (startMs < 10) ? 0 : startMs;
+    hori->setValue(clampedStartMs);
     vert->setMaximum(maxLine);
     vert->setValue(startLine);
 }
@@ -701,10 +735,16 @@ MatrixWidget *MainWindow::matrixWidget() {
 
 void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
                                    int vX, int vY) {
+    // Set scroll bar ranges
     vert->setMaximum(maxScrollLine);
+    hori->setMinimum(0);
     hori->setMaximum(maxScrollTime);
-    vert->setValue(vY);
-    hori->setValue(vX);
+    
+    // Set scroll bar values - ensure horizontal starts at 0 for new files
+    vert->setValue(qMax(0, qMin(vY, maxScrollLine)));
+    // For horizontal: clamp small values to 0 to eliminate dead space
+    int clampedVX = (vX < 10) ? 0 : vX;
+    hori->setValue(qMax(0, qMin(clampedVX, maxScrollTime)));
 
     // Update the matrix widget
     _matrixWidgetContainer->update();
