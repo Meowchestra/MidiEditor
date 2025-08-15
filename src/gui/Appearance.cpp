@@ -176,8 +176,12 @@ QColor *Appearance::channelColor(int channel) {
         channelColors[index] = color;
     }
 
-    // Apply opacity setting to the color
-    color->setAlpha(_opacity * 255 / 100);
+    // PERFORMANCE: Apply opacity setting to the color only if it has changed
+    // This avoids expensive setAlpha() calls during rendering
+    int targetAlpha = _opacity * 255 / 100;
+    if (color->alpha() != targetAlpha) {
+        color->setAlpha(targetAlpha);
+    }
 
     return color;
 }
@@ -192,8 +196,12 @@ QColor *Appearance::trackColor(int track) {
         trackColors[index] = color;
     }
 
-    // Apply opacity setting to the color
-    color->setAlpha(_opacity * 255 / 100);
+    // PERFORMANCE: Apply opacity setting to the color only if it has changed
+    // This avoids expensive setAlpha() calls during rendering
+    int targetAlpha = _opacity * 255 / 100;
+    if (color->alpha() != targetAlpha) {
+        color->setAlpha(targetAlpha);
+    }
 
     return color;
 }

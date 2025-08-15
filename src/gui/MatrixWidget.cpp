@@ -87,11 +87,6 @@ MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
 
     // Cache appearance colors to avoid expensive theme checks on every paint event
     updateCachedAppearanceColors();
-
-    // Initialize performance optimization cache
-    _lastVisibleStartMs = -1;
-    _lastVisibleEndMs = -1;
-    _trackColorCacheValid = false;
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -667,15 +662,6 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
         cachedSelection.insert(event);
     }
 
-    // PERFORMANCE: Invalidate track color cache when color mode or viewport changes significantly
-    // This addresses the VTune hotspot showing std::_Tree operations
-    if (!_trackColorCacheValid || abs(_lastVisibleStartMs - startTimeX) > (endTimeX - startTimeX)) {
-        _trackColorCache.clear();
-        _trackColorCacheValid = true;
-        _lastVisibleStartMs = startTimeX;
-        _lastVisibleEndMs = endTimeX;
-    }
-
     // filter events
     QMultiMap<int, MidiEvent *> *map = file->channelEvents(channel);
 
@@ -751,17 +737,11 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
         event->setHeight(height);
 
         if (!(event->track()->hidden())) {
-            // PERFORMANCE: Use on-demand cached color lookup to eliminate std::_Tree operations (VTune hotspot)
+            // Get event color - either by channel or by track
             QColor eventColor = cC; // Use channel color by default
             if (!_colorsByChannels) {
-                // Check cache first, then populate if needed
-                if (_trackColorCache.contains(event->track())) {
-                    eventColor = _trackColorCache.value(event->track());
-                } else {
-                    // Cache miss - get color and cache it for future use
-                    eventColor = *event->track()->color();
-                    _trackColorCache.insert(event->track(), eventColor);
-                }
+                // Use track color - the Appearance class now handles performance optimization
+                eventColor = *event->track()->color();
             }
             event->draw(painter, eventColor);
 
@@ -996,9 +976,6 @@ void MatrixWidget::setFile(MidiFile *f) {
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(registerRelayout()));
     connect(file->protocol(), SIGNAL(actionFinished()), this, SLOT(update()));
 
-    // Invalidate color cache when loading new file to ensure fresh track colors
-    invalidatePerformanceCache();
-
     calcSizes();
 
     // scroll down to see events
@@ -1172,9 +1149,6 @@ void MatrixWidget::updateRenderingSettings() {
 
     // Update cached appearance colors to avoid expensive theme checks
     updateCachedAppearanceColors();
-
-    // Invalidate color/performance cache so new theme/track colors are used immediately
-    invalidatePerformanceCache();
 
     // Force a redraw to apply the new settings
     registerRelayout();
@@ -1528,14 +1502,10 @@ void MatrixWidget::keyReleaseEvent(QKeyEvent *event) {
 
 void MatrixWidget::setColorsByChannel() {
     _colorsByChannels = true;
-    // Invalidate color cache when switching color modes
-    invalidatePerformanceCache();
 }
 
 void MatrixWidget::setColorsByTracks() {
     _colorsByChannels = false;
-    // Invalidate color cache when switching color modes
-    invalidatePerformanceCache();
 }
 
 bool MatrixWidget::colorsByChannel() {
@@ -1554,13 +1524,6 @@ void MatrixWidget::setDiv(int div) {
     _div = div;
     registerRelayout();
     update();
-}
-
-void MatrixWidget::invalidatePerformanceCache() {
-    _trackColorCacheValid = false;
-    _trackColorCache.clear();
-    _lastVisibleStartMs = -1;
-    _lastVisibleEndMs = -1;
 }
 
 QList<QPair<int, int> > MatrixWidget::divs() {
