@@ -137,6 +137,12 @@ public:
     static bool hasSharedClipboardData();
 
     /**
+     * \brief Recalculates existing note positions after tempo/time signature changes.
+     * \param tempoEvents List of tempo/time signature events that were pasted
+     */
+    static void recalculateExistingNotesAfterTempoChange(const QList<MidiEvent *> &tempoEvents);
+
+    /**
      * \brief Returns whether this tool shows selection highlights.
      * \return True if selection should be shown
      */

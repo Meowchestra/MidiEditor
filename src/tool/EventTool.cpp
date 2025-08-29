@@ -613,6 +613,11 @@ bool EventTool::pasteFromSharedClipboard() {
             regularEventIndex++;
         }
 
+        // If tempo/time signature events were pasted, recalculate existing notes
+        if (!tempoEvents.isEmpty()) {
+            recalculateExistingNotesAfterTempoChange(tempoEvents);
+        }
+
         // Update the selection to show the pasted events
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 
@@ -630,4 +635,89 @@ bool EventTool::hasSharedClipboardData() {
     }
     // Only return true if data is from a different process
     return clipboard->hasDataFromDifferentProcess();
+}
+
+void EventTool::recalculateExistingNotesAfterTempoChange(const QList<MidiEvent *> &tempoEvents) {
+    if (tempoEvents.isEmpty() || !currentFile()) {
+        return;
+    }
+
+    // Find the earliest tempo/time signature change position
+    int earliestChangePosition = INT_MAX;
+    for (MidiEvent *event : tempoEvents) {
+        if (event && event->midiTime() < earliestChangePosition) {
+            earliestChangePosition = event->midiTime();
+        }
+    }
+
+    if (earliestChangePosition == INT_MAX) {
+        return;
+    }
+
+    // Collect all existing events that come after the earliest tempo change
+    QList<QPair<MidiEvent *, int>> eventsToRecalculate; // event, original position
+    
+    for (int ch = 0; ch < 19; ch++) {
+        // Skip tempo (17) and time signature (18) channels - they're already updated
+        if (ch == 17 || ch == 18) {
+            continue;
+        }
+        
+        QMultiMap<int, MidiEvent *> *channelEvents = currentFile()->channelEvents(ch);
+        if (!channelEvents) {
+            continue;
+        }
+        
+        QMultiMap<int, MidiEvent *>::iterator it = channelEvents->lowerBound(earliestChangePosition);
+        while (it != channelEvents->end()) {
+            MidiEvent *event = it.value();
+            int originalPosition = it.key();
+            
+            // Skip the events we just pasted (they're already correctly positioned)
+            bool isNewlyPasted = false;
+            for (MidiEvent *pastedEvent : Selection::instance()->selectedEvents()) {
+                if (pastedEvent == event) {
+                    isNewlyPasted = true;
+                    break;
+                }
+            }
+            
+            if (!isNewlyPasted) {
+                eventsToRecalculate.append(QPair<MidiEvent *, int>(event, originalPosition));
+            }
+            
+            ++it;
+        }
+    }
+
+    // Now recalculate positions for all affected events
+    for (auto &pair : eventsToRecalculate) {
+        MidiEvent *event = pair.first;
+        int oldPosition = pair.second;
+        
+        if (!event) {
+            continue;
+        }
+        
+        // Convert old position to real time using old tempo map
+        int oldMs = currentFile()->msOfTick(oldPosition);
+        
+        // Force recalculation of tempo map by calling calcMaxTime
+        currentFile()->calcMaxTime();
+        
+        // Convert back to ticks using new tempo map
+        int newPosition = currentFile()->tick(oldMs);
+        
+        // Only update if position actually changed
+        if (newPosition != oldPosition && newPosition >= 0) {
+            // Remove from old position
+            currentFile()->channel(event->channel())->removeEvent(event);
+            
+            // Insert at new position
+            currentFile()->channel(event->channel())->insertEvent(event, newPosition, false);
+        }
+    }
+    
+    // Final recalculation to ensure everything is consistent
+    currentFile()->calcMaxTime();
 }

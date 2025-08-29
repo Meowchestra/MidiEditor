@@ -36,6 +36,9 @@ const QString SharedClipboard::SEMAPHORE_KEY = "MidiEditor_Clipboard_Semaphore_v
 const int SharedClipboard::CLIPBOARD_VERSION = 1;
 const int SharedClipboard::MAX_CLIPBOARD_SIZE = 1024 * 1024; // 1MB max
 
+// Global storage for timing information during deserialization
+static QList<QPair<int, int> > g_originalTimings; // midiTime, channel pairs
+
 SharedClipboard::SharedClipboard(QObject *parent)
     : QObject(parent)
       , _sharedMemory(nullptr)
@@ -340,9 +343,6 @@ QByteArray SharedClipboard::serializeEvents(const QList<MidiEvent *> &events, Mi
 
     return data;
 }
-
-// Global storage for timing information during deserialization
-static QList<QPair<int, int> > g_originalTimings; // midiTime, channel pairs
 
 bool SharedClipboard::deserializeEvents(const QByteArray &data, MidiFile *targetFile, QList<MidiEvent *> &events) {
     QDataStream stream(data);
