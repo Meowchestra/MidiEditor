@@ -22,6 +22,8 @@
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/OnEvent.h"
+#include "../MidiEvent/TempoChangeEvent.h"
+#include "../MidiEvent/TimeSignatureEvent.h"
 #include "../gui/EventWidget.h"
 #include "../gui/MainWindow.h"
 #include "../gui/MatrixWidget.h"
@@ -455,7 +457,7 @@ bool EventTool::pasteFromSharedClipboard() {
     }
 
     QList<MidiEvent *> sharedEvents;
-    if (!clipboard->pasteEvents(currentFile(), sharedEvents)) {
+    if (!clipboard->pasteEvents(currentFile(), sharedEvents, true, currentFile()->cursorTick())) {
         return false;
     }
 
@@ -513,17 +515,76 @@ bool EventTool::pasteFromSharedClipboard() {
         // Clear selection and paste events
         clearSelection();
 
-        // Use the deserialized events directly - they're already properly constructed
-        int eventIndex = 0;
-        for (MidiEvent *event: sharedEvents) {
+        // Separate tempo/time signature events from regular events
+        QList<MidiEvent *> tempoEvents;
+        QList<MidiEvent *> regularEvents;
+        
+        for (MidiEvent *event : sharedEvents) {
+            if (dynamic_cast<TempoChangeEvent *>(event) || dynamic_cast<TimeSignatureEvent *>(event)) {
+                tempoEvents.append(event);
+            } else {
+                regularEvents.append(event);
+            }
+        }
+
+        // First, paste tempo/time signature events and integrate them into the file
+        int tempoEventIndex = 0;
+        for (MidiEvent *event : tempoEvents) {
             if (!event) {
-                eventIndex++;
+                tempoEventIndex++;
+                continue;
+            }
+
+            try {
+                // Get the original timing information
+                QPair<int, int> originalTiming = SharedClipboard::getOriginalTiming(tempoEventIndex);
+                int originalTime = originalTiming.first;
+
+                if (originalTime == -1) {
+                    originalTime = event->midiTime();
+                }
+
+                // Calculate new timing
+                int newTime = originalTime + diff;
+                if (newTime < 0) newTime = 0;
+
+                // Set event properties
+                event->setFile(currentFile());
+                event->setChannel(0, false); // Meta events typically use channel 0
+                event->setTrack(targetTrack, false);
+
+                // Insert tempo events into channel 17, time signature events into channel 18
+                TempoChangeEvent *tempoEvent = dynamic_cast<TempoChangeEvent *>(event);
+                TimeSignatureEvent *timeSigEvent = dynamic_cast<TimeSignatureEvent *>(event);
+                
+                if (tempoEvent) {
+                    currentFile()->channel(17)->insertEvent(event, newTime, false);
+                } else if (timeSigEvent) {
+                    currentFile()->channel(18)->insertEvent(event, newTime, false);
+                } else {
+                    // Fallback for other meta events
+                    currentFile()->channel(0)->insertEvent(event, newTime, false);
+                }
+
+                selectEvent(event, false, true, false);
+            } catch (...) {
+                delete event;
+            }
+
+            tempoEventIndex++;
+        }
+
+        // Then paste regular events
+        int regularEventIndex = tempoEvents.size(); // Offset by tempo events
+        for (MidiEvent *event : regularEvents) {
+            if (!event) {
+                regularEventIndex++;
                 continue;
             }
 
             try {
                 // Get the original timing information from SharedClipboard
-                QPair<int, int> originalTiming = SharedClipboard::getOriginalTiming(eventIndex);
+                QPair<int, int> originalTiming = SharedClipboard::getOriginalTiming(regularEventIndex);
                 int originalTime = originalTiming.first;
 
                 if (originalTime == -1) {
@@ -549,7 +610,7 @@ bool EventTool::pasteFromSharedClipboard() {
                 delete event;
             }
 
-            eventIndex++;
+            regularEventIndex++;
         }
 
         // Update the selection to show the pasted events

@@ -74,9 +74,11 @@ public:
      * @brief Paste events from shared clipboard
      * @param targetFile Target MIDI file
      * @param pastedEvents Output list of pasted events
+     * @param applyTempoConversion Apply tempo conversion during paste
+     * @param targetCursorTick Cursor position in target file for tempo context
      * @return true if paste was successful
      */
-    bool pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &pastedEvents);
+    bool pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &pastedEvents, bool applyTempoConversion = true, int targetCursorTick = 0);
 
     /**
      * @brief Check if shared clipboard has data
@@ -133,6 +135,18 @@ private:
     int getCurrentTempo(MidiFile *file, int atTick = 0);
 
     /**
+     * @brief Convert timing from source tempo to target tempo
+     * @param originalTime Original MIDI time in ticks
+     * @param sourceTicksPerQuarter Source file's ticks per quarter note
+     * @param sourceTempo Source file's tempo in BPM
+     * @param targetTicksPerQuarter Target file's ticks per quarter note
+     * @param targetTempo Target file's tempo in BPM
+     * @return Converted MIDI time in target file's timing
+     */
+    int convertTiming(int originalTime, int sourceTicksPerQuarter, int sourceTempo, 
+                     int targetTicksPerQuarter, int targetTempo);
+
+    /**
      * @brief Lock shared memory for exclusive access
      */
     bool lockMemory();
@@ -183,6 +197,7 @@ private:
         int dataSize;               ///< Size of serialized event data
         qint64 timestamp;           ///< Timestamp for detecting stale data
         qint64 sourceProcessId;     ///< Process ID that wrote the data
+        int hasTempoEvents;         ///< Whether clipboard contains tempo/time signature events
     };
 };
 

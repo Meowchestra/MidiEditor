@@ -19,6 +19,7 @@
 #include "SharedClipboard.h"
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/TempoChangeEvent.h"
+#include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/OnEvent.h"
 #include "../midi/MidiFile.h"
@@ -90,6 +91,7 @@ bool SharedClipboard::initialize() {
             header->dataSize = 0;
             header->timestamp = 0;
             header->sourceProcessId = 0; // No data yet
+            header->hasTempoEvents = 0;
             unlockMemory();
         }
     } else {
@@ -128,6 +130,15 @@ bool SharedClipboard::copyEvents(const QList<MidiEvent *> &events, MidiFile *sou
         return false;
     }
 
+    // Check if events contain tempo/time signature events
+    bool hasTempoEvents = false;
+    for (MidiEvent *event : events) {
+        if (dynamic_cast<TempoChangeEvent *>(event) || dynamic_cast<TimeSignatureEvent *>(event)) {
+            hasTempoEvents = true;
+            break;
+        }
+    }
+
     // Write header
     ClipboardHeader *header = static_cast<ClipboardHeader *>(_sharedMemory->data());
     header->version = CLIPBOARD_VERSION;
@@ -137,6 +148,7 @@ bool SharedClipboard::copyEvents(const QList<MidiEvent *> &events, MidiFile *sou
     header->dataSize = serializedData.size();
     header->timestamp = QDateTime::currentMSecsSinceEpoch();
     header->sourceProcessId = QCoreApplication::applicationPid();
+    header->hasTempoEvents = hasTempoEvents ? 1 : 0;
 
     // Write serialized event data
     char *dataPtr = static_cast<char *>(_sharedMemory->data()) + sizeof(ClipboardHeader);
@@ -146,7 +158,7 @@ bool SharedClipboard::copyEvents(const QList<MidiEvent *> &events, MidiFile *sou
     return true;
 }
 
-bool SharedClipboard::pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &pastedEvents) {
+bool SharedClipboard::pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &pastedEvents, bool applyTempoConversion, int targetCursorTick) {
     if (!_initialized || !_sharedMemory || !targetFile) {
         return false;
     }
@@ -163,6 +175,11 @@ bool SharedClipboard::pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &past
         return false;
     }
 
+    // Store header info for tempo conversion
+    int sourceTicksPerQuarter = header->ticksPerQuarter;
+    int sourceTempo = header->tempoBeatsPerQuarter;
+    bool hasTempoEvents = (header->hasTempoEvents == 1);
+
     // Read serialized data - copy it to ensure data integrity
     char *dataPtr = static_cast<char *>(_sharedMemory->data()) + sizeof(ClipboardHeader);
     QByteArray serializedData;
@@ -173,6 +190,43 @@ bool SharedClipboard::pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &past
 
     // Deserialize events
     bool result = deserializeEvents(serializedData, targetFile, pastedEvents);
+    
+    // Apply tempo conversion if requested and needed
+    if (result && applyTempoConversion && !hasTempoEvents) {
+        int targetTicksPerQuarter = targetFile->ticksPerQuarter();
+        
+        // Check if any conversion is needed by comparing basic parameters
+        int cursorTempo = getCurrentTempo(targetFile, targetCursorTick);
+        if (sourceTempo != cursorTempo || sourceTicksPerQuarter != targetTicksPerQuarter) {
+            for (int i = 0; i < pastedEvents.size(); i++) {
+                QPair<int, int> originalTiming = getOriginalTiming(i);
+                if (originalTiming.first != -1) {
+                    // Calculate where this note will be placed in the target file
+                    int firstTick = -1;
+                    for (int j = 0; j < pastedEvents.size(); j++) {
+                        QPair<int, int> timing = getOriginalTiming(j);
+                        if (timing.first != -1 && (timing.first < firstTick || firstTick == -1)) {
+                            firstTick = timing.first;
+                        }
+                    }
+                    if (firstTick == -1) firstTick = 0;
+                    
+                    int diff = targetCursorTick - firstTick;
+                    int targetNotePosition = originalTiming.first + diff;
+                    
+                    // Get the tempo that will be in effect at this note's position
+                    int targetTempo = getCurrentTempo(targetFile, targetNotePosition);
+                    
+                    int convertedTime = convertTiming(originalTiming.first, 
+                                                    sourceTicksPerQuarter, sourceTempo,
+                                                    targetTicksPerQuarter, targetTempo);
+                    // Update the stored timing for this event
+                    g_originalTimings[i] = QPair<int, int>(convertedTime, originalTiming.second);
+                }
+            }
+        }
+    }
+    
     return result;
 }
 
@@ -224,6 +278,7 @@ void SharedClipboard::clear() {
         header->eventCount = 0;
         header->dataSize = 0;
         header->timestamp = 0;
+        header->hasTempoEvents = 0;
         unlockMemory();
     }
 }
@@ -384,6 +439,23 @@ int SharedClipboard::getCurrentTempo(MidiFile *file, int atTick) {
     }
 
     return currentTempo ? currentTempo->beatsPerQuarter() : 120;
+}
+
+int SharedClipboard::convertTiming(int originalTime, int sourceTicksPerQuarter, int sourceTempo, 
+                                 int targetTicksPerQuarter, int targetTempo) {
+    if (sourceTempo == targetTempo && sourceTicksPerQuarter == targetTicksPerQuarter) {
+        return originalTime; // No conversion needed
+    }
+    
+    // Convert to real time (milliseconds) using source timing
+    double sourceTickDurationMs = (60000.0 / sourceTempo) / sourceTicksPerQuarter;
+    double realTimeMs = originalTime * sourceTickDurationMs;
+    
+    // Convert back to ticks using target timing
+    double targetTickDurationMs = (60000.0 / targetTempo) / targetTicksPerQuarter;
+    int targetTime = (int)(realTimeMs / targetTickDurationMs + 0.5); // Round to nearest tick
+    
+    return targetTime;
 }
 
 bool SharedClipboard::lockMemory() {
