@@ -194,60 +194,8 @@ bool SharedClipboard::pasteEvents(MidiFile *targetFile, QList<MidiEvent *> &past
     // Deserialize events
     bool result = deserializeEvents(serializedData, targetFile, pastedEvents);
     
-    // Apply tempo conversion if requested and needed
-    if (result && applyTempoConversion && !hasTempoEvents) {
-        int targetTicksPerQuarter = targetFile->ticksPerQuarter();
-        
-        // Check if any conversion is needed by comparing basic parameters
-        int cursorTempo = getCurrentTempo(targetFile, targetCursorTick);
-        if (sourceTempo != cursorTempo || sourceTicksPerQuarter != targetTicksPerQuarter) {
-            // Find the earliest tick first to avoid recalculating in the loop
-            int firstTick = -1;
-            for (int j = 0; j < pastedEvents.size(); j++) {
-                QPair<int, int> timing = getOriginalTiming(j);
-                if (timing.first != -1 && (timing.first < firstTick || firstTick == -1)) {
-                    firstTick = timing.first;
-                }
-            }
-            if (firstTick == -1) firstTick = 0;
-            
-            for (int i = 0; i < pastedEvents.size(); i++) {
-                QPair<int, int> originalTiming = getOriginalTiming(i);
-                if (originalTiming.first != -1) {
-                    MidiEvent *event = pastedEvents[i];
-                    if (!event) continue; // Skip null events
-                    
-                    // Convert timing relative to the earliest tick for proper positioning
-                    int relativeTime = originalTiming.first - firstTick;
-                    int convertedRelativeTime = convertTiming(relativeTime, 
-                                                            sourceTicksPerQuarter, sourceTempo,
-                                                            targetTicksPerQuarter, cursorTempo);
-                    
-                    // Calculate the new absolute position
-                    int newTime = targetCursorTick + convertedRelativeTime;
-                    
-                    // Apply the converted timing to the actual event
-                    event->setMidiTime(newTime);
-                    
-                    // For OnEvents, convert duration by updating the OffEvent timing
-                    OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
-                    if (onEvent && onEvent->offEvent()) {
-                        OffEvent *offEvent = onEvent->offEvent();
-                        // Calculate original duration from the stored timing data
-                        int originalDuration = offEvent->midiTime() - originalTiming.first;
-                        if (originalDuration > 0) {
-                            // Convert the duration
-                            int convertedDuration = convertTiming(originalDuration,
-                                                                sourceTicksPerQuarter, sourceTempo,
-                                                                targetTicksPerQuarter, cursorTempo);
-                            // Update the OffEvent timing
-                            offEvent->setMidiTime(newTime + convertedDuration);
-                        }
-                    }
-                }
-            }
-        }
-    }
+    // Note: Tempo conversion is handled automatically by the MIDI engine
+    // No manual conversion needed in SharedClipboard
     
     return result;
 }
