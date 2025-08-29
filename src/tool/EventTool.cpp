@@ -757,9 +757,6 @@ void EventTool::recalculateExistingNotesAfterTempoChange(const QList<MidiEvent *
         // Convert old position to real time using old tempo map
         int oldMs = currentFile()->msOfTick(oldPosition);
         
-        // Force recalculation of tempo map by calling calcMaxTime
-        currentFile()->calcMaxTime();
-        
         // Convert back to ticks using new tempo map
         int newPosition = currentFile()->tick(oldMs);
         
