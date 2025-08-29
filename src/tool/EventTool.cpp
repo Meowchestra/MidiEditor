@@ -24,6 +24,7 @@
 #include "../MidiEvent/OnEvent.h"
 #include "../MidiEvent/TempoChangeEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
+#include "../MidiEvent/KeySignatureEvent.h"
 #include "../gui/EventWidget.h"
 #include "../gui/MainWindow.h"
 #include "../gui/MatrixWidget.h"
@@ -515,15 +516,54 @@ bool EventTool::pasteFromSharedClipboard() {
         // Clear selection and paste events
         clearSelection();
 
-        // Separate tempo/time signature events from regular events
+        // Separate tempo/time signature events from regular events first
         QList<MidiEvent *> tempoEvents;
         QList<MidiEvent *> regularEvents;
         
         for (MidiEvent *event : sharedEvents) {
-            if (dynamic_cast<TempoChangeEvent *>(event) || dynamic_cast<TimeSignatureEvent *>(event)) {
+            if (dynamic_cast<TempoChangeEvent *>(event) || dynamic_cast<TimeSignatureEvent *>(event) || dynamic_cast<KeySignatureEvent *>(event)) {
                 tempoEvents.append(event);
             } else {
                 regularEvents.append(event);
+            }
+        }
+
+        // Create protocol entries for channels that will be modified
+        std::vector<std::pair<ProtocolEntry *, ProtocolEntry *> > channelCopies;
+        std::set<int> copiedChannels;
+
+        // Add target channel for regular events
+        if (!regularEvents.isEmpty()) {
+            if (copiedChannels.find(targetChannel) == copiedChannels.end()) {
+                MidiChannel *channel = currentFile()->channel(targetChannel);
+                ProtocolEntry *channelCopy = channel->copy();
+                channelCopies.push_back(std::make_pair(channelCopy, channel));
+                copiedChannels.insert(targetChannel);
+            }
+        }
+
+        // Add channels 16, 17, and 18 for meta events
+        if (!tempoEvents.isEmpty()) {
+            // Channel 16 for key signature and other general events
+            if (copiedChannels.find(16) == copiedChannels.end()) {
+                MidiChannel *channel = currentFile()->channel(16);
+                ProtocolEntry *channelCopy = channel->copy();
+                channelCopies.push_back(std::make_pair(channelCopy, channel));
+                copiedChannels.insert(16);
+            }
+            // Channel 17 for tempo events
+            if (copiedChannels.find(17) == copiedChannels.end()) {
+                MidiChannel *channel = currentFile()->channel(17);
+                ProtocolEntry *channelCopy = channel->copy();
+                channelCopies.push_back(std::make_pair(channelCopy, channel));
+                copiedChannels.insert(17);
+            }
+            // Channel 18 for time signature events
+            if (copiedChannels.find(18) == copiedChannels.end()) {
+                MidiChannel *channel = currentFile()->channel(18);
+                ProtocolEntry *channelCopy = channel->copy();
+                channelCopies.push_back(std::make_pair(channelCopy, channel));
+                copiedChannels.insert(18);
             }
         }
 
@@ -550,20 +590,26 @@ bool EventTool::pasteFromSharedClipboard() {
 
                 // Set event properties
                 event->setFile(currentFile());
-                event->setChannel(0, false); // Meta events typically use channel 0
                 event->setTrack(targetTrack, false);
 
-                // Insert tempo events into channel 17, time signature events into channel 18
+                // Insert meta events into their correct channels
                 TempoChangeEvent *tempoEvent = dynamic_cast<TempoChangeEvent *>(event);
                 TimeSignatureEvent *timeSigEvent = dynamic_cast<TimeSignatureEvent *>(event);
+                KeySignatureEvent *keySigEvent = dynamic_cast<KeySignatureEvent *>(event);
                 
                 if (tempoEvent) {
+                    event->setChannel(17, false);
                     currentFile()->channel(17)->insertEvent(event, newTime, false);
                 } else if (timeSigEvent) {
+                    event->setChannel(18, false);
                     currentFile()->channel(18)->insertEvent(event, newTime, false);
+                } else if (keySigEvent) {
+                    event->setChannel(16, false);
+                    currentFile()->channel(16)->insertEvent(event, newTime, false);
                 } else {
-                    // Fallback for other meta events
-                    currentFile()->channel(0)->insertEvent(event, newTime, false);
+                    // Fallback for other meta events - use General Events channel
+                    event->setChannel(16, false);
+                    currentFile()->channel(16)->insertEvent(event, newTime, false);
                 }
 
                 selectEvent(event, false, true, false);
@@ -615,7 +661,15 @@ bool EventTool::pasteFromSharedClipboard() {
 
         // If tempo/time signature events were pasted, recalculate existing notes
         if (!tempoEvents.isEmpty()) {
+            // Force the MIDI file to recalculate its tempo map
+            currentFile()->calcMaxTime();
             recalculateExistingNotesAfterTempoChange(tempoEvents);
+        }
+
+        // Put the copied channels from before the event insertion onto the protocol stack
+        for (auto channelPair: channelCopies) {
+            ProtocolEntry *channel = channelPair.first;
+            channel->protocol(channel, channelPair.second);
         }
 
         // Update the selection to show the pasted events
