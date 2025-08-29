@@ -134,6 +134,11 @@ signals:
      * \param track The MidiTrack that was clicked
      */
     void trackClicked(MidiTrack *track);
+    
+    /**
+     * \brief Emitted when tracks are reordered.
+     */
+    void trackOrderChanged();
 
 public slots:
     /**
@@ -146,6 +151,29 @@ public slots:
      * \param item The selected list widget item
      */
     void chooseTrack(QListWidgetItem *item);
+
+    /**
+     * \brief Reorders tracks after drag-and-drop operation.
+     * \param fromIndex Original position of the track
+     * \param toIndex New position of the track
+     */
+    void reorderTracks(int fromIndex, int toIndex);
+
+protected:
+    /**
+     * \brief Handles drop events for track reordering.
+     * \param event The drop event
+     */
+    void dropEvent(QDropEvent *event) override;
+
+    /**
+     * \brief Handles MIME data drops for internal moves.
+     * \param index Target index for the drop
+     * \param data MIME data being dropped
+     * \param action Drop action type
+     * \return True if drop was handled successfully
+     */
+    bool dropMimeData(int index, const QMimeData *data, Qt::DropAction action) override;
 
 private:
     /** \brief The associated MIDI file */

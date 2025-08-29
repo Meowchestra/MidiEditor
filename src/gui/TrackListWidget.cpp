@@ -25,8 +25,11 @@
 #include "../protocol/Protocol.h"
 
 #include <QAction>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QGridLayout>
 #include <QLabel>
+#include <QMimeData>
 #include <QPainter>
 #include <QToolBar>
 #include <QWidget>
@@ -147,6 +150,10 @@ TrackListWidget::TrackListWidget(QWidget *parent)
     setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
     file = 0;
     connect(this, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(chooseTrack(QListWidgetItem*)));
+    
+    // Enable drag-and-drop for track reordering
+    setDragDropMode(QAbstractItemView::InternalMove);
+    setDefaultDropAction(Qt::MoveAction);
 }
 
 void TrackListWidget::setFile(MidiFile *f) {
@@ -156,9 +163,12 @@ void TrackListWidget::setFile(MidiFile *f) {
 }
 
 void TrackListWidget::chooseTrack(QListWidgetItem *item) {
-    int t = item->data(Qt::UserRole).toInt();
-    MidiTrack *track = trackorder.at(t);
-    emit trackClicked(track);
+    // Use row index to get track from trackorder, not Qt::UserRole
+    int row = this->row(item);
+    if (row >= 0 && row < trackorder.size()) {
+        MidiTrack *track = trackorder.at(row);
+        emit trackClicked(track);
+    }
 }
 
 void TrackListWidget::update() {
@@ -213,4 +223,95 @@ void TrackListWidget::update() {
 
 MidiFile *TrackListWidget::midiFile() {
     return file;
+}
+
+void TrackListWidget::dropEvent(QDropEvent *event) {
+    if (event->source() == this && (event->dropAction() == Qt::MoveAction ||
+                                    dragDropMode() == QAbstractItemView::InternalMove)) {
+        
+        // Get selected items
+        QList<QListWidgetItem*> selected = selectedItems();
+        if (selected.isEmpty()) {
+            event->ignore();
+            return;
+        }
+        
+        // Get source position BEFORE Qt processes the drop
+        int from = row(selected.first());
+        
+        // Get the item at the drop position
+        QListWidgetItem *dropItem = itemAt(event->pos());
+        if (!dropItem) {
+            event->ignore();
+            return;
+        }
+        
+        int to = row(dropItem);
+        
+        if (from == to || from < 0 || to < 0) {
+            event->ignore();
+            return;
+        }
+        
+        // IMPORTANT: Block Qt's default move behavior
+        event->setDropAction(Qt::IgnoreAction);
+        
+        // Perform our custom reordering
+        reorderTracks(from, to);
+        
+        // Update the selection to the new position
+        setCurrentRow(to);
+        
+        // Accept but with IgnoreAction to prevent Qt from moving items
+        event->accept();
+    } else {
+        QListWidget::dropEvent(event);
+    }
+}
+
+bool TrackListWidget::dropMimeData(int index, const QMimeData *data, Qt::DropAction action) {
+    Q_UNUSED(index)
+    Q_UNUSED(data)
+    Q_UNUSED(action)
+    // We handle drops in dropEvent, so just return true to indicate we can handle it
+    return true;
+}
+
+void TrackListWidget::reorderTracks(int fromIndex, int toIndex) {
+    if (!file || fromIndex == toIndex || fromIndex < 0 || toIndex < 0 ||
+        fromIndex >= trackorder.size() || toIndex >= trackorder.size()) {
+        return;
+    }
+
+    // Start protocol action for undo/redo support
+    file->protocol()->startNewAction(tr("Reorder tracks"));
+
+    // Get the track being moved
+    MidiTrack *track = trackorder[fromIndex];
+    
+    // Remove from current position
+    trackorder.removeAt(fromIndex);
+    
+    // Insert at new position
+    trackorder.insert(toIndex, track);
+
+    // Update track numbers to match their new positions
+    for (int i = 0; i < trackorder.size(); i++) {
+        trackorder[i]->setNumber(i);
+    }
+
+    // Update the MidiFile's track list to match our new order
+    QList<MidiTrack *> *fileTracks = file->tracks();
+    fileTracks->clear();
+    *fileTracks = trackorder;
+
+    // End protocol action
+    file->protocol()->endAction();
+
+    // Force rebuild by clearing trackorder so update() detects a change
+    trackorder.clear();
+    update();
+    
+    // Emit signal to notify other components
+    emit trackOrderChanged();
 }
