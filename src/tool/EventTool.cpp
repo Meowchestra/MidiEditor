@@ -659,17 +659,18 @@ bool EventTool::pasteFromSharedClipboard() {
             regularEventIndex++;
         }
 
-        // If tempo/time signature events were pasted, recalculate existing notes
-        if (!tempoEvents.isEmpty()) {
-            // Force the MIDI file to recalculate its tempo map
-            currentFile()->calcMaxTime();
-            recalculateExistingNotesAfterTempoChange(tempoEvents);
-        }
-
         // Put the copied channels from before the event insertion onto the protocol stack
         for (auto channelPair: channelCopies) {
             ProtocolEntry *channel = channelPair.first;
             channel->protocol(channel, channelPair.second);
+        }
+
+        // If tempo/time signature events were pasted, recalculate existing notes
+        // This must happen AFTER protocol entries are committed so recalculation is included in undo
+        if (!tempoEvents.isEmpty()) {
+            // Force the MIDI file to recalculate its tempo map
+            currentFile()->calcMaxTime();
+            recalculateExistingNotesAfterTempoChange(tempoEvents);
         }
 
         // Update the selection to show the pasted events
