@@ -24,6 +24,7 @@
 #include <QMainWindow>
 #include <QScrollBar>
 #include <QSettings>
+#include <QKeySequence>
 
 // Project includes
 #include "ToolbarActionInfo.h"
@@ -134,6 +135,26 @@ public:
      * \return True if it's safe to close, false if user cancelled
      */
     bool saveBeforeClose();
+
+    /**
+     * \brief Returns a copy of the action map (id -> QAction*)
+     */
+    QMap<QString, QAction*> getActionMap() const { return _actionMap; }
+
+    /**
+     * \brief Returns stored default shortcuts per action id.
+     */
+    QMap<QString, QList<QKeySequence>> getDefaultShortcuts() const { return _defaultShortcuts; }
+
+    /**
+     * \brief Apply custom shortcuts from settings.
+     */
+    void applyStoredShortcuts();
+
+    /**
+     * \brief Set shortcuts for an action id.
+     */
+    void setActionShortcuts(const QString &actionId, const QList<QKeySequence> &seqs);
 
 protected:
     /**
@@ -951,6 +972,9 @@ private:
 
     /** \brief Map of action IDs to QAction objects for quick lookup */
     QMap<QString, QAction *> _actionMap;
+
+    /** \brief Map of action IDs to their default shortcuts */
+    QMap<QString, QList<QKeySequence>> _defaultShortcuts;
 
     // === Advanced Features ===
 

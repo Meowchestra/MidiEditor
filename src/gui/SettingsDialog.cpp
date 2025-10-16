@@ -28,15 +28,20 @@
 #include "LayoutSettingsWidget.h"
 #include "PerformanceSettingsWidget.h"
 #include "SettingsWidget.h"
+#include "MainWindow.h"
+#include "KeybindsSettingsWidget.h"
 
 SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *parent)
     : QDialog(parent) {
     setWindowTitle(title);
 
+    _settings = settings;
+    _mainWindow = qobject_cast<MainWindow *>(parent);
+
     _settingsWidgets = new QList<SettingsWidget *>;
 
-    setMinimumSize(640, 450);
-    resize(640, 720);
+    setMinimumSize(800, 450);
+    resize(800, 720);
 
     QGridLayout *layout = new QGridLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
@@ -89,6 +94,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
     addSetting(new AppearanceSettingsWidget(central));
     addSetting(new LayoutSettingsWidget(central));
+    addSetting(new KeybindsSettingsWidget(this, central));
     addSetting(new PerformanceSettingsWidget(settings, central));
 }
 

@@ -2761,6 +2761,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     // File
     QAction *newAction = new QAction(tr("New"), this);
     newAction->setShortcut(QKeySequence::New);
+    _defaultShortcuts["new"] = QList<QKeySequence>() << newAction->shortcut();
     Appearance::setActionIcon(newAction, ":/run_environment/graphics/tool/new.png");
     connect(newAction, SIGNAL(triggered()), this, SLOT(newFile()));
     fileMB->addAction(newAction);
@@ -2768,6 +2769,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *loadAction = new QAction(tr("Open..."), this);
     loadAction->setShortcut(QKeySequence::Open);
+    _defaultShortcuts["open"] = QList<QKeySequence>() << loadAction->shortcut();
     Appearance::setActionIcon(loadAction, ":/run_environment/graphics/tool/load.png");
     connect(loadAction, SIGNAL(triggered()), this, SLOT(load()));
     fileMB->addAction(loadAction);
@@ -2784,6 +2786,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *saveAction = new QAction(tr("Save"), this);
     saveAction->setShortcut(QKeySequence::Save);
+    _defaultShortcuts["save"] = QList<QKeySequence>() << saveAction->shortcut();
     Appearance::setActionIcon(saveAction, ":/run_environment/graphics/tool/save.png");
     connect(saveAction, SIGNAL(triggered()), this, SLOT(save()));
     fileMB->addAction(saveAction);
@@ -2791,21 +2794,26 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *saveAsAction = new QAction(tr("Save as..."), this);
     saveAsAction->setShortcut(QKeySequence::SaveAs);
+    _defaultShortcuts["save_as"] = QList<QKeySequence>() << saveAsAction->shortcut();
     Appearance::setActionIcon(saveAsAction, ":/run_environment/graphics/tool/saveas.png");
     connect(saveAsAction, SIGNAL(triggered()), this, SLOT(saveas()));
     fileMB->addAction(saveAsAction);
+    _actionMap["save_as"] = saveAsAction;
 
     fileMB->addSeparator();
 
     QAction *quitAction = new QAction(tr("Quit"), this);
     quitAction->setShortcut(QKeySequence::Quit);
+    _defaultShortcuts["quit"] = QList<QKeySequence>() << quitAction->shortcut();
     Appearance::setActionIcon(quitAction, ":/run_environment/graphics/tool/noicon.png");
     connect(quitAction, SIGNAL(triggered()), this, SLOT(close()));
     fileMB->addAction(quitAction);
+    _actionMap["quit"] = quitAction;
 
     // Edit
     undoAction = new QAction(tr("Undo"), this);
     undoAction->setShortcut(QKeySequence::Undo);
+    _defaultShortcuts["undo"] = QList<QKeySequence>() << undoAction->shortcut();
     Appearance::setActionIcon(undoAction, ":/run_environment/graphics/tool/undo.png");
     connect(undoAction, SIGNAL(triggered()), this, SLOT(undo()));
     editMB->addAction(undoAction);
@@ -2813,6 +2821,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     redoAction = new QAction(tr("Redo"), this);
     redoAction->setShortcut(QKeySequence::Redo);
+    _defaultShortcuts["redo"] = QList<QKeySequence>() << redoAction->shortcut();
     Appearance::setActionIcon(redoAction, ":/run_environment/graphics/tool/redo.png");
     connect(redoAction, SIGNAL(triggered()), this, SLOT(redo()));
     editMB->addAction(redoAction);
@@ -2823,8 +2832,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *selectAllAction = new QAction(tr("Select all"), this);
     selectAllAction->setToolTip(tr("Select all visible events"));
     selectAllAction->setShortcut(QKeySequence::SelectAll);
+    _defaultShortcuts["select_all"] = QList<QKeySequence>() << selectAllAction->shortcut();
     connect(selectAllAction, SIGNAL(triggered()), this, SLOT(selectAll()));
     editMB->addAction(selectAllAction);
+    _actionMap["select_all"] = selectAllAction;
 
     _selectAllFromChannelMenu = new QMenu(tr("Select all events from channel..."), editMB);
     editMB->addMenu(_selectAllFromChannelMenu);
@@ -2852,23 +2863,31 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *navigateSelectionUpAction = new QAction(tr("Navigate selection up"), editMB);
     navigateSelectionUpAction->setShortcut(QKeySequence(Qt::Key_Up));
+    _defaultShortcuts["navigate_up"] = QList<QKeySequence>() << navigateSelectionUpAction->shortcut();
     connect(navigateSelectionUpAction, SIGNAL(triggered()), this, SLOT(navigateSelectionUp()));
     editMB->addAction(navigateSelectionUpAction);
+    _actionMap["navigate_up"] = navigateSelectionUpAction;
 
     QAction *navigateSelectionDownAction = new QAction(tr("Navigate selection down"), editMB);
     navigateSelectionDownAction->setShortcut(QKeySequence(Qt::Key_Down));
+    _defaultShortcuts["navigate_down"] = QList<QKeySequence>() << navigateSelectionDownAction->shortcut();
     connect(navigateSelectionDownAction, SIGNAL(triggered()), this, SLOT(navigateSelectionDown()));
     editMB->addAction(navigateSelectionDownAction);
+    _actionMap["navigate_down"] = navigateSelectionDownAction;
 
     QAction *navigateSelectionLeftAction = new QAction(tr("Navigate selection left"), editMB);
     navigateSelectionLeftAction->setShortcut(QKeySequence(Qt::Key_Left));
+    _defaultShortcuts["navigate_left"] = QList<QKeySequence>() << navigateSelectionLeftAction->shortcut();
     connect(navigateSelectionLeftAction, SIGNAL(triggered()), this, SLOT(navigateSelectionLeft()));
     editMB->addAction(navigateSelectionLeftAction);
+    _actionMap["navigate_left"] = navigateSelectionLeftAction;
 
     QAction *navigateSelectionRightAction = new QAction(tr("Navigate selection right"), editMB);
     navigateSelectionRightAction->setShortcut(QKeySequence(Qt::Key_Right));
+    _defaultShortcuts["navigate_right"] = QList<QKeySequence>() << navigateSelectionRightAction->shortcut();
     connect(navigateSelectionRightAction, SIGNAL(triggered()), this, SLOT(navigateSelectionRight()));
     editMB->addAction(navigateSelectionRightAction);
+    _actionMap["navigate_right"] = navigateSelectionRightAction;
 
     editMB->addSeparator();
 
@@ -2876,6 +2895,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(copyAction);
     Appearance::setActionIcon(copyAction, ":/run_environment/graphics/tool/copy.png");
     copyAction->setShortcut(QKeySequence::Copy);
+    _defaultShortcuts["copy"] = QList<QKeySequence>() << copyAction->shortcut();
     connect(copyAction, SIGNAL(triggered()), this, SLOT(copy()));
     editMB->addAction(copyAction);
     _actionMap["copy"] = copyAction;
@@ -2883,6 +2903,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _pasteAction = new QAction(tr("Paste events"), this);
     _pasteAction->setToolTip(tr("Paste events at cursor position"));
     _pasteAction->setShortcut(QKeySequence::Paste);
+    _defaultShortcuts["paste"] = QList<QKeySequence>() << _pasteAction->shortcut();
     Appearance::setActionIcon(_pasteAction, ":/run_environment/graphics/tool/paste.png");
     connect(_pasteAction, SIGNAL(triggered()), this, SLOT(paste()));
     _actionMap["paste"] = _pasteAction;
@@ -2929,50 +2950,61 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     StandardTool *tool = new StandardTool();
     Tool::setCurrentTool(tool);
     stdToolAction = new ToolButton(tool, QKeySequence(Qt::Key_F1), toolsToolsMenu);
+    _defaultShortcuts["standard_tool"] = QList<QKeySequence>() << stdToolAction->shortcut();
     toolsToolsMenu->addAction(stdToolAction);
     tool->buttonClick();
     _actionMap["standard_tool"] = stdToolAction;
 
     QAction *newNoteAction = new ToolButton(new NewNoteTool(), QKeySequence(Qt::Key_F2), toolsToolsMenu);
+    _defaultShortcuts["new_note"] = QList<QKeySequence>() << newNoteAction->shortcut();
     toolsToolsMenu->addAction(newNoteAction);
     _actionMap["new_note"] = newNoteAction;
     QAction *removeNotesAction = new ToolButton(new EraserTool(), QKeySequence(Qt::Key_F3), toolsToolsMenu);
+    _defaultShortcuts["remove_notes"] = QList<QKeySequence>() << removeNotesAction->shortcut();
     toolsToolsMenu->addAction(removeNotesAction);
     _actionMap["remove_notes"] = removeNotesAction;
 
     toolsToolsMenu->addSeparator();
 
     QAction *selectSingleAction = new ToolButton(new SelectTool(SELECTION_TYPE_SINGLE), QKeySequence(Qt::Key_F4), toolsToolsMenu);
+    _defaultShortcuts["select_single"] = QList<QKeySequence>() << selectSingleAction->shortcut();
     toolsToolsMenu->addAction(selectSingleAction);
     _actionMap["select_single"] = selectSingleAction;
     QAction *selectBoxAction = new ToolButton(new SelectTool(SELECTION_TYPE_BOX), QKeySequence(Qt::Key_F5), toolsToolsMenu);
+    _defaultShortcuts["select_box"] = QList<QKeySequence>() << selectBoxAction->shortcut();
     toolsToolsMenu->addAction(selectBoxAction);
     _actionMap["select_box"] = selectBoxAction;
     QAction *selectLeftAction = new ToolButton(new SelectTool(SELECTION_TYPE_LEFT), QKeySequence(Qt::Key_F6), toolsToolsMenu);
+    _defaultShortcuts["select_left"] = QList<QKeySequence>() << selectLeftAction->shortcut();
     toolsToolsMenu->addAction(selectLeftAction);
     _actionMap["select_left"] = selectLeftAction;
     QAction *selectRightAction = new ToolButton(new SelectTool(SELECTION_TYPE_RIGHT), QKeySequence(Qt::Key_F7), toolsToolsMenu);
+    _defaultShortcuts["select_right"] = QList<QKeySequence>() << selectRightAction->shortcut();
     toolsToolsMenu->addAction(selectRightAction);
     _actionMap["select_right"] = selectRightAction;
 
     toolsToolsMenu->addSeparator();
 
     QAction *moveAllAction = new ToolButton(new EventMoveTool(true, true), QKeySequence(Qt::Key_F8), toolsToolsMenu);
+    _defaultShortcuts["move_all"] = QList<QKeySequence>() << moveAllAction->shortcut();
     _activateWithSelections.append(moveAllAction);
     toolsToolsMenu->addAction(moveAllAction);
     _actionMap["move_all"] = moveAllAction;
 
     QAction *moveLRAction = new ToolButton(new EventMoveTool(false, true), QKeySequence(Qt::Key_F9), toolsToolsMenu);
+    _defaultShortcuts["move_lr"] = QList<QKeySequence>() << moveLRAction->shortcut();
     _activateWithSelections.append(moveLRAction);
     toolsToolsMenu->addAction(moveLRAction);
     _actionMap["move_lr"] = moveLRAction;
 
     QAction *moveUDAction = new ToolButton(new EventMoveTool(true, false), QKeySequence(Qt::Key_F10), toolsToolsMenu);
+    _defaultShortcuts["move_ud"] = QList<QKeySequence>() << moveUDAction->shortcut();
     _activateWithSelections.append(moveUDAction);
     toolsToolsMenu->addAction(moveUDAction);
     _actionMap["move_ud"] = moveUDAction;
 
     QAction *sizeChangeAction = new ToolButton(new SizeChangeTool(), QKeySequence(Qt::Key_F11), toolsToolsMenu);
+    _defaultShortcuts["size_change"] = QList<QKeySequence>() << sizeChangeAction->shortcut();
     _activateWithSelections.append(sizeChangeAction);
     toolsToolsMenu->addAction(sizeChangeAction);
     _actionMap["size_change"] = sizeChangeAction;
@@ -2980,12 +3012,15 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     toolsToolsMenu->addSeparator();
 
     QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F1)), toolsToolsMenu);
+    _defaultShortcuts["measure"] = QList<QKeySequence>() << measureAction->shortcut();
     toolsToolsMenu->addAction(measureAction);
     _actionMap["measure"] = measureAction;
     QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F2)), toolsToolsMenu);
+    _defaultShortcuts["time_signature"] = QList<QKeySequence>() << timeSignatureAction->shortcut();
     toolsToolsMenu->addAction(timeSignatureAction);
     _actionMap["time_signature"] = timeSignatureAction;
     QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F3)), toolsToolsMenu);
+    _defaultShortcuts["tempo"] = QList<QKeySequence>() << tempoAction->shortcut();
     toolsToolsMenu->addAction(tempoAction);
     _actionMap["tempo"] = tempoAction;
 
@@ -2997,33 +3032,43 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *tweakTimeAction = new QAction(tr("Time"), tweakMenu);
     tweakTimeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_1)));
+    _defaultShortcuts["tweak_time"] = QList<QKeySequence>() << tweakTimeAction->shortcut();
     tweakTimeAction->setCheckable(true);
     connect(tweakTimeAction, SIGNAL(triggered()), this, SLOT(tweakTime()));
     tweakMenu->addAction(tweakTimeAction);
+    _actionMap["tweak_time"] = tweakTimeAction;
 
     QAction *tweakStartTimeAction = new QAction(tr("Start time"), tweakMenu);
     tweakStartTimeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_2)));
+    _defaultShortcuts["tweak_start_time"] = QList<QKeySequence>() << tweakStartTimeAction->shortcut();
     tweakStartTimeAction->setCheckable(true);
     connect(tweakStartTimeAction, SIGNAL(triggered()), this, SLOT(tweakStartTime()));
     tweakMenu->addAction(tweakStartTimeAction);
+    _actionMap["tweak_start_time"] = tweakStartTimeAction;
 
     QAction *tweakEndTimeAction = new QAction(tr("End time"), tweakMenu);
     tweakEndTimeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_3)));
+    _defaultShortcuts["tweak_end_time"] = QList<QKeySequence>() << tweakEndTimeAction->shortcut();
     tweakEndTimeAction->setCheckable(true);
     connect(tweakEndTimeAction, SIGNAL(triggered()), this, SLOT(tweakEndTime()));
     tweakMenu->addAction(tweakEndTimeAction);
+    _actionMap["tweak_end_time"] = tweakEndTimeAction;
 
     QAction *tweakNoteAction = new QAction(tr("Note"), tweakMenu);
     tweakNoteAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_4)));
+    _defaultShortcuts["tweak_note"] = QList<QKeySequence>() << tweakNoteAction->shortcut();
     tweakNoteAction->setCheckable(true);
     connect(tweakNoteAction, SIGNAL(triggered()), this, SLOT(tweakNote()));
     tweakMenu->addAction(tweakNoteAction);
+    _actionMap["tweak_note"] = tweakNoteAction;
 
     QAction *tweakValueAction = new QAction(tr("Value"), tweakMenu);
     tweakValueAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_5)));
+    _defaultShortcuts["tweak_value"] = QList<QKeySequence>() << tweakValueAction->shortcut();
     tweakValueAction->setCheckable(true);
     connect(tweakValueAction, SIGNAL(triggered()), this, SLOT(tweakValue()));
     tweakMenu->addAction(tweakValueAction);
+    _actionMap["tweak_value"] = tweakValueAction;
 
     QActionGroup *tweakTargetActionGroup = new QActionGroup(this);
     tweakTargetActionGroup->setExclusive(true);
@@ -3038,33 +3083,45 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *tweakSmallDecreaseAction = new QAction(tr("Small decrease"), tweakMenu);
     tweakSmallDecreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_9)));
+    _defaultShortcuts["tweak_small_decrease"] = QList<QKeySequence>() << tweakSmallDecreaseAction->shortcut();
     connect(tweakSmallDecreaseAction, SIGNAL(triggered()), this, SLOT(tweakSmallDecrease()));
     tweakMenu->addAction(tweakSmallDecreaseAction);
+    _actionMap["tweak_small_decrease"] = tweakSmallDecreaseAction;
 
     QAction *tweakSmallIncreaseAction = new QAction(tr("Small increase"), tweakMenu);
     tweakSmallIncreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_0)));
+    _defaultShortcuts["tweak_small_increase"] = QList<QKeySequence>() << tweakSmallIncreaseAction->shortcut();
     connect(tweakSmallIncreaseAction, SIGNAL(triggered()), this, SLOT(tweakSmallIncrease()));
     tweakMenu->addAction(tweakSmallIncreaseAction);
+    _actionMap["tweak_small_increase"] = tweakSmallIncreaseAction;
 
     QAction *tweakMediumDecreaseAction = new QAction(tr("Medium decrease"), tweakMenu);
     tweakMediumDecreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT, Qt::Key_9)));
+    _defaultShortcuts["tweak_medium_decrease"] = QList<QKeySequence>() << tweakMediumDecreaseAction->shortcut();
     connect(tweakMediumDecreaseAction, SIGNAL(triggered()), this, SLOT(tweakMediumDecrease()));
     tweakMenu->addAction(tweakMediumDecreaseAction);
+    _actionMap["tweak_medium_decrease"] = tweakMediumDecreaseAction;
 
     QAction *tweakMediumIncreaseAction = new QAction(tr("Medium increase"), tweakMenu);
     tweakMediumIncreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT, Qt::Key_0)));
+    _defaultShortcuts["tweak_medium_increase"] = QList<QKeySequence>() << tweakMediumIncreaseAction->shortcut();
     connect(tweakMediumIncreaseAction, SIGNAL(triggered()), this, SLOT(tweakMediumIncrease()));
     tweakMenu->addAction(tweakMediumIncreaseAction);
+    _actionMap["tweak_medium_increase"] = tweakMediumIncreaseAction;
 
     QAction *tweakLargeDecreaseAction = new QAction(tr("Large decrease"), tweakMenu);
     tweakLargeDecreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT | Qt::SHIFT, Qt::Key_9)));
+    _defaultShortcuts["tweak_large_decrease"] = QList<QKeySequence>() << tweakLargeDecreaseAction->shortcut();
     connect(tweakLargeDecreaseAction, SIGNAL(triggered()), this, SLOT(tweakLargeDecrease()));
     tweakMenu->addAction(tweakLargeDecreaseAction);
+    _actionMap["tweak_large_decrease"] = tweakLargeDecreaseAction;
 
     QAction *tweakLargeIncreaseAction = new QAction(tr("Large increase"), tweakMenu);
     tweakLargeIncreaseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT | Qt::SHIFT, Qt::Key_0)));
+    _defaultShortcuts["tweak_large_increase"] = QList<QKeySequence>() << tweakLargeIncreaseAction->shortcut();
     connect(tweakLargeIncreaseAction, SIGNAL(triggered()), this, SLOT(tweakLargeIncrease()));
     tweakMenu->addAction(tweakLargeIncreaseAction);
+    _actionMap["tweak_large_increase"] = tweakLargeIncreaseAction;
 
     toolsMB->addMenu(tweakMenu);
 
@@ -3072,6 +3129,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(deleteAction);
     deleteAction->setToolTip(tr("Remove selected events"));
     deleteAction->setShortcut(QKeySequence::Delete);
+    _defaultShortcuts["delete"] = QList<QKeySequence>() << deleteAction->shortcut();
     Appearance::setActionIcon(deleteAction, ":/run_environment/graphics/tool/eraser.png");
     connect(deleteAction, SIGNAL(triggered()), this, SLOT(deleteSelectedEvents()));
     toolsMB->addAction(deleteAction);
@@ -3082,6 +3140,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *alignLeftAction = new QAction(tr("Align left"), this);
     _activateWithSelections.append(alignLeftAction);
     alignLeftAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Left)));
+    _defaultShortcuts["align_left"] = QList<QKeySequence>() << alignLeftAction->shortcut();
     Appearance::setActionIcon(alignLeftAction, ":/run_environment/graphics/tool/align_left.png");
     connect(alignLeftAction, SIGNAL(triggered()), this, SLOT(alignLeft()));
     toolsMB->addAction(alignLeftAction);
@@ -3091,6 +3150,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(alignRightAction);
     Appearance::setActionIcon(alignRightAction, ":/run_environment/graphics/tool/align_right.png");
     alignRightAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Right)));
+    _defaultShortcuts["align_right"] = QList<QKeySequence>() << alignRightAction->shortcut();
     connect(alignRightAction, SIGNAL(triggered()), this, SLOT(alignRight()));
     toolsMB->addAction(alignRightAction);
     _actionMap["align_right"] = alignRightAction;
@@ -3099,6 +3159,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(equalizeAction);
     Appearance::setActionIcon(equalizeAction, ":/run_environment/graphics/tool/equalize.png");
     equalizeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Up)));
+    _defaultShortcuts["equalize"] = QList<QKeySequence>() << equalizeAction->shortcut();
     connect(equalizeAction, SIGNAL(triggered()), this, SLOT(equalize()));
     toolsMB->addAction(equalizeAction);
     _actionMap["equalize"] = equalizeAction;
@@ -3107,6 +3168,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *glueNotesAction = new QAction(tr("Glue notes (same channel)"), this);
     glueNotesAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_G)));
+    _defaultShortcuts["glue"] = QList<QKeySequence>() << glueNotesAction->shortcut();
     Appearance::setActionIcon(glueNotesAction, ":/run_environment/graphics/tool/glue.png");
     connect(glueNotesAction, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueNotesAction);
@@ -3115,6 +3177,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *glueNotesAllChannelsAction = new QAction(tr("Glue notes (all channels)"), this);
     glueNotesAllChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_G)));
+    _defaultShortcuts["glue_all_channels"] = QList<QKeySequence>() << glueNotesAllChannelsAction->shortcut();
     Appearance::setActionIcon(glueNotesAllChannelsAction, ":/run_environment/graphics/tool/glue.png");
     connect(glueNotesAllChannelsAction, SIGNAL(triggered()), this, SLOT(glueSelectionAllChannels()));
     _activateWithSelections.append(glueNotesAllChannelsAction);
@@ -3122,11 +3185,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _actionMap["glue_all_channels"] = glueNotesAllChannelsAction;
 
     QAction *scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_X)), toolsMB);
+    _defaultShortcuts["scissors"] = QList<QKeySequence>() << scissorsAction->shortcut();
     toolsMB->addAction(scissorsAction);
     _actionMap["scissors"] = scissorsAction;
 
     QAction *deleteOverlapsAction = new QAction(tr("Delete overlaps"), this);
     deleteOverlapsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_D)));
+    _defaultShortcuts["delete_overlaps"] = QList<QKeySequence>() << deleteOverlapsAction->shortcut();
     Appearance::setActionIcon(deleteOverlapsAction, ":/run_environment/graphics/tool/deleteoverlap.png");
     connect(deleteOverlapsAction, SIGNAL(triggered()), this, SLOT(deleteOverlaps()));
     _activateWithSelections.append(deleteOverlapsAction);
@@ -3137,12 +3202,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *convertPitchBendAction = new QAction(tr("Convert pitch bends to notes"), this);
     convertPitchBendAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_B)));
+    _defaultShortcuts["convert_pitch_bend_to_notes"] = QList<QKeySequence>() << convertPitchBendAction->shortcut();
     connect(convertPitchBendAction, SIGNAL(triggered()), this, SLOT(convertPitchBendToNotes()));
     toolsMB->addAction(convertPitchBendAction);
     _actionMap["convert_pitch_bend_to_notes"] = convertPitchBendAction;
 
     QAction *explodeChordsAction = new QAction(tr("Explode chords to tracks"), this);
     explodeChordsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_E)));
+    _defaultShortcuts["explode_chords_to_tracks"] = QList<QKeySequence>() << explodeChordsAction->shortcut();
     connect(explodeChordsAction, SIGNAL(triggered()), this, SLOT(explodeChordsToTracks()));
     toolsMB->addAction(explodeChordsAction);
     _actionMap["explode_chords_to_tracks"] = explodeChordsAction;
@@ -3153,6 +3220,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(quantizeAction);
     Appearance::setActionIcon(quantizeAction, ":/run_environment/graphics/tool/quantize.png");
     quantizeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Q)));
+    _defaultShortcuts["quantize"] = QList<QKeySequence>() << quantizeAction->shortcut();
     connect(quantizeAction, SIGNAL(triggered()), this, SLOT(quantizeSelection()));
     toolsMB->addAction(quantizeAction);
     _actionMap["quantize"] = quantizeAction;
@@ -3278,14 +3346,18 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *quantizeNToleAction = new QAction(tr("Quantify tuplet"), this);
     _activateWithSelections.append(quantizeNToleAction);
     quantizeNToleAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_H)));
+    _defaultShortcuts["quantize_ntuplet_dialog"] = QList<QKeySequence>() << quantizeNToleAction->shortcut();
     connect(quantizeNToleAction, SIGNAL(triggered()), this, SLOT(quantizeNtoleDialog()));
     toolsMB->addAction(quantizeNToleAction);
+    _actionMap["quantize_ntuplet_dialog"] = quantizeNToleAction;
 
     QAction *quantizeNToleActionRepeat = new QAction(tr("Repeat tuplet quantization"), this);
     _activateWithSelections.append(quantizeNToleActionRepeat);
     quantizeNToleActionRepeat->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_H)));
+    _defaultShortcuts["quantize_ntuplet_repeat"] = QList<QKeySequence>() << quantizeNToleActionRepeat->shortcut();
     connect(quantizeNToleActionRepeat, SIGNAL(triggered()), this, SLOT(quantizeNtole()));
     toolsMB->addAction(quantizeNToleActionRepeat);
+    _actionMap["quantize_ntuplet_repeat"] = quantizeNToleActionRepeat;
 
     toolsMB->addSeparator();
 
@@ -3293,6 +3365,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     Appearance::setActionIcon(transposeAction, ":/run_environment/graphics/tool/transpose.png");
     _activateWithSelections.append(transposeAction);
     transposeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_T)));
+    _defaultShortcuts["transpose"] = QList<QKeySequence>() << transposeAction->shortcut();
     connect(transposeAction, SIGNAL(triggered()), this, SLOT(transposeNSemitones()));
     toolsMB->addAction(transposeAction);
     _actionMap["transpose"] = transposeAction;
@@ -3301,6 +3374,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     Appearance::setActionIcon(transposeOctaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
     _activateWithSelections.append(transposeOctaveUpAction);
     transposeOctaveUpAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Up)));
+    _defaultShortcuts["transpose_up"] = QList<QKeySequence>() << transposeOctaveUpAction->shortcut();
     connect(transposeOctaveUpAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveUp()));
     toolsMB->addAction(transposeOctaveUpAction);
     _actionMap["transpose_up"] = transposeOctaveUpAction;
@@ -3309,6 +3383,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     Appearance::setActionIcon(transposeOctaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
     _activateWithSelections.append(transposeOctaveDownAction);
     transposeOctaveDownAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Down)));
+    _defaultShortcuts["transpose_down"] = QList<QKeySequence>() << transposeOctaveDownAction->shortcut();
     connect(transposeOctaveDownAction, SIGNAL(triggered()), this, SLOT(transposeSelectedNotesOctaveDown()));
     toolsMB->addAction(transposeOctaveDownAction);
     _actionMap["transpose_down"] = transposeOctaveDownAction;
@@ -3364,6 +3439,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *magnetAction = new QAction(tr("Magnet"), editMB);
     toolsMB->addAction(magnetAction);
     magnetAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_M)));
+    _defaultShortcuts["magnet"] = QList<QKeySequence>() << magnetAction->shortcut();
     Appearance::setActionIcon(magnetAction, ":/run_environment/graphics/tool/magnet.png");
     magnetAction->setCheckable(true);
     magnetAction->setChecked(false);
@@ -3375,6 +3451,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QMenu *zoomMenu = new QMenu(tr("Zoom..."), viewMB);
     QAction *zoomHorOutAction = new QAction(tr("Horizontal out"), this);
     zoomHorOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Minus)));
+    _defaultShortcuts["zoom_hor_out"] = QList<QKeySequence>() << zoomHorOutAction->shortcut();
     Appearance::setActionIcon(zoomHorOutAction, ":/run_environment/graphics/tool/zoom_hor_out.png");
     connect(zoomHorOutAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomHorOut()));
     zoomMenu->addAction(zoomHorOutAction);
@@ -3383,6 +3460,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *zoomHorInAction = new QAction(tr("Horizontal in"), this);
     Appearance::setActionIcon(zoomHorInAction, ":/run_environment/graphics/tool/zoom_hor_in.png");
     zoomHorInAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Equal)));
+    _defaultShortcuts["zoom_hor_in"] = QList<QKeySequence>() << zoomHorInAction->shortcut();
     connect(zoomHorInAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomHorIn()));
     zoomMenu->addAction(zoomHorInAction);
     _actionMap["zoom_hor_in"] = zoomHorInAction;
@@ -3390,6 +3468,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *zoomVerOutAction = new QAction(tr("Vertical out"), this);
     Appearance::setActionIcon(zoomVerOutAction, ":/run_environment/graphics/tool/zoom_ver_out.png");
     zoomVerOutAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Minus)));
+    _defaultShortcuts["zoom_ver_out"] = QList<QKeySequence>() << zoomVerOutAction->shortcut();
     connect(zoomVerOutAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomVerOut()));
     zoomMenu->addAction(zoomVerOutAction);
     _actionMap["zoom_ver_out"] = zoomVerOutAction;
@@ -3397,6 +3476,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *zoomVerInAction = new QAction(tr("Vertical in"), this);
     Appearance::setActionIcon(zoomVerInAction, ":/run_environment/graphics/tool/zoom_ver_in.png");
     zoomVerInAction->setShortcut(QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_Equal)));
+    _defaultShortcuts["zoom_ver_in"] = QList<QKeySequence>() << zoomVerInAction->shortcut();
     connect(zoomVerInAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomVerIn()));
     zoomMenu->addAction(zoomVerInAction);
     _actionMap["zoom_ver_in"] = zoomVerInAction;
@@ -3405,8 +3485,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *zoomStdAction = new QAction(tr("Restore default zoom"), this);
     zoomStdAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Backspace)));
+    _defaultShortcuts["zoom_std"] = QList<QKeySequence>() << zoomStdAction->shortcut();
     connect(zoomStdAction, SIGNAL(triggered()), _matrixWidgetContainer, SLOT(zoomStd()));
     zoomMenu->addAction(zoomStdAction);
+    _actionMap["zoom_std"] = zoomStdAction;
 
     viewMB->addMenu(zoomMenu);
 
@@ -3414,6 +3496,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *resetViewAction = new QAction(tr("Reset view"), this);
     resetViewAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_Backspace)));
+    _defaultShortcuts["reset_view"] = QList<QKeySequence>() << resetViewAction->shortcut();
     resetViewAction->setToolTip(tr("Reset zoom, scroll position, and cursor to defaults"));
     connect(resetViewAction, SIGNAL(triggered()), this, SLOT(resetView()));
     viewMB->addAction(resetViewAction);
@@ -3607,8 +3690,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     playStopActionShortcuts << QKeySequence(Qt::Key_Space)
                             << QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_P));
     playStopAction->setShortcuts(playStopActionShortcuts);
+    _defaultShortcuts["play_stop"] = playStopActionShortcuts;
     connect(playStopAction, SIGNAL(triggered()), this, SLOT(playStop()));
     playbackMB->addAction(playStopAction);
+    _actionMap["play_stop"] = playStopAction;
 
     QAction *playAction = new QAction(tr("Play"), this);
     Appearance::setActionIcon(playAction, ":/run_environment/graphics/tool/play.png");
@@ -3623,6 +3708,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 #else
     pauseAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Space)));
 #endif
+    _defaultShortcuts["pause"] = QList<QKeySequence>() << pauseAction->shortcut();
     connect(pauseAction, SIGNAL(triggered()), this, SLOT(pause()));
     playbackMB->addAction(pauseAction);
     _actionMap["pause"] = pauseAction;
@@ -3630,6 +3716,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *recAction = new QAction(tr("Record"), this);
     Appearance::setActionIcon(recAction, ":/run_environment/graphics/tool/record.png");
     recAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_R)));
+    _defaultShortcuts["record"] = QList<QKeySequence>() << recAction->shortcut();
     connect(recAction, SIGNAL(triggered()), this, SLOT(record()));
     playbackMB->addAction(recAction);
     _actionMap["record"] = recAction;
@@ -3649,6 +3736,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
                                << QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_Home))
                                << QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_J));
     backToBeginAction->setShortcuts(backToBeginActionShortcuts);
+    _defaultShortcuts["back_to_begin"] = backToBeginActionShortcuts;
     connect(backToBeginAction, SIGNAL(triggered()), this, SLOT(backToBegin()));
     playbackMB->addAction(backToBeginAction);
     _actionMap["back_to_begin"] = backToBeginAction;
@@ -3658,6 +3746,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QList<QKeySequence> backActionShortcuts;
     backActionShortcuts << QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_Left));
     backAction->setShortcuts(backActionShortcuts);
+    _defaultShortcuts["back"] = backActionShortcuts;
     connect(backAction, SIGNAL(triggered()), this, SLOT(back()));
     playbackMB->addAction(backAction);
     _actionMap["back"] = backAction;
@@ -3667,6 +3756,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QList<QKeySequence> forwActionShortcuts;
     forwActionShortcuts << QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_Right));
     forwAction->setShortcuts(forwActionShortcuts);
+    _defaultShortcuts["forward"] = forwActionShortcuts;
     connect(forwAction, SIGNAL(triggered()), this, SLOT(forward()));
     playbackMB->addAction(forwAction);
     _actionMap["forward"] = forwAction;
@@ -3677,6 +3767,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     Appearance::setActionIcon(backMarkerAction, ":/run_environment/graphics/tool/back_marker.png");
     QList<QKeySequence> backMarkerActionShortcuts;
     backMarkerAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_Comma)));
+    _defaultShortcuts["back_marker"] = QList<QKeySequence>() << backMarkerAction->shortcut();
     connect(backMarkerAction, SIGNAL(triggered()), this, SLOT(backMarker()));
     playbackMB->addAction(backMarkerAction);
     _actionMap["back_marker"] = backMarkerAction;
@@ -3685,6 +3776,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     Appearance::setActionIcon(forwMarkerAction, ":/run_environment/graphics/tool/forward_marker.png");
     QList<QKeySequence> forwMarkerActionShortcuts;
     forwMarkerAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_Period)));
+    _defaultShortcuts["forward_marker"] = QList<QKeySequence>() << forwMarkerAction->shortcut();
     connect(forwMarkerAction, SIGNAL(triggered()), this, SLOT(forwardMarker()));
     playbackMB->addAction(forwMarkerAction);
     _actionMap["forward_marker"] = forwMarkerAction;
@@ -3767,6 +3859,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *panicAction = new QAction(tr("Midi panic"), this);
     Appearance::setActionIcon(panicAction, ":/run_environment/graphics/tool/panic.png");
     panicAction->setShortcut(QKeySequence(Qt::Key_Escape));
+    _defaultShortcuts["panic"] = QList<QKeySequence>() << panicAction->shortcut();
     connect(panicAction, SIGNAL(triggered()), this, SLOT(panic()));
     midiMB->addAction(panicAction);
     _actionMap["panic"] = panicAction;
@@ -3781,6 +3874,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     helpMB->addAction(manualAction);
 
     // Use full custom toolbar with settings integration
+    // Apply any stored custom shortcuts from settings after defining defaults
+    applyStoredShortcuts();
+
     _toolbarWidget = createCustomToolbar(parent);
     return _toolbarWidget;
 }
@@ -4690,6 +4786,40 @@ QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
     actions << ToolbarActionInfo{"tempo", "Tempo", ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
 
     return actions;
+}
+
+void MainWindow::applyStoredShortcuts() {
+    if (!_settings) return;
+    _settings->beginGroup("shortcuts");
+    for (auto it = _actionMap.constBegin(); it != _actionMap.constEnd(); ++it) {
+        const QString &id = it.key();
+        QAction *action = it.value();
+        if (!action) continue;
+        QVariant v = _settings->value(id);
+        if (!v.isValid()) continue;
+        QStringList seqStrings = v.toStringList();
+        QList<QKeySequence> seqs;
+        for (const QString &s: seqStrings) {
+            if (s.trimmed().isEmpty()) continue;
+            seqs << QKeySequence::fromString(s.trimmed());
+        }
+        if (!seqs.isEmpty()) {
+            if (seqs.size() == 1) action->setShortcut(seqs.first());
+            else action->setShortcuts(seqs);
+        }
+    }
+    _settings->endGroup();
+}
+
+void MainWindow::setActionShortcuts(const QString &actionId, const QList<QKeySequence> &seqs) {
+    QAction *action = getActionById(actionId);
+    if (!action) return;
+    if (seqs.size() <= 1) {
+        if (seqs.isEmpty()) action->setShortcut(QKeySequence());
+        else action->setShortcut(seqs.first());
+    } else {
+        action->setShortcuts(seqs);
+    }
 }
 
 void MainWindow::togglePianoEmulation(bool mode) {

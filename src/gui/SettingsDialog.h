@@ -29,6 +29,7 @@ class QWidget;
 class QString;
 class QStackedWidget;
 class SettingsWidget;
+class MainWindow;
 
 /**
  * \class SettingsDialog
@@ -61,7 +62,7 @@ public:
      * \brief Creates a new SettingsDialog.
      * \param title The dialog window title
      * \param settings The QSettings instance for configuration storage
-     * \param parent The parent widget
+     * \param parent The parent widget (expected to be MainWindow)
      */
     SettingsDialog(QString title, QSettings *settings, QWidget *parent);
 
@@ -70,6 +71,16 @@ public:
      * \param settingsWidget The SettingsWidget to add as a new category
      */
     void addSetting(SettingsWidget *settingsWidget);
+
+    /**
+     * \brief Returns the main window associated with this dialog.
+     */
+    MainWindow *mainWindow() const { return _mainWindow; }
+
+    /**
+     * \brief Returns the shared QSettings instance.
+     */
+    QSettings *settings() const { return _settings; }
 
 public slots:
     /**
@@ -103,6 +114,12 @@ protected:
 
     /** \brief Stacked widget container for settings panels */
     QStackedWidget *_container;
+
+    /** \brief Pointer back to the main window */
+    MainWindow *_mainWindow;
+
+    /** \brief Shared settings */
+    QSettings *_settings;
 };
 
 #endif // SETTINGSDIALOG_H_
