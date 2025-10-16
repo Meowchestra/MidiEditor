@@ -497,6 +497,14 @@ public slots:
     void transposeNSemitones();
 
     /**
+     * \brief Converts pitch bend data affecting selected notes into discrete notes.
+     *
+     * Splits each selected note at pitch bend change points and replaces the
+     * bent portions with separate notes whose pitches approximate the bend.
+     */
+    void convertPitchBendToNotes();
+
+    /**
      * \brief Marks the file as edited (unsaved changes).
      */
     void markEdited();
