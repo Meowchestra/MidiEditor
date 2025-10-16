@@ -90,6 +90,7 @@
 #include "../MidiEvent/OnEvent.h"
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
+#include "../MidiEvent/PitchBendEvent.h"
 #include "../midi/Metronome.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
@@ -2175,6 +2176,163 @@ void MainWindow::selectAll() {
     file->protocol()->endAction();
 }
 
+void MainWindow::convertPitchBendToNotes() {
+    if (!file) {
+        return;
+    }
+
+    // Collect selected note-on events
+    QList<NoteOnEvent *> notes;
+    foreach (MidiEvent *event, Selection::instance()->selectedEvents()) {
+        NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(event);
+        if (on && on->offEvent()) {
+            notes.append(on);
+        }
+    }
+
+    if (notes.isEmpty()) {
+        return;
+    }
+
+    // Prompt user for pitch bend range
+    bool ok;
+    QStringList items;
+    items << tr("±2 semitones (General MIDI default)")
+          << tr("±12 semitones (Guitar/Bass VSTs)")
+          << tr("±24 semitones (Extreme pitch modulation)")
+          << tr("Custom...");
+    
+    QString item = QInputDialog::getItem(this, 
+                                         tr("Pitch Bend Range"),
+                                         tr("Select pitch bend sensitivity range:"),
+                                         items, 0, false, &ok);
+    
+    if (!ok) {
+        return; // User cancelled
+    }
+    
+    double bendRangeSemis = 2.0; // default
+    
+    if (item == items[0]) {
+        bendRangeSemis = 2.0;
+    } else if (item == items[1]) {
+        bendRangeSemis = 12.0;
+    } else if (item == items[2]) {
+        bendRangeSemis = 24.0;
+    } else { // Custom
+        bendRangeSemis = QInputDialog::getDouble(this,
+                                                  tr("Custom Pitch Bend Range"),
+                                                  tr("Enter pitch bend range in semitones (±):"),
+                                                  2.0, 0.1, 96.0, 1, &ok);
+        if (!ok) {
+            return; // User cancelled
+        }
+    }
+
+    file->protocol()->startNewAction(tr("Convert pitch bends to notes"));
+
+    foreach (NoteOnEvent *on, notes) {
+        int ch = on->channel();
+        MidiChannel *channel = file->channel(ch);
+        if (!channel) continue;
+
+        int t0 = on->midiTime();
+        int t1 = on->offEvent()->midiTime();
+        if (t1 <= t0) continue;
+
+        // Gather pitch bend events on this channel within [t0, t1)
+        QMultiMap<int, MidiEvent *> *emap = channel->eventMap();
+
+        // Find last pitch bend value at or before t0
+        int startValue = 8192; // neutral
+        if (emap && !emap->isEmpty()) {
+            QMultiMap<int, MidiEvent *>::const_iterator it = emap->upperBound(t0);
+            if (it != emap->begin()) {
+                do {
+                    --it;
+                    PitchBendEvent *pb = dynamic_cast<PitchBendEvent *>(it.value());
+                    if (pb) {
+                        startValue = pb->value();
+                        break;
+                    }
+                } while (it != emap->begin());
+            }
+        }
+
+        // Collect change points (segment boundaries)
+        QList<int> boundaries;
+        boundaries.append(t0);
+        QMap<int, int> bendAtTime; // time -> value
+
+        if (emap && !emap->isEmpty()) {
+            QMultiMap<int, MidiEvent *>::const_iterator it2 = emap->lowerBound(t0);
+            while (it2 != emap->end() && it2.key() < t1) {
+                PitchBendEvent *pb = dynamic_cast<PitchBendEvent *>(it2.value());
+                if (pb) {
+                    int tick = it2.key();
+                    // Avoid duplicate consecutive boundaries at same tick
+                    if (boundaries.isEmpty() || boundaries.last() != tick) {
+                        boundaries.append(tick);
+                    }
+                    bendAtTime.insert(tick, pb->value());
+                }
+                ++it2;
+            }
+        }
+        if (boundaries.last() != t1) {
+            boundaries.append(t1);
+        }
+
+        // Helper to convert bend value to nearest semitone offset
+        auto bendToSemi = [bendRangeSemis](int value) -> int {
+            double norm = (static_cast<double>(value) - 8192.0) / 8192.0; // approx -1..+1
+            double semis = norm * bendRangeSemis;
+            int offset = static_cast<int>(semis >= 0 ? std::floor(semis + 0.5) : std::ceil(semis - 0.5));
+            return offset;
+        };
+
+        // Create replacement notes for each segment
+        for (int i = 0; i < boundaries.size() - 1; ++i) {
+            int segStart = boundaries.at(i);
+            int segEnd = boundaries.at(i + 1);
+            if (segEnd <= segStart) continue;
+
+            int bendVal = (i == 0 ? startValue : bendAtTime.value(segStart, startValue));
+            int offset = bendToSemi(bendVal);
+            int newNote = on->note() + offset;
+            if (newNote < 0) newNote = 0;
+            if (newNote > 127) newNote = 127;
+
+            channel->insertNote(newNote, segStart, segEnd, on->velocity(), on->track());
+        }
+
+        // Remove original note
+        channel->removeEvent(on);
+
+        // Remove pitch bend events in [t0, t1) - they're now represented as discrete notes
+        // Note: Each selected note is processed independently, so overlapping notes
+        // will each remove only the pitch bends within their own time range
+        QList<MidiEvent *> removeList;
+        if (emap && !emap->isEmpty()) {
+            QMultiMap<int, MidiEvent *>::const_iterator it3 = emap->lowerBound(t0);
+            while (it3 != emap->end() && it3.key() < t1) {
+                PitchBendEvent *pb = dynamic_cast<PitchBendEvent *>(it3.value());
+                if (pb) {
+                    removeList.append(pb);
+                }
+                ++it3;
+            }
+        }
+        foreach (MidiEvent *ev, removeList) {
+            channel->removeEvent(ev);
+        }
+    }
+
+    file->protocol()->endAction();
+
+    updateAll();
+}
+
 void MainWindow::transposeNSemitones() {
     if (!file) {
         return;
@@ -2788,6 +2946,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(deleteOverlapsAction);
     toolsMB->addAction(deleteOverlapsAction);
     _actionMap["delete_overlaps"] = deleteOverlapsAction;
+
+    toolsMB->addSeparator();
+
+    QAction *convertPitchBendAction = new QAction(tr("Convert pitch bends to notes"), this);
+    convertPitchBendAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_B)));
+    connect(convertPitchBendAction, SIGNAL(triggered()), this, SLOT(convertPitchBendToNotes()));
+    toolsMB->addAction(convertPitchBendAction);
+    _actionMap["convert_pitch_bend_to_notes"] = convertPitchBendAction;
 
     toolsMB->addSeparator();
 
