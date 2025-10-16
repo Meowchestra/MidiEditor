@@ -3825,9 +3825,9 @@ QWidget *MainWindow::createCustomToolbar(QWidget *parent) {
         actionOrder = finalActionOrder;
     }
 
-    // Always enable essential actions
+    // Always enable essential actions (including their separators)
     for (const QString &actionId: essentialActions) {
-        if (!actionId.startsWith("separator") && !enabledActions.contains(actionId)) {
+        if (!enabledActions.contains(actionId)) {
             enabledActions << actionId;
         }
     }
@@ -3942,11 +3942,6 @@ QWidget *MainWindow::createCustomToolbar(QWidget *parent) {
             // Skip disabled actions only if customization is enabled
             if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
                 continue; // Skip disabled actions
-            }
-
-            // If the current toolbar for this row is empty and we are about to add an action, add a separator first.
-            if (currentToolBar->actions().isEmpty()) {
-                currentToolBar->addSeparator();
             }
 
             // Use current toolbar for all non-essential actions
@@ -4201,9 +4196,9 @@ void MainWindow::updateToolbarContents(QWidget *toolbarWidget, QGridLayout *btnL
         actionOrder = finalActionOrder;
     }
 
-    // Always enable essential actions
+    // Always enable essential actions (including their separators)
     for (const QString &actionId: essentialActions) {
-        if (!actionId.startsWith("separator") && !enabledActions.contains(actionId)) {
+        if (!enabledActions.contains(actionId)) {
             enabledActions << actionId;
         }
     }
@@ -4318,11 +4313,6 @@ void MainWindow::updateToolbarContents(QWidget *toolbarWidget, QGridLayout *btnL
             // Skip disabled actions only if customization is enabled
             if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
                 continue; // Skip disabled actions
-            }
-
-            // If the current toolbar for this row is empty and we are about to add an action, add a separator first.
-            if (currentToolBar->actions().isEmpty()) {
-                currentToolBar->addSeparator();
             }
 
             // Use current toolbar for all non-essential actions

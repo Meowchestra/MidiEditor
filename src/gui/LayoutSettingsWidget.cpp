@@ -903,7 +903,19 @@ QStringList LayoutSettingsWidget::getDefaultToolbarOrder() {
 
 QStringList LayoutSettingsWidget::getDefaultToolbarEnabledActions() {
     // All actions in the default toolbar are enabled by default
-    return getDefaultToolbarOrder();
+    // Include all separators used in both single and double row distributions
+    QStringList enabled = getDefaultToolbarOrder();
+    
+    // Add separator10 which is used in double row distribution but not in single row order
+    if (!enabled.contains("separator10")) {
+        enabled << "separator10";
+    }
+    // Add separator11 which is used in double row distribution but not in single row order
+    if (!enabled.contains("separator11")) {
+        enabled << "separator11";
+    }
+    
+    return enabled;
 }
 
 void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList &row1Actions, QStringList &row2Actions) {
