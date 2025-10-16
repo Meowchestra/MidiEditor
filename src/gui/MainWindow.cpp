@@ -2796,10 +2796,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(Qt::Key_F12), toolsToolsMenu);
     toolsToolsMenu->addAction(measureAction);
     _actionMap["measure"] = measureAction;
-    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(Qt::Key_F13), toolsToolsMenu);
+    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F11)), toolsToolsMenu);
     toolsToolsMenu->addAction(timeSignatureAction);
     _actionMap["time_signature"] = timeSignatureAction;
-    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(Qt::Key_F14), toolsToolsMenu);
+    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F12)), toolsToolsMenu);
     toolsToolsMenu->addAction(tempoAction);
     _actionMap["tempo"] = tempoAction;
 
