@@ -2225,7 +2225,7 @@ void MainWindow::convertPitchBendToNotes() {
         bendRangeSemis = QInputDialog::getDouble(this,
                                                   tr("Custom Pitch Bend Range"),
                                                   tr("Enter pitch bend range in semitones (±):"),
-                                                  2.0, 0.1, 96.0, 1, &ok);
+                                                  2.0, 1.0, 96.0, 1, &ok);
         if (!ok) {
             return; // User cancelled
         }

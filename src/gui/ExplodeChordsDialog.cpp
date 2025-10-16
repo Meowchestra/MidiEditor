@@ -46,7 +46,7 @@ ExplodeChordsDialog::ExplodeChordsDialog(MidiFile *file, MidiTrack *sourceTrack,
     
     _strategyCombo = new QComboBox(this);
     _strategyCombo->addItem(tr("Same start tick"));
-    _strategyCombo->addItem(tr("Same start tick && note length"));
+    _strategyCombo->addItem(tr("Same start tick & note length"));
     strategyLayout->addWidget(_strategyCombo);
     
     QLabel *strategyHelp = new QLabel(tr("How to identify which notes belong to the same chord"), this);
