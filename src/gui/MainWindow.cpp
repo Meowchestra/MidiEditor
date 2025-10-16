@@ -37,6 +37,7 @@
 #include <QKeyEvent>
 
 #include <cmath>
+#include <algorithm>
 #include <QComboBox>
 
 #include "Appearance.h"
@@ -45,6 +46,7 @@
 #include "ChannelListWidget.h"
 #include "CompleteMidiSetupDialog.h"
 #include "DeleteOverlapsDialog.h"
+#include "ExplodeChordsDialog.h"
 #include "EventWidget.h"
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
@@ -2333,6 +2335,190 @@ void MainWindow::convertPitchBendToNotes() {
     updateAll();
 }
 
+void MainWindow::explodeChordsToTracks() {
+    if (!file) {
+        return;
+    }
+
+    // Determine source scope: selected notes on current edit track, otherwise all notes on that track
+    MidiTrack *sourceTrack = file->track(NewNoteTool::editTrack());
+    if (!sourceTrack) {
+        return;
+    }
+
+    // Show dialog
+    ExplodeChordsDialog *dialog = new ExplodeChordsDialog(file, sourceTrack, this);
+    if (dialog->exec() != QDialog::Accepted) {
+        delete dialog;
+        return;
+    }
+
+    // Get settings from dialog
+    typedef ExplodeChordsDialog::SplitStrategy SplitStrategy;
+    typedef ExplodeChordsDialog::GroupMode GroupMode;
+    
+    SplitStrategy strategy = dialog->splitStrategy();
+    GroupMode groupMode = dialog->groupMode();
+    int minNotes = dialog->minimumNotes();
+    bool insertAtEnd = dialog->insertAtEnd();
+    bool keepOriginal = dialog->keepOriginalNotes();
+    
+    delete dialog;
+
+    // Collect candidate notes
+    QList<NoteOnEvent *> selectedNotes;
+    foreach (MidiEvent *ev, Selection::instance()->selectedEvents()) {
+        NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(ev);
+        if (on && on->offEvent() && on->track() == sourceTrack) {
+            selectedNotes.append(on);
+        }
+    }
+
+    bool useSelection = !selectedNotes.isEmpty();
+
+    // Build map: key -> list of notes (a chord group)
+    // key is either start tick or start tick + length encoded
+    struct NoteWrap { NoteOnEvent *on; int tick; int len; };
+    QMap<qint64, QList<NoteWrap>> groups;
+
+    auto addNoteToGroups = [&](NoteOnEvent *on){
+        int t = on->midiTime();
+        int l = on->offEvent() ? (on->offEvent()->midiTime() - on->midiTime()) : 0;
+        if (l < 0) l = 0;
+        qint64 key = (strategy == SplitStrategy::SAME_START) ? qint64(t) : ( (qint64(t) << 32) | qint64(l & 0xFFFFFFFF) );
+        groups[key].append({on, t, l});
+    };
+
+    if (useSelection) {
+        for (NoteOnEvent *on : selectedNotes) addNoteToGroups(on);
+    } else {
+        // All notes on source track across channels 0..15
+        for (int ch = 0; ch < 16; ++ch) {
+            QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+            for (auto it = emap->begin(); it != emap->end(); ++it) {
+                NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(it.value());
+                if (on && on->offEvent() && on->track() == sourceTrack) {
+                    addNoteToGroups(on);
+                }
+            }
+        }
+    }
+
+    // Filter to only groups with at least minNotes and same start (and length if chosen)
+    QList<QList<NoteWrap>> chordGroups;
+    for (auto it = groups.begin(); it != groups.end(); ++it) {
+        QList<NoteWrap> list = it.value();
+        if (list.size() >= minNotes) {
+            chordGroups.append(list);
+        }
+    }
+    if (chordGroups.isEmpty()) {
+        return; // Nothing to do
+    }
+
+    file->protocol()->startNewAction(tr("Explode chords to tracks"));
+
+    // Find source track index for insertion
+    int sourceTrackIdx = file->tracks()->indexOf(sourceTrack);
+    QList<MidiTrack*> newTracks;
+
+    // Helper to sort by pitch descending (top voice first)
+    auto sortByPitchDesc = [](const NoteWrap &a, const NoteWrap &b){
+        NoteOnEvent *A = a.on; NoteOnEvent *B = b.on;
+        return A->note() > B->note();
+    };
+
+    // Helper to copy or move note
+    auto processNote = [&](NoteOnEvent *on, MidiTrack *dst) {
+        if (!on || !on->offEvent()) return;
+        if (keepOriginal) {
+            // Copy note to new track
+            int ch = on->channel();
+            file->channel(ch)->insertNote(on->note(), on->midiTime(), 
+                                          on->offEvent()->midiTime(), 
+                                          on->velocity(), dst);
+        } else {
+            // Move note to new track
+            on->setTrack(dst);
+            on->offEvent()->setTrack(dst);
+        }
+    };
+
+    if (groupMode == ExplodeChordsDialog::ALL_CHORDS_ONE_TRACK) {
+        // Single destination track
+        file->addTrack();
+        MidiTrack *dst = file->tracks()->last();
+        dst->setName(sourceTrack->name() + tr(" - Chord 1"));
+        newTracks.append(dst);
+        for (const auto &grp : chordGroups) {
+            for (const NoteWrap &nw : grp) {
+                processNote(nw.on, dst);
+            }
+        }
+    } else if (groupMode == ExplodeChordsDialog::EACH_CHORD_OWN_TRACK) {
+        int idx = 1;
+        for (auto grp : chordGroups) {
+            std::sort(grp.begin(), grp.end(), sortByPitchDesc);
+            file->addTrack();
+            MidiTrack *dst = file->tracks()->last();
+            dst->setName(sourceTrack->name() + tr(" - Chord ") + QString::number(idx++));
+            newTracks.append(dst);
+            for (const NoteWrap &nw : grp) {
+                processNote(nw.on, dst);
+            }
+        }
+    } else { // VOICES_ACROSS_CHORDS
+        // Determine max chord size
+        int maxSize = 0;
+        for (const auto &grp : chordGroups) maxSize = std::max(maxSize, static_cast<int>(grp.size()));
+        // Create destination tracks per voice
+        QVector<MidiTrack*> voiceTracks;
+        voiceTracks.reserve(maxSize);
+        for (int v = 0; v < maxSize; ++v) {
+            file->addTrack();
+            MidiTrack *dst = file->tracks()->last();
+            dst->setName(sourceTrack->name() + tr(" - Chord ") + QString::number(v + 1));
+            voiceTracks.append(dst);
+            newTracks.append(dst);
+        }
+        // Process notes: for each chord, sort and map nth by pitch to nth track
+        for (auto grp : chordGroups) {
+            std::sort(grp.begin(), grp.end(), sortByPitchDesc);
+            for (int i = 0; i < grp.size(); ++i) {
+                MidiTrack *dst = voiceTracks[i];
+                processNote(grp[i].on, dst);
+            }
+        }
+    }
+
+    // Reorder tracks if not inserting at end
+    if (!insertAtEnd && sourceTrackIdx >= 0) {
+        // Move new tracks to directly after source track
+        QList<MidiTrack*> *trackList = file->tracks();
+        
+        // Remove new tracks from their current positions (at end)
+        for (MidiTrack *newTrack : newTracks) {
+            trackList->removeOne(newTrack);
+        }
+        
+        // Insert them right after the source track
+        int insertPos = sourceTrackIdx + 1;
+        for (MidiTrack *newTrack : newTracks) {
+            trackList->insert(insertPos++, newTrack);
+        }
+        
+        // Renumber all tracks
+        int n = 0;
+        foreach(MidiTrack* track, *trackList) {
+            track->setNumber(n++);
+        }
+    }
+
+    file->protocol()->endAction();
+
+    updateAll();
+}
+
 void MainWindow::transposeNSemitones() {
     if (!file) {
         return;
@@ -2793,13 +2979,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsToolsMenu->addSeparator();
 
-    QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(Qt::Key_F12), toolsToolsMenu);
+    QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F1)), toolsToolsMenu);
     toolsToolsMenu->addAction(measureAction);
     _actionMap["measure"] = measureAction;
-    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F11)), toolsToolsMenu);
+    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F2)), toolsToolsMenu);
     toolsToolsMenu->addAction(timeSignatureAction);
     _actionMap["time_signature"] = timeSignatureAction;
-    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F12)), toolsToolsMenu);
+    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F3)), toolsToolsMenu);
     toolsToolsMenu->addAction(tempoAction);
     _actionMap["tempo"] = tempoAction;
 
@@ -2954,6 +3140,12 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(convertPitchBendAction, SIGNAL(triggered()), this, SLOT(convertPitchBendToNotes()));
     toolsMB->addAction(convertPitchBendAction);
     _actionMap["convert_pitch_bend_to_notes"] = convertPitchBendAction;
+
+    QAction *explodeChordsAction = new QAction(tr("Explode chords to tracks"), this);
+    explodeChordsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_E)));
+    connect(explodeChordsAction, SIGNAL(triggered()), this, SLOT(explodeChordsToTracks()));
+    toolsMB->addAction(explodeChordsAction);
+    _actionMap["explode_chords_to_tracks"] = explodeChordsAction;
 
     toolsMB->addSeparator();
 

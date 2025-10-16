@@ -505,6 +505,11 @@ public slots:
     void convertPitchBendToNotes();
 
     /**
+     * \brief Explodes chords into separate tracks based on chosen strategy.
+     */
+    void explodeChordsToTracks();
+
+    /**
      * \brief Marks the file as edited (unsaved changes).
      */
     void markEdited();
