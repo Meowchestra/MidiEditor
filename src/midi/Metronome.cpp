@@ -14,7 +14,7 @@ Metronome::Metronome(QObject *parent) : QObject(parent) {
     num = 4;
     denom = 2;
     _player = new QSoundEffect;
-    _player->setVolume(100);
+    _player->setVolume(1.0);
 
     // Try to load metronome sound file - silently fail if missing
     try {
