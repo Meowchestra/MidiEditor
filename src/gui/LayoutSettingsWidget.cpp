@@ -671,21 +671,21 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"select_box", "Select Box", ":/run_environment/graphics/tool/select_box.png", nullptr, false, false, "Tools"};
 
     // Edit actions
-    actions << ToolbarActionInfo{"separator2", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator3", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"new_note", "New Note", ":/run_environment/graphics/tool/newnote.png", nullptr, true, false, "Edit"};
     actions << ToolbarActionInfo{"remove_notes", "Remove Notes", ":/run_environment/graphics/tool/eraser.png", nullptr, true, false, "Edit"};
     actions << ToolbarActionInfo{"copy", "Copy", ":/run_environment/graphics/tool/copy.png", nullptr, true, false, "Edit"};
     actions << ToolbarActionInfo{"paste", "Paste", ":/run_environment/graphics/tool/paste.png", nullptr, true, false, "Edit"};
 
     // Tool actions
-    actions << ToolbarActionInfo{"separator3", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator4", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"glue", "Glue Notes (Same Channel)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"glue_all_channels", "Glue Notes (All Channels)", ":/run_environment/graphics/tool/glue.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
 
     // Playback actions
-    actions << ToolbarActionInfo{"separator4", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator5", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"back_to_begin", "Back to Begin", ":/run_environment/graphics/tool/back_to_begin.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"back_marker", "Back Marker", ":/run_environment/graphics/tool/back_marker.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
@@ -697,14 +697,14 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"forward_marker", "Forward Marker", ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
 
     // Additional tools - these were in the original toolbar, so enable by default
-    actions << ToolbarActionInfo{"separator5", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator6", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"metronome", "Metronome", ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback" };
     actions << ToolbarActionInfo{"align_left", "Align Left", ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"equalize", "Equalize", ":/run_environment/graphics/tool/equalize.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"align_right", "Align Right", ":/run_environment/graphics/tool/align_right.png", nullptr, true, false, "Tools"};
 
     // Zoom actions
-    actions << ToolbarActionInfo{"separator6", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator7", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"zoom_hor_in", "Zoom Horizontal In", ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false,"View"};
     actions << ToolbarActionInfo{"zoom_hor_out", "Zoom Horizontal Out", ":/run_environment/graphics/tool/zoom_hor_out.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"zoom_ver_in", "Zoom Vertical In", ":/run_environment/graphics/tool/zoom_ver_in.png", nullptr, true, false, "View"};
@@ -712,29 +712,29 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"lock", "Lock Screen", ":/run_environment/graphics/tool/screen_unlocked.png", nullptr, true, false, "View"};
 
     // Additional tools
-    actions << ToolbarActionInfo{"separator7", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator8", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"quantize", "Quantize", ":/run_environment/graphics/tool/quantize.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"magnet", "Magnet", ":/run_environment/graphics/tool/magnet.png", nullptr, true, false, "Tools"};
 
     // MIDI actions
-    actions << ToolbarActionInfo{"separator8", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"thru", "MIDI Thru", ":/run_environment/graphics/tool/connection.png", nullptr, true, false, "MIDI"};
     actions << ToolbarActionInfo{"separator9", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"thru", "MIDI Thru", ":/run_environment/graphics/tool/connection.png", nullptr, true, false, "MIDI"};
+    actions << ToolbarActionInfo{"separator10", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"measure", "Measure", ":/run_environment/graphics/tool/measure.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"time_signature", "Time Signature", ":/run_environment/graphics/tool/meter.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"tempo", "Tempo", ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
 
     // Movement and editing tools (from MainWindow action map) - disabled by default but available
-    actions << ToolbarActionInfo{"separator10", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"separator11", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"move_all", "Move All Directions", ":/run_environment/graphics/tool/move_up_down_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_lr", "Move Left/Right", ":/run_environment/graphics/tool/move_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_ud", "Move Up/Down", ":/run_environment/graphics/tool/move_up_down.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, false, false, "Tools"};
 
     // Additional useful actions (only include those with icons)
-    actions << ToolbarActionInfo{"separator11", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"panic", "MIDI Panic", ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
     actions << ToolbarActionInfo{"separator12", "--- Separator ---", "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"panic", "MIDI Panic", ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
+    actions << ToolbarActionInfo{"separator13", "--- Separator ---", "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"transpose", "Transpose Selection", ":/run_environment/graphics/tool/transpose.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_up", "Transpose Up", ":/run_environment/graphics/tool/transpose_up.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_down", "Transpose Down", ":/run_environment/graphics/tool/transpose_down.png", nullptr, false, false, "Tools"};
@@ -797,13 +797,13 @@ void LayoutSettingsWidget::debouncedToolbarUpdate() {
 QStringList LayoutSettingsWidget::getComprehensiveActionOrder() {
     // Single source of truth for action order - optimized for single-row flow
     QStringList order;
-    order << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
-            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
-            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
-            << "transpose" << "transpose_up" << "transpose_down" << "separator6"
+    order << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator5"
+            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
+            << "transpose" << "transpose_up" << "transpose_down" << "separator7"
             << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-            << "stop" << "record" << "forward" << "forward_marker" << "separator7"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator8"
             << "metronome"
             << "align_left" << "equalize" << "align_right" << "separator9"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
@@ -817,20 +817,20 @@ QStringList LayoutSettingsWidget::getComprehensiveActionOrder() {
 QStringList LayoutSettingsWidget::getDefaultEnabledActions() {
     // Single source of truth for which actions are enabled by default
     QStringList enabled;
-    enabled << "standard_tool" << "select_left" << "select_right" << "separator2"
-            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-            << "glue" << "scissors" << "delete_overlaps" << "separator4"
-            // separator5 disabled because move actions are disabled by default
-            // separator6 disabled because transpose actions are disabled by default
+    enabled << "standard_tool" << "select_left" << "select_right" << "separator3"
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+            << "glue" << "scissors" << "delete_overlaps" << "separator5"
+            // separator6 disabled because move actions are disabled by default
+            // separator7 disabled because transpose actions are disabled by default
             << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-            << "stop" << "record" << "forward" << "forward_marker" << "separator7"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator8"
             << "metronome"
             << "align_left" << "equalize" << "align_right" << "separator9"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
             << "lock" << "separator10"
             << "quantize" << "magnet" << "separator11"
             // thru and panic disabled by default
-            << "separator12"
+            // << "thru" << "panic" << "separator12"
             << "measure" << "time_signature" << "tempo";
     return enabled;
 }
@@ -841,21 +841,21 @@ void LayoutSettingsWidget::getDefaultRowDistribution(QStringList &row1Actions, Q
     row2Actions.clear();
 
     // Row 1: Editing and tool actions
-    row1Actions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator2"
-            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator4"
-            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator5"
-            << "transpose" << "transpose_up" << "transpose_down" << "separator6"
-            << "align_left" << "equalize" << "align_right" << "separator9"
-            << "quantize" << "magnet" << "separator11"
+    row1Actions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator5"
+            << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
+            << "transpose" << "transpose_up" << "transpose_down" << "separator7"
+            << "align_left" << "equalize" << "align_right" << "separator8"
+            << "quantize" << "magnet" << "separator9"
             << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view actions
     row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-            << "stop" << "record" << "forward" << "forward_marker" << "separator7"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator10"
             << "metronome"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-            << "lock" << "separator10" << "thru" << "panic";
+            << "lock" << "separator11" << "thru" << "panic";
 }
 
 QStringList LayoutSettingsWidget::getEssentialActionIds() {
@@ -889,14 +889,14 @@ QStringList LayoutSettingsWidget::getDefaultToolbarOrder() {
     // Minimal default toolbar order - only essential + commonly used actions
     // This is what users see when customization is disabled
     QStringList order;
-    order << "standard_tool" << "select_left" << "select_right" << "separator2"
-            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-            << "glue" << "scissors" << "delete_overlaps" << "separator4"
+    order << "standard_tool" << "select_left" << "select_right" << "separator3"
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+            << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-            << "stop" << "record" << "forward" << "forward_marker" << "separator5"
-            << "metronome" << "align_left" << "equalize" << "align_right" << "separator6"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator6"
+            << "metronome" << "align_left" << "equalize" << "align_right" << "separator7"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-            << "lock" << "separator7" << "quantize" << "magnet" << "separator8"
+            << "lock" << "separator8" << "quantize" << "magnet" << "separator9"
             << "measure" << "time_signature" << "tempo";
     return order;
 }
@@ -912,18 +912,18 @@ void LayoutSettingsWidget::getDefaultToolbarRowDistribution(QStringList &row1Act
     row2Actions.clear();
 
     // Row 1: Editing tools
-    row1Actions << "standard_tool" << "select_left" << "select_right" << "separator2"
-            << "new_note" << "remove_notes" << "copy" << "paste" << "separator3"
-            << "glue" << "scissors" << "delete_overlaps" << "separator4"
-            << "separator5" // Keep for consistency even though move actions not in default toolbar
-            << "separator6" // Keep for consistency even though transpose actions not in default toolbar
-            << "align_left" << "equalize" << "align_right" << "separator6"
-            << "quantize" << "magnet" << "separator8"
+    row1Actions << "standard_tool" << "select_left" << "select_right" << "separator3"
+            << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
+            << "glue" << "scissors" << "delete_overlaps" << "separator5"
+            << "separator6" // Keep for consistency even though move actions not in default toolbar
+            << "separator7" // Keep for consistency even though transpose actions not in default toolbar
+            << "align_left" << "equalize" << "align_right" << "separator8"
+            << "quantize" << "magnet" << "separator9"
             << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view
     row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
-            << "stop" << "record" << "forward" << "forward_marker" << "separator5"
+            << "stop" << "record" << "forward" << "forward_marker" << "separator10"
             << "metronome" << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
-            << "lock" << "separator7";
+            << "lock" << "separator11";
 }

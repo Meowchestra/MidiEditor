@@ -3944,6 +3944,11 @@ QWidget *MainWindow::createCustomToolbar(QWidget *parent) {
                 continue; // Skip disabled actions
             }
 
+            // If the current toolbar for this row is empty and we are about to add an action, add a separator first.
+            if (currentToolBar->actions().isEmpty()) {
+                currentToolBar->addSeparator();
+            }
+
             // Use current toolbar for all non-essential actions
 
             QAction *action = getActionById(actionId);
@@ -4300,19 +4305,11 @@ void MainWindow::updateToolbarContents(QWidget *toolbarWidget, QGridLayout *btnL
             }
 
             if (actionId.startsWith("separator")) {
-                // Check if separator is enabled before adding
-                if (enabledActions.contains(actionId)) {
-                    // Always add the first separator in each row (separator2 and separator9) to separate from essential toolbar
-                    if (actionId == "separator2" || actionId == "separator9") {
+                if (enabledActions.contains(actionId) && !currentToolBar->actions().isEmpty()) {
+                    QAction *lastAction = currentToolBar->actions().last();
+                    // Avoid adding a separator if the last action was already one.
+                    if (lastAction && !lastAction->isSeparator()) {
                         currentToolBar->addSeparator();
-                    } else {
-                        // For other separators, only add if there are actions and the last action isn't already a separator
-                        if (currentToolBar->actions().count() > 0) {
-                            QAction *lastAction = currentToolBar->actions().last();
-                            if (!lastAction->isSeparator()) {
-                                currentToolBar->addSeparator();
-                            }
-                        }
                     }
                 }
                 continue;
@@ -4321,6 +4318,11 @@ void MainWindow::updateToolbarContents(QWidget *toolbarWidget, QGridLayout *btnL
             // Skip disabled actions only if customization is enabled
             if (customizeEnabled && !enabledActions.isEmpty() && !enabledActions.contains(actionId)) {
                 continue; // Skip disabled actions
+            }
+
+            // If the current toolbar for this row is empty and we are about to add an action, add a separator first.
+            if (currentToolBar->actions().isEmpty()) {
+                currentToolBar->addSeparator();
             }
 
             // Use current toolbar for all non-essential actions
