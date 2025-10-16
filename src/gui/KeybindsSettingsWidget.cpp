@@ -97,7 +97,7 @@ void KeybindsSettingsWidget::buildUI() {
     _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
     _table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    _table->setColumnWidth(1, 200);  // Set minimum width for shortcut column
+    _table->setColumnWidth(1, 250);  // Set width for shortcut column
     _table->verticalHeader()->setVisible(false);
     _table->setShowGrid(true);
     _table->setAlternatingRowColors(true);
