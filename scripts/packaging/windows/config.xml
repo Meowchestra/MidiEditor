@@ -15,6 +15,7 @@
     <WizardStyle>Modern</WizardStyle>
     <WizardDefaultWidth>800</WizardDefaultWidth>
     <WizardDefaultHeight>450</WizardDefaultHeight>
+    <ControlScript>controlscript.qs</ControlScript>
 
     <TargetDir>@HomeDir@/MidiEditor</TargetDir>
     <AdminTargetDir>@RootDir@/MidiEditor</AdminTargetDir>
