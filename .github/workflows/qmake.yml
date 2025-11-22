@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - qt_ver: 6.10.0
+          - qt_ver: 6.10.*
             qt_arch: win64_msvc2022_64
             msvc_arch: x64
             qt_arch_install: msvc2022_64
