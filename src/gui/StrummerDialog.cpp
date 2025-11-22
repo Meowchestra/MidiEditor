@@ -32,6 +32,8 @@ StrummerDialog::StrummerDialog(QWidget *parent)
     _velocityTensionSpin->setValue(0.0);
     _preserveEndCheck->setChecked(false);
     _alternateDirectionCheck->setChecked(false);
+    _useStepStrengthCheck->setChecked(false);
+    _ignoreTrackCheck->setChecked(false);
     
     setFixedSize(sizeHint());
 }
@@ -108,6 +110,14 @@ void StrummerDialog::setupUI() {
     _alternateDirectionCheck->setToolTip(tr("If checked, strum direction alternates (Up, Down, Up...) for consecutive chords."));
     optionsLayout->addWidget(_alternateDirectionCheck);
     
+    _useStepStrengthCheck = new QCheckBox(tr("Relative strength (per note)"), optionsGroup);
+    _useStepStrengthCheck->setToolTip(tr("If checked, the strength value is applied per note step (e.g. 0, S, 2S...).\nIf unchecked, strength is the total range (e.g. 0, 0.33S, 0.66S, S)."));
+    optionsLayout->addWidget(_useStepStrengthCheck);
+
+    _ignoreTrackCheck = new QCheckBox(tr("Strum across tracks"), optionsGroup);
+    _ignoreTrackCheck->setToolTip(tr("If checked, selected notes from different tracks are treated as a single chord.\nNotes keep their original track assignment."));
+    optionsLayout->addWidget(_ignoreTrackCheck);
+    
     mainLayout->addWidget(optionsGroup);
 
     // Buttons
@@ -159,6 +169,14 @@ bool StrummerDialog::getPreserveEnd() const {
 
 bool StrummerDialog::getAlternateDirection() const {
     return _alternateDirectionCheck->isChecked();
+}
+
+bool StrummerDialog::getUseStepStrength() const {
+    return _useStepStrengthCheck->isChecked();
+}
+
+bool StrummerDialog::getIgnoreTrack() const {
+    return _ignoreTrackCheck->isChecked();
 }
 
 void StrummerDialog::onOkClicked() {

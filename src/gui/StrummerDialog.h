@@ -39,6 +39,8 @@ public:
     double getVelocityTension() const;
     bool getPreserveEnd() const;
     bool getAlternateDirection() const;
+    bool getUseStepStrength() const;
+    bool getIgnoreTrack() const;
 
 private slots:
     void onOkClicked();
@@ -53,6 +55,8 @@ private:
     QDoubleSpinBox *_velocityTensionSpin;
     QCheckBox *_preserveEndCheck;
     QCheckBox *_alternateDirectionCheck;
+    QCheckBox *_useStepStrengthCheck;
+    QCheckBox *_ignoreTrackCheck;
     QPushButton *_okButton;
     QPushButton *_cancelButton;
 

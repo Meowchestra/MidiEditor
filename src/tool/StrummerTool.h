@@ -61,21 +61,23 @@ public:
      * \param endTension Curve of the end stagger.
      * \param velocityStrength Amount to change velocity.
      * \param velocityTension Curve of the velocity change.
-     * \param preserveEnd If true, note ends are not moved (duration changes). If false, duration is preserved (ends move).
-     * \param alternateDirection If true, direction alternates for each chord.
+     * \\param preserveEnd If true, note ends are not moved (duration changes). If false, duration is preserved (ends move).
+     * \\param alternateDirection If true, direction alternates for each chord.
+     * \\param useStepStrength If true, strength is applied per note (step). If false, strength is total range.
+     * \\param ignoreTrack If true, notes are grouped across tracks.
      */
-    void performStrum(int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool alternateDirection);
+    void performStrum(int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool alternateDirection, bool useStepStrength, bool ignoreTrack);
 
 private:
     /**
-     * \brief Applies strumming to a group of notes (chord).
+     * \\brief Applies strumming to a group of notes (chord).
      */
-    void strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool directionUp);
+    void strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool directionUp, bool useStepStrength);
 
     /**
-     * \brief Calculates the offset based on index, total count, strength and tension.
+     * \\brief Calculates the offset based on index, total count, strength and tension.
      */
-    int calculateOffset(int index, int count, int strength, double tension);
+    int calculateOffset(int index, int count, int strength, double tension, bool useStepStrength);
 };
 
 #endif // STRUMMERTOOL_H_

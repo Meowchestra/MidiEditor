@@ -44,7 +44,7 @@ bool StrummerTool::showsSelection() {
     return true;
 }
 
-void StrummerTool::performStrum(int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool alternateDirection) {
+void StrummerTool::performStrum(int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool alternateDirection, bool useStepStrength, bool ignoreTrack) {
     QList<MidiEvent *> eventsToProcess = Selection::instance()->selectedEvents();
 
     if (eventsToProcess.isEmpty()) {
@@ -57,7 +57,11 @@ void StrummerTool::performStrum(int startStrengthMs, double startTension, int en
     for (MidiEvent *event: eventsToProcess) {
         NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
         if (noteOn && noteOn->offEvent()) {
-            notesByTrack[noteOn->track()].append(noteOn);
+            if (ignoreTrack) {
+                notesByTrack[nullptr].append(noteOn);
+            } else {
+                notesByTrack[noteOn->track()].append(noteOn);
+            }
         }
     }
 
@@ -112,11 +116,11 @@ void StrummerTool::performStrum(int startStrengthMs, double startTension, int en
         
         for (QList<NoteOnEvent *> &chord : chords) {
             if (chord.size() > 1) {
-                strumChord(chord, std::abs(startStrengthMs), startTension, std::abs(endStrengthMs), endTension, velocityStrength, velocityTension, preserveEnd, currentDirectionUp);
-            }
-            
-            if (alternateDirection) {
-                currentDirectionUp = !currentDirectionUp;
+                strumChord(chord, std::abs(startStrengthMs), startTension, endStrengthMs, endTension, velocityStrength, velocityTension, preserveEnd, currentDirectionUp, useStepStrength);
+                
+                if (alternateDirection) {
+                    currentDirectionUp = !currentDirectionUp;
+                }
             }
         }
     }
@@ -124,7 +128,7 @@ void StrummerTool::performStrum(int startStrengthMs, double startTension, int en
     currentProtocol()->endAction();
 }
 
-void StrummerTool::strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool directionUp) {
+void StrummerTool::strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengthMs, double startTension, int endStrengthMs, double endTension, int velocityStrength, double velocityTension, bool preserveEnd, bool directionUp, bool useStepStrength) {
     // Sort notes by pitch based on direction
     if (directionUp) {
         // Up: Low pitch -> High pitch
@@ -145,11 +149,11 @@ void StrummerTool::strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengt
         NoteOnEvent *note = chordNotes[i];
         
         // Calculate ms offsets
-        int startOffsetMs = calculateOffset(i, count, startStrengthMs, startTension);
-        int endOffsetMs = calculateOffset(i, count, endStrengthMs, endTension);
+        int startOffsetMs = calculateOffset(i, count, startStrengthMs, startTension, useStepStrength);
+        int endOffsetMs = calculateOffset(i, count, endStrengthMs, endTension, useStepStrength);
         
         // Calculate velocity offset
-        int velOffset = calculateOffset(i, count, velocityStrength, velocityTension);
+        int velOffset = calculateOffset(i, count, velocityStrength, velocityTension, false); // Velocity always total range? Or should it be step? Usually total range makes sense for velocity (crescendo over chord).
         
         int oldStartTick = note->midiTime();
         int oldEndTick = note->offEvent()->midiTime();
@@ -196,9 +200,13 @@ void StrummerTool::strumChord(QList<NoteOnEvent *> &chordNotes, int startStrengt
     }
 }
 
-int StrummerTool::calculateOffset(int index, int count, int strength, double tension) {
+int StrummerTool::calculateOffset(int index, int count, int strength, double tension, bool useStepStrength) {
     if (count <= 1) return 0;
     if (strength == 0) return 0;
+    
+    if (useStepStrength) {
+        strength = strength * (count - 1);
+    }
     
     double t = (double)index / (double)(count - 1);
     

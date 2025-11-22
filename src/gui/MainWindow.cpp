@@ -1604,7 +1604,9 @@ void MainWindow::strumNotes() {
             dialog.getVelocityStrength(),
             dialog.getVelocityTension(),
             dialog.getPreserveEnd(),
-            dialog.getAlternateDirection()
+            dialog.getAlternateDirection(),
+            dialog.getUseStepStrength(),
+            dialog.getIgnoreTrack()
         );
         updateAll();
     }
