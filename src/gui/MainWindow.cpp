@@ -35,6 +35,7 @@
 #include <QToolButton>
 #include <QDesktopServices>
 #include <QKeyEvent>
+#include <QTimer>
 
 #include <cmath>
 #include <algorithm>
@@ -65,6 +66,7 @@
 #include "TrackListWidget.h"
 #include "TransposeDialog.h"
 #include "TweakTarget.h"
+#include "UpdateChecker.h"
 
 #include "../tool/DeleteOverlapsTool.h"
 #include "../tool/EraserTool.h"
@@ -113,6 +115,8 @@ MainWindow::MainWindow(QString initFile)
     _moveSelectedEventsToChannelMenu = 0;
     _moveSelectedEventsToTrackMenu = 0;
     _toolbarWidget = nullptr;
+    _updateChecker = nullptr;
+    _silentUpdateCheck = false;
 
     Appearance::init(_settings);
 
@@ -566,6 +570,9 @@ MainWindow::MainWindow(QString initFile)
 
     // Load initial file immediately - no need for artificial delay
     loadInitFile();
+
+    // Check for updates silently on startup
+    QTimer::singleShot(2000, this, [this](){ checkForUpdates(true); });
 }
 
 MainWindow::~MainWindow() {
@@ -3906,6 +3913,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(manualAction, SIGNAL(triggered()), this, SLOT(manual()));
     helpMB->addAction(manualAction);
 
+    QAction *checkUpdatesAction = new QAction(tr("Check for updates"), this);
+    connect(checkUpdatesAction, &QAction::triggered, this, [this](){ checkForUpdates(false); });
+    helpMB->addAction(checkUpdatesAction);
+
     // Use full custom toolbar with settings integration
     // Apply any stored custom shortcuts from settings after defining defaults
     applyStoredShortcuts();
@@ -3992,6 +4003,35 @@ void MainWindow::divChanged(QAction *action) {
 
 void MainWindow::enableMagnet(bool enable) {
     EventTool::enableMagnet(enable);
+}
+
+void MainWindow::checkForUpdates(bool silent) {
+    _silentUpdateCheck = silent;
+    if (!_updateChecker) {
+        _updateChecker = new UpdateChecker(this);
+        connect(_updateChecker, &UpdateChecker::updateAvailable, this, [this](QString version, QString url){
+            QMessageBox msgBox(this);
+            msgBox.setWindowTitle(tr("Update available"));
+            msgBox.setText(tr("A new version %1 is available. Do you want to download it?").arg(version));
+            msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+            if (msgBox.exec() == QMessageBox::Yes) {
+                QDesktopServices::openUrl(QUrl(url));
+            }
+        });
+        connect(_updateChecker, &UpdateChecker::noUpdateAvailable, this, [this](){
+            if (!_silentUpdateCheck) {
+                QMessageBox::information(this, tr("Update check"), tr("You are using the latest version."));
+            }
+        });
+        connect(_updateChecker, &UpdateChecker::errorOccurred, this, [this](QString error){
+            if (!_silentUpdateCheck) {
+                QMessageBox::warning(this, tr("Update check failed"), tr("Could not check for updates: %1").arg(error));
+            } else {
+                qWarning() << "Silent update check failed:" << error;
+            }
+        });
+    }
+    _updateChecker->checkForUpdates();
 }
 
 void MainWindow::openConfig() {

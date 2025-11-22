@@ -51,6 +51,7 @@ class QShowEvent;
 class Update;
 class SelectionNavigator;
 class TweakTarget;
+class UpdateChecker;
 
 /**
  * \class MainWindow
@@ -779,6 +780,12 @@ public slots:
     void transposeSelectedNotesOctaveDown();
 
     /**
+     * \brief Check for application updates.
+     * \param silent If true, only show UI if an update is available.
+     */
+    void checkForUpdates(bool silent = false);
+
+    /**
      * \brief Refreshes toolbar icons when theme changes.
      */
     void refreshToolbarIcons();
@@ -988,6 +995,12 @@ private:
 
     /** \brief Navigator for selection management */
     SelectionNavigator *selectionNavigator;
+
+    /** \brief Update checker instance */
+    UpdateChecker *_updateChecker;
+
+    /** \brief Whether the current update check should be silent (no UI if no update) */
+    bool _silentUpdateCheck;
 };
 
 #endif // MAINWINDOW_H_
