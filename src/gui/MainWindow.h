@@ -531,6 +531,11 @@ public slots:
     void explodeChordsToTracks();
 
     /**
+     * \brief Opens the Strummer dialog to stagger notes.
+     */
+    void strumNotes();
+
+    /**
      * \brief Marks the file as edited (unsaved changes).
      */
     void markEdited();

@@ -61,6 +61,7 @@
 #include "RecordDialog.h"
 #include "SelectionNavigator.h"
 #include "SettingsDialog.h"
+#include "StrummerDialog.h"
 #include "TrackListWidget.h"
 #include "TransposeDialog.h"
 #include "TweakTarget.h"
@@ -78,6 +79,7 @@
 #include "../tool/SharedClipboard.h"
 #include "../tool/SizeChangeTool.h"
 #include "../tool/StandardTool.h"
+#include "../tool/StrummerTool.h"
 #include "../tool/TempoTool.h"
 #include "../tool/TimeSignatureTool.h"
 #include "../tool/Tool.h"
@@ -1575,6 +1577,30 @@ void MainWindow::glueSelectionAllChannels() {
     GlueTool glueTool;
     glueTool.performGlueOperation(false); // false = ignore channels
     updateAll();
+}
+
+void MainWindow::strumNotes() {
+    if (!file) {
+        return;
+    }
+
+    StrummerDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted) {
+        Tool::setFile(file);
+
+        StrummerTool strummerTool;
+        strummerTool.performStrum(
+            dialog.getStartStrength(),
+            dialog.getStartTension(),
+            dialog.getEndStrength(),
+            dialog.getEndTension(),
+            dialog.getVelocityStrength(),
+            dialog.getVelocityTension(),
+            dialog.getPreserveEnd(),
+            dialog.getAlternateDirection()
+        );
+        updateAll();
+    }
 }
 
 void MainWindow::deleteOverlaps() {
@@ -3213,6 +3239,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(explodeChordsAction, SIGNAL(triggered()), this, SLOT(explodeChordsToTracks()));
     toolsMB->addAction(explodeChordsAction);
     _actionMap["explode_chords_to_tracks"] = explodeChordsAction;
+
+    QAction *strumAction = new QAction(tr("Strum selection"), this);
+    strumAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT, Qt::Key_S)));
+    _defaultShortcuts["strum"] = QList<QKeySequence>() << strumAction->shortcut();
+    connect(strumAction, SIGNAL(triggered()), this, SLOT(strumNotes()));
+    toolsMB->addAction(strumAction);
+    _actionMap["strum"] = strumAction;
 
     toolsMB->addSeparator();
 
