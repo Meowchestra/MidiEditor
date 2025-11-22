@@ -97,7 +97,7 @@ void KeybindsSettingsWidget::buildUI() {
     _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
     _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Interactive);
     _table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    _table->setColumnWidth(1, 250);  // Set width for shortcut column
+    _table->setColumnWidth(1, 180);  // Set width for shortcut column
     _table->verticalHeader()->setVisible(false);
     _table->setShowGrid(true);
     _table->setAlternatingRowColors(true);
@@ -208,32 +208,8 @@ void KeybindsSettingsWidget::loadActions() {
         edit->setClearButtonEnabled(true);
         _table->setCellWidget(row, 1, edit);
 
-        // Connect change signal for duplicate checking
-        connect(edit, &QKeySequenceEdit::keySequenceChanged, this, [this, edit](const QKeySequence &seq) {
-            // Reset style
-            edit->setStyleSheet("");
-            edit->setToolTip("");
-            
-            if (seq.isEmpty()) return;
-
-            // Check against other rows
-            for (int r = 0; r < _table->rowCount(); r++) {
-                QWidget *w = _table->cellWidget(r, 1);
-                if (w == edit) continue; // Skip self
-                
-                if (CustomKeySequenceEdit *other = qobject_cast<CustomKeySequenceEdit*>(w)) {
-                    if (other->keySequence() == seq) {
-                        // Mark both as duplicates
-                        edit->setStyleSheet("background-color: #ffcccc;");
-                        edit->setToolTip(tr("Duplicate shortcut"));
-                        // We don't mark the other one here to avoid recursion/complexity, 
-                        // but the user will see it when they look. 
-                        // Ideally we'd refresh all, but let's keep it simple.
-                        break;
-                    }
-                }
-            }
-        });
+        // Connect change signal for duplicate checking (scans all rows)
+        connect(edit, &QKeySequenceEdit::keySequenceChanged, this, &KeybindsSettingsWidget::checkDuplicates);
 
         // Column 2: Reset button
         QPushButton *resetBtn = new QPushButton(tr("Reset"), _table);
@@ -251,6 +227,9 @@ void KeybindsSettingsWidget::loadActions() {
     // Don't call resizeColumnsToContents() as it overrides the custom width for the shortcut column
     // and shrinks it to the smallest entry. Column 0 is Stretch, Col 2 is ResizeToContents mode.
     // _table->resizeColumnsToContents();
+    
+    // Perform initial check
+    checkDuplicates();
 }
 
 void KeybindsSettingsWidget::resetRowToDefault(int row) {
@@ -264,6 +243,8 @@ void KeybindsSettingsWidget::resetRowToDefault(int row) {
             } else {
                 e->clear();
             }
+            // Trigger validation after programmatic change
+            checkDuplicates();
         }
     }
 }
@@ -271,6 +252,41 @@ void KeybindsSettingsWidget::resetRowToDefault(int row) {
 void KeybindsSettingsWidget::resetAllToDefaults() {
     for (auto it = _rowToActionId.constBegin(); it != _rowToActionId.constEnd(); ++it) {
         resetRowToDefault(it.key());
+    }
+}
+
+void KeybindsSettingsWidget::checkDuplicates() {
+    if (!_table) return;
+
+    QMap<QString, int> counts;
+    
+    // First pass: Count occurrences
+    for (int r = 0; r < _table->rowCount(); r++) {
+        QWidget *w = _table->cellWidget(r, 1);
+        if (CustomKeySequenceEdit *e = qobject_cast<CustomKeySequenceEdit*>(w)) {
+            QKeySequence seq = e->keySequence();
+            if (!seq.isEmpty()) {
+                // Use PortableText for consistent comparison
+                counts[seq.toString(QKeySequence::PortableText)]++;
+            }
+        }
+    }
+
+    // Second pass: Update UI
+    for (int r = 0; r < _table->rowCount(); r++) {
+        QWidget *w = _table->cellWidget(r, 1);
+        if (CustomKeySequenceEdit *e = qobject_cast<CustomKeySequenceEdit*>(w)) {
+            QKeySequence seq = e->keySequence();
+            QString seqStr = seq.toString(QKeySequence::PortableText);
+            
+            if (!seq.isEmpty() && counts.value(seqStr) > 1) {
+                e->setStyleSheet("background-color: #ffcccc;");
+                e->setToolTip(tr("Duplicate shortcut"));
+            } else {
+                e->setStyleSheet("");
+                e->setToolTip("");
+            }
+        }
     }
 }
 

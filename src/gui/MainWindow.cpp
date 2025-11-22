@@ -4013,7 +4013,7 @@ void MainWindow::checkForUpdates(bool silent) {
         _updateChecker = new UpdateChecker(this);
         connect(_updateChecker, &UpdateChecker::updateAvailable, this, [this](QString version, QString url){
             QMessageBox msgBox(this);
-            msgBox.setWindowTitle(tr("Update available"));
+            msgBox.setWindowTitle(tr("Update Available"));
             msgBox.setText(tr("A new version %1 is available. Do you want to download it?").arg(version));
             msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
             if (msgBox.exec() == QMessageBox::Yes) {
@@ -4022,12 +4022,12 @@ void MainWindow::checkForUpdates(bool silent) {
         });
         connect(_updateChecker, &UpdateChecker::noUpdateAvailable, this, [this](){
             if (!_silentUpdateCheck) {
-                QMessageBox::information(this, tr("Update check"), tr("You are using the latest version."));
+                QMessageBox::information(this, tr("Update Check"), tr("You are using the latest version."));
             }
         });
         connect(_updateChecker, &UpdateChecker::errorOccurred, this, [this](QString error){
             if (!_silentUpdateCheck) {
-                QMessageBox::warning(this, tr("Update check failed"), tr("Could not check for updates: %1").arg(error));
+                QMessageBox::warning(this, tr("Update Check Failed"), tr("Could not check for updates: %1").arg(error));
             } else {
                 qWarning() << "Silent update check failed:" << error;
             }

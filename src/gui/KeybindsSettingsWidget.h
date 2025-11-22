@@ -43,6 +43,7 @@ public:
 private slots:
     void resetRowToDefault(int row);
     void resetAllToDefaults();
+    void checkDuplicates();
 
 private:
     void buildUI();
