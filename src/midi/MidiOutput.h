@@ -25,8 +25,7 @@
 
 // Forward declarations
 class MidiEvent;
-class RtMidiIn;
-class RtMidiOut;
+inline namespace rt { inline namespace midi { class RtMidiIn; class RtMidiOut; } }
 
 /**
  * \class MidiOutput
@@ -145,7 +144,7 @@ private:
     static QString _outPort;
 
     /** \brief RtMidi output interface */
-    static RtMidiOut *_midiOut;
+    static rt::midi::RtMidiOut *_midiOut;
 
     /** \brief Standard/default MIDI channel */
     static int _stdChannel;

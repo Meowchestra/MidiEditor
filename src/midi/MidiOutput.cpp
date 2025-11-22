@@ -27,6 +27,8 @@
 
 #include "rtmidi/RtMidi.h"
 
+using namespace rt::midi;
+
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 

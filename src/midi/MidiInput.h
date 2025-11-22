@@ -28,8 +28,8 @@
 
 // Forward declarations
 class MidiEvent;
-class RtMidiIn;
-class RtMidiOut;
+inline namespace rt { inline namespace midi { class RtMidiIn; class RtMidiOut; } }
+
 class MidiTrack;
 
 /**
@@ -161,7 +161,7 @@ private:
     static QString _inPort;
 
     /** \brief RtMidi input interface */
-    static RtMidiIn *_midiIn;
+    static rt::midi::RtMidiIn *_midiIn;
 
     /** \brief Map of recorded MIDI messages by time */
     static QMultiMap<int, std::vector<unsigned char> > *_messages;

@@ -33,6 +33,8 @@
 
 #include "rtmidi/RtMidi.h"
 
+using namespace rt::midi;
+
 #include "MidiOutput.h"
 
 RtMidiIn *MidiInput::_midiIn = 0;
