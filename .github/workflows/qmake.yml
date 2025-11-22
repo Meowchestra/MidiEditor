@@ -118,5 +118,5 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v5
         with:
-          name: midieditor-qmake-${{ matrix.qt_ver }}-${{ matrix.qt_arch }}
+          name: midieditor-qmake-${{ matrix.qt_arch }}
           path: Install.exe
