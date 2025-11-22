@@ -9,7 +9,7 @@
 
 #include "StrummerTool.h"
 
-#include "../MidiEvent/MidiEvent.h"
+#include "../midi/MidiFile.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../midi/MidiTrack.h"

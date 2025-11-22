@@ -497,6 +497,10 @@ int MidiFile::endTick() {
     return midiTicks;
 }
 
+int MidiFile::timeMS(int midiTime) {
+    return msOfTick(midiTime);
+}
+
 int MidiFile::tick(int ms) {
     double time = 0;
 
