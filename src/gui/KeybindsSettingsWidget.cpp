@@ -146,7 +146,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     // Tools menu - Editing
     order << "delete" << "align_left" << "align_right" << "equalize"
           << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps"
-          << "convert_pitch_bend_to_notes" << "explode_chords_to_tracks";
+          << "convert_pitch_bend_to_notes" << "explode_chords_to_tracks" << "strum";
     
     // Tools menu - Quantization & Transform
     order << "quantize" << "quantize_ntuplet_dialog" << "quantize_ntuplet_repeat"
@@ -208,6 +208,33 @@ void KeybindsSettingsWidget::loadActions() {
         edit->setClearButtonEnabled(true);
         _table->setCellWidget(row, 1, edit);
 
+        // Connect change signal for duplicate checking
+        connect(edit, &QKeySequenceEdit::keySequenceChanged, this, [this, edit](const QKeySequence &seq) {
+            // Reset style
+            edit->setStyleSheet("");
+            edit->setToolTip("");
+            
+            if (seq.isEmpty()) return;
+
+            // Check against other rows
+            for (int r = 0; r < _table->rowCount(); r++) {
+                QWidget *w = _table->cellWidget(r, 1);
+                if (w == edit) continue; // Skip self
+                
+                if (CustomKeySequenceEdit *other = qobject_cast<CustomKeySequenceEdit*>(w)) {
+                    if (other->keySequence() == seq) {
+                        // Mark both as duplicates
+                        edit->setStyleSheet("background-color: #ffcccc;");
+                        edit->setToolTip(tr("Duplicate shortcut"));
+                        // We don't mark the other one here to avoid recursion/complexity, 
+                        // but the user will see it when they look. 
+                        // Ideally we'd refresh all, but let's keep it simple.
+                        break;
+                    }
+                }
+            }
+        });
+
         // Column 2: Reset button
         QPushButton *resetBtn = new QPushButton(tr("Reset"), _table);
         resetBtn->setProperty("row", row);
@@ -221,7 +248,9 @@ void KeybindsSettingsWidget::loadActions() {
         row++;
     }
 
-    _table->resizeColumnsToContents();
+    // Don't call resizeColumnsToContents() as it overrides the custom width for the shortcut column
+    // and shrinks it to the smallest entry. Column 0 is Stretch, Col 2 is ResizeToContents mode.
+    // _table->resizeColumnsToContents();
 }
 
 void KeybindsSettingsWidget::resetRowToDefault(int row) {
@@ -299,7 +328,23 @@ bool KeybindsSettingsWidget::accept() {
 
             // Store only if different from defaults; otherwise remove key
             QList<QKeySequence> def = _defaults.value(id);
-            if (def == seqs || (def.isEmpty() && seqs.isEmpty())) {
+            
+            bool isDefault = (def == seqs) || (def.isEmpty() && seqs.isEmpty());
+            
+            // Special handling for actions with multiple default shortcuts (like play_stop)
+            // The UI only supports editing a single shortcut. If the user hasn't changed the
+            // primary shortcut, we should treat it as "default" to preserve secondary shortcuts
+            // and avoid writing partial settings to registry.
+            if (!isDefault && seqs.size() == 1 && def.size() > 1) {
+                if (seqs.first() == def.first()) {
+                    isDefault = true;
+                    // Restore the full list of default shortcuts to the action
+                    // so that secondary shortcuts continue to work
+                    _dialog->mainWindow()->setActionShortcuts(id, def);
+                }
+            }
+
+            if (isDefault) {
                 settings->remove(id);
             } else {
                 QStringList list;

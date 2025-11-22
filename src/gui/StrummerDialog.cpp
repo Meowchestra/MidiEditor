@@ -67,14 +67,14 @@ void StrummerDialog::setupUI() {
     endLayout->addWidget(new QLabel(tr("Strength (ms):"), endGroup), 0, 0);
     _endStrengthSpin = new QSpinBox(endGroup);
     _endStrengthSpin->setRange(-5000, 5000); // Range in ms
-    _endStrengthSpin->setToolTip(tr("Offset in milliseconds applied to the end of the notes."));
+    _endStrengthSpin->setToolTip(tr("Offset in milliseconds applied to the end of the notes.\\nPositive values strum from low to high pitch.\\nNegative values strum from high to low pitch."));
     endLayout->addWidget(_endStrengthSpin, 0, 1);
     
     endLayout->addWidget(new QLabel(tr("Tension (-1.0 to 1.0):"), endGroup), 1, 0);
     _endTensionSpin = new QDoubleSpinBox(endGroup);
     _endTensionSpin->setRange(-1.0, 1.0);
     _endTensionSpin->setSingleStep(0.1);
-    _endTensionSpin->setToolTip(tr("Controls the acceleration of the end offset."));
+    _endTensionSpin->setToolTip(tr("Controls the acceleration of the end offset.\\n0 is linear.\\nPositive values accelerate (starts slow, ends fast).\\nNegative values decelerate (starts fast, ends slow)."));
     endLayout->addWidget(_endTensionSpin, 1, 1);
     
     mainLayout->addWidget(endGroup);
@@ -111,7 +111,7 @@ void StrummerDialog::setupUI() {
     optionsLayout->addWidget(_alternateDirectionCheck);
     
     _useStepStrengthCheck = new QCheckBox(tr("Relative strength (per note)"), optionsGroup);
-    _useStepStrengthCheck->setToolTip(tr("If checked, the strength value is applied per note step (e.g. 0, S, 2S...).\nIf unchecked, strength is the total range (e.g. 0, 0.33S, 0.66S, S)."));
+    _useStepStrengthCheck->setToolTip(tr("If checked, the strength value is applied per note step (e.g. 0, 1s, 2s...).\nIf unchecked, strength is the total range (e.g. 0, 0.33s, 0.66s, 1s)."));
     optionsLayout->addWidget(_useStepStrengthCheck);
 
     _ignoreTrackCheck = new QCheckBox(tr("Strum across tracks"), optionsGroup);
