@@ -9,6 +9,7 @@
 #include "MatrixWidget.h"
 #include "AppearanceSettingsWidget.h"
 #include "MidiSettingsWidget.h"
+#include "InstrumentSettingsWidget.h"
 #include "PerformanceSettingsWidget.h"
 #include "TrackListWidget.h"
 #include "ChannelListWidget.h"
@@ -1397,6 +1398,12 @@ void Appearance::refreshColors() {
             QList<AdditionalMidiSettingsWidget *> additionalMidiWidgets = widget->findChildren<AdditionalMidiSettingsWidget *>();
             foreach(AdditionalMidiSettingsWidget* additionalMidiWidget, additionalMidiWidgets) {
                 additionalMidiWidget->refreshColors();
+            }
+
+            // Refresh all InstrumentSettingsWidget colors for theme changes
+            QList<InstrumentSettingsWidget *> instrumentWidgets = widget->findChildren<InstrumentSettingsWidget *>();
+            foreach(InstrumentSettingsWidget* instrumentWidget, instrumentWidgets) {
+                instrumentWidget->refreshColors();
             }
 
             // Refresh all PerformanceSettingsWidget colors for theme changes

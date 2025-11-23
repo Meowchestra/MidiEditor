@@ -105,6 +105,7 @@
 #include "../midi/MidiPlayer.h"
 #include "../midi/MidiTrack.h"
 #include "../midi/PlayerThread.h"
+#include "../midi/InstrumentDefinitions.h"
 
 MainWindow::MainWindow(QString initFile)
     : QMainWindow()
@@ -137,6 +138,18 @@ MainWindow::MainWindow(QString initFile)
     Metronome::setLoudness(_settings->value("metronome_loudness", 100).toInt(&loudnessOk));
 
     _quantizationGrid = _settings->value("quantization", 3).toInt();
+
+    // Load instrument definitions
+    QString insFile = _settings->value("InstrumentDefinitions/file").toString();
+    if (!insFile.isEmpty()) {
+        InstrumentDefinitions::instance()->load(insFile);
+        QString insName = _settings->value("InstrumentDefinitions/instrument").toString();
+        if (!insName.isEmpty()) {
+            InstrumentDefinitions::instance()->selectInstrument(insName);
+        }
+    }
+    // Always load overrides
+    InstrumentDefinitions::instance()->loadOverrides(_settings);
 
     // metronome
     connect(MidiPlayer::playerThread(), SIGNAL(measureChanged(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)));
@@ -352,7 +365,7 @@ MainWindow::MainWindow(QString initFile)
     for (int i = 0; i < 128; i++) {
         QString name = MidiFile::controlChangeName(i);
         if (name == MidiFile::tr("undefined")) {
-            _miscController->addItem(QString::number(i));
+            _miscController->addItem(QString::number(i) + ": ");
         } else {
             _miscController->addItem(QString::number(i) + ": " + name);
         }
@@ -592,6 +605,7 @@ MainWindow::~MainWindow() {
 
     // Clean up static appearance resources to prevent QPixmap/QColor issues after QApplication shutdown
     Appearance::cleanup();
+    InstrumentDefinitions::cleanup();
 
     qDebug() << "MainWindow: Destructor cleanup sequence completed";
 }
@@ -2751,7 +2765,7 @@ void MainWindow::changeMiscMode(int mode) {
             for (int i = 0; i < 128; i++) {
                 QString name = MidiFile::controlChangeName(i);
                 if (name == MidiFile::tr("undefined")) {
-                    _miscController->addItem(QString::number(i));
+                    _miscController->addItem(QString::number(i) + ": ");
                 } else {
                     _miscController->addItem(QString::number(i) + ": " + name);
                 }

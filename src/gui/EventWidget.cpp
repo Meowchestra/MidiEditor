@@ -223,7 +223,7 @@ void EventWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &inde
                 QString name = MidiFile::controlChangeName(i);
                 QString text;
                 if (name == MidiFile::tr("undefined")) {
-                    text = QString::number(i);
+                    text = QString::number(i) + ": ";
                 } else {
                     text = QString::number(i) + ": " + name;
                 }
@@ -1072,7 +1072,7 @@ QVariant EventWidget::fieldContent(EditorField field) {
             }
             QString name = MidiFile::controlChangeName(control);
             if (name == MidiFile::tr("undefined")) {
-                return QVariant(QString::number(control));
+                return QVariant(QString::number(control) + ": ");
             }
             return QVariant(QString::number(control) + ": " + name);
         }

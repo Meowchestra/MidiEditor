@@ -30,6 +30,7 @@
 #include "SettingsWidget.h"
 #include "MainWindow.h"
 #include "KeybindsSettingsWidget.h"
+#include "InstrumentSettingsWidget.h"
 
 SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *parent)
     : QDialog(parent) {
@@ -92,6 +93,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     // add content
     addSetting(new MidiSettingsWidget(central));
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
+    addSetting(new InstrumentSettingsWidget(settings, central));
     addSetting(new AppearanceSettingsWidget(central));
     addSetting(new LayoutSettingsWidget(central));
     addSetting(new KeybindsSettingsWidget(this, central));

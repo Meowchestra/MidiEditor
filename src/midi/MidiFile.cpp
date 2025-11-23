@@ -33,6 +33,7 @@
 #include "../protocol/Protocol.h"
 #include "MidiChannel.h"
 #include "MidiTrack.h"
+#include "InstrumentDefinitions.h"
 #include "math.h"
 
 int MidiFile::defaultTimePerQuarter = 192;
@@ -795,6 +796,15 @@ MidiChannel *MidiFile::channel(int i) {
 }
 
 QString MidiFile::instrumentName(int prog) {
+    QString customName = InstrumentDefinitions::instance()->instrumentName(prog);
+    if (!customName.isEmpty()) {
+        return customName;
+    }
+
+    return gmInstrumentName(prog);
+}
+
+QString MidiFile::gmInstrumentName(int prog) {
     switch (prog + 1) {
         case 1: {
             return tr("Acoustic Grand Piano");

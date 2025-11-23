@@ -248,11 +248,18 @@ public:
     // === Static Utility Methods ===
 
     /**
-     * \brief Gets the name of a General MIDI instrument.
-     * \param prog The program number (0-127)
-     * \return String name of the instrument
+     * @brief Gets the name of a General MIDI instrument.
+     * @param prog The program number (0-127)
+     * @return String name of the instrument
      */
     static QString instrumentName(int prog);
+
+    /**
+     * @brief Gets the default GM name of an instrument (ignoring custom definitions).
+     * @param prog The program number (0-127)
+     * @return String name of the instrument
+     */
+    static QString gmInstrumentName(int prog);
 
     /**
      * \brief Gets the name of a MIDI control change.
