@@ -350,7 +350,12 @@ MainWindow::MainWindow(QString initFile)
     //_miscControlLayout->addWidget(new QLabel("Control:", _miscWidgetControl), 2, 0, 1, 3);
     _miscController = new QComboBox(_miscWidgetControl);
     for (int i = 0; i < 128; i++) {
-        _miscController->addItem(MidiFile::controlChangeName(i));
+        QString name = MidiFile::controlChangeName(i);
+        if (name == MidiFile::tr("undefined")) {
+            _miscController->addItem(QString::number(i));
+        } else {
+            _miscController->addItem(QString::number(i) + ": " + name);
+        }
     }
     _miscController->view()->setMinimumWidth(_miscController->minimumSizeHint().width());
     _miscControlLayout->addWidget(_miscController, 3, 0, 1, 3);
@@ -2744,7 +2749,12 @@ void MainWindow::changeMiscMode(int mode) {
 
         if (mode == ControllEditor) {
             for (int i = 0; i < 128; i++) {
-                _miscController->addItem(MidiFile::controlChangeName(i));
+                QString name = MidiFile::controlChangeName(i);
+                if (name == MidiFile::tr("undefined")) {
+                    _miscController->addItem(QString::number(i));
+                } else {
+                    _miscController->addItem(QString::number(i) + ": " + name);
+                }
             }
         } else {
             for (int i = 0; i < 128; i++) {

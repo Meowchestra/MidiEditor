@@ -220,7 +220,13 @@ void EventWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &inde
             QComboBox *box = dynamic_cast<QComboBox *>(editor);
             int current = 0;
             for (int i = 0; i < 128; i++) {
-                QString text = QString::number(i) + ": " + MidiFile::controlChangeName(i);
+                QString name = MidiFile::controlChangeName(i);
+                QString text;
+                if (name == MidiFile::tr("undefined")) {
+                    text = QString::number(i);
+                } else {
+                    text = QString::number(i) + ": " + name;
+                }
                 box->addItem(text);
                 if (!text.compare(index.data().toString())) {
                     current = i;
@@ -1064,7 +1070,11 @@ QVariant EventWidget::fieldContent(EditorField field) {
             if (control < 0) {
                 return QVariant("");
             }
-            return QVariant(QString::number(control) + ": " + MidiFile::controlChangeName(control));
+            QString name = MidiFile::controlChangeName(control);
+            if (name == MidiFile::tr("undefined")) {
+                return QVariant(QString::number(control));
+            }
+            return QVariant(QString::number(control) + ": " + name);
         }
         case ProgramChangeProgram: {
             int program = -1;
