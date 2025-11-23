@@ -2,8 +2,8 @@
 <Package>
     <DisplayName>MidiEditor</DisplayName>
     <Description>MidiEditor is a free software providing an interface to edit, record, and play Midi data. Packed with all necessary dependencies.</Description>
-    <Version>4.2.0</Version>
-    <ReleaseDate>2025-10-16</ReleaseDate>
+    <Version>4.3.0</Version>
+    <ReleaseDate>2025-11-22</ReleaseDate>
     <Name>org.midieditor.midieditor</Name>
     <Licenses>
         <License name="License Agreement" file="LICENSE" />
