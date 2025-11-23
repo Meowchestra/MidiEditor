@@ -35,6 +35,7 @@ void InstrumentDefinitions::cleanup() {
 void InstrumentDefinitions::clear() {
     _definitions.clear();
     _overrides.clear();
+    _ccOverrides.clear();
     _inheritance.clear();
     _currentFile = "";
     _currentInstrument = "";
@@ -207,6 +208,25 @@ QMap<int, QString> InstrumentDefinitions::instrumentNames() const {
     return names;
 }
 
+void InstrumentDefinitions::setControlChangeName(int control, const QString& name) {
+    if (name.isEmpty()) {
+        _ccOverrides.remove(control);
+    } else {
+        _ccOverrides[control] = name;
+    }
+}
+
+QString InstrumentDefinitions::controlChangeName(int control) const {
+    if (_ccOverrides.contains(control)) {
+        return _ccOverrides[control];
+    }
+    return "";
+}
+
+QMap<int, QString> InstrumentDefinitions::controlChangeNames() const {
+    return _ccOverrides;
+}
+
 void InstrumentDefinitions::loadOverrides(QSettings* settings) {
     if (!settings) return;
     
@@ -228,6 +248,17 @@ void InstrumentDefinitions::loadOverrides(QSettings* settings) {
             }
         }
         settings->endGroup();
+    }
+    settings->endGroup();
+
+    settings->beginGroup("InstrumentDefinitions/CCOverrides");
+    QStringList ccKeys = settings->childKeys();
+    foreach(QString key, ccKeys) {
+        bool ok;
+        int control = key.toInt(&ok);
+        if (ok) {
+            _ccOverrides[control] = settings->value(key).toString();
+        }
     }
     settings->endGroup();
 }
@@ -253,6 +284,16 @@ void InstrumentDefinitions::saveOverrides(QSettings* settings) {
         }
         
         settings->endGroup();
+    }
+    settings->endGroup();
+
+    settings->beginGroup("InstrumentDefinitions/CCOverrides");
+    settings->remove(""); // Clear previous overrides
+    
+    QMapIterator<int, QString> itCC(_ccOverrides);
+    while (itCC.hasNext()) {
+        itCC.next();
+        settings->setValue(QString::number(itCC.key()), itCC.value());
     }
     settings->endGroup();
 }

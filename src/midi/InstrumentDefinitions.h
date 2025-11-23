@@ -65,6 +65,25 @@ public:
     QMap<int, QString> instrumentNames() const;
     
     /**
+     * @brief Sets a custom name for a control change number
+     * @param control Control number (0-127)
+     * @param name The name to set
+     */
+    void setControlChangeName(int control, const QString& name);
+
+    /**
+     * @brief Gets the name for a control change number (0-127)
+     * @param control Control number
+     * @return The control change name, or empty string if not defined
+     */
+    QString controlChangeName(int control) const;
+
+    /**
+     * @brief Returns the map of control change numbers to names
+     */
+    QMap<int, QString> controlChangeNames() const;
+    
+    /**
      * @brief Clears all loaded definitions and overrides
      */
     void clear();
@@ -104,6 +123,8 @@ private:
     QMap<QString, QString> _inheritance;
     // User overrides: Section Name -> (Program Number -> Name)
     QMap<QString, QMap<int, QString> > _overrides;
+    // User overrides for Control Changes: Control Number -> Name
+    QMap<int, QString> _ccOverrides;
 };
 
 #endif // INSTRUMENTDEFINITIONS_H_

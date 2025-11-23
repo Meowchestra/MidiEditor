@@ -1195,6 +1195,11 @@ QString MidiFile::gmInstrumentName(int prog) {
 }
 
 QString MidiFile::controlChangeName(int control) {
+    QString customName = InstrumentDefinitions::instance()->controlChangeName(control);
+    if (!customName.isEmpty()) {
+        return customName;
+    }
+
     switch (control) {
         case 0: {
             return tr("Bank Select (MSB)");
