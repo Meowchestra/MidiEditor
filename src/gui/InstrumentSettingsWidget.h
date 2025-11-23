@@ -21,7 +21,7 @@ public slots:
     void browseFile();
     void clearSettings();
     void loadFile();
-    void instrumentChanged(const QString& name);
+    void instrumentChanged(int index);
     void refreshColors();
     void onTableItemChanged(QTableWidgetItem *item);
 

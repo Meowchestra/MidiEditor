@@ -54,7 +54,7 @@ InstrumentSettingsWidget::InstrumentSettingsWidget(QSettings *settings, QWidget 
     // Instrument selection
     layout->addWidget(new QLabel(tr("Instrument:"), this), 3, 0);
     _instrumentBox = new QComboBox(this);
-    connect(_instrumentBox, SIGNAL(currentIndexChanged(const QString&)), this, SLOT(instrumentChanged(const QString&)));
+    connect(_instrumentBox, SIGNAL(currentIndexChanged(int)), this, SLOT(instrumentChanged(int)));
     layout->addWidget(_instrumentBox, 3, 1, 1, 2);
     
     // Table for viewing/editing
@@ -132,8 +132,9 @@ void InstrumentSettingsWidget::loadFile() {
     _instrumentBox->blockSignals(false);
 }
 
-void InstrumentSettingsWidget::instrumentChanged(const QString& name) {
-    if (!name.isEmpty()) {
+void InstrumentSettingsWidget::instrumentChanged(int index) {
+    if (index >= 0) {
+        QString name = _instrumentBox->itemText(index);
         InstrumentDefinitions::instance()->selectInstrument(name);
         populateTable();
     }
