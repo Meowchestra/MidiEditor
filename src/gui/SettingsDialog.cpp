@@ -20,6 +20,7 @@
 
 #include <QList>
 #include <QMetaObject>
+#include <QScrollArea>
 #include <QStackedWidget>
 #include <QWidget>
 
@@ -104,7 +105,12 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
 
 void SettingsDialog::addSetting(SettingsWidget *settingWidget) {
     _settingsWidgets->append(settingWidget);
-    _container->addWidget(settingWidget);
+
+    QScrollArea *scrollArea = new QScrollArea(_container);
+    scrollArea->setWidget(settingWidget);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    _container->addWidget(scrollArea);
 
     // create the new ListEntry
     QListWidgetItem *newItem = new QListWidgetItem(settingWidget->title());
