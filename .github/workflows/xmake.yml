@@ -113,7 +113,7 @@ jobs:
           & $binaryCreator --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: midieditor-xmake-${{ matrix.qt_arch }}
           path: Install.exe
