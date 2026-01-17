@@ -1,8 +1,20 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. Not a full changelog, but acting rudimentary list of new features & changes between recent versions.
-A more complete list of all new features & changes can be found on the releases page.
+Rudimentary changelog of new features & fixes between recent versions.
+A more complete list of all noteworthly changes can be found on the releases page.
 https://github.com/Meowchestra/MidiEditor/releases
+
+
+## [4.3.1] - 2026-01-17
+
+<details>
+<summary>Summary</summary>
+
+* Fixed DataEditor & EventWidget strings not properly displaying. (i.e. SysEx events)
+* Fixed MidiOutput channel instruments not resetting on file change.
+* Fixed StrummerDialog End Timing tooltips not newlining.
+
+</details>
 
 ## [4.3.0] - 2025-11-23
 
@@ -10,35 +22,8 @@ https://github.com/Meowchestra/MidiEditor/releases
 <summary>Summary</summary>
 
 * Strummer Tool: strum / arpeggiate selected chord notes with ``ctrl`` + ``alt`` + ``s``
-  - Adjustable Start & End (timing);
-    - ``Strength (ms)``
-    Offset in milliseconds applied to the start of the notes. 
-    Positive values strum from low to high pitch. 
-    Negative values strum from high to low pitch.
-    - ``Tension (-1.0 to 1.0)``
-    Controls the acceleration of the strum.
-    0 is linear.
-    Positive values accelerate (starts slow, ends fast).
-    Negative values decelerate (starts fast, ends slow).
-  - Adjustable Velocity;
-    - ``Strength``
-    Velocity change applied across the strum.
-    Positive: increases velocity (crescendo).
-    Negative: decreases velocity (diminuendo).
-    - ``Tension``
-    Controls the curve of velocity change.
-  - Options;
-    - ``Preserve end``
-    If checked, note endings are fixed, so ch anging start time changes note duration.
-    If unchecked, note duration is preserved (end moves with start).
-    - ``Alternate direction``
-    If checked, strum direction alternates (Up, Down, Up...) for consecutive chords.
-    - ``Relative strength (per note)``
-    If checked, the strength value is applied per note step (e.g. 0, 1s, 2s...).
-    If unchecked, strength is the total range (e.g. 0, 0.33s, 0.66s, 1s).
-    - ``Strum across tracks``
-    If checked, selected notes from different tracks are treated as a single chord.
-    Notes keep their original track assignment.
+  - adjustable modes: ``start (timing)``, ``end (timing)``, ``velocity``
+  - options: ``preserve end``, ``alternate direction``, ``relative strength (per note)``, ``strum across tracks``
 * Added a simple update checker. Start of the application will now compare the app version with the github repo release tags. If there is a higher tag version available than your current version, you will be prompted with an update is available asking if you would like to update. Clicking yes will take you to the github releases page for the new version. Optionally, you can also force manual version checks under the Help dropdown.
 * Improved in-place upgrading via the installer wizard for the default directory. If you use the installer for a new version but have an older version already installed, the installer will now ask to run the maintenancetool uninstaller for the previous version before continuing with the new installation.
 * Improved custom keybinds ui to notify on duplicate shortcuts, special handling for actions with multiple default shortcuts, and minor ui adjustments for fitting.
@@ -55,7 +40,7 @@ https://github.com/Meowchestra/MidiEditor/releases
 
 * Implemented Drag & Drop track reordering.
 * Implemented the ability to set custom keybinds.
-_Most controls & tools should be fully customizable if you hate the defaults </3. Only some hardcoded binds for note shifting remain (for now..?)_
+_Some hardcoded binds still remain._ -- https://github.com/Meowchestra/MidiEditor/issues/28#issuecomment-3567161623
 _(i.e. ctrl drag note edge to adjust duration, shift + # to move selected events to specific track, holding modifier keys while dragging note(s) to lock in place, etc. etc.)_
 * Convert Pitch Bends Tool:
   - ``ctrl`` + ``b`` selected notes to convert assigned pitch bend events into separate notes of the nearest semitone
@@ -160,7 +145,7 @@ Some notable features:
 * You can lock position movement when dragging notes around while holding ``shift`` to go up/down or ``alt`` to go left/right.
 * Support for different application styles if you have a specific preference.
 
-Most noticeably should no longer see the app go to 1gb+ when making major edits such as bulk deleting and undoing over and over. Should be a bit more lightweight with less spikes overall from optimizations / qt6. Also less crashing when loading rare malformed midis / long track names. 
+Most noticeably should no longer see the app go to 1gb+ when making major edits such as bulk deleting and undoing over and over. Should be a bit more lightweight with less spikes overall from optimizations / qt6. Also less crashing when loading rare malformed midis / long track names.
 
 Plus other improvements from various forks and imported changes to be discovered.
 

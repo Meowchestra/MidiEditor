@@ -1,5 +1,5 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "4.3.0"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "4.3.1"
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 set_allowedplats("windows", "linux", "macosx")
 
