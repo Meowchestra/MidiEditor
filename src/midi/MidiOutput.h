@@ -131,6 +131,11 @@ public:
      */
     static void sendProgram(int channel, int prog);
 
+    /**
+     * \brief Resets the MIDI channel program instruments.
+     */
+    static void resetChannelPrograms();
+
     // === Public State Variables ===
 
     /** \brief Flag indicating if using alternative player */

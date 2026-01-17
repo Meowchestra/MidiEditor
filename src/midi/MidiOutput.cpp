@@ -149,6 +149,14 @@ void MidiOutput::sendProgram(int channel, int prog) {
     sendCommand(array);
 }
 
+void MidiOutput::resetChannelPrograms()
+{
+    // Reset all 16 MIDI channels to program 0 (Acoustic Grand Piano in GM)
+    for (int channel = 0; channel < 16; channel++) {
+        sendProgram(channel, 0);
+    }
+}
+
 bool MidiOutput::isConnected() {
     return _outPort != "";
 }

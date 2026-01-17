@@ -749,6 +749,18 @@ void MainWindow::setFile(MidiFile *newFile) {
     copiedEventsChanged();
     checkEnableActionsForSelection();
 
+    // Reset MIDI output channel programs and apply initial program changes
+    if (MidiOutput::isConnected()) {
+        MidiOutput::resetChannelPrograms();
+        // Send program change events from the beginning of the file
+        for (int ch = 0; ch < 16; ch++) {
+            int prog = file->channel(ch)->progAtTick(0);
+            if (prog >= 0) {
+                MidiOutput::sendProgram(ch, prog);
+            }
+        }
+    }
+
     // Clean up the old file after everything has been switched to the new file
     // This ensures all widgets have switched to the new file before cleanup
     if (oldFile) {
