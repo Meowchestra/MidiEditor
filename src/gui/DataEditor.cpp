@@ -74,8 +74,7 @@ void DataEditor::rebuild() {
 
             QLineEdit *edit = new QLineEdit(_central);
             edit->setInputMask("HH");
-            QString text;
-            text.asprintf("%02X", c);
+            QString text = QString::asprintf("%02X", c);
             edit->setText(text);
             layout->addWidget(edit, row, 1, 1, 1);
 
