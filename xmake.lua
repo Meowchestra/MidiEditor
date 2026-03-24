@@ -96,6 +96,44 @@ target("MidiEditor") do
         add_frameworks("OpenGL")
     end
 
+    -- Add custom fluidsynth package definition to pull the multi-reverb-support branch
+    package("fluidsynth_custom")
+        add_deps("fluidsynth")
+        add_urls("https://github.com/FluidSynth/fluidsynth.git", {branch = "multi-reverb-support"})
+        on_install("windows", "linux", "macosx", function (package)
+            local fluidsynth = package:dep("fluidsynth")
+            fluidsynth:script("install")(package)
+        end)
+    package_end()
+
+    -- Require our custom branch package
+    add_requires("fluidsynth_custom", {alias = "fluidsynth", system = false, optional = true})
+
+    -- Optional FluidSynth support for built-in synthesizer
+    on_load(function (target)
+        if target:pkg("fluidsynth") then
+            target:add("defines", "FLUIDSYNTH_SUPPORT")
+            target:add("packages", "fluidsynth")
+            print("FluidSynth pkg found - enabling built-in synthesizer support")
+        else
+            -- Fallback to system-level libraries
+            import("lib.detect.find_library")
+            import("lib.detect.find_path")
+            local fluidsynth_lib = find_library("fluidsynth")
+            local fluidsynth_inc = find_path("fluidsynth.h", {"/usr/include", "/usr/local/include", "/opt/homebrew/include"})
+            if fluidsynth_lib or (is_plat("windows") and find_library("libfluidsynth")) then
+                target:add("defines", "FLUIDSYNTH_SUPPORT")
+                target:add("syslinks", "fluidsynth")
+                if fluidsynth_inc then
+                    target:add("includedirs", fluidsynth_inc)
+                end
+                print("FluidSynth system library found - enabling built-in synthesizer support")
+            else
+                print("FluidSynth not found - built-in synthesizer disabled")
+            end
+        end
+    end)
+
     -- Add source files, including only the main rtmidi files (not examples/tests)
     add_files("src/*.cpp")
     add_files("src/MidiEvent/**.cpp")

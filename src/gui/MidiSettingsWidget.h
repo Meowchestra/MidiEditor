@@ -30,6 +30,10 @@ class QLineEdit;
 class QCheckBox;
 class QSpinBox;
 class QSettings;
+class QComboBox;
+class QSlider;
+class QGroupBox;
+class QLabel;
 
 /**
  * \class AdditionalMidiSettingsWidget
@@ -173,6 +177,42 @@ private:
 
     /** \brief Player mode info box */
     QWidget *_playerModeInfoBox;
+
+#ifdef FLUIDSYNTH_SUPPORT
+private:
+    // FluidSynth settings UI widgets (greyed out unless FluidSynth selected)
+    QGroupBox *_fluidSynthSettingsGroup;
+    QListWidget *_soundFontList;
+    QPushButton *_addSoundFontBtn;
+    QPushButton *_removeSoundFontBtn;
+    QPushButton *_moveSoundFontUpBtn;
+    QPushButton *_moveSoundFontDownBtn;
+    QPushButton *_downloadDefaultSoundFontBtn;
+    QComboBox *_audioDriverCombo;
+    QSlider *_gainSlider;
+    QLabel *_gainValueLabel;
+    QComboBox *_sampleRateCombo;
+    QComboBox *_reverbEngineCombo;
+    QCheckBox *_reverbCheckBox;
+    QCheckBox *_chorusCheckBox;
+
+private slots:
+    void updateFluidSynthSettingsEnabled();
+    void addSoundFont();
+    void removeSoundFont();
+    void moveSoundFontUp();
+    void moveSoundFontDown();
+    void onAudioDriverChanged(const QString &driver);
+    void onGainChanged(int value);
+    void onSampleRateChanged(const QString &rate);
+    void onReverbEngineChanged(int index);
+    void onReverbToggled(bool enabled);
+    void onChorusToggled(bool enabled);
+    void refreshSoundFontList();
+    void showDownloadSoundFontDialog();
+
+private:
+#endif
 };
 
 #endif // MIDISETTINGSWIDGET_H_

@@ -137,6 +137,10 @@ MainWindow::MainWindow(QString initFile)
     bool loudnessOk;
     Metronome::setLoudness(_settings->value("metronome_loudness", 100).toInt(&loudnessOk));
 
+#ifdef FLUIDSYNTH_SUPPORT
+    FluidSynthEngine::instance()->loadSettings(_settings);
+#endif
+
     _quantizationGrid = _settings->value("quantization", 3).toInt();
 
     // Load instrument definitions
@@ -1374,6 +1378,10 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     _settings->setValue("metronome_loudness", Metronome::loudness());
     _settings->setValue("thru", MidiInput::thru());
     _settings->setValue("quantization", _quantizationGrid);
+
+#ifdef FLUIDSYNTH_SUPPORT
+    FluidSynthEngine::instance()->saveSettings(_settings);
+#endif
 
     Appearance::writeSettings(_settings);
 

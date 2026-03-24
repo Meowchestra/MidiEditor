@@ -34,6 +34,18 @@
 #include <QSpinBox>
 #include <QTextEdit>
 
+#ifdef FLUIDSYNTH_SUPPORT
+#include <QComboBox>
+#include <QFileDialog>
+#include <QGroupBox>
+#include <QHBoxLayout>
+#include <QSlider>
+#include <QVBoxLayout>
+#include "../midi/FluidSynthEngine.h"
+#include "../midi/MidiOutput.h"
+#include "DownloadSoundFontDialog.h"
+#endif
+
 AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, QWidget *parent)
     : SettingsWidget(tr("Additional Midi Settings"), parent) {
     _settings = settings;
@@ -190,6 +202,126 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     connect(reloadInputList, SIGNAL(clicked()), this,
             SLOT(reloadInputPorts()));
     reloadInputPorts();
+
+#ifdef FLUIDSYNTH_SUPPORT
+    // === FluidSynth Settings Section ===
+    _fluidSynthSettingsGroup = new QGroupBox(tr("FluidSynth Settings"), this);
+    QVBoxLayout *fsLayout = new QVBoxLayout(_fluidSynthSettingsGroup);
+
+    // SoundFont list with management buttons
+    QLabel *sfLabel = new QLabel(tr("SoundFonts (top = highest priority):"), _fluidSynthSettingsGroup);
+    fsLayout->addWidget(sfLabel);
+
+    QHBoxLayout *sfRow = new QHBoxLayout();
+    _soundFontList = new QListWidget(_fluidSynthSettingsGroup);
+    _soundFontList->setMinimumHeight(100);
+    sfRow->addWidget(_soundFontList, 1);
+
+    QVBoxLayout *sfBtnCol = new QVBoxLayout();
+    _addSoundFontBtn = new QPushButton(tr("Add..."), _fluidSynthSettingsGroup);
+    _removeSoundFontBtn = new QPushButton(tr("Remove"), _fluidSynthSettingsGroup);
+    _moveSoundFontUpBtn = new QPushButton(tr("Up"), _fluidSynthSettingsGroup);
+    _moveSoundFontDownBtn = new QPushButton(tr("Down"), _fluidSynthSettingsGroup);
+    _downloadDefaultSoundFontBtn = new QPushButton(tr("Download Default..."), _fluidSynthSettingsGroup);
+    sfBtnCol->addWidget(_addSoundFontBtn);
+    sfBtnCol->addWidget(_removeSoundFontBtn);
+    sfBtnCol->addWidget(_moveSoundFontUpBtn);
+    sfBtnCol->addWidget(_moveSoundFontDownBtn);
+    sfBtnCol->addWidget(_downloadDefaultSoundFontBtn);
+    sfBtnCol->addStretch();
+    sfRow->addLayout(sfBtnCol);
+    fsLayout->addLayout(sfRow);
+
+    connect(_addSoundFontBtn, SIGNAL(clicked()), this, SLOT(addSoundFont()));
+    connect(_removeSoundFontBtn, SIGNAL(clicked()), this, SLOT(removeSoundFont()));
+    connect(_moveSoundFontUpBtn, SIGNAL(clicked()), this, SLOT(moveSoundFontUp()));
+    connect(_moveSoundFontDownBtn, SIGNAL(clicked()), this, SLOT(moveSoundFontDown()));
+    connect(_downloadDefaultSoundFontBtn, SIGNAL(clicked()), this, SLOT(showDownloadSoundFontDialog()));
+
+    // Audio driver
+    QHBoxLayout *driverRow = new QHBoxLayout();
+    driverRow->addWidget(new QLabel(tr("Audio driver:"), _fluidSynthSettingsGroup));
+    _audioDriverCombo = new QComboBox(_fluidSynthSettingsGroup);
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    _audioDriverCombo->addItems(engine->availableAudioDrivers());
+    if (!engine->audioDriver().isEmpty()) {
+        _audioDriverCombo->setCurrentText(engine->audioDriver());
+    }
+    driverRow->addWidget(_audioDriverCombo, 1);
+    fsLayout->addLayout(driverRow);
+    connect(_audioDriverCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onAudioDriverChanged(QString)));
+
+    // Gain slider
+    QHBoxLayout *gainRow = new QHBoxLayout();
+    gainRow->addWidget(new QLabel(tr("Gain:"), _fluidSynthSettingsGroup));
+    _gainSlider = new QSlider(Qt::Horizontal, _fluidSynthSettingsGroup);
+    _gainSlider->setMinimum(0);
+    _gainSlider->setMaximum(500); // 0.0 - 5.0 in steps of 0.01
+    _gainSlider->setValue(static_cast<int>(engine->gain() * 100.0));
+    gainRow->addWidget(_gainSlider, 1);
+    _gainValueLabel = new QLabel(QString::number(engine->gain(), 'f', 2), _fluidSynthSettingsGroup);
+    _gainValueLabel->setFixedWidth(40);
+    gainRow->addWidget(_gainValueLabel);
+    fsLayout->addLayout(gainRow);
+    connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
+
+    // Sample rate
+    QHBoxLayout *srRow = new QHBoxLayout();
+    srRow->addWidget(new QLabel(tr("Sample rate:"), _fluidSynthSettingsGroup));
+    _sampleRateCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _sampleRateCombo->addItems({"22050", "44100", "48000", "96000"});
+    
+    // Set fallback to 48000 if engine returned something not in the list, or just exactly 48000
+    QString engineRate = QString::number(static_cast<int>(engine->sampleRate()));
+    if (_sampleRateCombo->findText(engineRate) != -1) {
+        _sampleRateCombo->setCurrentText(engineRate);
+    } else {
+        _sampleRateCombo->setCurrentText("48000");
+    }
+    
+    srRow->addWidget(_sampleRateCombo, 1);
+    fsLayout->addLayout(srRow);
+    connect(_sampleRateCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onSampleRateChanged(QString)));
+
+    // Reverb Engine
+    QHBoxLayout *reverbEngineRow = new QHBoxLayout();
+    reverbEngineRow->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup));
+    _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _reverbEngineCombo->addItem(tr("FDN Reverb (Default)"), "fdn");
+    _reverbEngineCombo->addItem(tr("Freeverb (Pre-2.1.0)"), "free");
+    _reverbEngineCombo->addItem(tr("LEXverb"), "lex");
+    _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
+    
+    int engineIdx = _reverbEngineCombo->findData(engine->reverbEngine());
+    if (engineIdx != -1) {
+        _reverbEngineCombo->setCurrentIndex(engineIdx);
+    }
+
+    reverbEngineRow->addWidget(_reverbEngineCombo, 1);
+    fsLayout->addLayout(reverbEngineRow);
+    connect(_reverbEngineCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onReverbEngineChanged(int)));
+
+    // Reverb and Chorus
+    QHBoxLayout *fxRow = new QHBoxLayout();
+    _reverbCheckBox = new QCheckBox(tr("Reverb"), _fluidSynthSettingsGroup);
+    _reverbCheckBox->setChecked(engine->reverbEnabled());
+    fxRow->addWidget(_reverbCheckBox);
+    _chorusCheckBox = new QCheckBox(tr("Chorus"), _fluidSynthSettingsGroup);
+    _chorusCheckBox->setChecked(engine->chorusEnabled());
+    fxRow->addWidget(_chorusCheckBox);
+    fxRow->addStretch();
+    fsLayout->addLayout(fxRow);
+    connect(_reverbCheckBox, SIGNAL(toggled(bool)), this, SLOT(onReverbToggled(bool)));
+    connect(_chorusCheckBox, SIGNAL(toggled(bool)), this, SLOT(onChorusToggled(bool)));
+
+    layout->addWidget(_fluidSynthSettingsGroup, 3, 0, 1, 6);
+
+    // Populate SoundFont list from engine
+    refreshSoundFontList();
+
+    // Set initial enabled state
+    updateFluidSynthSettingsEnabled();
+#endif
 }
 
 void MidiSettingsWidget::reloadInputPorts() {
@@ -251,6 +383,10 @@ void MidiSettingsWidget::outputChanged(QListWidgetItem *item) {
         MidiOutput::setOutputPort(item->text());
 
         reloadOutputPorts();
+
+#ifdef FLUIDSYNTH_SUPPORT
+        updateFluidSynthSettingsEnabled();
+#endif
     }
 }
 
@@ -270,3 +406,144 @@ void MidiSettingsWidget::refreshColors() {
 
     update();
 }
+
+#ifdef FLUIDSYNTH_SUPPORT
+void MidiSettingsWidget::updateFluidSynthSettingsEnabled() {
+    bool enabled = MidiOutput::isFluidSynthOutput();
+    _fluidSynthSettingsGroup->setEnabled(enabled);
+}
+
+void MidiSettingsWidget::addSoundFont() {
+    QStringList files = QFileDialog::getOpenFileNames(
+        this,
+        tr("Select SoundFont Files"),
+        QString(),
+        tr("SoundFont Files (*.sf2 *.sf3 *.SF2 *.SF3);;All Files (*)")
+    );
+
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    for (const QString &file : files) {
+        engine->loadSoundFont(file);
+    }
+    refreshSoundFontList();
+}
+
+void MidiSettingsWidget::removeSoundFont() {
+    int row = _soundFontList->currentRow();
+    if (row < 0) {
+        return;
+    }
+
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+
+    // The list is displayed in priority order (highest first = last loaded first)
+    // So row 0 maps to the last item in _loadedFonts
+    int reversedIndex = fonts.size() - 1 - row;
+    if (reversedIndex >= 0 && reversedIndex < fonts.size()) {
+        engine->unloadSoundFont(fonts[reversedIndex].first);
+    }
+    refreshSoundFontList();
+}
+
+void MidiSettingsWidget::moveSoundFontUp() {
+    int row = _soundFontList->currentRow();
+    if (row <= 0) {
+        return;
+    }
+
+    // Rebuild the entire stack with swapped items
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+
+    // Build path list in priority order (highest first = reversed load order)
+    QStringList paths;
+    for (int i = fonts.size() - 1; i >= 0; --i) {
+        paths.append(fonts[i].second);
+    }
+
+    // Swap the item up
+    paths.swapItemsAt(row, row - 1);
+
+    engine->setSoundFontStack(paths);
+    refreshSoundFontList();
+    _soundFontList->setCurrentRow(row - 1);
+}
+
+void MidiSettingsWidget::moveSoundFontDown() {
+    int row = _soundFontList->currentRow();
+    if (row < 0 || row >= _soundFontList->count() - 1) {
+        return;
+    }
+
+    // Rebuild the entire stack with swapped items
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+
+    // Build path list in priority order (highest first = reversed load order)
+    QStringList paths;
+    for (int i = fonts.size() - 1; i >= 0; --i) {
+        paths.append(fonts[i].second);
+    }
+
+    // Swap the item down
+    paths.swapItemsAt(row, row + 1);
+
+    engine->setSoundFontStack(paths);
+    refreshSoundFontList();
+    _soundFontList->setCurrentRow(row + 1);
+}
+
+void MidiSettingsWidget::onAudioDriverChanged(const QString &driver) {
+    FluidSynthEngine::instance()->setAudioDriver(driver);
+}
+
+void MidiSettingsWidget::onGainChanged(int value) {
+    double gain = value / 100.0;
+    _gainValueLabel->setText(QString::number(gain, 'f', 2));
+    FluidSynthEngine::instance()->setGain(gain);
+}
+
+void MidiSettingsWidget::onSampleRateChanged(const QString &rate) {
+    FluidSynthEngine::instance()->setSampleRate(rate.toDouble());
+}
+
+void MidiSettingsWidget::onReverbEngineChanged(int index) {
+    QString engine = _reverbEngineCombo->itemData(index).toString();
+    FluidSynthEngine::instance()->setReverbEngine(engine);
+}
+
+void MidiSettingsWidget::onReverbToggled(bool enabled) {
+    FluidSynthEngine::instance()->setReverbEnabled(enabled);
+}
+
+void MidiSettingsWidget::onChorusToggled(bool enabled) {
+    FluidSynthEngine::instance()->setChorusEnabled(enabled);
+}
+
+void MidiSettingsWidget::refreshSoundFontList() {
+    _soundFontList->clear();
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+
+    // Display in priority order: highest priority first (last loaded = top)
+    for (int i = fonts.size() - 1; i >= 0; --i) {
+        QFileInfo fi(fonts[i].second);
+        _soundFontList->addItem(fi.fileName());
+        // Store full path in the item's tooltip
+        _soundFontList->item(_soundFontList->count() - 1)->setToolTip(fonts[i].second);
+    }
+}
+
+void MidiSettingsWidget::showDownloadSoundFontDialog() {
+    DownloadSoundFontDialog *dialog = new DownloadSoundFontDialog(this);
+    connect(dialog, &DownloadSoundFontDialog::soundFontDownloaded, this, [this](const QString &path) {
+        FluidSynthEngine::instance()->loadSoundFont(path);
+        refreshSoundFontList();
+    });
+    dialog->exec();
+    dialog->deleteLater();
+}
+
+#endif
+

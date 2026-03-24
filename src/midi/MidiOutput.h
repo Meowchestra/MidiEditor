@@ -110,6 +110,17 @@ public:
      */
     static bool isConnected();
 
+#ifdef FLUIDSYNTH_SUPPORT
+    /**
+     * \brief Checks if FluidSynth is the current output.
+     * \return True if the current output port is FluidSynth
+     */
+    static bool isFluidSynthOutput();
+
+    /** \brief Name used for the FluidSynth virtual output port */
+    static const QString FLUIDSYNTH_PORT_NAME;
+#endif
+
     // === Channel and Program Management ===
 
     /**

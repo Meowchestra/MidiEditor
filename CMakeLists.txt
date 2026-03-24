@@ -187,6 +187,32 @@ target_link_libraries(MidiEditor PRIVATE
 find_package(OpenGL REQUIRED)
 target_link_libraries(MidiEditor PRIVATE ${OPENGL_LIBRARIES})
 
+# Optional FluidSynth support for built-in synthesizer
+find_package(PkgConfig QUIET)
+if(PkgConfig_FOUND)
+    pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth)
+endif()
+if(NOT FLUIDSYNTH_FOUND)
+    find_library(FLUIDSYNTH_LIBRARY NAMES fluidsynth libfluidsynth)
+    find_path(FLUIDSYNTH_INCLUDE_DIR NAMES fluidsynth.h)
+    if(FLUIDSYNTH_LIBRARY AND FLUIDSYNTH_INCLUDE_DIR)
+        set(FLUIDSYNTH_FOUND TRUE)
+    endif()
+endif()
+
+if(FLUIDSYNTH_FOUND)
+    message(STATUS "FluidSynth found - enabling built-in synthesizer support")
+    target_compile_definitions(MidiEditor PRIVATE FLUIDSYNTH_SUPPORT)
+    if(TARGET PkgConfig::FLUIDSYNTH)
+        target_link_libraries(MidiEditor PRIVATE PkgConfig::FLUIDSYNTH)
+    else()
+        target_include_directories(MidiEditor PRIVATE ${FLUIDSYNTH_INCLUDE_DIR})
+        target_link_libraries(MidiEditor PRIVATE ${FLUIDSYNTH_LIBRARY})
+    endif()
+else()
+    message(STATUS "FluidSynth not found - built-in synthesizer disabled")
+endif()
+
 # Additional linking for MinGW compatibility
 if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_options(MidiEditor PRIVATE -Wl,--allow-multiple-definition)
