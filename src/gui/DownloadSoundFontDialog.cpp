@@ -51,53 +51,76 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
     // Define available high-quality SoundFonts
     _items = {
         {
-            tr("GeneralUser GS (Warning: Downloads as ZIP)"),
+            tr("GeneralUser GS"),
             tr("30.8 MB"),
-            tr("SF2 (ZIP)"),
-            QStringLiteral("https://drive.usercontent.google.com/download?id=12ZzM70Nxnr4vqyUF0bbRKE_HXQgLRNid&export=download&authuser=0"),
-            QStringLiteral("GeneralUser_GS.zip")
+            tr("SF2"),
+            QStringLiteral("https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/refs/heads/main/GeneralUser-GS.sf2"),
+            QStringLiteral("GeneralUser-GS.sf2"),
+            false
+        },
+        {
+            tr("MS Basic v2.0 (MuseScore 4)"),
+            tr("38 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
+            QStringLiteral("MS_Basic-v2.0.0.sf3"),
+            false
+        },
+        {
+            tr("MS Basic v2.0 (Uncompressed)"),
+            tr("205 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
+            QStringLiteral("MS_Basic-v2.0.0.sf2"),
+            false
         },
         {
             tr("MS Basic (MuseScore 4)"),
             tr("48.9 MB"),
             tr("SF3"),
             QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/MS%20Basic.sf3"),
-            QStringLiteral("MS_Basic.sf3")
+            QStringLiteral("MS Basic.sf3"),
+            true
         },
         {
-            tr("MS Basic HQ (Uncompressed)"),
+            tr("MS Basic (Uncompressed)"),
             tr("466 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/3001/MS_Basic.sf2"),
-            QStringLiteral("MS_Basic.sf2")
+            QStringLiteral("MS_Basic.sf2"),
+            true
         },
         {
             tr("MuseScore_General (MuseScore 3)"),
             tr("35.9 MB"),
             tr("SF3"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3"),
-            QStringLiteral("MuseScore_General.sf3")
+            QStringLiteral("MuseScore_General.sf3"),
+            true
         },
         {
             tr("MuseScore_General (Uncompressed)"),
             tr("208 MB"),
             tr("SF2"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2"),
-            QStringLiteral("MuseScore_General.sf2")
+            QStringLiteral("MuseScore_General.sf2"),
+            true
         },
         {
             tr("FluidR3Mono_GM (MuseScore 2)"),
             tr("22.6 MB"),
             tr("SF3"),
             QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/FluidR3Mono_GM.sf3"),
-            QStringLiteral("FluidR3Mono_GM.sf3")
+            QStringLiteral("FluidR3Mono_GM.sf3"),
+            true
         },
         {
             tr("TimGM6mb (MuseScore 1)"),
             tr("5.7 MB"),
             tr("SF2"),
             QStringLiteral("https://sourceforge.net/p/mscore/code/HEAD/tree/trunk/mscore/share/sound/TimGM6mb.sf2?format=raw"),
-            QStringLiteral("TimGM6mb.sf2")
+            QStringLiteral("TimGM6mb.sf2"),
+            true
         }
     };
 
@@ -137,6 +160,14 @@ void DownloadSoundFontDialog::setupUI() {
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     mainLayout->addWidget(_table);
 
+    QHBoxLayout *bottomLayout = new QHBoxLayout();
+    
+    _showLegacyCheckBox = new QCheckBox(tr("Show Legacy SoundFonts"), this);
+    bottomLayout->addWidget(_showLegacyCheckBox);
+    connect(_showLegacyCheckBox, &QCheckBox::toggled, this, &DownloadSoundFontDialog::populateTable);
+    
+    bottomLayout->addStretch();
+
     QHBoxLayout *btnLayout = new QHBoxLayout();
     
     _findMoreBtn = new QPushButton(tr("Find More Online..."), this);
@@ -149,6 +180,7 @@ void DownloadSoundFontDialog::setupUI() {
     
     btnLayout->addWidget(_downloadBtn);
     btnLayout->addWidget(_closeBtn);
+    mainLayout->addLayout(bottomLayout);
     mainLayout->addLayout(btnLayout);
 
     connect(_downloadBtn, SIGNAL(clicked()), this, SLOT(onDownloadButtonClicked()));
@@ -164,6 +196,7 @@ void DownloadSoundFontDialog::setupUI() {
 void DownloadSoundFontDialog::populateTable() {
     _table->setRowCount(_items.size());
     QString currentDir = getSoundFontsDirectory();
+    bool showLegacy = _showLegacyCheckBox->isChecked();
 
     for (int i = 0; i < _items.size(); ++i) {
         const auto &item = _items[i];
@@ -184,6 +217,9 @@ void DownloadSoundFontDialog::populateTable() {
         _table->setItem(i, 0, nameItem);
         _table->setItem(i, 1, sizeItem);
         _table->setItem(i, 2, formatItem);
+        
+        // Hide legacy items if checkbox is unchecked
+        _table->setRowHidden(i, item.isLegacy && !showLegacy);
     }
 }
 

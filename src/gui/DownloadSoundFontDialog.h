@@ -38,6 +38,7 @@ struct SoundFontDownloadItem {
     QString format;
     QString url;
     QString filename;
+    bool isLegacy;
 };
 
 /**
@@ -73,6 +74,7 @@ private:
     QString extractZipAndFindSoundFont(const QString &zipPath) const;
 
     QTableWidget *_table;
+    QCheckBox *_showLegacyCheckBox;
     QPushButton *_downloadBtn;
     QPushButton *_findMoreBtn;
     QPushButton *_closeBtn;
