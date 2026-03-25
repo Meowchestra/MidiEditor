@@ -81,7 +81,7 @@ target("MidiEditor") do
     add_rules("qt.widgetapp")
     add_frameworks({
         "QtGui", "QtWidgets", "QtCore", "QtNetwork",
-        "QtXml", "QtMultimedia", "QtOpenGL", "QtOpenGLWidgets"
+        "QtOpenGL", "QtOpenGLWidgets"
     })
 
     -- Link system OpenGL libraries for cross-platform compatibility
@@ -108,10 +108,31 @@ target("MidiEditor") do
             table.insert(lib_dirs, path.join(fs_dir, "lib"))
         end
 
-        -- On Windows, FluidSynth names the import library "libfluidsynth-3.lib"
-        -- (PREFIX="lib", OUTPUT_NAME="fluidsynth-3"). Other platforms use "libfluidsynth.so/dylib".
-        local fs_libname = is_plat("windows") and "libfluidsynth-3" or "fluidsynth"
-        local fs_lib = find_library(fs_libname, {libdirs = lib_dirs})
+        -- On Windows, try different variations of the FluidSynth library name
+        local lib_names = is_plat("windows") and {"fluidsynth", "libfluidsynth", "libfluidsynth-3"} or {"fluidsynth"}
+        -- Check explicit directory without find_library tests if provided
+        if fs_dir and fs_dir ~= "" then
+            for _, name in ipairs(lib_names) do
+                local ext = is_plat("windows") and ".lib" or (is_plat("macosx") and ".dylib" or ".so")
+                local p = path.join(fs_dir, "lib", name .. ext)
+                if os.isfile(p) then
+                    fs_lib = p
+                    fs_libname = name
+                    break
+                end
+            end
+        end
+        
+        -- Fallback to system search
+        if not fs_lib then
+            for _, name in ipairs(lib_names) do
+                fs_lib = find_library(name, {paths = lib_dirs})
+                if fs_lib then
+                    fs_libname = name
+                    break
+                end
+            end
+        end
         local fs_inc = find_path("fluidsynth.h", inc_dirs)
 
         if fs_lib then
@@ -174,10 +195,9 @@ target("MidiEditor") do
     local bindir = path.join(installdir, "bin")
     local plugindir = path.join(bindir, "plugins")
     set_installdir(installdir)
-	
-    add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
+
     if is_plat("windows") then
-        local configs = {"--plugindir", plugindir, "--libdir", bindir}
+        local configs = {"--release", "--no-translations", "--no-opengl-sw", "--no-system-d3d-compiler", "--no-compiler-runtime", "--skip-plugin-types", "qmltooling,sqldrivers,positioning,sensors,serialport,texttospeech,webengine", "--plugindir", plugindir, "--libdir", bindir}
         set_values("qt.deploy.flags", configs)
         after_install(function (target) 
             os.rm(path.join(bindir, "**", "dsengine.dll"))
@@ -242,7 +262,7 @@ target("installer") do
             pattern = "{(.-)}",
             variables = {
                 PACKAGE = 1,
-                DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase6-dev, qtdeclarative6-dev, libqt6webkit6-dev, libsqlite3-dev, qt6-default, qtmultimedia6-dev, libqt6multimedia6, qttools6-dev-tools, libqt6multimedia6-plugins, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
+                DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase6-dev, qtdeclarative6-dev, libqt6webkit6-dev, libsqlite3-dev, qt6-default, qttools6-dev-tools, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
                 SIZE = 70,
             }
         })

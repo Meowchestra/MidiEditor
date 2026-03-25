@@ -25,6 +25,7 @@
 #include <QString>
 #include <QList>
 
+class QCheckBox;
 class QTableWidget;
 class QPushButton;
 class QNetworkAccessManager;

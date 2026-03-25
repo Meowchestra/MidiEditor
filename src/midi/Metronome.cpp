@@ -3,8 +3,8 @@
 #include "MidiFile.h"
 
 #include <QFileInfo>
-#include <QSoundEffect>
-#include <QUrl>
+#include <QFileInfo>
+#include "../midi/MidiOutput.h"
 
 Metronome *Metronome::_instance = nullptr;
 bool Metronome::_enable = false;
@@ -13,22 +13,11 @@ Metronome::Metronome(QObject *parent) : QObject(parent) {
     _file = 0;
     num = 4;
     denom = 2;
-    _player = new QSoundEffect;
-    _player->setVolume(1.0);
-
-    // Try to load metronome sound file - silently fail if missing
-    try {
-        _player->setSource(QUrl::fromLocalFile(":/run_environment/metronome/metronome-01.wav"));
-    } catch (...) {
-        // Silently ignore - metronome will just be disabled
-    }
+    loudness_cache = 100;
 }
 
 Metronome::~Metronome() {
-    if (_player) {
-        delete _player;
-        _player = nullptr;
-    }
+
 }
 
 void Metronome::setFile(MidiFile *file) {
@@ -45,13 +34,13 @@ void Metronome::measureUpdate(int measure, int tickInMeasure) {
     int pos = tickInMeasure / ticksPerClick;
 
     if (lastMeasure < measure) {
-        click();
+        click(true); // Downbeat
         lastMeasure = measure;
         lastPos = 0;
         return;
     } else {
         if (pos > lastPos) {
-            click();
+            click(false); // Regular beat
             lastPos = pos;
             return;
         }
@@ -82,14 +71,31 @@ void Metronome::reset() {
     lastMeasure = -1;
 }
 
-void Metronome::click() {
+void Metronome::click(bool isDownbeat) {
     if (!enabled()) {
         return;
     }
 
-    // Only play if the audio file was loaded successfully
-    if (_player && _player->status() != QSoundEffect::Error) {
-        _player->play();
+    if (MidiOutput::isConnected()) {
+        QByteArray event;
+        event.resize(3);
+        // Note On, Channel 10 (drums)
+        // Note 76 = High Wood Block, Note 77 = Low Wood Block
+        // (Much punchier and cuts through the mix better than standard click)
+        event[1] = (char)(isDownbeat ? 76 : 77);
+        // Velocity (volume) - maximizing to make it audible
+        event[2] = (char)(qMin(127, (int)(loudness() * 1.27))); // scale 0-100 to 0-127
+        
+        // Send command multiple times simultaneously to mechanically amplify polyphony 
+        // to prevent being drowned out
+        MidiOutput::sendCommand(event);
+        MidiOutput::sendCommand(event);
+        MidiOutput::sendCommand(event);
+        
+        // Note Off follows immediately for click sounds
+        event[0] = (char)0x89;
+        event[2] = 0;
+        MidiOutput::sendCommand(event);
     }
 }
 
@@ -102,14 +108,14 @@ void Metronome::setEnabled(bool b) {
 }
 
 void Metronome::setLoudness(int value) {
-    if (_instance && _instance->_player) {
-        _instance->_player->setVolume(value / 100.0);
+    if (_instance) {
+        _instance->loudness_cache = value;
     }
 }
 
 int Metronome::loudness() {
-    if (_instance && _instance->_player) {
-        return (int) (_instance->_player->volume() * 100);
+    if (_instance) {
+        return _instance->loudness_cache;
     }
     return 100;
 }

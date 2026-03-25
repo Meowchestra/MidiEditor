@@ -41,15 +41,15 @@ void MidiPlayer::play(MidiFile *file) {
     filePlayer = new PlayerThread();
 
     connect(MidiPlayer::playerThread(),
-            SIGNAL(measureChanged(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)));
+            SIGNAL(measureChanged(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)), Qt::DirectConnection);
     connect(MidiPlayer::playerThread(),
-            SIGNAL(measureUpdate(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)));
+            SIGNAL(measureUpdate(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)), Qt::DirectConnection);
     connect(MidiPlayer::playerThread(),
-            SIGNAL(meterChanged(int, int)), Metronome::instance(), SLOT(meterChanged(int, int)));
+            SIGNAL(meterChanged(int, int)), Metronome::instance(), SLOT(meterChanged(int, int)), Qt::DirectConnection);
     connect(MidiPlayer::playerThread(),
-            SIGNAL(playerStopped()), Metronome::instance(), SLOT(playbackStopped()));
+            SIGNAL(playerStopped()), Metronome::instance(), SLOT(playbackStopped()), Qt::DirectConnection);
     connect(MidiPlayer::playerThread(),
-            SIGNAL(playerStarted()), Metronome::instance(), SLOT(playbackStarted()));
+            SIGNAL(playerStarted()), Metronome::instance(), SLOT(playbackStarted()), Qt::DirectConnection);
 #endif
 
     int tickFrom = file->cursorTick();

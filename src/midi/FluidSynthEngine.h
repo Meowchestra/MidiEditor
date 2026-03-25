@@ -27,10 +27,7 @@
 #include <QString>
 #include <QStringList>
 
-// Forward declarations for FluidSynth C types
-typedef struct _fluid_settings_t fluid_settings_t;
-typedef struct _fluid_synth_t fluid_synth_t;
-typedef struct _fluid_audio_driver_t fluid_audio_driver_t;
+#include <fluidsynth.h>
 
 class QSettings;
 

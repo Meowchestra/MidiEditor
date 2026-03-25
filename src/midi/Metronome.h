@@ -19,8 +19,7 @@
 #ifndef METRONOME_H_
 #define METRONOME_H_
 
-// Qt includes
-#include <QSoundEffect>
+#include <QObject>
 
 // Forward declarations
 class MidiFile;
@@ -39,7 +38,7 @@ class MidiFile;
  * - **Enable/disable**: Can be turned on/off as needed
  * - **Automatic sync**: Follows tempo and time signature changes
  *
- * The metronome uses QSoundEffect for audio playback and automatically
+ * The metronome uses General MIDI (Channel 10) for audio playback and automatically
  * tracks the current playback position to provide accurate timing clicks.
  * It integrates with the PlayerThread to receive timing updates.
  */
@@ -137,13 +136,12 @@ private:
     /**
      * \brief Plays a metronome click sound.
      */
-    void click();
+    void click(bool isDownbeat = false);
 
     /** \brief Enable/disable flag */
     static bool _enable;
 
-    /** \brief Audio player for click sounds */
-    QSoundEffect *_player;
+    int loudness_cache;
 };
 
 #endif // METRONOME_H_

@@ -25,6 +25,7 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QPushButton>
+#include <QCheckBox>
 #include <QLabel>
 #include <QMessageBox>
 #include <QStandardPaths>
@@ -264,7 +265,7 @@ void DownloadSoundFontDialog::onDownloadButtonClicked() {
     _downloadReply = _networkManager->get(request);
     connect(_downloadReply, SIGNAL(downloadProgress(qint64,qint64)), this, SLOT(soundFontDownloadProgress(qint64,qint64)));
     connect(_downloadReply, SIGNAL(finished()), this, SLOT(soundFontDownloadFinished()));
-    connect(_downloadReply, SIGNAL(readyRead()), this, [this]() {
+    connect(_downloadReply, &QNetworkReply::readyRead, this, [this]() {
         if (_downloadFile && _downloadReply) {
             _downloadFile->write(_downloadReply->readAll());
         }

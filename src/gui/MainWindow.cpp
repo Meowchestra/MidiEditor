@@ -107,6 +107,10 @@
 #include "../midi/PlayerThread.h"
 #include "../midi/InstrumentDefinitions.h"
 
+#ifdef FLUIDSYNTH_SUPPORT
+#include "../midi/FluidSynthEngine.h"
+#endif
+
 MainWindow::MainWindow(QString initFile)
     : QMainWindow()
       , _initFile(initFile) {
@@ -156,11 +160,11 @@ MainWindow::MainWindow(QString initFile)
     InstrumentDefinitions::instance()->loadOverrides(_settings);
 
     // metronome
-    connect(MidiPlayer::playerThread(), SIGNAL(measureChanged(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)));
-    connect(MidiPlayer::playerThread(), SIGNAL(measureUpdate(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)));
-    connect(MidiPlayer::playerThread(), SIGNAL(meterChanged(int, int)), Metronome::instance(), SLOT(meterChanged(int, int)));
-    connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), Metronome::instance(), SLOT(playbackStopped()));
-    connect(MidiPlayer::playerThread(), SIGNAL(playerStarted()), Metronome::instance(), SLOT(playbackStarted()));
+    connect(MidiPlayer::playerThread(), SIGNAL(measureChanged(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)), Qt::DirectConnection);
+    connect(MidiPlayer::playerThread(), SIGNAL(measureUpdate(int, int)), Metronome::instance(), SLOT(measureUpdate(int, int)), Qt::DirectConnection);
+    connect(MidiPlayer::playerThread(), SIGNAL(meterChanged(int, int)), Metronome::instance(), SLOT(meterChanged(int, int)), Qt::DirectConnection);
+    connect(MidiPlayer::playerThread(), SIGNAL(playerStopped()), Metronome::instance(), SLOT(playbackStopped()), Qt::DirectConnection);
+    connect(MidiPlayer::playerThread(), SIGNAL(playerStarted()), Metronome::instance(), SLOT(playbackStarted()), Qt::DirectConnection);
 
     startDirectory = QDir::homePath();
 

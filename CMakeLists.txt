@@ -116,13 +116,13 @@ if(WIN32)
 endif()
 
 # Try to find Qt6 with different approaches
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Network Xml Multimedia MultimediaWidgets OpenGL OpenGLWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
 
 if(NOT Qt6_FOUND)
     # Try with Qt6_DIR environment variable
     if(DEFINED ENV{Qt6_DIR})
         set(Qt6_DIR $ENV{Qt6_DIR})
-        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network Xml Multimedia MultimediaWidgets OpenGL OpenGLWidgets)
+        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
     endif()
 endif()
 
@@ -130,7 +130,7 @@ if(NOT Qt6_FOUND)
     # Try with QT_ROOT_DIR environment variable
     if(DEFINED ENV{QT_ROOT_DIR})
         set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{QT_ROOT_DIR})
-        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network Xml Multimedia MultimediaWidgets OpenGL OpenGLWidgets)
+        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
     endif()
 endif()
 
@@ -177,8 +177,6 @@ target_link_libraries(MidiEditor PRIVATE
         Qt6::Gui
         Qt6::Widgets
         Qt6::Network
-        Qt6::Xml
-        Qt6::Multimedia
         Qt6::OpenGL
         Qt6::OpenGLWidgets
 )
@@ -454,9 +452,6 @@ if(WIN32)
                 ${QT_BIN_DIR}/Qt6Gui$<$<CONFIG:Debug>:d>.dll
                 ${QT_BIN_DIR}/Qt6Widgets$<$<CONFIG:Debug>:d>.dll
                 ${QT_BIN_DIR}/Qt6Network$<$<CONFIG:Debug>:d>.dll
-                ${QT_BIN_DIR}/Qt6Xml$<$<CONFIG:Debug>:d>.dll
-                ${QT_BIN_DIR}/Qt6Multimedia$<$<CONFIG:Debug>:d>.dll
-                ${QT_BIN_DIR}/Qt6MultimediaWidgets$<$<CONFIG:Debug>:d>.dll
                 $<TARGET_FILE_DIR:MidiEditor>/
             COMMENT "Manually copying Qt DLLs"
         )
@@ -480,13 +475,6 @@ set(PLUGIN_DIR "${BIN_DIR}/plugins")
 
 install(TARGETS MidiEditor DESTINATION "${BIN_DIR}")
 
-# Install metronome file if it exists
-if(EXISTS "${CMAKE_SOURCE_DIR}/run_environment/metronome/metronome-01.wav")
-    install(FILES "run_environment/metronome/metronome-01.wav" DESTINATION "${INSTALL_DIR}/metronome")
-else()
-    message(WARNING "metronome-01.wav not found - metronome functionality may be limited")
-endif()
-
 if(PLAT_WINDOWS)
     # Qt deployment
     find_program(WINDEPLOYQT_EXECUTABLE windeployqt HINTS ${Qt6_DIR}/../../../bin)
@@ -502,7 +490,10 @@ if(PLAT_WINDOWS)
                 file(REMOVE \${FILE})
             endforeach()
             if(NOT \"${FLUIDSYNTH_DIR}\" STREQUAL \"\")
-                file(COPY \"${FLUIDSYNTH_DIR}/bin/libfluidsynth-3.dll\" DESTINATION \${CMAKE_INSTALL_PREFIX}/${BIN_DIR})
+                file(GLOB FS_DLLS \"${FLUIDSYNTH_DIR}/bin/*fluidsynth*.dll\")
+                if(FS_DLLS)
+                    file(COPY \${FS_DLLS} DESTINATION \${CMAKE_INSTALL_PREFIX}/${BIN_DIR})
+                endif()
             endif()
         ")
     endif()

@@ -34,6 +34,7 @@ class QComboBox;
 class QSlider;
 class QGroupBox;
 class QLabel;
+class QPushButton;
 
 /**
  * \class AdditionalMidiSettingsWidget

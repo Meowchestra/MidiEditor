@@ -63,8 +63,6 @@ QT += widgets \
     core \
     gui \
     network \
-    xml \
-    multimedia \
     opengl \
     openglwidgets
 
@@ -81,7 +79,13 @@ FLUIDSYNTH_DIR_ENV = $$(FLUIDSYNTH_DIR)
     exists($$FLUIDSYNTH_DIR_ENV/include/fluidsynth.h) {
         DEFINES += FLUIDSYNTH_SUPPORT
         INCLUDEPATH += $$FLUIDSYNTH_DIR_ENV/include
-        win32: LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -llibfluidsynth-3
+        win32 {
+            exists($$FLUIDSYNTH_DIR_ENV/lib/fluidsynth.lib) {
+                LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -lfluidsynth
+            } else {
+                LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -llibfluidsynth-3
+            }
+        }
         else: LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -lfluidsynth
         message(FluidSynth found at $$FLUIDSYNTH_DIR_ENV - enabling built-in synthesizer support)
     } else {
