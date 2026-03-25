@@ -21,9 +21,10 @@ jobs:
           cmake -S libogg-src -B libogg-build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
             -DBUILD_SHARED_LIBS=OFF `
-            -DBUILD_TESTING=OFF `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DBUILD_TESTING=OFF
           cmake --build libogg-build --config Release --parallel
           cmake --install libogg-build --config Release
 
@@ -37,9 +38,10 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
             -DBUILD_SHARED_LIBS=OFF `
-            -DBUILD_TESTING=OFF `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DBUILD_TESTING=OFF
           cmake --build libvorbis-build --config Release --parallel
           cmake --install libvorbis-build --config Release
 
@@ -53,14 +55,15 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
             -DBUILD_SHARED_LIBS=OFF `
             -DBUILD_PROGRAMS=OFF `
             -DBUILD_EXAMPLES=OFF `
             -DBUILD_TESTING=OFF `
             -DBUILD_DOCS=OFF `
             -DINSTALL_MANPAGES=OFF `
-            -DBUILD_CXXLIBS=OFF `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DBUILD_CXXLIBS=OFF
           cmake --build libflac-build --config Release --parallel
           cmake --install libflac-build --config Release
 
@@ -73,10 +76,11 @@ jobs:
           cmake -S libopus-src -B libopus-build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
             -DBUILD_SHARED_LIBS=OFF `
             -DOPUS_BUILD_TESTING=OFF `
-            -DOPUS_BUILD_PROGRAMS=OFF `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DOPUS_BUILD_PROGRAMS=OFF
           cmake --build libopus-build --config Release --parallel
           cmake --install libopus-build --config Release
 
@@ -97,17 +101,19 @@ jobs:
           cmake -S libsndfile-src -B libsndfile-build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
-            -DBUILD_SHARED_LIBS=OFF `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DBUILD_SHARED_LIBS=ON `
             -DBUILD_PROGRAMS=OFF `
             -DBUILD_EXAMPLES=OFF `
             -DBUILD_TESTING=OFF `
             -DENABLE_EXTERNAL_LIBS=ON `
             -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_C_FLAGS="-DFLAC__NO_DLL" `
             -DENABLE_MPEG=OFF `
             -DENABLE_CPACK=OFF `
             -DINSTALL_MANPAGES=OFF `
-            -DINSTALL_PKGCONFIG_MODULE=OFF `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+            -DINSTALL_PKGCONFIG_MODULE=OFF
           cmake --build libsndfile-build --config Release --parallel
           cmake --install libsndfile-build --config Release
 
@@ -150,6 +156,9 @@ jobs:
         shell: pwsh
         run: |
           $sndfile = "${{ github.workspace }}/libsndfile"
+          $env:PATH = "$sndfile/bin;" + $env:PATH
+          mkdir -Force "${{ github.workspace }}/fluidsynth/bin"
+          cp "$sndfile/bin/*.dll" "${{ github.workspace }}/fluidsynth/bin/"
           cmake -S fluidsynth-src -B fluidsynth-build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/fluidsynth" `
@@ -160,6 +169,8 @@ jobs:
             -Denable-dbus=OFF `
             -Denable-jack=OFF `
             -DBUILD_SHARED_LIBS=ON `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP=TRUE `
             -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
           cmake --build fluidsynth-build --config Release --parallel
           cmake --install fluidsynth-build --config Release
@@ -250,7 +261,10 @@ jobs:
           mkdir $data
           cp ./bin/MidiEditor.exe $data/
           windeployqt --release --no-translations --no-opengl-sw --no-system-d3d-compiler --no-compiler-runtime --skip-plugin-types qmltooling,sqldrivers,positioning,sensors,serialport,texttospeech,webengine --plugindir $data/plugins $data/MidiEditor.exe
-          cp ./fluidsynth/bin/*fluidsynth*.dll $data/
+          Remove-Item -Path ./fluidsynth/bin/vcruntime*.dll -ErrorAction SilentlyContinue
+          Remove-Item -Path ./fluidsynth/bin/msvcp*.dll -ErrorAction SilentlyContinue
+          Remove-Item -Path ./fluidsynth/bin/concrt*.dll -ErrorAction SilentlyContinue
+          cp ./fluidsynth/bin/*.dll $data/
           mkdir ./packaging/org.midieditor.manual/data/
           cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
 
