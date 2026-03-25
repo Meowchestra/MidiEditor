@@ -238,81 +238,82 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     connect(_moveSoundFontDownBtn, SIGNAL(clicked()), this, SLOT(moveSoundFontDown()));
     connect(_downloadDefaultSoundFontBtn, SIGNAL(clicked()), this, SLOT(showDownloadSoundFontDialog()));
 
-    // Audio driver
-    QHBoxLayout *driverRow = new QHBoxLayout();
-    driverRow->addWidget(new QLabel(tr("Audio driver:"), _fluidSynthSettingsGroup));
+    // Audio Driver, Sample Rate, and Reverb Engine on one row
+    QHBoxLayout *topSettingsRow = new QHBoxLayout();
+    topSettingsRow->addWidget(new QLabel(tr("Driver:"), _fluidSynthSettingsGroup));
     _audioDriverCombo = new QComboBox(_fluidSynthSettingsGroup);
     FluidSynthEngine *engine = FluidSynthEngine::instance();
-    _audioDriverCombo->addItems(engine->availableAudioDrivers());
-    if (!engine->audioDriver().isEmpty()) {
-        _audioDriverCombo->setCurrentText(engine->audioDriver());
+    for (const QString &driver : engine->availableAudioDrivers()) {
+        _audioDriverCombo->addItem(FluidSynthEngine::audioDriverDisplayName(driver), driver);
     }
-    driverRow->addWidget(_audioDriverCombo, 1);
-    fsLayout->addLayout(driverRow);
-    connect(_audioDriverCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onAudioDriverChanged(QString)));
+    if (!engine->audioDriver().isEmpty()) {
+        int driverIdx = _audioDriverCombo->findData(engine->audioDriver());
+        if (driverIdx != -1) {
+            _audioDriverCombo->setCurrentIndex(driverIdx);
+        }
+    }
+    topSettingsRow->addWidget(_audioDriverCombo);
+    connect(_audioDriverCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onAudioDriverChanged(int)));
 
-    // Gain slider
-    QHBoxLayout *gainRow = new QHBoxLayout();
-    gainRow->addWidget(new QLabel(tr("Gain:"), _fluidSynthSettingsGroup));
-    _gainSlider = new QSlider(Qt::Horizontal, _fluidSynthSettingsGroup);
-    _gainSlider->setMinimum(0);
-    _gainSlider->setMaximum(500); // 0.0 - 5.0 in steps of 0.01
-    _gainSlider->setValue(static_cast<int>(engine->gain() * 100.0));
-    gainRow->addWidget(_gainSlider, 1);
-    _gainValueLabel = new QLabel(QString::number(engine->gain(), 'f', 2), _fluidSynthSettingsGroup);
-    _gainValueLabel->setFixedWidth(40);
-    gainRow->addWidget(_gainValueLabel);
-    fsLayout->addLayout(gainRow);
-    connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
-
-    // Sample rate
-    QHBoxLayout *srRow = new QHBoxLayout();
-    srRow->addWidget(new QLabel(tr("Sample rate:"), _fluidSynthSettingsGroup));
+    topSettingsRow->addWidget(new QLabel(tr("Rate:"), _fluidSynthSettingsGroup));
     _sampleRateCombo = new QComboBox(_fluidSynthSettingsGroup);
-    _sampleRateCombo->addItems({"22050", "44100", "48000", "96000"});
-    
-    // Set fallback to 48000 if engine returned something not in the list, or just exactly 48000
-    QString engineRate = QString::number(static_cast<int>(engine->sampleRate()));
+    _sampleRateCombo->addItems({"22050 Hz", "44100 Hz", "48000 Hz", "96000 Hz"});
+
+    // Set fallback to 44100 Hz if engine returned something not in the list
+    QString engineRate = QString::number(static_cast<int>(engine->sampleRate())) + " Hz";
     if (_sampleRateCombo->findText(engineRate) != -1) {
         _sampleRateCombo->setCurrentText(engineRate);
     } else {
-        _sampleRateCombo->setCurrentText("48000");
+        _sampleRateCombo->setCurrentText("44100 Hz");
     }
-    
-    srRow->addWidget(_sampleRateCombo, 1);
-    fsLayout->addLayout(srRow);
+    topSettingsRow->addWidget(_sampleRateCombo);
     connect(_sampleRateCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onSampleRateChanged(QString)));
 
-    // Reverb Engine
-    QHBoxLayout *reverbEngineRow = new QHBoxLayout();
-    reverbEngineRow->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup));
+    topSettingsRow->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup));
     _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
     _reverbEngineCombo->addItem(tr("FDN Reverb (Default)"), "fdn");
     _reverbEngineCombo->addItem(tr("Freeverb (Pre-2.1.0)"), "free");
     _reverbEngineCombo->addItem(tr("LEXverb"), "lex");
     _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
-    
+
     int engineIdx = _reverbEngineCombo->findData(engine->reverbEngine());
     if (engineIdx != -1) {
         _reverbEngineCombo->setCurrentIndex(engineIdx);
     }
-
-    reverbEngineRow->addWidget(_reverbEngineCombo, 1);
-    fsLayout->addLayout(reverbEngineRow);
+    topSettingsRow->addWidget(_reverbEngineCombo);
     connect(_reverbEngineCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onReverbEngineChanged(int)));
 
-    // Reverb and Chorus
-    QHBoxLayout *fxRow = new QHBoxLayout();
+    fsLayout->addLayout(topSettingsRow);
+
+    // Gain slider with Reverb & Chorus toggles on the same row
+    QHBoxLayout *gainRow = new QHBoxLayout();
+    gainRow->addWidget(new QLabel(tr("Gain:"), _fluidSynthSettingsGroup));
+    _gainSlider = new QSlider(Qt::Horizontal, _fluidSynthSettingsGroup);
+    _gainSlider->setMinimum(0);
+    _gainSlider->setMaximum(300); // 0.0 - 3.0 in steps of 0.01
+    _gainSlider->setValue(static_cast<int>(engine->gain() * 100.0));
+    gainRow->addWidget(_gainSlider, 1);
+    _gainValueLabel = new QLabel(QString::number(engine->gain(), 'f', 2), _fluidSynthSettingsGroup);
+    _gainValueLabel->setFixedWidth(40);
+    gainRow->addWidget(_gainValueLabel);
+    _gainResetBtn = new QPushButton(tr("Reset"), _fluidSynthSettingsGroup);
+    _gainResetBtn->setFixedWidth(50);
+    _gainResetBtn->setToolTip(tr("Reset gain to default (0.50)"));
+    gainRow->addWidget(_gainResetBtn);
+    connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
+    connect(_gainResetBtn, SIGNAL(clicked()), this, SLOT(onGainReset()));
+
+    // Reverb and Chorus checkboxes to the right of gain
     _reverbCheckBox = new QCheckBox(tr("Reverb"), _fluidSynthSettingsGroup);
     _reverbCheckBox->setChecked(engine->reverbEnabled());
-    fxRow->addWidget(_reverbCheckBox);
+    gainRow->addWidget(_reverbCheckBox);
     _chorusCheckBox = new QCheckBox(tr("Chorus"), _fluidSynthSettingsGroup);
     _chorusCheckBox->setChecked(engine->chorusEnabled());
-    fxRow->addWidget(_chorusCheckBox);
-    fxRow->addStretch();
-    fsLayout->addLayout(fxRow);
+    gainRow->addWidget(_chorusCheckBox);
     connect(_reverbCheckBox, SIGNAL(toggled(bool)), this, SLOT(onReverbToggled(bool)));
     connect(_chorusCheckBox, SIGNAL(toggled(bool)), this, SLOT(onChorusToggled(bool)));
+
+    fsLayout->addLayout(gainRow);
 
     layout->addWidget(_fluidSynthSettingsGroup, 3, 0, 1, 6);
 
@@ -494,7 +495,8 @@ void MidiSettingsWidget::moveSoundFontDown() {
     _soundFontList->setCurrentRow(row + 1);
 }
 
-void MidiSettingsWidget::onAudioDriverChanged(const QString &driver) {
+void MidiSettingsWidget::onAudioDriverChanged(int index) {
+    QString driver = _audioDriverCombo->itemData(index).toString();
     FluidSynthEngine::instance()->setAudioDriver(driver);
 }
 
@@ -504,8 +506,14 @@ void MidiSettingsWidget::onGainChanged(int value) {
     FluidSynthEngine::instance()->setGain(gain);
 }
 
+void MidiSettingsWidget::onGainReset() {
+    _gainSlider->setValue(50); // 0.50 default
+}
+
 void MidiSettingsWidget::onSampleRateChanged(const QString &rate) {
-    FluidSynthEngine::instance()->setSampleRate(rate.toDouble());
+    QString rateStr = rate;
+    rateStr.remove(" Hz");
+    FluidSynthEngine::instance()->setSampleRate(rateStr.toDouble());
 }
 
 void MidiSettingsWidget::onReverbEngineChanged(int index) {

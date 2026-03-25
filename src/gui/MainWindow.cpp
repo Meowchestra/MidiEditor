@@ -143,6 +143,17 @@ MainWindow::MainWindow(QString initFile)
 
 #ifdef FLUIDSYNTH_SUPPORT
     FluidSynthEngine::instance()->loadSettings(_settings);
+    connect(FluidSynthEngine::instance(), &FluidSynthEngine::engineRestarted, this, [this]() {
+        if (this->file && MidiOutput::isConnected()) {
+            MidiOutput::resetChannelPrograms();
+            for (int ch = 0; ch < 16; ch++) {
+                int prog = this->file->channel(ch)->progAtTick(0);
+                if (prog >= 0) {
+                    MidiOutput::sendProgram(ch, prog);
+                }
+            }
+        }
+    });
 #endif
 
     _quantizationGrid = _settings->value("quantization", 3).toInt();

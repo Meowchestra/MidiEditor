@@ -44,7 +44,7 @@ FluidSynthEngine::FluidSynthEngine()
       _audioDriverName(),
       _reverbEngine("fdn"),
       _gain(0.5),
-      _sampleRate(48000.0),
+      _sampleRate(44100.0),
       _reverbEnabled(true),
       _chorusEnabled(true) {
 }
@@ -105,6 +105,13 @@ bool FluidSynthEngine::initialize() {
     qDebug() << "  Audio driver:" << _audioDriverName;
     qDebug() << "  Sample rate:" << _sampleRate;
     qDebug() << "  Gain:" << _gain;
+
+    // Load any pending SoundFonts from saved settings
+    if (!_pendingSoundFontPaths.isEmpty()) {
+        setSoundFontStack(_pendingSoundFontPaths);
+        _pendingSoundFontPaths.clear();
+    }
+
     return true;
 }
 
@@ -156,6 +163,15 @@ int FluidSynthEngine::loadSoundFont(const QString &path) {
     if (!fi.exists() || !fi.isReadable()) {
         qWarning() << "FluidSynth: SoundFont file not found or not readable:" << path;
         return -1;
+    }
+
+    // Check for duplicates
+    QString canonicalPath = fi.canonicalFilePath();
+    for (const auto &pair : _loadedFonts) {
+        if (QFileInfo(pair.second).canonicalFilePath() == canonicalPath) {
+            qDebug() << "FluidSynth: SoundFont already loaded:" << path;
+            return pair.first;
+        }
     }
 
     // reset_presets=1 means FluidSynth recalculates preset assignments after loading
@@ -320,8 +336,14 @@ void FluidSynthEngine::setAudioDriver(const QString &driver) {
     _audioDriverName = driver;
     if (_initialized) {
         // Audio driver change requires full restart
+        QStringList currentFonts;
+        for (const auto &pair : _loadedFonts) {
+            currentFonts.append(pair.second);
+        }
         shutdown();
         initialize();
+        // Reload SoundFonts
+        setSoundFontStack(currentFonts);
     }
 }
 
@@ -412,11 +434,43 @@ QStringList FluidSynthEngine::availableAudioDrivers() const {
             &drivers,
             [](void *data, const char * /*name*/, const char *option) {
                 QStringList *list = static_cast<QStringList*>(data);
-                list->append(QString::fromUtf8(option));
+                QString driverName = QString::fromUtf8(option);
+                // Filter out the "file" driver (not useful for real-time playback)
+                if (driverName != QLatin1String("file")) {
+                    list->append(driverName);
+                }
             });
         delete_fluid_settings(tmpSettings);
     }
     return drivers;
+}
+
+QString FluidSynthEngine::audioDriverDisplayName(const QString &driver) {
+    static const QMap<QString, QString> displayNames = {
+        {"dsound", "DirectSound"},
+        {"wasapi", "WASAPI"},
+        {"waveout", "WaveOut"},
+        {"pulseaudio", "PulseAudio"},
+        {"alsa", "ALSA"},
+        {"jack", "JACK"},
+        {"coreaudio", "CoreAudio"},
+        {"portaudio", "PortAudio"},
+        {"sdl2", "SDL2"},
+        {"pipewire", "PipeWire"},
+        {"opensles", "OpenSL ES"},
+        {"oboe", "Oboe"}
+    };
+    return displayNames.value(driver, driver);
+}
+
+bool FluidSynthEngine::isSoundFontLoaded(const QString &path) const {
+    QString canonicalPath = QFileInfo(path).canonicalFilePath();
+    for (const auto &pair : _loadedFonts) {
+        if (QFileInfo(pair.second).canonicalFilePath() == canonicalPath) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ============================================================================
@@ -451,7 +505,7 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
     _audioDriverName = settings->value("audioDriver", "").toString();
     _reverbEngine = settings->value("reverbEngine", "fdn").toString();
     _gain = settings->value("gain", 0.5).toDouble();
-    _sampleRate = settings->value("sampleRate", 48000.0).toDouble();
+    _sampleRate = settings->value("sampleRate", 44100.0).toDouble();
     _reverbEnabled = settings->value("reverbEnabled", true).toBool();
     _chorusEnabled = settings->value("chorusEnabled", true).toBool();
 
@@ -459,9 +513,13 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
 
     settings->endGroup();
 
-    // If we're already initialized, reload SoundFonts
+    // Store paths for deferred loading when engine initializes
+    _pendingSoundFontPaths = fontPaths;
+
+    // If we're already initialized, reload SoundFonts immediately
     if (_initialized && !fontPaths.isEmpty()) {
         setSoundFontStack(fontPaths);
+        _pendingSoundFontPaths.clear();
     }
 }
 

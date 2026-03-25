@@ -192,6 +192,7 @@ private:
     QComboBox *_audioDriverCombo;
     QSlider *_gainSlider;
     QLabel *_gainValueLabel;
+    QPushButton *_gainResetBtn;
     QComboBox *_sampleRateCombo;
     QComboBox *_reverbEngineCombo;
     QCheckBox *_reverbCheckBox;
@@ -203,8 +204,9 @@ private slots:
     void removeSoundFont();
     void moveSoundFontUp();
     void moveSoundFontDown();
-    void onAudioDriverChanged(const QString &driver);
+    void onAudioDriverChanged(int index);
     void onGainChanged(int value);
+    void onGainReset();
     void onSampleRateChanged(const QString &rate);
     void onReverbEngineChanged(int index);
     void onReverbToggled(bool enabled);

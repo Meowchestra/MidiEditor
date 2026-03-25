@@ -141,6 +141,16 @@ public:
     bool chorusEnabled() const;
     QStringList availableAudioDrivers() const;
 
+    /**
+     * \brief Returns a human-readable display name for an audio driver.
+     */
+    static QString audioDriverDisplayName(const QString &driver);
+
+    /**
+     * \brief Checks if a SoundFont with the same path is already loaded.
+     */
+    bool isSoundFontLoaded(const QString &path) const;
+
     // === Persistence ===
 
     /**
@@ -157,6 +167,7 @@ signals:
     void soundFontLoaded(int sfontId, const QString &path);
     void soundFontUnloaded(int sfontId);
     void initializationFailed(const QString &error);
+    void engineRestarted();
 
 private:
     FluidSynthEngine();
@@ -173,6 +184,9 @@ private:
 
     // SoundFont tracking: sfont_id → file path (in load order, last = highest priority)
     QList<QPair<int, QString>> _loadedFonts;
+
+    // Deferred SoundFont paths loaded from settings before engine init
+    QStringList _pendingSoundFontPaths;
 
     // Cached settings values
     QString _audioDriverName;

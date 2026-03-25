@@ -28,7 +28,7 @@
 #include <QCheckBox>
 #include <QLabel>
 #include <QMessageBox>
-#include <QStandardPaths>
+#include <QCoreApplication>
 #include <QDir>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -147,7 +147,7 @@ void DownloadSoundFontDialog::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
     QLabel *infoLabel = new QLabel(tr("Select a SoundFont to download and install automatically.\n"
-                                      "Files will be saved to your application data directory."));
+                                      "Files will be saved to the soundfonts folder."));
     mainLayout->addWidget(infoLabel);
 
     _table = new QTableWidget(this);
@@ -209,7 +209,7 @@ void DownloadSoundFontDialog::populateTable() {
         // Check if already downloaded
         QString destPath = QDir(currentDir).filePath(item.filename);
         if (QFile::exists(destPath)) {
-            nameItem->setText(item.name + tr(" (Installed)"));
+            nameItem->setText(item.name + tr(" (Downloaded)"));
             nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEnabled);
             sizeItem->setFlags(sizeItem->flags() & ~Qt::ItemIsEnabled);
             formatItem->setFlags(formatItem->flags() & ~Qt::ItemIsEnabled);
@@ -225,8 +225,8 @@ void DownloadSoundFontDialog::populateTable() {
 }
 
 QString DownloadSoundFontDialog::getSoundFontsDirectory() const {
-    QString appDataDir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir dir(appDataDir);
+    QString appDir = QCoreApplication::applicationDirPath();
+    QDir dir(appDir);
     if (!dir.exists("soundfonts")) {
         dir.mkpath("soundfonts");
     }
@@ -321,7 +321,7 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
         }
         
         populateTable(); // Refresh table to show "Installed"
-        QMessageBox::information(this, tr("Download Complete"), tr("SoundFont generated successfully and added to your configuration."));
+        QMessageBox::information(this, tr("Download Complete"), tr("SoundFont saved successfully and added to your configuration."));
         emit soundFontDownloaded(finalPath);
     }
 

@@ -13,6 +13,74 @@ jobs:
     runs-on: windows-latest
     if: always() && !cancelled() && !failure()
     steps:
+      - name: Clone libogg
+        run: git clone --depth=1 https://github.com/xiph/ogg.git libogg-src
+
+      - name: Build libogg
+        shell: pwsh
+        run: |
+          cmake -S libogg-src -B libogg-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_TESTING=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libogg-build --config Release --parallel
+          cmake --install libogg-build --config Release
+
+      - name: Clone libvorbis
+        run: git clone --depth=1 https://github.com/xiph/vorbis.git libvorbis-src
+
+      - name: Build libvorbis
+        shell: pwsh
+        run: |
+          cmake -S libvorbis-src -B libvorbis-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_TESTING=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libvorbis-build --config Release --parallel
+          cmake --install libvorbis-build --config Release
+
+      - name: Clone libflac
+        run: git clone --depth=1 https://github.com/xiph/flac.git libflac-src
+
+      - name: Build libflac
+        shell: pwsh
+        run: |
+          cmake -S libflac-src -B libflac-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_PROGRAMS=OFF `
+            -DBUILD_EXAMPLES=OFF `
+            -DBUILD_TESTING=OFF `
+            -DBUILD_DOCS=OFF `
+            -DINSTALL_MANPAGES=OFF `
+            -DBUILD_CXXLIBS=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libflac-build --config Release --parallel
+          cmake --install libflac-build --config Release
+
+      - name: Clone libopus
+        run: git clone --depth=1 https://github.com/xiph/opus.git libopus-src
+
+      - name: Build libopus
+        shell: pwsh
+        run: |
+          cmake -S libopus-src -B libopus-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DOPUS_BUILD_TESTING=OFF `
+            -DOPUS_BUILD_PROGRAMS=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libopus-build --config Release --parallel
+          cmake --install libopus-build --config Release
+
       - name: Clone libsndfile
         run: git clone --depth=1 https://github.com/libsndfile/libsndfile.git libsndfile-src
 
@@ -34,7 +102,8 @@ jobs:
             -DBUILD_PROGRAMS=OFF `
             -DBUILD_EXAMPLES=OFF `
             -DBUILD_TESTING=OFF `
-            -DENABLE_EXTERNAL_LIBS=OFF `
+            -DENABLE_EXTERNAL_LIBS=ON `
+            -DCMAKE_PREFIX_PATH="${{ github.workspace }}/libsndfile" `
             -DENABLE_MPEG=OFF `
             -DENABLE_CPACK=OFF `
             -DINSTALL_MANPAGES=OFF `

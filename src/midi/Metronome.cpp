@@ -79,7 +79,8 @@ void Metronome::click(bool isDownbeat) {
     if (MidiOutput::isConnected()) {
         QByteArray event;
         event.resize(3);
-        // Note On, Channel 10 (drums)
+        // Note On, Channel 10 (drums) - channel 9 in 0-indexed
+        event[0] = (char)0x99;
         // Note 76 = High Wood Block, Note 77 = Low Wood Block
         // (Much punchier and cuts through the mix better than standard click)
         event[1] = (char)(isDownbeat ? 76 : 77);
