@@ -34,6 +34,7 @@ jobs:
           cache: 'false'
           modules: 'qtmultimedia'
           archives: 'qtbase qtmultimedia qtopengl'
+          aqtsource: 'git+https://github.com/miurahr/aqtinstall.git'
 
       - name: Setup MSYS2 and Install QtIFW 4.10.0
         uses: msys2/setup-msys2@v2
