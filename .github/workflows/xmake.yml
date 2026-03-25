@@ -8,8 +8,103 @@ on:
       - 'manual/**'
 
 jobs:
-  build:
+  build-libsndfile:
     runs-on: windows-latest
+    if: always() && !cancelled() && !failure()
+    steps:
+      - name: Clone libsndfile
+        run: git clone --depth=1 https://github.com/libsndfile/libsndfile.git libsndfile-src
+
+      - name: Cache libsndfile install
+        id: cache-sndfile
+        uses: actions/cache@v5
+        with:
+          path: libsndfile
+          key: libsndfile-static-${{ hashFiles('libsndfile-src/**') }}
+
+      - name: Build libsndfile
+        if: steps.cache-sndfile.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          cmake -S libsndfile-src -B libsndfile-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/libsndfile" `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DBUILD_PROGRAMS=OFF `
+            -DBUILD_EXAMPLES=OFF `
+            -DBUILD_TESTING=OFF `
+            -DENABLE_EXTERNAL_LIBS=OFF `
+            -DENABLE_MPEG=OFF `
+            -DENABLE_CPACK=OFF `
+            -DINSTALL_MANPAGES=OFF `
+            -DINSTALL_PKGCONFIG_MODULE=OFF `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build libsndfile-build --config Release --parallel
+          cmake --install libsndfile-build --config Release
+
+      - name: Upload libsndfile artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: libsndfile-static-win64
+          path: libsndfile/
+          retention-days: 7
+
+  build-fluidsynth:
+    runs-on: windows-latest
+    needs: build-libsndfile
+    if: always() && !cancelled() && !failure()
+    steps:
+      - name: Clone FluidSynth branch
+        run: |
+          git clone --depth=1 --branch multi-reverb-support https://github.com/FluidSynth/fluidsynth.git fluidsynth-src
+          cd fluidsynth-src
+          git submodule update --init --depth=1 gcem
+          git submodule update --init --depth=1 signalsmith-audio-basics
+          dir gcem
+          dir signalsmith-audio-basics
+
+      - name: Download libsndfile
+        uses: actions/download-artifact@v8
+        with:
+          name: libsndfile-static-win64
+          path: libsndfile
+
+      - name: Cache FluidSynth install
+        id: cache-fs
+        uses: actions/cache@v5
+        with:
+          path: fluidsynth
+          key: fluidsynth-multi-reverb-sndfile-${{ hashFiles('fluidsynth-src/**') }}-${{ hashFiles('libsndfile/**') }}
+
+      - name: Build FluidSynth
+        if: steps.cache-fs.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          $sndfile = "${{ github.workspace }}/libsndfile"
+          cmake -S fluidsynth-src -B fluidsynth-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/fluidsynth" `
+            -DCMAKE_PREFIX_PATH="$sndfile" `
+            -Dosal=cpp11 `
+            -Denable-libinstpatch=OFF `
+            -Denable-tests=OFF `
+            -Denable-dbus=OFF `
+            -Denable-jack=OFF `
+            -DBUILD_SHARED_LIBS=ON `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          cmake --build fluidsynth-build --config Release --parallel
+          cmake --install fluidsynth-build --config Release
+
+      - name: Upload FluidSynth artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: fluidsynth-multi-reverb-win64
+          path: fluidsynth/
+          retention-days: 7
+
+  build-midieditor:
+    runs-on: windows-latest
+    needs: build-fluidsynth
     if: always() && !cancelled() && !failure()
     strategy:
       matrix:
@@ -23,7 +118,7 @@ jobs:
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: latest
-    
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -36,7 +131,7 @@ jobs:
           archives: 'qtbase qtmultimedia qtopengl'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git'
 
-      - name: Setup MSYS2 and Install QtIFW 4.10.0
+      - name: Setup MSYS2 and Install QtIFW
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
@@ -46,71 +141,57 @@ jobs:
       - name: Setup QtIFW Path from MSYS2
         shell: msys2 {0}
         run: |
-          # Find QtIFW tools in MSYS2 environment and convert path to Windows format
-          echo "=== Setting up QtIFW Path ==="
-
-          # Check if tools are installed
           if [ -f "/mingw64/bin/binarycreator.exe" ]; then
-            echo "Found QtIFW tools in /mingw64/bin/"
             QTIFW_UNIX_PATH="/mingw64/bin"
-            # Convert MSYS2 path to Windows path
             QTIFW_WIN_PATH=$(cygpath -w "$QTIFW_UNIX_PATH")
-            echo "MSYS2 path: $QTIFW_UNIX_PATH"
-            echo "Windows path: $QTIFW_WIN_PATH"
-
-            # Save to GitHub environment
             echo "QTIFW_PATH=$QTIFW_WIN_PATH" >> $GITHUB_ENV
             echo "QTIFW_UNIX_PATH=$QTIFW_UNIX_PATH" >> $GITHUB_ENV
-
-            # Test the tools work
-            echo "=== Testing QtIFW Tools ==="
-            echo "Testing binarycreator..."
             "$QTIFW_UNIX_PATH/binarycreator.exe" --help > /dev/null 2>&1 && echo "✓ binarycreator.exe is working"
-            echo "Testing repogen..."
-            "$QTIFW_UNIX_PATH/repogen.exe" --help > /dev/null 2>&1 && echo "✓ repogen.exe is working"
-            echo "QtIFW tools verified successfully!"
           else
-            echo "ERROR: QtIFW tools not found in expected location!"
+            echo "ERROR: QtIFW tools not found!"
             exit 1
           fi
 
       - name: Clear MSYS2 Environment for Build
         shell: pwsh
         run: |
-          # Clear MSYS2 environment variables that interfere with xmake
-          echo "Clearing MSYS2 environment variables..."
           echo "MSYSTEM=" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "Environment cleared for native Windows build"
 
       - uses: actions/checkout@v6
         with:
           fetch-depth: 1
           submodules: true
 
+      - name: Download FluidSynth
+        uses: actions/download-artifact@v8
+        with:
+          name: fluidsynth-multi-reverb-win64
+          path: fluidsynth
+
       - name: Build
+        shell: pwsh
         run: |
-          echo "🔧 Configuring xmake for optimized release build..."
-          xmake config --yes --arch=x64 --toolchain=msvc --mode=release
-          echo "🔨 Building with performance optimizations..."
-          xmake build --jobs=2
+          $fs = "${{ github.workspace }}/fluidsynth"
+          xmake config --yes --arch=x64 --toolchain=msvc --mode=release --fluidsynth_dir="$fs"
+          xmake build --yes --jobs=2
 
       - name: Copy Files
         shell: pwsh
         run: |
-          mkdir ./packaging/org.midieditor.midieditor/data/
-          cp ./bin/MidiEditor.exe ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
-          windeployqt ./packaging/org.midieditor.midieditor/data/MidiEditor.exe
-          mkdir ./packaging/org.midieditor.midieditor/data/metronome
-          cp ./run_environment/metronome/metronome-01.wav ./packaging/org.midieditor.midieditor/data/metronome
+          $data = "./packaging/org.midieditor.midieditor/data"
+          mkdir $data
+          cp ./bin/MidiEditor.exe $data/
+          windeployqt --plugindir $data/plugins $data/MidiEditor.exe
+          cp ./fluidsynth/bin/libfluidsynth-3.dll $data/
+          mkdir $data/metronome
+          cp ./run_environment/metronome/metronome-01.wav $data/metronome/
           mkdir ./packaging/org.midieditor.manual/data/
           cp -Recurse -Path ./manual/ -Destination ./packaging/org.midieditor.manual/data/
 
       - name: Packaging
         shell: pwsh
         run: |
-          # Use the QtIFW path found in previous step
           $binaryCreator = "$env:QTIFW_PATH\binarycreator.exe"
-          echo "Using binarycreator at: $binaryCreator"
           & $binaryCreator --offline-only -c .\scripts\packaging\windows\config.xml -p .\packaging Install.exe
 
       - name: Upload Artifact

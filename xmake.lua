@@ -15,6 +15,11 @@ option("libraries-from-apt", {
     values = {true, false},
     showmenu = is_host("linux") and (linuxos.name() == "ubuntu"),
 })
+option("fluidsynth_dir", {
+    description = "path to pre-built FluidSynth directory",
+    default = "",
+    showmenu = true,
+})
 
 target("MidiEditor") do
     set_languages("cxxlatest")
@@ -72,19 +77,11 @@ target("MidiEditor") do
         set_symbols("debug")
     end
 
-    add_packages({
-        "qt6widgets"
-    })
+    add_packages("qt6widgets")
     add_rules("qt.widgetapp")
     add_frameworks({
-        "QtGui",
-        "QtWidgets",
-        "QtCore",
-        "QtNetwork",
-        "QtXml",
-        "QtMultimedia",
-        "QtOpenGL",
-        "QtOpenGLWidgets"
+        "QtGui", "QtWidgets", "QtCore", "QtNetwork",
+        "QtXml", "QtMultimedia", "QtOpenGL", "QtOpenGLWidgets"
     })
 
     -- Link system OpenGL libraries for cross-platform compatibility
@@ -96,52 +93,48 @@ target("MidiEditor") do
         add_frameworks("OpenGL")
     end
 
-    -- Add custom fluidsynth package definition to pull the multi-reverb-support branch
-    package("fluidsynth_custom")
-        add_deps("fluidsynth")
-        add_urls("https://github.com/FluidSynth/fluidsynth.git", {branch = "multi-reverb-support"})
-        on_install("windows", "linux", "macosx", function (package)
-            local fluidsynth = package:dep("fluidsynth")
-            fluidsynth:script("install")(package)
-        end)
-    package_end()
-
-    -- Require our custom branch package
-    add_requires("fluidsynth_custom", {alias = "fluidsynth", system = false, optional = true})
-
     -- Optional FluidSynth support for built-in synthesizer
     on_load(function (target)
-        if target:pkg("fluidsynth") then
+        import("lib.detect.find_library")
+        import("lib.detect.find_path")
+
+        local fs_dir = get_config("fluidsynth_dir")
+        local inc_dirs = {"/usr/include", "/usr/local/include", "/opt/homebrew/include"}
+        local lib_dirs = {}
+
+        -- If a pre-built dir was provided, search there first
+        if fs_dir and fs_dir ~= "" then
+            table.insert(inc_dirs, 1, path.join(fs_dir, "include"))
+            table.insert(lib_dirs, path.join(fs_dir, "lib"))
+        end
+
+        -- On Windows, FluidSynth names the import library "libfluidsynth-3.lib"
+        -- (PREFIX="lib", OUTPUT_NAME="fluidsynth-3"). Other platforms use "libfluidsynth.so/dylib".
+        local fs_libname = is_plat("windows") and "libfluidsynth-3" or "fluidsynth"
+        local fs_lib = find_library(fs_libname, {libdirs = lib_dirs})
+        local fs_inc = find_path("fluidsynth.h", inc_dirs)
+
+        if fs_lib then
             target:add("defines", "FLUIDSYNTH_SUPPORT")
-            target:add("packages", "fluidsynth")
-            print("FluidSynth pkg found - enabling built-in synthesizer support")
-        else
-            -- Fallback to system-level libraries
-            import("lib.detect.find_library")
-            import("lib.detect.find_path")
-            local fluidsynth_lib = find_library("fluidsynth")
-            local fluidsynth_inc = find_path("fluidsynth.h", {"/usr/include", "/usr/local/include", "/opt/homebrew/include"})
-            if fluidsynth_lib or (is_plat("windows") and find_library("libfluidsynth")) then
-                target:add("defines", "FLUIDSYNTH_SUPPORT")
-                target:add("syslinks", "fluidsynth")
-                if fluidsynth_inc then
-                    target:add("includedirs", fluidsynth_inc)
-                end
-                print("FluidSynth system library found - enabling built-in synthesizer support")
-            else
-                print("FluidSynth not found - built-in synthesizer disabled")
+            target:add("links", fs_libname)
+            if #lib_dirs > 0 then
+                target:add("linkdirs", lib_dirs)
             end
+            if fs_inc then
+                target:add("includedirs", fs_inc)
+            end
+            print("FluidSynth found - enabling built-in synthesizer support")
+        else
+            print("FluidSynth not found - built-in synthesizer disabled")
         end
     end)
 
-    -- Add source files, including only the main rtmidi files (not examples/tests)
     add_files("src/*.cpp")
     add_files("src/MidiEvent/**.cpp")
     add_files("src/gui/**.cpp")
     add_files("src/midi/*.cpp")
     add_files("src/protocol/**.cpp")
     add_files("src/tool/**.cpp")
-    -- Add only the main rtmidi source files
     add_files("src/midi/rtmidi/RtMidi.cpp")
 
     add_files("src/*.h")
@@ -150,7 +143,6 @@ target("MidiEditor") do
     add_files("src/midi/*.h")
     add_files("src/protocol/**.h")
     add_files("src/tool/**.h")
-    -- Add only the main rtmidi header files
     add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")
 
@@ -170,9 +162,7 @@ target("MidiEditor") do
         add_defines("__WINDOWS_MM__")
         add_syslinks("winmm")
         add_files("midieditor.rc")
-        -- Set Windows subsystem to GUI to prevent console window
         set_kind("binary")
-        -- Use MSVC-style linker flags for Windows
         add_ldflags("/SUBSYSTEM:WINDOWS", {force = true})
     elseif is_plat("macosx") then
         add_defines("__MACOSX_CORE__")
@@ -187,10 +177,7 @@ target("MidiEditor") do
 	
     add_installfiles("run_environment/metronome/metronome-01.wav", {prefixdir = "metronome"})
     if is_plat("windows") then
-        local configs = {
-            "--plugindir", plugindir,
-            "--libdir", bindir
-        }
+        local configs = {"--plugindir", plugindir, "--libdir", bindir}
         set_values("qt.deploy.flags", configs)
         after_install(function (target) 
             os.rm(path.join(bindir, "**", "dsengine.dll"))
@@ -213,7 +200,7 @@ target("installer") do
     set_kind("phony")
     set_enabled(is_plat("windows", "linux"))
     add_deps("MidiEditor")
-    
+
     set_installdir(installdir)
     if is_plat("windows") then
         add_deps("manual")
@@ -224,25 +211,20 @@ target("installer") do
             local binarycreator_path = path.join(qtifw_dir, "/bin/binarycreator.exe")
             local repogen_path = path.join(qtifw_dir, "/bin/repogen.exe")
             if config.get("generate-repository") then
-                print("generate site")
-                print("  generate repository")
                 local repo_argv = {
                     "--update-new-components",
                     "--packages", "packaging",
                     path.join(config.buildir(), "website", "repository")
                 }
                 os.iorunv(repogen_path, repo_argv)
-                print("  generate installer")
                 local package_argv = {
                     "--config", "scripts/packaging/windows/config.xml",
                     "--packages", "packaging",
                     path.join(config.buildir(), "website", "MidiEditor.exe")
                 }
                 os.iorunv(binarycreator_path, package_argv)
-                print("  copy online manual")
                 os.cp("manual/*", path.join(config.buildir(), "website"))
             else
-                print("generate off-line installer")
                 local package_argv = {
                     "--config", "scripts/packaging/windows/config.xml",
                     "--packages", "packaging",
@@ -261,7 +243,7 @@ target("installer") do
             variables = {
                 PACKAGE = 1,
                 DEPENDS = "libc6(>=2.19), libfluidsynth3, qtbase6-dev, qtdeclarative6-dev, libqt6webkit6-dev, libsqlite3-dev, qt6-default, qtmultimedia6-dev, libqt6multimedia6, qttools6-dev-tools, libqt6multimedia6-plugins, libasound2, libgstreamer1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, gstreamer1.0-plugins-ugly, gstreamer1.0-libav, gstreamer1.0-doc, gstreamer1.0-tools",
-                SIZE = 70, -- in kb, todo
+                SIZE = 70,
             }
         })
         after_install(function (target, opt)
@@ -273,8 +255,7 @@ target("installer") do
             for _, file in ipairs(os.files(installdir_glob)) do
                 os.runv("chmod", {"644", file})
             end
-            os.runv("chmod", {
-                "+x", path.join(target:installdir(), "bin", target:deps()["MidiEditor"]:filename())})
+            os.runv("chmod", {"+x", path.join(target:installdir(), "bin", target:deps()["MidiEditor"]:filename())})
             os.runv("fakeroot", {"dpkg-deb", "--build", target:installdir()})
         end)
     end

@@ -73,6 +73,38 @@ win32: LIBS += -lopengl32
 unix:!macx: LIBS += -lGL
 macx: LIBS += -framework OpenGL
 
+# Optional FluidSynth support for built-in synthesizer
+# Set FLUIDSYNTH_DIR env var to your pre-built FluidSynth install path
+# e.g. export FLUIDSYNTH_DIR=/path/to/fluidsynth
+FLUIDSYNTH_DIR_ENV = $$(FLUIDSYNTH_DIR)
+!isEmpty(FLUIDSYNTH_DIR_ENV) {
+    exists($$FLUIDSYNTH_DIR_ENV/include/fluidsynth.h) {
+        DEFINES += FLUIDSYNTH_SUPPORT
+        INCLUDEPATH += $$FLUIDSYNTH_DIR_ENV/include
+        win32: LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -llibfluidsynth-3
+        else: LIBS += -L$$FLUIDSYNTH_DIR_ENV/lib -lfluidsynth
+        message(FluidSynth found at $$FLUIDSYNTH_DIR_ENV - enabling built-in synthesizer support)
+    } else {
+        message(FLUIDSYNTH_DIR set but fluidsynth.h not found at $$FLUIDSYNTH_DIR_ENV/include - synthesizer disabled)
+    }
+} else {
+    # Fallback: try system pkg-config (Linux/macOS)
+    unix {
+        FLUIDSYNTH_CHECK = $$system(pkg-config --exists fluidsynth 2>/dev/null && echo yes)
+        equals(FLUIDSYNTH_CHECK, yes) {
+            DEFINES += FLUIDSYNTH_SUPPORT
+            LIBS += $$system(pkg-config --libs fluidsynth)
+            INCLUDEPATH += $$system(pkg-config --cflags-only-I fluidsynth | sed s/-I//g)
+            message(FluidSynth found via pkg-config - enabling built-in synthesizer support)
+        } else {
+            message(FluidSynth not found - built-in synthesizer disabled)
+        }
+    }
+    win32 {
+        message(FluidSynth not found - set FLUIDSYNTH_DIR to enable built-in synthesizer)
+    }
+}
+
 HEADERS += $$files(**.h, true)
 HEADERS -= $$files(src/midi/rtmidi/**.h, true)
 HEADERS += src/midi/rtmidi/RtMidi.h

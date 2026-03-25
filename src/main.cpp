@@ -27,6 +27,7 @@
 #include "midi/MidiOutput.h"
 
 #include <QFile>
+#include <QFileInfo>
 
 #ifdef NO_CONSOLE_MODE
 #include <tchar.h>
@@ -113,6 +114,19 @@ int main(int argc, char *argv[]) {
         qputenv("QT_FONT_DPI", "96"); // Force standard 96 DPI for fonts
         qputenv("QT_USE_PHYSICAL_DPI", "0"); // Don't use physical DPI for font sizing
     }
+
+    // Add plugins/ subdirectory to Qt's plugin search path before QApplication
+    // construction so the platform plugin (qwindows.dll) is found there.
+    // This avoids needing a qt.conf file.
+#ifdef NO_CONSOLE_MODE
+    // In WinMain, argv[0] is empty — use GetModuleFileName instead
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    QString appDir = QFileInfo(QString::fromWCharArray(exePath)).absolutePath();
+#else
+    QString appDir = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
+#endif
+    QCoreApplication::addLibraryPath(appDir + "/plugins");
 
     QApplication a(argc, argv);
 

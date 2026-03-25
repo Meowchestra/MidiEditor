@@ -188,12 +188,41 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(MidiEditor PRIVATE ${OPENGL_LIBRARIES})
 
 # Optional FluidSynth support for built-in synthesizer
-find_package(PkgConfig QUIET)
-if(PkgConfig_FOUND)
-    pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth)
+# Accept pre-built install dir via -DFLUIDSYNTH_DIR=... or FLUIDSYNTH_DIR env var
+if(NOT FLUIDSYNTH_DIR)
+    set(FLUIDSYNTH_DIR "$ENV{FLUIDSYNTH_DIR}")
 endif()
+
+if(FLUIDSYNTH_DIR)
+    # Pre-built path provided — search there first
+    find_library(FLUIDSYNTH_LIBRARY
+        NAMES fluidsynth libfluidsynth libfluidsynth-3
+        PATHS "${FLUIDSYNTH_DIR}/lib"
+        NO_DEFAULT_PATH
+    )
+    find_path(FLUIDSYNTH_INCLUDE_DIR
+        NAMES fluidsynth.h
+        PATHS "${FLUIDSYNTH_DIR}/include"
+        NO_DEFAULT_PATH
+    )
+    if(FLUIDSYNTH_LIBRARY AND FLUIDSYNTH_INCLUDE_DIR)
+        set(FLUIDSYNTH_FOUND TRUE)
+    else()
+        message(WARNING "FLUIDSYNTH_DIR set to '${FLUIDSYNTH_DIR}' but fluidsynth not found there")
+    endif()
+endif()
+
 if(NOT FLUIDSYNTH_FOUND)
-    find_library(FLUIDSYNTH_LIBRARY NAMES fluidsynth libfluidsynth)
+    # Fallback: pkg-config (Linux/macOS system install)
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(FLUIDSYNTH IMPORTED_TARGET fluidsynth)
+    endif()
+endif()
+
+if(NOT FLUIDSYNTH_FOUND)
+    # Last resort: generic system search
+    find_library(FLUIDSYNTH_LIBRARY NAMES fluidsynth libfluidsynth libfluidsynth-3)
     find_path(FLUIDSYNTH_INCLUDE_DIR NAMES fluidsynth.h)
     if(FLUIDSYNTH_LIBRARY AND FLUIDSYNTH_INCLUDE_DIR)
         set(FLUIDSYNTH_FOUND TRUE)
@@ -397,6 +426,7 @@ if(WIN32)
                 --no-translations
                 --no-system-d3d-compiler
                 --no-opengl-sw
+                --plugindir $<TARGET_FILE_DIR:MidiEditor>/plugins
                 $<TARGET_FILE:MidiEditor>
             COMMENT "Deploying Qt libraries for debug"
         )
@@ -404,10 +434,10 @@ if(WIN32)
         # Ensure platforms plugin is deployed
         add_custom_command(TARGET MidiEditor POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory
-                $<TARGET_FILE_DIR:MidiEditor>/platforms
+                $<TARGET_FILE_DIR:MidiEditor>/plugins/platforms
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${Qt6_DIR}/../../../plugins/platforms/qwindows$<$<CONFIG:Debug>:d>.dll
-                $<TARGET_FILE_DIR:MidiEditor>/platforms/
+                $<TARGET_FILE_DIR:MidiEditor>/plugins/platforms/
             COMMENT "Ensuring Qt platform plugins are available"
         )
     else()
@@ -434,10 +464,10 @@ if(WIN32)
         # Copy platform plugins
         add_custom_command(TARGET MidiEditor POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E make_directory
-                $<TARGET_FILE_DIR:MidiEditor>/platforms
+                $<TARGET_FILE_DIR:MidiEditor>/plugins/platforms
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 ${QT_PLUGINS_DIR}/platforms/qwindows$<$<CONFIG:Debug>:d>.dll
-                $<TARGET_FILE_DIR:MidiEditor>/platforms/
+                $<TARGET_FILE_DIR:MidiEditor>/plugins/platforms/
             COMMENT "Manually copying Qt platform plugins"
         )
     endif()
@@ -471,6 +501,9 @@ if(PLAT_WINDOWS)
             foreach(FILE \${DSENGINE_FILES})
                 file(REMOVE \${FILE})
             endforeach()
+            if(NOT \"${FLUIDSYNTH_DIR}\" STREQUAL \"\")
+                file(COPY \"${FLUIDSYNTH_DIR}/bin/libfluidsynth-3.dll\" DESTINATION \${CMAKE_INSTALL_PREFIX}/${BIN_DIR})
+            endif()
         ")
     endif()
 endif()
