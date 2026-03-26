@@ -39,6 +39,7 @@
 
 int NewNoteTool::_channel = 0;
 int NewNoteTool::_track = 0;
+int NewNoteTool::_durationDivisor = 0;
 
 NewNoteTool::NewNoteTool()
     : EventTool() {
@@ -70,21 +71,63 @@ void NewNoteTool::reloadState(ProtocolEntry *entry) {
 
 void NewNoteTool::draw(QPainter *painter) {
     int currentX = rasteredX(mouseX);
+    
+    bool doDrawNote = false;
+    int drawX = xPos;
+    int drawCurrentX = currentX;
+    int drawLine = line;
+
     if (inDrag) {
-        if (line <= 127) {
-            int y = matrixWidget->yPosOfLine(line);
-            painter->fillRect(xPos, y, currentX - xPos, matrixWidget->lineHeight(), Qt::black);
+        doDrawNote = true;
+        if (_durationDivisor > 0 && line <= 127) {
+            int startTick;
+            rasteredX(xPos, &startTick);
+            int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+            int endMs = file()->msOfTick(startTick + durationTicks);
+            drawCurrentX = matrixWidget->xPosOfMs(endMs);
+        }
+    } else if (_durationDivisor > 0 && mouseY >= 0) {
+        drawLine = matrixWidget->lineAtY(mouseY);
+        if (drawLine >= 0 && drawLine <= 127) {
+            doDrawNote = true;
+            drawX = currentX;
+            int startTick;
+            rasteredX(drawX, &startTick);
+            int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+            int endMs = file()->msOfTick(startTick + durationTicks);
+            drawCurrentX = matrixWidget->xPosOfMs(endMs);
+        }
+    }
+
+    if (doDrawNote) {
+        if (!inDrag) {
+            painter->setOpacity(0.3); // Semi-transparent for hover preview
+        }
+        
+        if (drawLine <= 127) {
+            int y = matrixWidget->yPosOfLine(drawLine);
+            int width = drawCurrentX - drawX;
+            if (width < 2 && _durationDivisor == 0) width = 0; // prevent drawing negative/zero if dragging backwards
+            if (width < 0) {
+                drawX = drawCurrentX;
+                width = -width;
+            }
+            painter->fillRect(drawX, y, width, matrixWidget->lineHeight(), Qt::black);
             painter->setPen(Qt::gray);
-            painter->drawLine(xPos, 0, xPos, matrixWidget->height());
-            painter->drawLine(currentX, 0, currentX, matrixWidget->height());
+            painter->drawLine(drawX, 0, drawX, matrixWidget->height());
+            painter->drawLine(drawX + width, 0, drawX + width, matrixWidget->height());
             painter->setPen(Qt::black);
-        } else {
-            int y = matrixWidget->yPosOfLine(line);
-            painter->fillRect(currentX, y, 15, matrixWidget->lineHeight(), Qt::black);
+        } else if (inDrag) {
+            int y = matrixWidget->yPosOfLine(drawLine);
+            painter->fillRect(drawCurrentX, y, 15, matrixWidget->lineHeight(), Qt::black);
             painter->setPen(Qt::gray);
-            painter->drawLine(currentX, 0, currentX, matrixWidget->height());
-            painter->drawLine(currentX + 15, 0, currentX + 15, matrixWidget->height());
+            painter->drawLine(drawCurrentX, 0, drawCurrentX, matrixWidget->height());
+            painter->drawLine(drawCurrentX + 15, 0, drawCurrentX + 15, matrixWidget->height());
             painter->setPen(Qt::black);
+        }
+        
+        if (!inDrag) {
+            painter->setOpacity(1.0); // Reset opacity
         }
     }
 }
@@ -111,8 +154,14 @@ bool NewNoteTool::release() {
     rasteredX(currentX, &endTick);
     rasteredX(xPos, &startTick);
 
+    if (line <= 127 && _durationDivisor > 0) {
+        int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+        endTick = startTick + durationTicks;
+        currentX = matrixWidget->xPosOfMs(file()->msOfTick(endTick));
+    }
+
     MidiTrack *track = file()->track(_track);
-    if (currentX - xPos > 2 || line > 127) {
+    if (currentX - xPos > 2 || line > 127 || (_durationDivisor > 0 && line <= 127)) {
         // note
         if (line >= 0 && line <= 127) {
             currentProtocol()->startNewAction(QObject::tr("Create note"), image());
@@ -257,6 +306,10 @@ bool NewNoteTool::release() {
 
 bool NewNoteTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
+    if (!inDrag && _durationDivisor > 0) {
+        matrixWidget->update();
+        return true;
+    }
     return inDrag;
 }
 
@@ -280,4 +333,12 @@ void NewNoteTool::setEditTrack(int i) {
 
 void NewNoteTool::setEditChannel(int i) {
     _channel = i;
+}
+
+int NewNoteTool::durationDivisor() {
+    return _durationDivisor;
+}
+
+void NewNoteTool::setDurationDivisor(int div) {
+    _durationDivisor = div;
 }

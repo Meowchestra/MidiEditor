@@ -3220,6 +3220,40 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsMB->addMenu(tweakMenu);
 
+    // Note Duration
+    QMenu *noteDurationMB = new QMenu(tr("Note Duration"), toolsMB);
+    QActionGroup *noteDurationGroup = new QActionGroup(this);
+    connect(noteDurationGroup, SIGNAL(triggered(QAction*)), this, SLOT(noteDurationSelected(QAction*)));
+
+    QAction *dragModeAction = new QAction(tr("Drag Mode (no preset)"), this);
+    dragModeAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_AsciiTilde))); // Alt + ~
+    dragModeAction->setData(0);
+    dragModeAction->setCheckable(true);
+    dragModeAction->setChecked(true);
+    _defaultShortcuts["duration_drag"] = QList<QKeySequence>() << dragModeAction->shortcut();
+    noteDurationMB->addAction(dragModeAction);
+    noteDurationGroup->addAction(dragModeAction);
+    _actionMap["duration_drag"] = dragModeAction;
+
+    noteDurationMB->addSeparator();
+
+    QStringList durations = {tr("Whole note"), tr("Half note"), tr("Third note"), tr("Quarter note"),
+                             tr("Fifth note"), tr("Sixth note"), tr("Seventh note"), tr("Eighth note"), tr("Ninth note")};
+    for (int i = 0; i < durations.size(); ++i) {
+        int divisor = i + 1;
+        QAction *durationAction = new QAction(durations[i], this);
+        durationAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, static_cast<Qt::Key>(Qt::Key_1 + i)))); // Alt + 1, Alt + 2
+        durationAction->setData(divisor);
+        durationAction->setCheckable(true);
+        QString actionId = QString("duration_") + QString::number(divisor);
+        _defaultShortcuts[actionId] = QList<QKeySequence>() << durationAction->shortcut();
+        noteDurationMB->addAction(durationAction);
+        noteDurationGroup->addAction(durationAction);
+        _actionMap[actionId] = durationAction;
+    }
+
+    toolsMB->addMenu(noteDurationMB);
+
     QAction *deleteAction = new QAction(tr("Remove events"), this);
     _activateWithSelections.append(deleteAction);
     deleteAction->setToolTip(tr("Remove selected events"));
@@ -5456,6 +5490,20 @@ void MainWindow::applyWidgetSizeConstraints() {
             {
                 rightSplitter->setCollapsible(chooserIndex, true);
             }
+        }
+    }
+}
+
+void MainWindow::noteDurationSelected(QAction *action) {
+    if (!action) return;
+    
+    int divisor = action->data().toInt();
+    NewNoteTool::setDurationDivisor(divisor);
+
+    if (divisor > 0) {
+        // Switch to NewNoteTool automatically when a preset duration is chosen
+        if (_actionMap.contains("new_note")) {
+            _actionMap["new_note"]->trigger();
         }
     }
 }

@@ -121,6 +121,18 @@ public:
      */
     static void setEditChannel(int i);
 
+    /**
+     * \brief Gets the current preset duration divisor.
+     * \return The divisor (0 means drag mode)
+     */
+    static int durationDivisor();
+
+    /**
+     * \brief Sets the current preset duration divisor.
+     * \param div The divisor (0 means drag mode, 1=whole, 2=half, etc.)
+     */
+    static void setDurationDivisor(int div);
+
 private:
     /** \brief Flag indicating if currently dragging to size a note */
     bool inDrag;
@@ -133,6 +145,9 @@ private:
 
     /** \brief Static channel and track settings for new notes */
     static int _channel, _track;
+
+    /** \brief Static preset duration divisor (0 = drag mode) */
+    static int _durationDivisor;
 };
 
 #endif // NEWNOTETOOL_H_

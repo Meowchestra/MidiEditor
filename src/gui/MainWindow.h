@@ -690,6 +690,11 @@ public slots:
     void toolChanged();
 
     /**
+     * \brief Handles note duration preset selection.
+     */
+    void noteDurationSelected(QAction *action);
+
+    /**
      * \brief Handles changes to copied events.
      */
     void copiedEventsChanged();
