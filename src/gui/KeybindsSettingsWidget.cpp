@@ -135,7 +135,10 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     order << "standard_tool" << "new_note" << "remove_notes"
           << "select_single" << "select_box" << "select_left" << "select_right"
           << "move_all" << "move_lr" << "move_ud" << "size_change"
-          << "measure" << "time_signature" << "tempo";
+          << "measure" << "time_signature" << "tempo"
+          << "duration_drag" << "duration_1" << "duration_2" << "duration_3" 
+          << "duration_4" << "duration_5" << "duration_6" << "duration_7" 
+          << "duration_8" << "duration_9";
     
     // Tools menu - Tweak submenu
     order << "tweak_time" << "tweak_start_time" << "tweak_end_time" << "tweak_note" << "tweak_value"

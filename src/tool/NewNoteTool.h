@@ -133,6 +133,11 @@ public:
      */
     static void setDurationDivisor(int div);
 
+    /**
+     * \brief Gets the actively applied duration divisor, ignoring presets if used by StandardTool.
+     */
+    int effectiveDurationDivisor() const;
+
 private:
     /** \brief Flag indicating if currently dragging to size a note */
     bool inDrag;

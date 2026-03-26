@@ -3249,12 +3249,12 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     toolsMB->addMenu(tweakMenu);
 
     // Note Duration
-    QMenu *noteDurationMB = new QMenu(tr("Note Duration"), toolsMB);
+    QMenu *noteDurationMB = new QMenu(tr("Note Duration..."), toolsMB);
     QActionGroup *noteDurationGroup = new QActionGroup(this);
     connect(noteDurationGroup, SIGNAL(triggered(QAction*)), this, SLOT(noteDurationSelected(QAction*)));
 
     QAction *dragModeAction = new QAction(tr("Drag Mode (no preset)"), this);
-    dragModeAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_AsciiTilde))); // Alt + ~
+    dragModeAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_QuoteLeft))); // Alt + ~ (backtick/tilde key)
     dragModeAction->setData(0);
     dragModeAction->setCheckable(true);
     dragModeAction->setChecked(true);

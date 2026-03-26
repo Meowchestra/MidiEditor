@@ -79,21 +79,21 @@ void NewNoteTool::draw(QPainter *painter) {
 
     if (inDrag) {
         doDrawNote = true;
-        if (_durationDivisor > 0 && line <= 127) {
+        if (effectiveDurationDivisor() > 0 && line <= 127) {
             int startTick;
             rasteredX(xPos, &startTick);
-            int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+            int durationTicks = (file()->ticksPerQuarter() * 4) / effectiveDurationDivisor();
             int endMs = file()->msOfTick(startTick + durationTicks);
             drawCurrentX = matrixWidget->xPosOfMs(endMs);
         }
-    } else if (_durationDivisor > 0 && mouseY >= 0) {
+    } else if (effectiveDurationDivisor() > 0 && mouseY >= 0) {
         drawLine = matrixWidget->lineAtY(mouseY);
         if (drawLine >= 0 && drawLine <= 127) {
             doDrawNote = true;
             drawX = currentX;
             int startTick;
             rasteredX(drawX, &startTick);
-            int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+            int durationTicks = (file()->ticksPerQuarter() * 4) / effectiveDurationDivisor();
             int endMs = file()->msOfTick(startTick + durationTicks);
             drawCurrentX = matrixWidget->xPosOfMs(endMs);
         }
@@ -107,11 +107,13 @@ void NewNoteTool::draw(QPainter *painter) {
         if (drawLine <= 127) {
             int y = matrixWidget->yPosOfLine(drawLine);
             int width = drawCurrentX - drawX;
-            if (width < 2 && _durationDivisor == 0) width = 0; // prevent drawing negative/zero if dragging backwards
             if (width < 0) {
                 drawX = drawCurrentX;
                 width = -width;
             }
+            // Prevent drawing 1px artifacts but preserve backward negative width loops
+            if (width < 2 && effectiveDurationDivisor() == 0) width = 0; 
+            
             painter->fillRect(drawX, y, width, matrixWidget->lineHeight(), Qt::black);
             painter->setPen(Qt::gray);
             painter->drawLine(drawX, 0, drawX, matrixWidget->height());
@@ -154,14 +156,14 @@ bool NewNoteTool::release() {
     rasteredX(currentX, &endTick);
     rasteredX(xPos, &startTick);
 
-    if (line <= 127 && _durationDivisor > 0) {
-        int durationTicks = (file()->ticksPerQuarter() * 4) / _durationDivisor;
+    if (line <= 127 && effectiveDurationDivisor() > 0) {
+        int durationTicks = (file()->ticksPerQuarter() * 4) / effectiveDurationDivisor();
         endTick = startTick + durationTicks;
         currentX = matrixWidget->xPosOfMs(file()->msOfTick(endTick));
     }
 
     MidiTrack *track = file()->track(_track);
-    if (currentX - xPos > 2 || line > 127 || (_durationDivisor > 0 && line <= 127)) {
+    if (currentX - xPos > 2 || line > 127 || (effectiveDurationDivisor() > 0 && line <= 127)) {
         // note
         if (line >= 0 && line <= 127) {
             currentProtocol()->startNewAction(QObject::tr("Create note"), image());
@@ -306,7 +308,7 @@ bool NewNoteTool::release() {
 
 bool NewNoteTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
-    if (!inDrag && _durationDivisor > 0) {
+    if (!inDrag && effectiveDurationDivisor() > 0) {
         matrixWidget->update();
         return true;
     }
@@ -341,4 +343,8 @@ int NewNoteTool::durationDivisor() {
 
 void NewNoteTool::setDurationDivisor(int div) {
     _durationDivisor = div;
+}
+
+int NewNoteTool::effectiveDurationDivisor() const {
+    return _standardTool ? 0 : _durationDivisor;
 }
