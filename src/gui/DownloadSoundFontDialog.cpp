@@ -60,7 +60,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             false
         },
         {
-            tr("MS Basic v2.0 (MuseScore 4)"),
+            tr("MS Basic 2 (MuseScore 4)"),
             tr("38 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
@@ -68,13 +68,46 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             false
         },
         {
-            tr("MS Basic v2.0 (Uncompressed)"),
+            tr("MS Basic 2 (Uncompressed)"),
             tr("205 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
             QStringLiteral("MS_Basic-v2.0.0.sf2"),
             false
         },
+        {
+            tr("SGM"),
+            tr("309 MB"),
+            tr("SF2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/855/SGM-v2.01-NicePianosGuitarsBass-V1.2.sf2"),
+            QStringLiteral("SGM-v2.01-NicePianosGuitarsBass-V1.2.sf2"),
+            false
+        },
+        {
+            tr("FluidR3 GM+GS"),
+            tr("144 MB"),
+            tr("SF2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/1229/FluidR3_GM_GS.sf2"),
+            QStringLiteral("FluidR3_GM_GS.sf2"),
+            false
+        },
+        {
+            tr("Microsoft GS Wavetable Synth"),
+            tr("3.07 MB"),
+            tr("SF2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/5190/microsoft_gm_3.sf2"),
+            QStringLiteral("microsoft_gm_3.sf2"),
+            false
+        },
+        {
+            tr("B. Meowsic"),
+            tr("18.9 MB"),
+            tr("SF2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/2617/Meowsic_Cat_Soundfont.sf2"),
+            QStringLiteral("Meowsic_Cat_Soundfont.sf2"),
+            false
+        },
+        // --- Legacy section ---
         {
             tr("MS Basic (MuseScore 4)"),
             tr("48.9 MB"),
