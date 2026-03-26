@@ -50,11 +50,11 @@ TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
     layout->addWidget(colored, 0, 0, 2, 1);
     QString text = tr("Track ") + QString::number(track->number());
     QLabel *text1 = new QLabel(text, this);
-    text1->setFixedHeight(15);
+    text1->setMinimumHeight(15);
     layout->addWidget(text1, 0, 1, 1, 1);
 
     trackNameLabel = new QLabel(tr("New Track"), this);
-    trackNameLabel->setFixedHeight(15);
+    trackNameLabel->setMinimumHeight(15);
     layout->addWidget(trackNameLabel, 1, 1, 1, 1);
 
     QToolBar *toolBar = new QToolBar(this);

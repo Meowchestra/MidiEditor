@@ -81,13 +81,13 @@ void Metronome::click(bool isDownbeat) {
         event.resize(3);
         // Note On, Channel 10 (drums) - channel 9 in 0-indexed
         event[0] = (char)0x99;
-        // Note 76 = High Wood Block, Note 77 = Low Wood Block
-        // (Much punchier and cuts through the mix better than standard click)
-        event[1] = (char)(isDownbeat ? 76 : 77);
-        // Velocity (volume) - maximizing to make it audible
-        event[2] = (char)(qMin(127, (int)(loudness() * 1.27))); // scale 0-100 to 0-127
-        
-        // Send command multiple times simultaneously to mechanically amplify polyphony 
+        // Note 34 = Metronome Click, Note 35 = Metronome Bell
+        // GM standard metronome percussion mapping
+        event[1] = (char)(isDownbeat ? 35 : 34);
+        // Velocity (volume) - scale 0-100 to 0-127
+        event[2] = (char)(qMin(127, (int)(loudness() * 1.27)));
+
+        // Send command multiple times simultaneously to amplify polyphony
         // to prevent being drowned out
         MidiOutput::sendCommand(event);
         MidiOutput::sendCommand(event);

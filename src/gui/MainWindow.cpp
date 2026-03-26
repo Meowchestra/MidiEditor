@@ -5331,7 +5331,7 @@ void MainWindow::transposeSelectedNotesOctaveUp() {
         return;
     }
 
-    file->protocol()->startNewAction("Transpose octave up");
+    file->protocol()->startNewAction(tr("Transpose octave up"), new QImage(":/run_environment/graphics/tool/transpose_up.png"));
 
     foreach(MidiEvent* event, selectedEvents) {
         NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);
@@ -5357,7 +5357,7 @@ void MainWindow::transposeSelectedNotesOctaveDown() {
         return;
     }
 
-    file->protocol()->startNewAction("Transpose octave down");
+    file->protocol()->startNewAction(tr("Transpose octave down"), new QImage(":/run_environment/graphics/tool/transpose_down.png"));
 
     foreach(MidiEvent* event, selectedEvents) {
         NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);

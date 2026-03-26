@@ -206,7 +206,7 @@ jobs:
           host: 'windows'
           target: 'desktop'
           cache: 'false'
-          archives: 'qtbase qtopengl'
+          archives: 'qtbase qtopengl qtconcurrent'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git'
 
       - name: Setup MSYS2 and Install QtIFW

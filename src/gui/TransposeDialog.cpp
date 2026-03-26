@@ -22,6 +22,7 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QImage>
 
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../midi/MidiFile.h"
@@ -63,7 +64,7 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *fil
 }
 
 void TransposeDialog::accept() {
-    _file->protocol()->startNewAction(tr("Transpose selection"));
+    _file->protocol()->startNewAction(tr("Transpose selection"), new QImage(":/run_environment/graphics/tool/transpose.png"));
 
     int num = _valueBox->value();
     if (_down->isChecked()) {

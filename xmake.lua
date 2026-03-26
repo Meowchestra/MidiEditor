@@ -81,7 +81,7 @@ target("MidiEditor") do
     add_rules("qt.widgetapp")
     add_frameworks({
         "QtGui", "QtWidgets", "QtCore", "QtNetwork",
-        "QtOpenGL", "QtOpenGLWidgets"
+        "QtOpenGL", "QtOpenGLWidgets", "QtConcurrent"
     })
 
     -- Link system OpenGL libraries for cross-platform compatibility

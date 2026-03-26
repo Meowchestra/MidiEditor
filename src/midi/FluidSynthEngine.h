@@ -24,6 +24,7 @@
 #include <QObject>
 #include <QList>
 #include <QPair>
+#include <QRecursiveMutex>
 #include <QString>
 #include <QStringList>
 
@@ -85,6 +86,12 @@ public:
      * \return FluidSynth sfont_id on success, -1 on error
      */
     int loadSoundFont(const QString &path);
+
+    /**
+     * \brief Loads multiple soundfonts concurrently to prevent UI freezing.
+     * Emits soundFontsChanged() when completely done.
+     */
+    void addSoundFonts(const QStringList &paths);
 
     /**
      * \brief Unloads a SoundFont by its ID.
@@ -151,6 +158,18 @@ public:
      */
     bool isSoundFontLoaded(const QString &path) const;
 
+    /**
+     * \brief Returns the SoundFont paths.
+     */
+    QStringList soundFontPaths() const;
+
+    /**
+     * \brief Detects the default sample rate for a given audio driver.
+     * \param driver Audio driver name (e.g. "wasapi", "dsound")
+     * \return Default sample rate, or 44100.0 if detection fails
+     */
+    static double detectDefaultSampleRate(const QString &driver);
+
     // === Persistence ===
 
     /**
@@ -166,6 +185,7 @@ public:
 signals:
     void soundFontLoaded(int sfontId, const QString &path);
     void soundFontUnloaded(int sfontId);
+    void soundFontsChanged();
     void initializationFailed(const QString &error);
     void engineRestarted();
 
@@ -181,6 +201,9 @@ private:
     fluid_synth_t *_synth;
     fluid_audio_driver_t *_audioDriver;
     bool _initialized;
+
+    // Mutex protecting all fluid_* calls and engine state changes cross-thread
+    mutable QRecursiveMutex _engineMutex;
 
     // SoundFont tracking: sfont_id → file path (in load order, last = highest priority)
     QList<QPair<int, QString>> _loadedFonts;

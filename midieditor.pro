@@ -64,7 +64,8 @@ QT += widgets \
     gui \
     network \
     opengl \
-    openglwidgets
+    openglwidgets \
+    concurrent
 
 # Link OpenGL library
 win32: LIBS += -lopengl32

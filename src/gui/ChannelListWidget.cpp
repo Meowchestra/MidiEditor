@@ -52,11 +52,11 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
         text = tr("Percussion");
     }
     QLabel *text1 = new QLabel(text, this);
-    text1->setFixedHeight(15);
+    text1->setMinimumHeight(15);
     layout->addWidget(text1, 0, 1, 1, 1);
 
     instrumentLabel = new QLabel(tr("none"), this);
-    instrumentLabel->setFixedHeight(15);
+    instrumentLabel->setMinimumHeight(15);
     layout->addWidget(instrumentLabel, 1, 1, 1, 1);
 
     QToolBar *toolBar = new QToolBar(this);

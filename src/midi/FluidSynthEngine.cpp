@@ -24,7 +24,9 @@
 
 #include <QDebug>
 #include <QFileInfo>
+#include <QMutexLocker>
 #include <QSettings>
+#include <QtConcurrent/QtConcurrentRun>
 
 // ============================================================================
 // Singleton
@@ -58,6 +60,8 @@ FluidSynthEngine::~FluidSynthEngine() {
 // ============================================================================
 
 bool FluidSynthEngine::initialize() {
+    QMutexLocker locker(&_engineMutex);
+    
     if (_initialized) {
         return true;
     }
@@ -108,7 +112,11 @@ bool FluidSynthEngine::initialize() {
 
     // Load any pending SoundFonts from saved settings
     if (!_pendingSoundFontPaths.isEmpty()) {
-        setSoundFontStack(_pendingSoundFontPaths);
+        QtConcurrent::run([this, paths = _pendingSoundFontPaths]() {
+            QMutexLocker lock(&_engineMutex);
+            setSoundFontStack(paths);
+            QMetaObject::invokeMethod(this, "soundFontsChanged", Qt::QueuedConnection);
+        });
         _pendingSoundFontPaths.clear();
     }
 
@@ -116,8 +124,19 @@ bool FluidSynthEngine::initialize() {
 }
 
 void FluidSynthEngine::shutdown() {
+    QMutexLocker locker(&_engineMutex);
+    
     if (!_initialized) {
         return;
+    }
+
+    // Preserve SoundFont paths so they survive engine shutdown
+    if (_pendingSoundFontPaths.isEmpty() && !_loadedFonts.isEmpty()) {
+        _pendingSoundFontPaths.clear();
+        // Store in priority order (highest first = last loaded first)
+        for (int i = _loadedFonts.size() - 1; i >= 0; --i) {
+            _pendingSoundFontPaths.append(_loadedFonts[i].second);
+        }
     }
 
     if (_audioDriver) {
@@ -154,6 +173,8 @@ bool FluidSynthEngine::isInitialized() const {
 // ============================================================================
 
 int FluidSynthEngine::loadSoundFont(const QString &path) {
+    QMutexLocker locker(&_engineMutex);
+    
     if (!_initialized || !_synth) {
         qWarning() << "FluidSynth: Cannot load SoundFont - engine not initialized";
         return -1;
@@ -187,7 +208,19 @@ int FluidSynthEngine::loadSoundFont(const QString &path) {
     return sfontId;
 }
 
+void FluidSynthEngine::addSoundFonts(const QStringList &paths) {
+    QtConcurrent::run([this, paths]() {
+        QMutexLocker locker(&_engineMutex);
+        for (const QString &path : paths) {
+            loadSoundFont(path);
+        }
+        QMetaObject::invokeMethod(this, "soundFontsChanged", Qt::QueuedConnection);
+    });
+}
+
 bool FluidSynthEngine::unloadSoundFont(int sfontId) {
+    QMutexLocker locker(&_engineMutex);
+    
     if (!_initialized || !_synth) {
         return false;
     }
@@ -206,6 +239,8 @@ bool FluidSynthEngine::unloadSoundFont(int sfontId) {
 }
 
 void FluidSynthEngine::unloadAllSoundFonts() {
+    QMutexLocker locker(&_engineMutex);
+    
     if (!_initialized || !_synth) {
         return;
     }
@@ -218,10 +253,24 @@ void FluidSynthEngine::unloadAllSoundFonts() {
 }
 
 QList<QPair<int, QString>> FluidSynthEngine::loadedSoundFonts() const {
-    return _loadedFonts;
+    QMutexLocker locker(&_engineMutex);
+    if (_initialized) {
+        return _loadedFonts;
+    }
+    // Engine not initialized — return synthetic entries from pending paths
+    // so the UI can still display them
+    QList<QPair<int, QString>> result;
+    for (int i = 0; i < _pendingSoundFontPaths.size(); ++i) {
+        // Use negative IDs as placeholders since there's no real sfont_id
+        result.append(qMakePair(-(i + 1), _pendingSoundFontPaths[i]));
+    }
+    // Reverse so that first in pending (highest priority) = last in result (matching load order convention)
+    std::reverse(result.begin(), result.end());
+    return result;
 }
 
 void FluidSynthEngine::setSoundFontStack(const QStringList &paths) {
+    QMutexLocker locker(&_engineMutex);
     if (!_initialized || !_synth) {
         return;
     }
@@ -241,6 +290,7 @@ void FluidSynthEngine::setSoundFontStack(const QStringList &paths) {
 // ============================================================================
 
 void FluidSynthEngine::sendMidiData(const QByteArray &data) {
+    QMutexLocker locker(&_engineMutex);
     if (!_initialized || !_synth || data.isEmpty()) {
         return;
     }
@@ -333,21 +383,25 @@ void FluidSynthEngine::sendMidiData(const QByteArray &data) {
 // ============================================================================
 
 void FluidSynthEngine::setAudioDriver(const QString &driver) {
+    QMutexLocker locker(&_engineMutex);
+    if (_audioDriverName == driver) return;
+    
     _audioDriverName = driver;
-    if (_initialized) {
-        // Audio driver change requires full restart
-        QStringList currentFonts;
-        for (const auto &pair : _loadedFonts) {
-            currentFonts.append(pair.second);
+    if (_initialized && _audioDriver) {
+        // Driver hot-swap: destroy audio driver and recreate WITHOUT destroying synth or soundfonts
+        delete_fluid_audio_driver(_audioDriver);
+        fluid_settings_setstr(_settings, "audio.driver", driver.toUtf8().constData());
+        _audioDriver = new_fluid_audio_driver(_settings, _synth);
+        if (!_audioDriver) {
+            qWarning() << "FluidSynth: Failed to switch to audio driver" << driver;
+        } else {
+            qDebug() << "FluidSynth: Hot-swapped audio driver to" << driver;
         }
-        shutdown();
-        initialize();
-        // Reload SoundFonts
-        setSoundFontStack(currentFonts);
     }
 }
 
 void FluidSynthEngine::setGain(double gain) {
+    QMutexLocker locker(&_engineMutex);
     _gain = gain;
     if (_initialized && _synth) {
         fluid_synth_set_gain(_synth, static_cast<float>(gain));
@@ -355,40 +409,39 @@ void FluidSynthEngine::setGain(double gain) {
 }
 
 void FluidSynthEngine::setSampleRate(double rate) {
+    QMutexLocker locker(&_engineMutex);
+    if (_sampleRate == rate) return;
+    
     _sampleRate = rate;
-    // Note: sample rate change may require restarting the synth or audio driver to fully take effect
-    if (_initialized && _settings) {
-        fluid_settings_setnum(_settings, "synth.sample-rate", rate);
-    }
     if (_initialized) {
-        // Sample rate change requires full restart
-        QStringList currentFonts;
-        for (const auto &pair : _loadedFonts) {
-            currentFonts.append(pair.second);
-        }
-        shutdown();
-        initialize();
-        // Reload SoundFonts
-        setSoundFontStack(currentFonts);
+        // Sample rate requires recreating synth and reloading soundfonts
+        QtConcurrent::run([this]() {
+            QMutexLocker locker(&_engineMutex);
+            shutdown();
+            initialize();
+            QMetaObject::invokeMethod(this, "engineRestarted", Qt::QueuedConnection);
+        });
     }
 }
 
 void FluidSynthEngine::setReverbEngine(const QString &engine) {
+    QMutexLocker locker(&_engineMutex);
+    if (_reverbEngine == engine) return;
+    
     _reverbEngine = engine;
     if (_initialized) {
-        // Reverb engine change requires full restart
-        QStringList currentFonts;
-        for (const auto &pair : _loadedFonts) {
-            currentFonts.append(pair.second);
-        }
-        shutdown();
-        initialize();
-        // Reload SoundFonts
-        setSoundFontStack(currentFonts);
+        // Reverb engine requires recreating synth and reloading soundfonts
+        QtConcurrent::run([this]() {
+            QMutexLocker locker(&_engineMutex);
+            shutdown();
+            initialize();
+            QMetaObject::invokeMethod(this, "engineRestarted", Qt::QueuedConnection);
+        });
     }
 }
 
 void FluidSynthEngine::setReverbEnabled(bool enabled) {
+    QMutexLocker locker(&_engineMutex);
     _reverbEnabled = enabled;
     if (_initialized && _synth) {
         fluid_synth_reverb_on(_synth, -1, enabled ? 1 : 0);
@@ -396,6 +449,7 @@ void FluidSynthEngine::setReverbEnabled(bool enabled) {
 }
 
 void FluidSynthEngine::setChorusEnabled(bool enabled) {
+    QMutexLocker locker(&_engineMutex);
     _chorusEnabled = enabled;
     if (_initialized && _synth) {
         fluid_synth_chorus_on(_synth, -1, enabled ? 1 : 0);
@@ -464,13 +518,50 @@ QString FluidSynthEngine::audioDriverDisplayName(const QString &driver) {
 }
 
 bool FluidSynthEngine::isSoundFontLoaded(const QString &path) const {
+    QMutexLocker locker(&_engineMutex);
     QString canonicalPath = QFileInfo(path).canonicalFilePath();
     for (const auto &pair : _loadedFonts) {
         if (QFileInfo(pair.second).canonicalFilePath() == canonicalPath) {
             return true;
         }
     }
+    // Also check pending paths
+    for (const QString &pending : _pendingSoundFontPaths) {
+        if (QFileInfo(pending).canonicalFilePath() == canonicalPath) {
+            return true;
+        }
+    }
     return false;
+}
+
+QStringList FluidSynthEngine::soundFontPaths() const {
+    QMutexLocker locker(&_engineMutex);
+    if (_initialized) {
+        QStringList paths;
+        // Return in priority order (highest first = last loaded first)
+        for (int i = _loadedFonts.size() - 1; i >= 0; --i) {
+            paths.append(_loadedFonts[i].second);
+        }
+        return paths;
+    }
+    return _pendingSoundFontPaths;
+}
+
+double FluidSynthEngine::detectDefaultSampleRate(const QString &driver) {
+    fluid_settings_t *tmpSettings = new_fluid_settings();
+    if (!tmpSettings) {
+        return 44100.0;
+    }
+
+    if (!driver.isEmpty()) {
+        fluid_settings_setstr(tmpSettings, "audio.driver", driver.toUtf8().constData());
+    }
+
+    double defaultRate = 44100.0;
+    fluid_settings_getnum_default(tmpSettings, "synth.sample-rate", &defaultRate);
+
+    delete_fluid_settings(tmpSettings);
+    return defaultRate;
 }
 
 // ============================================================================
@@ -488,13 +579,8 @@ void FluidSynthEngine::saveSettings(QSettings *settings) {
     settings->setValue("chorusEnabled", _chorusEnabled);
 
     // Save SoundFont paths in priority order (first = highest priority)
-    QStringList fontPaths;
-    for (const auto &pair : _loadedFonts) {
-        fontPaths.append(pair.second);
-    }
-    // Reverse so highest-priority (last loaded) is stored first
-    std::reverse(fontPaths.begin(), fontPaths.end());
-    settings->setValue("soundFontPaths", fontPaths);
+    // Uses soundFontPaths() which works even when the engine is shut down
+    settings->setValue("soundFontPaths", soundFontPaths());
 
     settings->endGroup();
 }
@@ -505,9 +591,16 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
     _audioDriverName = settings->value("audioDriver", "").toString();
     _reverbEngine = settings->value("reverbEngine", "fdn").toString();
     _gain = settings->value("gain", 0.5).toDouble();
-    _sampleRate = settings->value("sampleRate", 44100.0).toDouble();
     _reverbEnabled = settings->value("reverbEnabled", true).toBool();
     _chorusEnabled = settings->value("chorusEnabled", true).toBool();
+
+    // Detect native sample rate if not previously saved
+    if (settings->contains("sampleRate")) {
+        _sampleRate = settings->value("sampleRate", 44100.0).toDouble();
+    } else {
+        _sampleRate = detectDefaultSampleRate(_audioDriverName);
+        qDebug() << "FluidSynth: Auto-detected default sample rate:" << _sampleRate;
+    }
 
     QStringList fontPaths = settings->value("soundFontPaths").toStringList();
 

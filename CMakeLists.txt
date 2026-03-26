@@ -116,13 +116,13 @@ if(WIN32)
 endif()
 
 # Try to find Qt6 with different approaches
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets Concurrent)
 
 if(NOT Qt6_FOUND)
     # Try with Qt6_DIR environment variable
     if(DEFINED ENV{Qt6_DIR})
         set(Qt6_DIR $ENV{Qt6_DIR})
-        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
+        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets Concurrent)
     endif()
 endif()
 
@@ -130,7 +130,7 @@ if(NOT Qt6_FOUND)
     # Try with QT_ROOT_DIR environment variable
     if(DEFINED ENV{QT_ROOT_DIR})
         set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} $ENV{QT_ROOT_DIR})
-        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets)
+        find_package(Qt6 QUIET COMPONENTS Core Widgets Gui Network OpenGL OpenGLWidgets Concurrent)
     endif()
 endif()
 
@@ -179,6 +179,7 @@ target_link_libraries(MidiEditor PRIVATE
         Qt6::Network
         Qt6::OpenGL
         Qt6::OpenGLWidgets
+        Qt6::Concurrent
 )
 
 # Link system OpenGL library for cross-platform compatibility
