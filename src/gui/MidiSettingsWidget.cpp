@@ -44,6 +44,9 @@
 #include <QSlider>
 #include <QVBoxLayout>
 #include <QThreadPool>
+#include <QTableWidget>
+#include <QHeaderView>
+#include <QCheckBox>
 #include <QtConcurrent/QtConcurrent>
 #include "../midi/FluidSynthEngine.h"
 #include "../midi/MidiOutput.h"
@@ -217,8 +220,26 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     fsLayout->addWidget(sfLabel);
 
     QHBoxLayout *sfRow = new QHBoxLayout();
-    _soundFontList = new QListWidget(_fluidSynthSettingsGroup);
-    _soundFontList->setMinimumHeight(100);
+    _soundFontList = new QTableWidget(_fluidSynthSettingsGroup);
+    _soundFontList->setMinimumHeight(120);
+    _soundFontList->setColumnCount(3);
+    _soundFontList->setHorizontalHeaderLabels({tr("Enabled"), tr("Priority"), tr("SoundFont")});
+    _soundFontList->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    _soundFontList->setSelectionBehavior(QAbstractItemView::SelectRows);
+    _soundFontList->setSelectionMode(QAbstractItemView::SingleSelection);
+    _soundFontList->verticalHeader()->setVisible(false);
+    _soundFontList->setDragEnabled(true);
+    _soundFontList->setAcceptDrops(true);
+    _soundFontList->setDropIndicatorShown(true);
+    _soundFontList->setDragDropMode(QAbstractItemView::InternalMove);
+    _soundFontList->setDragDropOverwriteMode(false);
+    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    if (_soundFontList->model()) {
+        connect(_soundFontList->model(), SIGNAL(rowsMoved(QModelIndex,int,int,QModelIndex,int)), 
+                this, SLOT(onSoundFontTableDropped()));
+    }
     sfRow->addWidget(_soundFontList, 1);
 
     QVBoxLayout *sfBtnCol = new QVBoxLayout();
@@ -454,69 +475,66 @@ void MidiSettingsWidget::removeSoundFont() {
     if (row < 0) {
         return;
     }
-
-    FluidSynthEngine *engine = FluidSynthEngine::instance();
-    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
-
-    // The list is displayed in priority order (highest first = last loaded first)
-    // So row 0 maps to the last item in _loadedFonts
-    int reversedIndex = fonts.size() - 1 - row;
-    if (reversedIndex >= 0 && reversedIndex < fonts.size()) {
-        engine->unloadSoundFont(fonts[reversedIndex].first);
-    }
-    refreshSoundFontList();
+    _soundFontList->removeRow(row);
+    onSoundFontTableDropped();
 }
 
 void MidiSettingsWidget::moveSoundFontUp() {
     int row = _soundFontList->currentRow();
-    if (row <= 0) {
-        return;
+    if (row <= 0) return;
+
+    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+
+    // swap items
+    for (int col = 0; col < _soundFontList->columnCount(); ++col) {
+        QTableWidgetItem *item1 = _soundFontList->takeItem(row, col);
+        QTableWidgetItem *item2 = _soundFontList->takeItem(row - 1, col);
+        _soundFontList->setItem(row, col, item2);
+        _soundFontList->setItem(row - 1, col, item1);
     }
+    _soundFontList->selectRow(row - 1);
 
-    // Rebuild the entire stack with swapped items
-    FluidSynthEngine *engine = FluidSynthEngine::instance();
-    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
-
-    // Build path list in priority order (highest first = reversed load order)
-    QStringList paths;
-    for (int i = fonts.size() - 1; i >= 0; --i) {
-        paths.append(fonts[i].second);
-    }
-
-    // Swap the item up
-    paths.swapItemsAt(row, row - 1);
-
-    // Run the heavy loading task on a background thread so UI doesn't freeze
-    QThreadPool::globalInstance()->start([engine, paths]() {
-        engine->setSoundFontStack(paths);
-        QMetaObject::invokeMethod(engine, "soundFontsChanged", Qt::QueuedConnection);
-    });
+    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    onSoundFontTableDropped();
 }
 
 void MidiSettingsWidget::moveSoundFontDown() {
     int row = _soundFontList->currentRow();
-    if (row < 0 || row >= _soundFontList->count() - 1) {
-        return;
+    if (row < 0 || row >= _soundFontList->rowCount() - 1) return;
+
+    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+
+    for (int col = 0; col < _soundFontList->columnCount(); ++col) {
+        QTableWidgetItem *item1 = _soundFontList->takeItem(row, col);
+        QTableWidgetItem *item2 = _soundFontList->takeItem(row + 1, col);
+        _soundFontList->setItem(row, col, item2);
+        _soundFontList->setItem(row + 1, col, item1);
     }
+    _soundFontList->selectRow(row + 1);
 
-    // Rebuild the entire stack with swapped items
-    FluidSynthEngine *engine = FluidSynthEngine::instance();
-    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    onSoundFontTableDropped();
+}
 
-    // Build path list in priority order (highest first = reversed load order)
-    QStringList paths;
-    for (int i = fonts.size() - 1; i >= 0; --i) {
-        paths.append(fonts[i].second);
+void MidiSettingsWidget::onSoundFontToggled(int row, int col) {
+    if (col == 0) {
+        onSoundFontTableDropped();
     }
+}
 
-    // Swap the item down
-    paths.swapItemsAt(row, row + 1);
-
-    // Run the heavy loading task on a background thread so UI doesn't freeze
-    QThreadPool::globalInstance()->start([engine, paths]() {
-        engine->setSoundFontStack(paths);
-        QMetaObject::invokeMethod(engine, "soundFontsChanged", Qt::QueuedConnection);
-    });
+void MidiSettingsWidget::onSoundFontTableDropped() {
+    QList<QPair<QString, bool>> newCollection;
+    for (int r = 0; r < _soundFontList->rowCount(); ++r) {
+        QTableWidgetItem *cbItem = _soundFontList->item(r, 0);
+        QTableWidgetItem *pathItem = _soundFontList->item(r, 2);
+        if (!cbItem || !pathItem) continue;
+        bool enabled = cbItem->checkState() == Qt::Checked;
+        QString path = pathItem->data(Qt::UserRole).toString();
+        newCollection.append(qMakePair(path, enabled));
+    }
+    FluidSynthEngine::instance()->setSoundFontCollection(newCollection);
+    // Call refresh immediately to update priority labels visually
+    refreshSoundFontList();
 }
 
 void MidiSettingsWidget::onAudioDriverChanged(int index) {
@@ -554,20 +572,42 @@ void MidiSettingsWidget::onChorusToggled(bool enabled) {
 }
 
 void MidiSettingsWidget::refreshSoundFontList() {
-    _soundFontList->clear();
+    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    
+    _soundFontList->setRowCount(0);
     FluidSynthEngine *engine = FluidSynthEngine::instance();
-    QList<QPair<int, QString>> fonts = engine->loadedSoundFonts();
+    QList<QPair<QString, bool>> collection = engine->soundFontCollection();
 
-    // Display in priority order with numbered priorities: highest priority first (last loaded = top)
+    _soundFontList->setRowCount(collection.size());
+    
     int priority = 1;
-    for (int i = fonts.size() - 1; i >= 0; --i) {
-        QFileInfo fi(fonts[i].second);
-        QString displayText = QString("%1. %2").arg(priority).arg(fi.fileName());
-        _soundFontList->addItem(displayText);
-        // Store full path in the item's tooltip
-        _soundFontList->item(_soundFontList->count() - 1)->setToolTip(fonts[i].second);
-        priority++;
+    
+    for (int i = 0; i < collection.size(); ++i) {
+        QString path = collection[i].first;
+        bool enabled = collection[i].second;
+        
+        QTableWidgetItem *cbItem = new QTableWidgetItem();
+        cbItem->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        cbItem->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
+        
+        QTableWidgetItem *prioItem = new QTableWidgetItem(enabled ? QString::number(priority) : "-");
+        prioItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        prioItem->setTextAlignment(Qt::AlignCenter);
+        
+        QFileInfo fi(path);
+        QTableWidgetItem *nameItem = new QTableWidgetItem(fi.fileName());
+        nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+        nameItem->setData(Qt::UserRole, path); // Hidden path
+        nameItem->setToolTip(path);
+        
+        _soundFontList->setItem(i, 0, cbItem);
+        _soundFontList->setItem(i, 1, prioItem);
+        _soundFontList->setItem(i, 2, nameItem);
+        
+        if (enabled) priority++;
     }
+    
+    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
 }
 
 void MidiSettingsWidget::showDownloadSoundFontDialog() {

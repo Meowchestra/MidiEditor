@@ -26,6 +26,8 @@
 class QWidget;
 class QListWidget;
 class QListWidgetItem;
+class QTableWidget;
+class QTableWidgetItem;
 class QLineEdit;
 class QCheckBox;
 class QSpinBox;
@@ -183,7 +185,7 @@ private:
 private:
     // FluidSynth settings UI widgets (greyed out unless FluidSynth selected)
     QGroupBox *_fluidSynthSettingsGroup;
-    QListWidget *_soundFontList;
+    QTableWidget *_soundFontList;
     QPushButton *_addSoundFontBtn;
     QPushButton *_removeSoundFontBtn;
     QPushButton *_moveSoundFontUpBtn;
@@ -199,6 +201,8 @@ private:
     QCheckBox *_chorusCheckBox;
 
 private slots:
+    void onSoundFontTableDropped();
+    void onSoundFontToggled(int row, int col);
     void updateFluidSynthSettingsEnabled();
     void addSoundFont();
     void removeSoundFont();

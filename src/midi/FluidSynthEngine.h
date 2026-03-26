@@ -88,10 +88,15 @@ public:
     int loadSoundFont(const QString &path);
 
     /**
-     * \brief Loads multiple soundfonts concurrently to prevent UI freezing.
-     * Emits soundFontsChanged() when completely done.
+     * \brief Sets the persistent collection of soundfonts and updates the stack.
+     * \param collection List of soundfonts: Pair of (absolute_path, is_enabled)
      */
-    void addSoundFonts(const QStringList &paths);
+    void setSoundFontCollection(const QList<QPair<QString, bool>> &collection);
+
+    /**
+     * \brief Returns the full configured collection.
+     */
+    QList<QPair<QString, bool>> soundFontCollection() const;
 
     /**
      * \brief Unloads a SoundFont by its ID.
@@ -122,6 +127,12 @@ public:
      * \param paths List of SF2/SF3 file paths, top = highest priority
      */
     void setSoundFontStack(const QStringList &paths);
+
+    /**
+     * \brief Adds new SoundFonts to the collection without enabling them by default.
+     * \param paths List of absolute paths
+     */
+    void addSoundFonts(const QStringList &paths);
 
     // === MIDI Message Routing ===
 
@@ -159,9 +170,8 @@ public:
     bool isSoundFontLoaded(const QString &path) const;
 
     /**
-     * \brief Returns the SoundFont paths.
+     * \brief Removes all references to soundFontPaths
      */
-    QStringList soundFontPaths() const;
 
     /**
      * \brief Detects the default sample rate for a given audio driver.
@@ -208,8 +218,11 @@ private:
     // SoundFont tracking: sfont_id → file path (in load order, last = highest priority)
     QList<QPair<int, QString>> _loadedFonts;
 
-    // Deferred SoundFont paths loaded from settings before engine init
-    QStringList _pendingSoundFontPaths;
+    // SoundFont collection (persisted)
+    QList<QPair<QString, bool>> _collection;
+    
+    // Deferred SoundFont collection loaded from settings
+    QList<QPair<QString, bool>> _pendingCollection;
 
     // Cached settings values
     QString _audioDriverName;
@@ -218,6 +231,11 @@ private:
     double _sampleRate;
     bool _reverbEnabled;
     bool _chorusEnabled;
+    
+    // Background task debouncing
+    bool _isStackUpdatePending;
+    QStringList _pendingStackUpdate;
+    bool _isEngineRestartPending;
 };
 
 #endif // FLUIDSYNTH_SUPPORT
