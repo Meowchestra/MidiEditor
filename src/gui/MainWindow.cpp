@@ -3034,6 +3034,34 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     editMB->addSeparator();
 
+    _deleteChannelMenu = new QMenu(tr("Remove events from channel..."), editMB);
+    editMB->addMenu(_deleteChannelMenu);
+    connect(_deleteChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteChannel(QAction*)));
+
+    for (int i = 0; i < 16; i++) {
+        QVariant variant(i);
+        QAction *delChannelAction = new QAction(QString::number(i), this);
+        delChannelAction->setData(variant);
+        _deleteChannelMenu->addAction(delChannelAction);
+    }
+
+    _moveSelectedEventsToChannelMenu = new QMenu(tr("Move events to channel..."), editMB);
+    editMB->addMenu(_moveSelectedEventsToChannelMenu);
+    connect(_moveSelectedEventsToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToChannel(QAction*)));
+
+    for (int i = 0; i < 16; i++) {
+        QVariant variant(i);
+        QAction *moveToChannelAction = new QAction(QString::number(i), this);
+        moveToChannelAction->setData(variant);
+        _moveSelectedEventsToChannelMenu->addAction(moveToChannelAction);
+    }
+
+    _moveSelectedEventsToTrackMenu = new QMenu(tr("Move events to track..."), editMB);
+    editMB->addMenu(_moveSelectedEventsToTrackMenu);
+    connect(_moveSelectedEventsToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToTrack(QAction*)));
+
+    editMB->addSeparator();
+
     QAction *configAction = new QAction(tr("Settings"), this);
     Appearance::setActionIcon(configAction, ":/run_environment/graphics/tool/config.png");
     connect(configAction, SIGNAL(triggered()), this, SLOT(openConfig()));
@@ -3529,34 +3557,6 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *addTrackAction = new QAction(tr("Add track"), toolsMB);
     toolsMB->addAction(addTrackAction);
     connect(addTrackAction, SIGNAL(triggered()), this, SLOT(addTrack()));
-
-    toolsMB->addSeparator();
-
-    _deleteChannelMenu = new QMenu(tr("Remove events from channel..."), toolsMB);
-    toolsMB->addMenu(_deleteChannelMenu);
-    connect(_deleteChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteChannel(QAction*)));
-
-    for (int i = 0; i < 16; i++) {
-        QVariant variant(i);
-        QAction *delChannelAction = new QAction(QString::number(i), this);
-        delChannelAction->setData(variant);
-        _deleteChannelMenu->addAction(delChannelAction);
-    }
-
-    _moveSelectedEventsToChannelMenu = new QMenu(tr("Move events to channel..."), editMB);
-    toolsMB->addMenu(_moveSelectedEventsToChannelMenu);
-    connect(_moveSelectedEventsToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToChannel(QAction*)));
-
-    for (int i = 0; i < 16; i++) {
-        QVariant variant(i);
-        QAction *moveToChannelAction = new QAction(QString::number(i), this);
-        moveToChannelAction->setData(variant);
-        _moveSelectedEventsToChannelMenu->addAction(moveToChannelAction);
-    }
-
-    _moveSelectedEventsToTrackMenu = new QMenu(tr("Move events to track..."), editMB);
-    toolsMB->addMenu(_moveSelectedEventsToTrackMenu);
-    connect(_moveSelectedEventsToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToTrack(QAction*)));
 
     toolsMB->addSeparator();
 
