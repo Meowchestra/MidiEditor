@@ -175,6 +175,13 @@ public:
     static int pasteChannel();
 
     // === Grid Snapping ===
+    
+    enum SnapMode {
+        SNAP_NONE  = 0,
+        SNAP_GRID  = 1,
+        SNAP_NOTES = 2,
+        SNAP_BOTH  = 3
+    };
 
     /**
      * \brief Snaps X coordinate to grid if magnet is enabled.
@@ -196,6 +203,17 @@ public:
      */
     static bool magnetEnabled();
 
+    /**
+     * \brief Sets the grid snapping mode configuration.
+     * \param mode Bitwise SnapMode flag combination.
+     */
+    static void setMagnetMode(int mode);
+
+    /**
+     * \brief Returns the active grid snapping mode configuration.
+     */
+    static int magnetMode();
+
     /** \brief Static list of copied events */
     static QList<MidiEvent *> *copiedEvents;
 
@@ -211,6 +229,9 @@ protected:
 
     /** \brief Flag indicating if grid snapping is enabled */
     static bool _magnet;
+
+    /** \brief Bitmask holding active snap targets */
+    static int _magnetMode;
 };
 
 #endif // EVENTTOOL_H_

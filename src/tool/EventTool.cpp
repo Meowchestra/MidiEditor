@@ -49,6 +49,7 @@ int EventTool::_pasteChannel = -1;
 int EventTool::_pasteTrack = -2;
 
 bool EventTool::_magnet = false;
+int EventTool::_magnetMode = EventTool::SNAP_GRID;
 
 EventTool::EventTool()
     : EditorTool() {
@@ -401,16 +402,59 @@ int EventTool::rasteredX(int x, int *tick) {
         }
         return x;
     }
-    typedef QPair<int, int> TMPPair;
-    foreach(TMPPair p, matrixWidget->divs()) {
-        int xt = p.first;
-        if (std::abs(xt - x) <= 5) {
-            if (tick) {
-                *tick = p.second;
+    
+    int bestDist = 6;
+    int bestX = x;
+    int bestTick = -1;
+
+    // Grid snapping logic
+    if (_magnetMode & SNAP_GRID) {
+        typedef QPair<int, int> TMPPair;
+        foreach(TMPPair p, matrixWidget->divs()) {
+            int xt = p.first;
+            int dist = std::abs(xt - x);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestX = xt;
+                bestTick = p.second;
             }
-            return xt;
         }
     }
+
+    // Notes snapping logic
+    if (_magnetMode & SNAP_NOTES) {
+        foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
+            // Do not snap to the note we are currently trying to move
+            if (Selection::instance()->selectedEvents().contains(ev)) continue;
+
+            int evX = ev->x();
+            int distStart = std::abs(evX - x);
+            if (distStart < bestDist) {
+                bestDist = distStart;
+                bestX = evX;
+                bestTick = ev->midiTime();
+            }
+
+            NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent*>(ev);
+            if (noteOn && noteOn->offEvent()) {
+                int endX = evX + ev->width();
+                int distEnd = std::abs(endX - x);
+                if (distEnd < bestDist) {
+                    bestDist = distEnd;
+                    bestX = endX;
+                    bestTick = noteOn->offEvent()->midiTime();
+                }
+            }
+        }
+    }
+
+    if (bestDist <= 5) {
+        if (tick) {
+            *tick = bestTick;
+        }
+        return bestX;
+    }
+
     if (tick) {
         *tick = _currentFile->tick(matrixWidget->msOfXPos(x));
     }
@@ -423,6 +467,14 @@ void EventTool::enableMagnet(bool enable) {
 
 bool EventTool::magnetEnabled() {
     return _magnet;
+}
+
+void EventTool::setMagnetMode(int mode) {
+    _magnetMode = mode;
+}
+
+int EventTool::magnetMode() {
+    return _magnetMode;
 }
 
 bool EventTool::copyToSharedClipboard() {

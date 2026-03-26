@@ -133,6 +133,8 @@ MainWindow::MainWindow(QString initFile)
     MidiFile::defaultTimePerQuarter = ticksPerQuarter;
     bool magnet = _settings->value("magnet", false).toBool();
     EventTool::enableMagnet(magnet);
+    int magnetMode = _settings->value("magnetMode", EventTool::SNAP_GRID).toInt();
+    EventTool::setMagnetMode(magnetMode);
 
     MidiInput::setThruEnabled(_settings->value("thru", false).toBool());
 
@@ -1390,6 +1392,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     }
 
     _settings->setValue("magnet", EventTool::magnetEnabled());
+    _settings->setValue("magnetMode", EventTool::magnetMode());
     _settings->setValue("metronome", Metronome::enabled());
     _settings->setValue("metronome_loudness", Metronome::loudness());
     _settings->setValue("thru", MidiInput::thru());
@@ -3583,6 +3586,21 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(magnetAction, SIGNAL(toggled(bool)), this, SLOT(enableMagnet(bool)));
     _actionMap["magnet"] = magnetAction;
 
+    QMenu *magnetOptionsMenu = new QMenu(tr("Magnet Options..."), toolsMB);
+    toolsMB->addMenu(magnetOptionsMenu);
+    
+    _snapGridAction = new QAction(tr("Snap to Grid"), this);
+    _snapGridAction->setCheckable(true);
+    _snapGridAction->setChecked(EventTool::magnetMode() & EventTool::SNAP_GRID);
+    connect(_snapGridAction, SIGNAL(triggered()), this, SLOT(magnetModeChanged()));
+    magnetOptionsMenu->addAction(_snapGridAction);
+    
+    _snapNotesAction = new QAction(tr("Snap to Notes"), this);
+    _snapNotesAction->setCheckable(true);
+    _snapNotesAction->setChecked(EventTool::magnetMode() & EventTool::SNAP_NOTES);
+    connect(_snapNotesAction, SIGNAL(triggered()), this, SLOT(magnetModeChanged()));
+    magnetOptionsMenu->addAction(_snapNotesAction);
+
     // View
     QMenu *zoomMenu = new QMenu(tr("Zoom..."), viewMB);
     QAction *zoomHorOutAction = new QAction(tr("Horizontal out"), this);
@@ -4099,6 +4117,17 @@ void MainWindow::divChanged(QAction *action) {
 
 void MainWindow::enableMagnet(bool enable) {
     EventTool::enableMagnet(enable);
+}
+
+void MainWindow::magnetModeChanged() {
+    int mode = EventTool::SNAP_NONE;
+    if (_snapGridAction && _snapGridAction->isChecked()) {
+        mode |= EventTool::SNAP_GRID;
+    }
+    if (_snapNotesAction && _snapNotesAction->isChecked()) {
+        mode |= EventTool::SNAP_NOTES;
+    }
+    EventTool::setMagnetMode(mode);
 }
 
 void MainWindow::checkForUpdates(bool silent) {

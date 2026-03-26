@@ -625,10 +625,15 @@ public slots:
     void quantizationChanged(QAction *action);
 
     /**
-     * \brief Enables or disables the magnet (snap to grid) feature.
+     * \brief Enables or disables the magnet (snap to grid / notes) feature.
      * \param enable True to enable magnet, false to disable
      */
     void enableMagnet(bool enable);
+
+    /**
+     * \brief Handle mode changes when "Snap to Grid" or "Snap to Notes" are toggled.
+     */
+    void magnetModeChanged();
 
     /**
      * \brief Opens the configuration/settings dialog.
@@ -890,6 +895,12 @@ private:
 
     /** \brief Main horizontal splitter */
     QSplitter *mainSplitter;
+
+    /** \brief Magnet option for grid snapping */
+    QAction *_snapGridAction;
+
+    /** \brief Magnet option for note snapping */
+    QAction *_snapNotesAction;
 
     /** \brief Actions for color mode selection */
     QAction *_colorsByChannel, *_colorsByTracks;
