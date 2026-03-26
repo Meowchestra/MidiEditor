@@ -268,8 +268,8 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
 
     settingsGrid->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup), 0, 3);
     _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
-    _reverbEngineCombo->addItem(tr("FDN Reverb (Default)"), "fdn");
-    _reverbEngineCombo->addItem(tr("Freeverb (Pre-2.1.0)"), "free");
+    _reverbEngineCombo->addItem(tr("FDN Reverb"), "fdn");
+    _reverbEngineCombo->addItem(tr("Freeverb"), "free");
     _reverbEngineCombo->addItem(tr("LEXverb"), "lex");
     _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
     int engineIdx = _reverbEngineCombo->findData(engine->reverbEngine());

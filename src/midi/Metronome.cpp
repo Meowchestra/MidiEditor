@@ -81,9 +81,9 @@ void Metronome::click(bool isDownbeat) {
         event.resize(3);
         // Note On, Channel 10 (drums) - channel 9 in 0-indexed
         event[0] = (char)0x99;
-        // Note 34 = Metronome Click, Note 35 = Metronome Bell
+        // Note 33 = Metronome Click, Note 34 = Metronome Bell
         // GM standard metronome percussion mapping
-        event[1] = (char)(isDownbeat ? 35 : 34);
+        event[1] = (char)(isDownbeat ? 34 : 33);
         // Velocity (volume) - scale 0-100 to 0-127
         event[2] = (char)(qMin(127, (int)(loudness() * 1.27)));
 

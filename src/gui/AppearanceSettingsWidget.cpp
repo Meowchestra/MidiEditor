@@ -186,7 +186,7 @@ NamedColorWidgetItem::NamedColorWidgetItem(int number, QString name, QColor colo
     layout->addWidget(colored, 0, 0, 1, 1);
 
     QLabel *text = new QLabel(name, this);
-    text->setMinimumHeight(15);
+    text->setFixedHeight(18);
     layout->addWidget(text, 0, 1, 1, 1);
     setContentsMargins(5, 1, 5, 0);
     setFixedHeight(ROW_HEIGHT);

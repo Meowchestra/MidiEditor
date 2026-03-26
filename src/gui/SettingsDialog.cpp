@@ -44,7 +44,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     _settingsWidgets = new QList<SettingsWidget *>;
 
     setMinimumSize(865, 450);
-    resize(865, 780);
+    resize(865, 775);
 
     QGridLayout *layout = new QGridLayout(this);
     layout->setContentsMargins(0, 0, 0, 0);
