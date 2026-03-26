@@ -42,6 +42,7 @@
 #include <QComboBox>
 
 #include "Appearance.h"
+#include "AppearanceSettingsWidget.h"
 #include "AboutDialog.h"
 #include "ChannelVisibilityManager.h"
 #include "ChannelListWidget.h"
@@ -4108,7 +4109,14 @@ void MainWindow::openConfig() {
         PerformanceSettingsWidget *perfWidget = perfWidgets.first();
         connect(perfWidget, &PerformanceSettingsWidget::renderingModeChanged,
                 this, &MainWindow::updateRenderingMode);
-        qDebug() << "Connected PerformanceSettingsWidget for immediate rendering updates";
+    }
+
+    // Connect to AppearanceSettingsWidget for immediate visual updates
+    QList<AppearanceSettingsWidget*> appearanceWidgets = d->findChildren<AppearanceSettingsWidget*>();
+    if (!appearanceWidgets.isEmpty()) {
+        AppearanceSettingsWidget *appearanceWidget = appearanceWidgets.first();
+        connect(appearanceWidget, &AppearanceSettingsWidget::appearanceChanged,
+                this, &MainWindow::updateAll);
     }
 
     d->show();

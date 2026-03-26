@@ -116,6 +116,15 @@ public:
      */
     AppearanceSettingsWidget(QWidget *parent = 0);
 
+signals:
+    /**
+     * \brief Emitted when any appearance setting changes.
+     *
+     * This signal is connected by MainWindow to trigger an immediate
+     * MatrixWidget repaint so changes are reflected in real time.
+     */
+    void appearanceChanged();
+
 public slots:
     /**
      * \brief Handles channel color changes.
