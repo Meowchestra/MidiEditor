@@ -26,6 +26,7 @@
 #include <QFileInfo>
 #include <QMutexLocker>
 #include <QSettings>
+#include <QThreadPool>
 #include <QtConcurrent/QtConcurrentRun>
 
 // ============================================================================
@@ -112,7 +113,7 @@ bool FluidSynthEngine::initialize() {
 
     // Load any pending SoundFonts from saved settings
     if (!_pendingSoundFontPaths.isEmpty()) {
-        QtConcurrent::run([this, paths = _pendingSoundFontPaths]() {
+        QThreadPool::globalInstance()->start([this, paths = _pendingSoundFontPaths]() {
             QMutexLocker lock(&_engineMutex);
             setSoundFontStack(paths);
             QMetaObject::invokeMethod(this, "soundFontsChanged", Qt::QueuedConnection);
@@ -209,7 +210,7 @@ int FluidSynthEngine::loadSoundFont(const QString &path) {
 }
 
 void FluidSynthEngine::addSoundFonts(const QStringList &paths) {
-    QtConcurrent::run([this, paths]() {
+    QThreadPool::globalInstance()->start([this, paths]() {
         QMutexLocker locker(&_engineMutex);
         for (const QString &path : paths) {
             loadSoundFont(path);
@@ -415,7 +416,7 @@ void FluidSynthEngine::setSampleRate(double rate) {
     _sampleRate = rate;
     if (_initialized) {
         // Sample rate requires recreating synth and reloading soundfonts
-        QtConcurrent::run([this]() {
+        QThreadPool::globalInstance()->start([this]() {
             QMutexLocker locker(&_engineMutex);
             shutdown();
             initialize();
@@ -431,7 +432,7 @@ void FluidSynthEngine::setReverbEngine(const QString &engine) {
     _reverbEngine = engine;
     if (_initialized) {
         // Reverb engine requires recreating synth and reloading soundfonts
-        QtConcurrent::run([this]() {
+        QThreadPool::globalInstance()->start([this]() {
             QMutexLocker locker(&_engineMutex);
             shutdown();
             initialize();

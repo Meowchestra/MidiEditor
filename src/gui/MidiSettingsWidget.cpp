@@ -43,6 +43,7 @@
 #include <QHBoxLayout>
 #include <QSlider>
 #include <QVBoxLayout>
+#include <QThreadPool>
 #include <QtConcurrent/QtConcurrent>
 #include "../midi/FluidSynthEngine.h"
 #include "../midi/MidiOutput.h"
@@ -486,7 +487,7 @@ void MidiSettingsWidget::moveSoundFontUp() {
     paths.swapItemsAt(row, row - 1);
 
     // Run the heavy loading task on a background thread so UI doesn't freeze
-    QtConcurrent::run([engine, paths]() {
+    QThreadPool::globalInstance()->start([engine, paths]() {
         engine->setSoundFontStack(paths);
         QMetaObject::invokeMethod(engine, "soundFontsChanged", Qt::QueuedConnection);
     });
@@ -512,7 +513,7 @@ void MidiSettingsWidget::moveSoundFontDown() {
     paths.swapItemsAt(row, row + 1);
 
     // Run the heavy loading task on a background thread so UI doesn't freeze
-    QtConcurrent::run([engine, paths]() {
+    QThreadPool::globalInstance()->start([engine, paths]() {
         engine->setSoundFontStack(paths);
         QMetaObject::invokeMethod(engine, "soundFontsChanged", Qt::QueuedConnection);
     });
