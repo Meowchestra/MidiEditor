@@ -28,6 +28,8 @@ class QListWidget;
 class QListWidgetItem;
 class QTableWidget;
 class QTableWidgetItem;
+class SoundFontDragController;
+class SoundFontSeparatorDelegate;
 class QLineEdit;
 class QCheckBox;
 class QSpinBox;
@@ -182,10 +184,14 @@ private:
     QWidget *_playerModeInfoBox;
 
 #ifdef FLUIDSYNTH_SUPPORT
+    friend class SoundFontDragController;
 private:
     // FluidSynth settings UI widgets (greyed out unless FluidSynth selected)
     QGroupBox *_fluidSynthSettingsGroup;
     QTableWidget *_soundFontList;
+    SoundFontDragController *_dragController;
+    SoundFontSeparatorDelegate *_separatorDelegate;
+    int _separatorRow;
     QPushButton *_addSoundFontBtn;
     QPushButton *_removeSoundFontBtn;
     QPushButton *_moveSoundFontUpBtn;
@@ -202,7 +208,7 @@ private:
 
 private slots:
     void onSoundFontTableDropped();
-    void onSoundFontToggled(int row, int col);
+    void onSoundFontToggled();
     void updateFluidSynthSettingsEnabled();
     void addSoundFont();
     void removeSoundFont();
@@ -216,6 +222,7 @@ private slots:
     void onReverbToggled(bool enabled);
     void onChorusToggled(bool enabled);
     void refreshSoundFontList();
+    void reorderSoundFont(int fromRow, int toRow);
     void showDownloadSoundFontDialog();
 
 private:

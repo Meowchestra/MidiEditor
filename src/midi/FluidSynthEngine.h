@@ -221,9 +221,6 @@ private:
     // SoundFont collection (persisted)
     QList<QPair<QString, bool>> _collection;
     
-    // Deferred SoundFont collection loaded from settings
-    QList<QPair<QString, bool>> _pendingCollection;
-
     // Cached settings values
     QString _audioDriverName;
     QString _reverbEngine;

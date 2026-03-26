@@ -88,6 +88,9 @@ bool FluidSynthEngine::initialize() {
     // Set custom reverb engine only if supported (wrap string in literal or standard way to avoid errors if fallback is used)
     fluid_settings_setstr(_settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
 
+    // Enable dynamic sample loading to prevent massive upfront decompresion lag for SF3
+    fluid_settings_setint(_settings, "synth.dynamic-sample-loading", 1);
+
     // Create the synthesizer
     _synth = new_fluid_synth(_settings);
     if (!_synth) {
@@ -114,40 +117,41 @@ bool FluidSynthEngine::initialize() {
     qDebug() << "  Sample rate:" << _sampleRate;
     qDebug() << "  Gain:" << _gain;
 
-    // Load any pending SoundFont collection from saved settings
-    if (!_pendingCollection.isEmpty()) {
-        _collection = _pendingCollection;
-        _pendingCollection.clear();
-        
-        QStringList enabledPaths;
-        for (const auto &pair : _collection) {
-            if (pair.second) {
-                enabledPaths.append(pair.first);
-            }
+    _initialized = true;
+    qDebug() << "FluidSynth engine initialized successfully";
+    qDebug() << "  Audio driver:" << _audioDriverName;
+    qDebug() << "  Sample rate:" << _sampleRate;
+    qDebug() << "  Gain:" << _gain;
+
+    // Load the active SoundFont collection into the engine
+    QStringList enabledPaths;
+    for (const auto &pair : _collection) {
+        if (pair.second) {
+            enabledPaths.append(pair.first);
         }
-        
-        if (!enabledPaths.isEmpty() && !_isStackUpdatePending) {
-            _isStackUpdatePending = true;
-            _pendingStackUpdate = enabledPaths;
-            QThreadPool::globalInstance()->start([this]() {
-                while (true) {
-                    QStringList currentPaths;
-                    {
-                        QMutexLocker lock(&_engineMutex);
-                        if (!_isStackUpdatePending) break;
-                        currentPaths = _pendingStackUpdate;
-                        _isStackUpdatePending = false;
-                    }
-                    
+    }
+    
+    if (!enabledPaths.isEmpty() && !_isStackUpdatePending) {
+        _isStackUpdatePending = true;
+        _pendingStackUpdate = enabledPaths;
+        QThreadPool::globalInstance()->start([this]() {
+            while (true) {
+                QStringList currentPaths;
+                {
                     QMutexLocker lock(&_engineMutex);
-                    unloadAllSoundFonts();
-                    for (int i = currentPaths.size() - 1; i >= 0; --i) {
-                        loadSoundFont(currentPaths[i]);
-                    }
-                    QMetaObject::invokeMethod(this, "soundFontsChanged", Qt::QueuedConnection);
+                    if (!_isStackUpdatePending) break;
+                    currentPaths = _pendingStackUpdate;
+                    _isStackUpdatePending = false;
                 }
-            });
-        }
+                
+                unloadAllSoundFonts();
+                for (int i = currentPaths.size() - 1; i >= 0; --i) {
+                    loadSoundFont(currentPaths[i]);
+                }
+                
+                QMetaObject::invokeMethod(this, "soundFontsChanged", Qt::QueuedConnection);
+            }
+        });
     }
 
     return true;
@@ -629,10 +633,7 @@ bool FluidSynthEngine::isSoundFontLoaded(const QString &path) const {
 
 QList<QPair<QString, bool>> FluidSynthEngine::soundFontCollection() const {
     QMutexLocker locker(&_engineMutex);
-    if (_initialized) {
-        return _collection;
-    }
-    return _pendingCollection;
+    return _collection;
 }
 
 double FluidSynthEngine::detectDefaultSampleRate(const QString &driver) {
@@ -718,13 +719,12 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
 
     settings->endGroup();
 
-    // Store paths for deferred loading when engine initializes
-    _pendingCollection = collection;
+    // Store paths directly
+    _collection = collection;
 
     // If we're already initialized, reload SoundFonts immediately
-    if (_initialized && !collection.isEmpty()) {
-        setSoundFontCollection(collection);
-        _pendingCollection.clear();
+    if (_initialized && !_collection.isEmpty()) {
+        setSoundFontCollection(_collection);
     }
 }
 

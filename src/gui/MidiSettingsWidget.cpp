@@ -47,10 +47,273 @@
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QCheckBox>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QFrame>
+#include <QGraphicsOpacityEffect>
+#include <QStyledItemDelegate>
 #include <QtConcurrent/QtConcurrent>
 #include "../midi/FluidSynthEngine.h"
 #include "../midi/MidiOutput.h"
 #include "DownloadSoundFontDialog.h"
+
+// Custom role to mark separator rows
+static const int SeparatorRole = Qt::UserRole + 100;
+
+// ============================================================================
+// SoundFontSeparatorDelegate — draws separator as dotted line with centered text
+// ============================================================================
+class SoundFontSeparatorDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override {
+        QVariant isSep = index.data(SeparatorRole);
+        if (isSep.isValid() && isSep.toBool()) {
+            painter->save();
+            painter->setRenderHint(QPainter::Antialiasing, false);
+
+            int centerY = option.rect.center().y();
+
+            // Draw dotted line across full width
+            QPen pen(QColor(140, 140, 140), 1, Qt::DotLine);
+            painter->setPen(pen);
+            painter->drawLine(option.rect.left() + 4, centerY,
+                              option.rect.right() - 4, centerY);
+
+            // Draw centered label with background fill
+            QString text = QObject::tr("Disabled SoundFonts");
+            QFont font = painter->font();
+            font.setPointSizeF(font.pointSizeF() - 0.5);
+            font.setItalic(true);
+            painter->setFont(font);
+            QFontMetrics fm(font);
+            int textW = fm.horizontalAdvance(text) + 16;
+            int textH = fm.height() + 2;
+            QRect textBg(option.rect.center().x() - textW / 2,
+                         centerY - textH / 2, textW, textH);
+
+            QColor bgColor = option.widget
+                ? option.widget->palette().color(QPalette::Base)
+                : QColor(255, 255, 255);
+            painter->fillRect(textBg, bgColor);
+            painter->setPen(QColor(140, 140, 140));
+            painter->drawText(textBg, Qt::AlignCenter, text);
+
+            painter->restore();
+            return;
+        }
+        QStyledItemDelegate::paint(painter, option, index);
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem &option,
+                   const QModelIndex &index) const override {
+        QVariant isSep = index.data(SeparatorRole);
+        if (isSep.isValid() && isSep.toBool()) {
+            return QSize(0, 22);
+        }
+        return QStyledItemDelegate::sizeHint(option, index);
+    }
+};
+
+// ============================================================================
+// SoundFontDragController — manual drag reordering via event filter
+// ============================================================================
+class SoundFontDragController : public QObject {
+public:
+    SoundFontDragController(QTableWidget *table, MidiSettingsWidget *widget)
+        : QObject(table), _table(table), _widget(widget) {
+        _table->viewport()->installEventFilter(this);
+        _table->viewport()->setMouseTracking(true);
+
+        _dropLine = new QFrame(_table->viewport());
+        _dropLine->setFrameShape(QFrame::HLine);
+        _dropLine->setStyleSheet("background: #3daee9; border: none;");
+        _dropLine->setFixedHeight(2);
+        _dropLine->hide();
+
+        _preview = new QLabel(_table->viewport());
+        _preview->setAttribute(Qt::WA_TransparentForMouseEvents);
+        auto *fx = new QGraphicsOpacityEffect(_preview);
+        fx->setOpacity(0.80);
+        _preview->setGraphicsEffect(fx);
+        _preview->hide();
+    }
+
+    void setEnabledCount(int n) { _enabledCount = n; }
+    int enabledCount() const { return _enabledCount; }
+    int separatorRow() const { return _enabledCount; }
+
+protected:
+    bool eventFilter(QObject *obj, QEvent *event) override {
+        if (obj != _table->viewport()) return false;
+
+        switch (event->type()) {
+        case QEvent::MouseButtonPress:
+            return handlePress(static_cast<QMouseEvent*>(event));
+        case QEvent::MouseMove:
+            return handleMove(static_cast<QMouseEvent*>(event));
+        case QEvent::MouseButtonRelease:
+            return handleRelease(static_cast<QMouseEvent*>(event));
+        default:
+            break;
+        }
+        return false;
+    }
+
+private:
+    QTableWidget *_table;
+    MidiSettingsWidget *_widget;
+    QFrame *_dropLine;
+    QLabel *_preview;
+
+    bool _dragging = false;
+    bool _dragStarted = false;
+    int _srcRow = -1;
+    int _dropRow = -1;
+    QPoint _startPos;
+    int _yOffset = 0;
+    int _enabledCount = 0;
+
+    static constexpr int THRESHOLD = 5;
+
+    bool handlePress(QMouseEvent *e) {
+        if (e->button() != Qt::LeftButton) return false;
+        int row = _table->rowAt(e->pos().y());
+        int col = _table->columnAt(e->pos().x());
+        if (row < 0 || col != 0 || row == separatorRow()) return false;
+
+        // Check that this isn't the separator
+        QTableWidgetItem *item = _table->item(row, 0);
+        if (!item || item->data(SeparatorRole).toBool()) return false;
+
+        _srcRow = row;
+        _startPos = e->pos();
+        _dragging = true;
+        _dragStarted = false;
+        _yOffset = e->pos().y() - _table->rowViewportPosition(row);
+        _table->viewport()->setCursor(Qt::ClosedHandCursor);
+        return true;
+    }
+
+    bool handleMove(QMouseEvent *e) {
+        if (!_dragging) {
+            // Cursor management on hover
+            int col = _table->columnAt(e->pos().x());
+            int row = _table->rowAt(e->pos().y());
+            if (col == 0 && row >= 0 && row != separatorRow()) {
+                _table->viewport()->setCursor(Qt::OpenHandCursor);
+            } else {
+                _table->viewport()->setCursor(Qt::ArrowCursor);
+            }
+            return false;
+        }
+
+        if (!_dragStarted) {
+            if ((e->pos() - _startPos).manhattanLength() < THRESHOLD)
+                return true;
+            _dragStarted = true;
+
+            // Render row pixmap
+            int y = _table->rowViewportPosition(_srcRow);
+            int h = _table->rowHeight(_srcRow);
+            int w = _table->viewport()->width();
+            QPixmap pm = _table->viewport()->grab(QRect(0, y, w, h));
+            _preview->setPixmap(pm);
+            _preview->setFixedSize(pm.size());
+            _preview->show();
+            _preview->raise();
+
+            // Deselect to avoid blue highlight
+            _table->clearSelection();
+        }
+
+        // Position preview
+        int previewY = e->pos().y() - _yOffset;
+        _preview->move(0, previewY);
+
+        // Compute drop target
+        _dropRow = computeDropRow(e->pos());
+        showDropIndicator(_dropRow);
+
+        _table->viewport()->setCursor(Qt::ClosedHandCursor);
+        return true;
+    }
+
+    bool handleRelease(QMouseEvent *e) {
+        Q_UNUSED(e);
+        if (!_dragging) return false;
+
+        _dropLine->hide();
+        _preview->hide();
+        _table->viewport()->setCursor(Qt::ArrowCursor);
+
+        if (_dragStarted && _dropRow >= 0 && _dropRow != _srcRow) {
+            _widget->reorderSoundFont(_srcRow, _dropRow);
+        }
+
+        _dragging = false;
+        _dragStarted = false;
+        _srcRow = -1;
+        _dropRow = -1;
+        return true;
+    }
+
+    int computeDropRow(const QPoint &pos) {
+        int sepRow = separatorRow();
+        int totalRows = _table->rowCount();
+        int y = pos.y();
+
+        // If below all rows, target is "append to disabled"
+        int lastRowBottom = 0;
+        if (totalRows > 0) {
+            int lr = totalRows - 1;
+            lastRowBottom = _table->rowViewportPosition(lr) + _table->rowHeight(lr);
+        }
+        if (y >= lastRowBottom && totalRows > 0) {
+            return totalRows; // past-the-end = disabled section
+        }
+
+        // Find closest row boundary
+        for (int r = 0; r <= totalRows; ++r) {
+            int rowTop;
+            if (r < totalRows) {
+                rowTop = _table->rowViewportPosition(r);
+            } else {
+                rowTop = lastRowBottom;
+            }
+            if (y < rowTop + (_table->rowHeight(qMin(r, totalRows - 1)) / 2)) {
+                // Drop before row r
+                if (r == sepRow) {
+                    // On separator boundary — if source is enabled, keep in enabled
+                    return (_srcRow < sepRow) ? sepRow : sepRow + 1;
+                }
+                return r;
+            }
+        }
+        return totalRows; // fallback: append to disabled
+    }
+
+    void showDropIndicator(int atRow) {
+        int totalRows = _table->rowCount();
+        int indicatorY;
+
+        if (atRow <= 0) {
+            indicatorY = _table->rowViewportPosition(0);
+        } else if (atRow >= totalRows) {
+            int lr = totalRows - 1;
+            indicatorY = _table->rowViewportPosition(lr) + _table->rowHeight(lr);
+        } else {
+            indicatorY = _table->rowViewportPosition(atRow);
+        }
+
+        _dropLine->setGeometry(0, indicatorY - 1, _table->viewport()->width(), 2);
+        _dropLine->show();
+        _dropLine->raise();
+    }
+};
+
 #endif
 
 AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, QWidget *parent)
@@ -216,30 +479,32 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     QVBoxLayout *fsLayout = new QVBoxLayout(_fluidSynthSettingsGroup);
 
     // SoundFont list with management buttons
-    QLabel *sfLabel = new QLabel(tr("SoundFonts:"), _fluidSynthSettingsGroup);
-    fsLayout->addWidget(sfLabel);
-
     QHBoxLayout *sfRow = new QHBoxLayout();
     _soundFontList = new QTableWidget(_fluidSynthSettingsGroup);
-    _soundFontList->setMinimumHeight(120);
-    _soundFontList->setColumnCount(3);
-    _soundFontList->setHorizontalHeaderLabels({tr("Enabled"), tr("Priority"), tr("SoundFont")});
+    _soundFontList->setMinimumHeight(160);
+    _soundFontList->setColumnCount(4);
+    _soundFontList->setHorizontalHeaderLabels({"", tr("Enabled"), tr("Priority"), tr("SoundFont")});
     _soundFontList->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     _soundFontList->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    _soundFontList->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
+    _soundFontList->horizontalHeader()->setHighlightSections(false);
     _soundFontList->setSelectionBehavior(QAbstractItemView::SelectRows);
     _soundFontList->setSelectionMode(QAbstractItemView::SingleSelection);
     _soundFontList->verticalHeader()->setVisible(false);
-    _soundFontList->setDragEnabled(true);
-    _soundFontList->setAcceptDrops(true);
-    _soundFontList->setDropIndicatorShown(true);
-    _soundFontList->setDragDropMode(QAbstractItemView::InternalMove);
-    _soundFontList->setDragDropOverwriteMode(false);
-    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
-    if (_soundFontList->model()) {
-        connect(_soundFontList->model(), SIGNAL(rowsMoved(QModelIndex,int,int,QModelIndex,int)), 
-                this, SLOT(onSoundFontTableDropped()));
-    }
+    // No built-in drag-drop — we use SoundFontDragController for manual reordering
+    _soundFontList->setDragEnabled(false);
+    _soundFontList->setAcceptDrops(false);
+    _soundFontList->setDragDropMode(QAbstractItemView::NoDragDrop);
+
+    // Custom delegate for separator row painting
+    _separatorDelegate = new SoundFontSeparatorDelegate(_soundFontList);
+    _soundFontList->setItemDelegate(_separatorDelegate);
+
+    // Manual drag controller (event filter on viewport)
+    _separatorRow = 0;
+    _dragController = new SoundFontDragController(_soundFontList, this);
+
     sfRow->addWidget(_soundFontList, 1);
 
     QVBoxLayout *sfBtnCol = new QVBoxLayout();
@@ -472,68 +737,181 @@ void MidiSettingsWidget::addSoundFont() {
 
 void MidiSettingsWidget::removeSoundFont() {
     int row = _soundFontList->currentRow();
-    if (row < 0) {
-        return;
+    if (row < 0 || row == _separatorRow) return;
+    QTableWidgetItem *nameItem = _soundFontList->item(row, 3);
+    if (!nameItem) return;
+    
+    QString path = nameItem->data(Qt::UserRole).toString();
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<QString, bool>> collection = engine->soundFontCollection();
+    
+    // Remove matching entry from collection
+    for (int i = 0; i < collection.size(); ++i) {
+        if (collection[i].first == path) {
+            collection.removeAt(i);
+            break;
+        }
     }
-    _soundFontList->removeRow(row);
-    onSoundFontTableDropped();
+    engine->setSoundFontCollection(collection);
+    refreshSoundFontList();
 }
 
 void MidiSettingsWidget::moveSoundFontUp() {
     int row = _soundFontList->currentRow();
-    if (row <= 0) return;
+    if (row <= 0 || row >= _separatorRow) return; // only enabled rows, not first
 
-    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    // Work through the collection directly
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<QString, bool>> collection = engine->soundFontCollection();
 
-    // swap items
-    for (int col = 0; col < _soundFontList->columnCount(); ++col) {
-        QTableWidgetItem *item1 = _soundFontList->takeItem(row, col);
-        QTableWidgetItem *item2 = _soundFontList->takeItem(row - 1, col);
-        _soundFontList->setItem(row, col, item2);
-        _soundFontList->setItem(row - 1, col, item1);
+    // Build enabled sub-list
+    QList<QPair<QString, bool>> enabled, disabled;
+    for (const auto &pair : collection) {
+        if (pair.second) enabled.append(pair);
+        else disabled.append(pair);
     }
-    _soundFontList->selectRow(row - 1);
 
-    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
-    onSoundFontTableDropped();
+    if (row <= 0 || row >= enabled.size()) return;
+    enabled.swapItemsAt(row, row - 1);
+
+    QList<QPair<QString, bool>> newCollection;
+    newCollection.append(enabled);
+    newCollection.append(disabled);
+    engine->setSoundFontCollection(newCollection);
+    refreshSoundFontList();
+
+    _soundFontList->selectRow(row - 1);
+    _soundFontList->setCurrentCell(row - 1, 0);
 }
 
 void MidiSettingsWidget::moveSoundFontDown() {
     int row = _soundFontList->currentRow();
-    if (row < 0 || row >= _soundFontList->rowCount() - 1) return;
+    if (row < 0 || row >= _separatorRow - 1) return; // only enabled rows, not last
 
-    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<QString, bool>> collection = engine->soundFontCollection();
 
-    for (int col = 0; col < _soundFontList->columnCount(); ++col) {
-        QTableWidgetItem *item1 = _soundFontList->takeItem(row, col);
-        QTableWidgetItem *item2 = _soundFontList->takeItem(row + 1, col);
-        _soundFontList->setItem(row, col, item2);
-        _soundFontList->setItem(row + 1, col, item1);
+    QList<QPair<QString, bool>> enabled, disabled;
+    for (const auto &pair : collection) {
+        if (pair.second) enabled.append(pair);
+        else disabled.append(pair);
     }
-    _soundFontList->selectRow(row + 1);
 
-    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
-    onSoundFontTableDropped();
+    if (row < 0 || row >= enabled.size() - 1) return;
+    enabled.swapItemsAt(row, row + 1);
+
+    QList<QPair<QString, bool>> newCollection;
+    newCollection.append(enabled);
+    newCollection.append(disabled);
+    engine->setSoundFontCollection(newCollection);
+    refreshSoundFontList();
+
+    _soundFontList->selectRow(row + 1);
+    _soundFontList->setCurrentCell(row + 1, 0);
 }
 
-void MidiSettingsWidget::onSoundFontToggled(int row, int col) {
-    if (col == 0) {
-        onSoundFontTableDropped();
+void MidiSettingsWidget::onSoundFontToggled() {
+    QCheckBox *cbTriggered = qobject_cast<QCheckBox*>(sender());
+    if (!cbTriggered) return;
+    
+    QList<QPair<QString, bool>> newCollection;
+    QString newlyEnabledPath;
+    
+    for (int r = 0; r < _soundFontList->rowCount(); ++r) {
+        if (r == _separatorRow) continue; // skip separator
+        
+        QTableWidgetItem *nameItem = _soundFontList->item(r, 3);
+        if (!nameItem) continue;
+        
+        QString path = nameItem->data(Qt::UserRole).toString();
+        bool enabled = (r < _separatorRow);
+        
+        QWidget* cbWidget = _soundFontList->cellWidget(r, 1);
+        if (cbWidget) {
+            QCheckBox* cb = cbWidget->findChild<QCheckBox*>();
+            if (cb == cbTriggered) {
+                enabled = cb->isChecked(); 
+                if (enabled && r > _separatorRow) {
+                    newlyEnabledPath = path;
+                }
+            }
+        }
+        
+        if (path == newlyEnabledPath) {
+            newCollection.prepend(qMakePair(path, true));
+        } else {
+            newCollection.append(qMakePair(path, enabled));
+        }
     }
+    FluidSynthEngine::instance()->setSoundFontCollection(newCollection);
+    refreshSoundFontList();
 }
 
 void MidiSettingsWidget::onSoundFontTableDropped() {
+    // Rebuild collection from current table state (used by removeSoundFont)
     QList<QPair<QString, bool>> newCollection;
+    
     for (int r = 0; r < _soundFontList->rowCount(); ++r) {
-        QTableWidgetItem *cbItem = _soundFontList->item(r, 0);
-        QTableWidgetItem *pathItem = _soundFontList->item(r, 2);
-        if (!cbItem || !pathItem) continue;
-        bool enabled = cbItem->checkState() == Qt::Checked;
-        QString path = pathItem->data(Qt::UserRole).toString();
+        if (r == _separatorRow) continue;
+        
+        QTableWidgetItem *nameItem = _soundFontList->item(r, 3);
+        if (!nameItem) continue;
+        
+        QString path = nameItem->data(Qt::UserRole).toString();
+        bool enabled = (r < _separatorRow);
         newCollection.append(qMakePair(path, enabled));
     }
     FluidSynthEngine::instance()->setSoundFontCollection(newCollection);
-    // Call refresh immediately to update priority labels visually
+    refreshSoundFontList();
+}
+
+void MidiSettingsWidget::reorderSoundFont(int fromRow, int toRow) {
+    int sepRow = _separatorRow;
+    
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    QList<QPair<QString, bool>> collection = engine->soundFontCollection();
+    
+    // Split into enabled and disabled
+    QList<QPair<QString, bool>> enabled, disabled;
+    for (const auto &pair : collection) {
+        if (pair.second) enabled.append(pair);
+        else disabled.append(pair);
+    }
+    
+    bool fromEnabled = (fromRow < sepRow);
+    bool toEnabled = (toRow < sepRow);
+    
+    if (fromEnabled && toEnabled) {
+        // Reorder within enabled section
+        if (fromRow < 0 || fromRow >= enabled.size()) return;
+        auto item = enabled.takeAt(fromRow);
+        int insertAt = (toRow > fromRow) ? toRow - 1 : toRow;
+        if (insertAt < 0) insertAt = 0;
+        if (insertAt > enabled.size()) insertAt = enabled.size();
+        enabled.insert(insertAt, item);
+    } else if (fromEnabled && !toEnabled) {
+        // Move enabled → disabled
+        if (fromRow < 0 || fromRow >= enabled.size()) return;
+        auto item = enabled.takeAt(fromRow);
+        item.second = false;
+        disabled.append(item);
+    } else if (!fromEnabled && toEnabled) {
+        // Move disabled → enabled
+        int disIdx = fromRow - sepRow - 1;
+        if (disIdx < 0 || disIdx >= disabled.size()) return;
+        auto item = disabled.takeAt(disIdx);
+        item.second = true;
+        int insertAt = toRow;
+        if (insertAt < 0) insertAt = 0;
+        if (insertAt > enabled.size()) insertAt = enabled.size();
+        enabled.insert(insertAt, item);
+    }
+    // disabled→disabled is a no-op (always sorted alphabetically)
+    
+    QList<QPair<QString, bool>> newCollection;
+    newCollection.append(enabled);
+    newCollection.append(disabled);
+    engine->setSoundFontCollection(newCollection);
     refreshSoundFontList();
 }
 
@@ -572,42 +950,121 @@ void MidiSettingsWidget::onChorusToggled(bool enabled) {
 }
 
 void MidiSettingsWidget::refreshSoundFontList() {
-    disconnect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
-    
+    // Remember selection
+    QString selectedPath = "";
+    int currentRow = _soundFontList->currentRow();
+    if (currentRow >= 0 && currentRow != _separatorRow) {
+        QTableWidgetItem *nameItem = _soundFontList->item(currentRow, 3);
+        if (nameItem) {
+            selectedPath = nameItem->data(Qt::UserRole).toString();
+        }
+    }
+
     _soundFontList->setRowCount(0);
     FluidSynthEngine *engine = FluidSynthEngine::instance();
     QList<QPair<QString, bool>> collection = engine->soundFontCollection();
 
-    _soundFontList->setRowCount(collection.size());
-    
-    int priority = 1;
-    
+    QList<QPair<QString, bool>> enabledList;
+    QList<QPair<QString, bool>> disabledList;
     for (int i = 0; i < collection.size(); ++i) {
-        QString path = collection[i].first;
-        bool enabled = collection[i].second;
-        
-        QTableWidgetItem *cbItem = new QTableWidgetItem();
-        cbItem->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-        cbItem->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
-        
+        if (collection[i].second) {
+            enabledList.append(collection[i]);
+        } else {
+            disabledList.append(collection[i]);
+        }
+    }
+
+    // Sort disabled by filename (case-insensitive), not by full path
+    std::sort(disabledList.begin(), disabledList.end(),
+              [](const QPair<QString, bool> &a, const QPair<QString, bool> &b) {
+        return QFileInfo(a.first).fileName().compare(
+                   QFileInfo(b.first).fileName(), Qt::CaseInsensitive) < 0;
+    });
+
+    // Always show separator: enabled + 1 separator + disabled
+    int totalRows = enabledList.size() + 1 + disabledList.size();
+    _soundFontList->setRowCount(totalRows);
+
+    auto addRow = [&](int r, const QString& path, bool enabled, int priority) {
+        // Grip: braille pattern ⠿ (2×3 dot grid) for a thicker drag handle
+        QTableWidgetItem *gripItem = new QTableWidgetItem(QString::fromUtf8("\xE2\xA0\xBF"));
+        gripItem->setTextAlignment(Qt::AlignCenter);
+        gripItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
+
+        QWidget *cbWidget = new QWidget();
+        QHBoxLayout *cbLayout = new QHBoxLayout(cbWidget);
+        QCheckBox *cb = new QCheckBox();
+        cb->setChecked(enabled);
+        cbLayout->addWidget(cb);
+        cbLayout->setAlignment(Qt::AlignCenter);
+        cbLayout->setContentsMargins(0,0,0,0);
+        connect(cb, &QCheckBox::clicked, this, &MidiSettingsWidget::onSoundFontToggled);
+
+        QTableWidgetItem *cbHiddenItem = new QTableWidgetItem();
+
         QTableWidgetItem *prioItem = new QTableWidgetItem(enabled ? QString::number(priority) : "-");
         prioItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         prioItem->setTextAlignment(Qt::AlignCenter);
-        
+
         QFileInfo fi(path);
+        bool exists = fi.exists();
+
         QTableWidgetItem *nameItem = new QTableWidgetItem(fi.fileName());
         nameItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
-        nameItem->setData(Qt::UserRole, path); // Hidden path
-        nameItem->setToolTip(path);
-        
-        _soundFontList->setItem(i, 0, cbItem);
-        _soundFontList->setItem(i, 1, prioItem);
-        _soundFontList->setItem(i, 2, nameItem);
-        
-        if (enabled) priority++;
+        nameItem->setData(Qt::UserRole, path);
+
+        if (!exists) {
+            nameItem->setForeground(QBrush(Qt::red));
+            nameItem->setToolTip(tr("File not found: ") + path);
+            prioItem->setForeground(QBrush(Qt::red));
+        } else {
+            nameItem->setToolTip(path);
+        }
+
+        _soundFontList->setItem(r, 0, gripItem);
+        _soundFontList->setCellWidget(r, 1, cbWidget);
+        _soundFontList->setItem(r, 1, cbHiddenItem);
+        _soundFontList->setItem(r, 2, prioItem);
+        _soundFontList->setItem(r, 3, nameItem);
+
+        if (path == selectedPath) {
+            _soundFontList->selectRow(r);
+            _soundFontList->setCurrentCell(r, 0);
+        }
+    };
+
+    int rowIdx = 0;
+    int priority = 1;
+
+    // Enabled rows
+    for (int i = 0; i < enabledList.size(); ++i) {
+        addRow(rowIdx++, enabledList[i].first, true, priority++);
     }
-    
-    connect(_soundFontList, SIGNAL(cellClicked(int,int)), this, SLOT(onSoundFontToggled(int,int)));
+
+    // Separator row — always present, painted by SoundFontSeparatorDelegate
+    _separatorRow = rowIdx;
+    {
+        QTableWidgetItem *sepItem = new QTableWidgetItem();
+        sepItem->setFlags(Qt::NoItemFlags);
+        sepItem->setData(SeparatorRole, true);
+        _soundFontList->setItem(rowIdx, 0, sepItem);
+        for (int col = 1; col < 4; ++col) {
+            QTableWidgetItem *emptySep = new QTableWidgetItem();
+            emptySep->setFlags(Qt::NoItemFlags);
+            _soundFontList->setItem(rowIdx, col, emptySep);
+        }
+        _soundFontList->setSpan(rowIdx, 0, 1, 4);
+        _soundFontList->setRowHeight(rowIdx, 22);
+        rowIdx++;
+    }
+
+    // Disabled rows (sorted by filename)
+    for (int i = 0; i < disabledList.size(); ++i) {
+        addRow(rowIdx++, disabledList[i].first, false, 0);
+    }
+
+    // Update drag controller
+    _dragController->setEnabledCount(enabledList.size());
 }
 
 void MidiSettingsWidget::showDownloadSoundFontDialog() {
