@@ -112,10 +112,12 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
 
 void AppearanceSettingsWidget::channelColorChanged(int channel, QColor c) {
     Appearance::setChannelColor(channel, c);
+    Appearance::forceColorRefresh();
 }
 
 void AppearanceSettingsWidget::trackColorChanged(int track, QColor c) {
     Appearance::setTrackColor(track, c);
+    Appearance::forceColorRefresh();
 }
 
 void AppearanceSettingsWidget::resetColors() {
@@ -149,16 +151,19 @@ void AppearanceSettingsWidget::opacityChanged(int opacity) {
     foreach(NamedColorWidgetItem* item, *_channelItems) {
         item->colorChanged(*Appearance::channelColor(item->number()));
     }
+    Appearance::forceColorRefresh();
     update();
 }
 
 void AppearanceSettingsWidget::stripStyleChanged(int strip) {
     Appearance::setStrip(static_cast<Appearance::stripStyle>(strip));
+    Appearance::forceColorRefresh();
     update();
 }
 
 void AppearanceSettingsWidget::rangeLinesChanged(bool enabled) {
     Appearance::setShowRangeLines(enabled);
+    Appearance::forceColorRefresh();
     update();
 }
 
