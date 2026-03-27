@@ -527,6 +527,20 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     sfBtnCol->addWidget(_moveSoundFontUpBtn);
     sfBtnCol->addWidget(_moveSoundFontDownBtn);
     sfBtnCol->addWidget(_downloadDefaultSoundFontBtn);
+    
+    _exportWavBtn = new QPushButton(tr("Export MIDI"), _fluidSynthSettingsGroup);
+    _exportWavBtn->setToolTip(tr("Export current workspace to WAV"));
+    sfBtnCol->addWidget(_exportWavBtn);
+    connect(_exportWavBtn, SIGNAL(clicked()), this, SLOT(onExportToWav()));
+
+    _exportProgressBar = new QProgressBar(_fluidSynthSettingsGroup);
+    _exportProgressBar->setRange(0, 100);
+    _exportProgressBar->setValue(0);
+    _exportProgressBar->setAlignment(Qt::AlignCenter);
+    _exportProgressBar->setFormat(tr("Exporting... %p%"));
+    _exportProgressBar->hide();
+    sfBtnCol->addWidget(_exportProgressBar);
+
     sfBtnCol->addStretch();
     sfRow->addLayout(sfBtnCol);
     fsLayout->addLayout(sfRow);
@@ -619,19 +633,6 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     settingsGrid->addLayout(gainRow, 2, 1);
     connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
     connect(_gainResetBtn, SIGNAL(clicked()), this, SLOT(onGainReset()));
-
-    _exportWavBtn = new QPushButton(tr("Export Midi"), _fluidSynthSettingsGroup);
-    _exportWavBtn->setToolTip(tr("Export current workspace to WAV"));
-    settingsGrid->addWidget(_exportWavBtn, 2, 3, Qt::AlignLeft);
-    connect(_exportWavBtn, SIGNAL(clicked()), this, SLOT(onExportToWav()));
-
-    _exportProgressBar = new QProgressBar(_fluidSynthSettingsGroup);
-    _exportProgressBar->setRange(0, 100);
-    _exportProgressBar->setValue(0);
-    _exportProgressBar->setAlignment(Qt::AlignCenter);
-    _exportProgressBar->setFormat(tr("Exporting... %p%"));
-    _exportProgressBar->hide();
-    settingsGrid->addWidget(_exportProgressBar, 2, 3, Qt::AlignLeft);
 
     fsLayout->addLayout(settingsGrid);
 
@@ -838,13 +839,13 @@ void MidiSettingsWidget::onExportToWav() {
 
     QString exportName = QFileInfo(file->path()).baseName();
     if (exportName.isEmpty()) {
-        exportName = "Exported_Midi";
+        exportName = "Exported Midi";
     }
     
     QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).filePath(exportName + ".wav");
     QString wavPath = QFileDialog::getSaveFileName(
         this,
-        tr("Export Midi to Wav"),
+        tr("Export MIDI to WAV"),
         defaultPath,
         tr("WAV Audio Files (*.wav)")
     );

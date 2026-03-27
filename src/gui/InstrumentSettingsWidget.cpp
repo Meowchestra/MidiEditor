@@ -149,6 +149,7 @@ void InstrumentSettingsWidget::populateTable() {
     for (int i = 0; i < 128; i++) {
         QTableWidgetItem *numItem = new QTableWidgetItem(QString::number(i));
         numItem->setFlags(numItem->flags() & ~Qt::ItemIsEditable);
+        numItem->setTextAlignment(Qt::AlignCenter);
         _tableWidget->setItem(i, 0, numItem);
         
         QString name = names.value(i, "");

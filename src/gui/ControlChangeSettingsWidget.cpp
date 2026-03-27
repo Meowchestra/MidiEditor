@@ -41,7 +41,7 @@ ControlChangeSettingsWidget::ControlChangeSettingsWidget(QSettings *settings, QW
 
     // Table for viewing/editing
     _tableWidget = new QTableWidget(128, 2, this);
-    _tableWidget->setHorizontalHeaderLabels(QStringList() << tr("CC #") << tr("Name"));
+    _tableWidget->setHorizontalHeaderLabels(QStringList() << tr("Control") << tr("Name"));
     _tableWidget->verticalHeader()->setVisible(false);
     _tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     _tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
@@ -69,6 +69,7 @@ void ControlChangeSettingsWidget::populateTable() {
     for (int i = 0; i < 128; i++) {
         QTableWidgetItem *numItem = new QTableWidgetItem(QString::number(i));
         numItem->setFlags(numItem->flags() & ~Qt::ItemIsEditable);
+        numItem->setTextAlignment(Qt::AlignCenter);
         _tableWidget->setItem(i, 0, numItem);
         
         QString name = names.value(i, "");
