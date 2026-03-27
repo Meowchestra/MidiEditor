@@ -423,26 +423,49 @@ int EventTool::rasteredX(int x, int *tick) {
 
     // Notes snapping logic
     if (_magnetMode & SNAP_NOTES) {
-        foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
-            // Do not snap to the note we are currently trying to move
-            if (Selection::instance()->selectedEvents().contains(ev)) continue;
+        int viewStartTick = matrixWidget->minVisibleMidiTime();
+        int viewEndTick = matrixWidget->maxVisibleMidiTime();
+        
+        int margin = _currentFile->ticksPerQuarter();
+        int searchStartTick = std::max(0, viewStartTick - margin);
+        int searchEndTick = viewEndTick + margin;
 
-            int evX = ev->x();
-            int distStart = std::abs(evX - x);
-            if (distStart < bestDist) {
-                bestDist = distStart;
-                bestX = evX;
-                bestTick = ev->midiTime();
+        for (int channel = 0; channel < 16; channel++) {
+            if (!ChannelVisibilityManager::instance().isChannelVisible(channel)) {
+                continue;
             }
+            QMultiMap<int, MidiEvent *> *map = _currentFile->channelEvents(channel);
+            if (!map) continue;
+            
+            QMultiMap<int, MidiEvent *>::iterator it = map->lowerBound(searchStartTick);
+            QMultiMap<int, MidiEvent *>::iterator endIt = map->upperBound(searchEndTick);
+            
+            while (it != map->end() && it != endIt) {
+                MidiEvent* ev = it.value();
+                it++;
+                
+                if (ev->track()->hidden()) continue;
 
-            NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent*>(ev);
-            if (noteOn && noteOn->offEvent()) {
-                int endX = evX + ev->width();
-                int distEnd = std::abs(endX - x);
-                if (distEnd < bestDist) {
-                    bestDist = distEnd;
-                    bestX = endX;
-                    bestTick = noteOn->offEvent()->midiTime();
+                // Do not snap to the note we are currently trying to move
+                if (Selection::instance()->selectedEvents().contains(ev)) continue;
+
+                int evX = matrixWidget->xPosOfMs(_currentFile->msOfTick(ev->midiTime()));
+                int distStart = std::abs(evX - x);
+                if (distStart < bestDist) {
+                    bestDist = distStart;
+                    bestX = evX;
+                    bestTick = ev->midiTime();
+                }
+
+                NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent*>(ev);
+                if (noteOn && noteOn->offEvent()) {
+                    int endX = matrixWidget->xPosOfMs(_currentFile->msOfTick(noteOn->offEvent()->midiTime()));
+                    int distEnd = std::abs(endX - x);
+                    if (distEnd < bestDist) {
+                        bestDist = distEnd;
+                        bestX = endX;
+                        bestTick = noteOn->offEvent()->midiTime();
+                    }
                 }
             }
         }
