@@ -1643,6 +1643,19 @@ void MainWindow::glueSelection() {
     updateAll();
 }
 
+void MainWindow::glueAllChannels() {
+    if (!file) {
+        return;
+    }
+
+    Tool::setFile(file);
+    GlueTool glueTool;
+
+    // Always ignore channels
+    glueTool.performGlueOperation(false);
+    updateAll();
+}
+
 void MainWindow::strumNotes() {
     if (!file) {
         return;
@@ -3370,15 +3383,29 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsMB->addSeparator();
 
-    QAction *glueNotesAction = new QAction(tr("Glue notes"), this);
+    QMenu *glueMenu = new QMenu(tr("Glue notes"), this);
+    Appearance::setMenuIcon(glueMenu, ":/run_environment/graphics/tool/glue.png");
+
+    QAction *glueNotesAction = new QAction(tr("Same channel"), this);
     glueNotesAction->setToolTip(tr("Glue notes (Hold Shift for all channels)"));
     glueNotesAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_G)));
     _defaultShortcuts["glue"] = QList<QKeySequence>() << glueNotesAction->shortcut();
     Appearance::setActionIcon(glueNotesAction, ":/run_environment/graphics/tool/glue.png");
     connect(glueNotesAction, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueNotesAction);
-    toolsMB->addAction(glueNotesAction);
     _actionMap["glue"] = glueNotesAction;
+    glueMenu->addAction(glueNotesAction);
+
+    QAction *glueAllChannelsAction = new QAction(tr("All channels"), this);
+    glueAllChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_G)));
+    _defaultShortcuts["glue_all"] = QList<QKeySequence>() << glueAllChannelsAction->shortcut();
+    connect(glueAllChannelsAction, SIGNAL(triggered()), this, SLOT(glueAllChannels()));
+    _activateWithSelections.append(glueAllChannelsAction);
+    _actionMap["glue_all"] = glueAllChannelsAction;
+    glueMenu->addAction(glueAllChannelsAction);
+    addAction(glueAllChannelsAction);
+
+    toolsMB->addMenu(glueMenu);
 
     QAction *scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_X)), toolsMB);
     _defaultShortcuts["scissors"] = QList<QKeySequence>() << scissorsAction->shortcut();

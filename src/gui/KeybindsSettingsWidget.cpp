@@ -149,7 +149,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     
     // Tools menu - Editing
     order << "delete" << "align_left" << "align_right" << "equalize"
-          << "glue" << "scissors" << "delete_overlaps"
+          << "glue" << "glue_all" << "scissors" << "delete_overlaps"
           << "convert_pitch_bend_to_notes" << "explode_chords_to_tracks" << "strum";
     
     // Tools menu - Quantization & Transform
