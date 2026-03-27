@@ -401,7 +401,7 @@ MainWindow::MainWindow(QString initFile)
 
     //_miscControlLayout->addWidget(new QLabel("Channel:", _miscWidgetControl), 4, 0, 1, 3);
     _miscChannel = new QComboBox(_miscWidgetControl);
-    for (int i = 0; i < 15; i++) {
+    for (int i = 0; i < 16; i++) {
         _miscChannel->addItem("Channel " + QString::number(i));
     }
     _miscChannel->view()->setMinimumWidth(_miscChannel->minimumSizeHint().width());
@@ -3419,7 +3419,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsMB->addSeparator();
 
-    QAction *quantizeAction = new QAction(tr("Quantify selection"), this);
+    QAction *quantizeAction = new QAction(tr("Quantize selection"), this);
     _activateWithSelections.append(quantizeAction);
     Appearance::setActionIcon(quantizeAction, ":/run_environment/graphics/tool/quantize.png");
     quantizeAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_Q)));
@@ -3546,7 +3546,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(quantMenu, SIGNAL(triggered(QAction*)), this, SLOT(quantizationChanged(QAction*)));
     toolsMB->addMenu(quantMenu);
 
-    QAction *quantizeNToleAction = new QAction(tr("Quantify tuplet"), this);
+    QAction *quantizeNToleAction = new QAction(tr("Quantize tuplet"), this);
     _activateWithSelections.append(quantizeNToleAction);
     quantizeNToleAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_H)));
     _defaultShortcuts["quantize_ntuplet_dialog"] = QList<QKeySequence>() << quantizeNToleAction->shortcut();
@@ -5078,7 +5078,7 @@ void MainWindow::quantizeSelection() {
     // get list with all quantization ticks
     QList<int> ticks = file->quantization(_quantizationGrid);
 
-    file->protocol()->startNewAction(tr("Quantify events"), new QImage(":/run_environment/graphics/tool/quantize.png"));
+    file->protocol()->startNewAction(tr("Quantize events"), new QImage(":/run_environment/graphics/tool/quantize.png"));
     foreach(MidiEvent* e, Selection::instance()->selectedEvents()) {
         int onTime = e->midiTime();
         e->setMidiTime(quantize(onTime, ticks));
@@ -5144,7 +5144,7 @@ void MainWindow::quantizeNtole() {
     // get list with all quantization ticks
     QList<int> ticks = file->quantization(_quantizationGrid);
 
-    file->protocol()->startNewAction(tr("Quantify tuplet"), new QImage(":/run_environment/graphics/tool/quantize.png"));
+    file->protocol()->startNewAction(tr("Quantize tuplet"), new QImage(":/run_environment/graphics/tool/quantize.png"));
 
     // find minimum starting time
     int startTick = -1;
