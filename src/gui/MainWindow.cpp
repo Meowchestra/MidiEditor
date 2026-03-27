@@ -1623,24 +1623,11 @@ void MainWindow::glueSelection() {
     Tool::setFile(file);
 
     // Create a temporary GlueTool instance to perform the operation
-    // Respect channels (only merge notes within the same channel)
     GlueTool glueTool;
-    glueTool.performGlueOperation(true); // true = respect channels
-    updateAll();
-}
 
-void MainWindow::glueSelectionAllChannels() {
-    if (!file) {
-        return;
-    }
-
-    // Ensure the current file is set for the tool
-    Tool::setFile(file);
-
-    // Create a temporary GlueTool instance to perform the operation
-    // Don't respect channels (merge notes across all channels on the same track)
-    GlueTool glueTool;
-    glueTool.performGlueOperation(false); // false = ignore channels
+    // By default respect channels, but ignore if Shift is held
+    bool respectChannels = !(QApplication::keyboardModifiers() & Qt::ShiftModifier);
+    glueTool.performGlueOperation(respectChannels);
     updateAll();
 }
 
@@ -3371,7 +3358,8 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsMB->addSeparator();
 
-    QAction *glueNotesAction = new QAction(tr("Glue notes (same channel)"), this);
+    QAction *glueNotesAction = new QAction(tr("Glue notes"), this);
+    glueNotesAction->setToolTip(tr("Glue notes (Hold Shift for all channels)"));
     glueNotesAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_G)));
     _defaultShortcuts["glue"] = QList<QKeySequence>() << glueNotesAction->shortcut();
     Appearance::setActionIcon(glueNotesAction, ":/run_environment/graphics/tool/glue.png");
@@ -3379,15 +3367,6 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _activateWithSelections.append(glueNotesAction);
     toolsMB->addAction(glueNotesAction);
     _actionMap["glue"] = glueNotesAction;
-
-    QAction *glueNotesAllChannelsAction = new QAction(tr("Glue notes (all channels)"), this);
-    glueNotesAllChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_G)));
-    _defaultShortcuts["glue_all_channels"] = QList<QKeySequence>() << glueNotesAllChannelsAction->shortcut();
-    Appearance::setActionIcon(glueNotesAllChannelsAction, ":/run_environment/graphics/tool/glue.png");
-    connect(glueNotesAllChannelsAction, SIGNAL(triggered()), this, SLOT(glueSelectionAllChannels()));
-    _activateWithSelections.append(glueNotesAllChannelsAction);
-    toolsMB->addAction(glueNotesAllChannelsAction);
-    _actionMap["glue_all_channels"] = glueNotesAllChannelsAction;
 
     QAction *scissorsAction = new ToolButton(new ScissorsTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_X)), toolsMB);
     _defaultShortcuts["scissors"] = QList<QKeySequence>() << scissorsAction->shortcut();
@@ -5005,8 +4984,7 @@ QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
     actions << ToolbarActionInfo{"remove_notes", "Remove Notes", ":/run_environment/graphics/tool/eraser.png", nullptr, true, false, "Edit"};
     actions << ToolbarActionInfo{"copy", "Copy", ":/run_environment/graphics/tool/copy.png", nullptr, true, false, "Edit"};
     actions << ToolbarActionInfo{"paste", "Paste", ":/run_environment/graphics/tool/paste.png", nullptr, true, false, "Edit"};
-    actions << ToolbarActionInfo{"glue", "Glue Notes (Same Channel)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"glue_all_channels", "Glue Notes (All Channels)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"glue", "Glue Notes", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{ "size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, true, false, "Tools"};

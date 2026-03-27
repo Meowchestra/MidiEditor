@@ -408,11 +408,6 @@ public slots:
     void glueSelection();
 
     /**
-     * \brief Glues selected events together across all channels.
-     */
-    void glueSelectionAllChannels();
-
-    /**
      * \brief Deletes overlapping notes.
      */
     void deleteOverlaps();

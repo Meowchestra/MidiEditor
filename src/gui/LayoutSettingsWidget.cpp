@@ -679,8 +679,7 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
 
     // Tool actions
     actions << ToolbarActionInfo{"separator4", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"glue", "Glue Notes (Same Channel)", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"glue_all_channels", "Glue Notes (All Channels)", ":/run_environment/graphics/tool/glue.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"glue", "Glue Notes", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
 
@@ -799,7 +798,7 @@ QStringList LayoutSettingsWidget::getComprehensiveActionOrder() {
     QStringList order;
     order << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator5"
+            << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
             << "transpose" << "transpose_up" << "transpose_down" << "separator7"
             << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
@@ -843,7 +842,7 @@ void LayoutSettingsWidget::getDefaultRowDistribution(QStringList &row1Actions, Q
     // Row 1: Editing and tool actions
     row1Actions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
-            << "glue" << "glue_all_channels" << "scissors" << "delete_overlaps" << "separator5"
+            << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
             << "transpose" << "transpose_up" << "transpose_down" << "separator7"
             << "align_left" << "equalize" << "align_right" << "separator8"
