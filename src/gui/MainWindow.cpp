@@ -112,6 +112,9 @@
 #include "../midi/FluidSynthEngine.h"
 #endif
 
+#include "../midi/ImportMML.h"
+#include "../midi/ImportGuitarPro.h"
+
 MainWindow::MainWindow(QString initFile)
     : QMainWindow()
       , _initFile(initFile) {
@@ -1223,7 +1226,7 @@ void MainWindow::load() {
     if (f->exists()) {
         QFileInfo(*f).dir().path();
     }
-    QString newPath = QFileDialog::getOpenFileName(this, tr("Open file"), dir, tr("MIDI Files(*.mid *.midi);;All Files(*)"));
+    QString newPath = QFileDialog::getOpenFileName(this, tr("Open file"), dir, tr("Music Files(*.mid *.midi *.mml *.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp);;MIDI Files(*.mid *.midi);;MML Files(*.mml);;GuitarPro Files(*.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp);;All Files(*)"));
 
     if (!newPath.isEmpty()) {
         openFile(newPath);
@@ -1255,9 +1258,18 @@ void MainWindow::openFile(QString filePath) {
 
     startDirectory = QFileInfo(nf).absoluteDir().path() + "/";
 
-    MidiFile *mf = new MidiFile(filePath, &ok);
+    MidiFile *mf = nullptr;
+    QString lowerPath = filePath.toLower();
+    
+    if (lowerPath.endsWith(".mml")) {
+        mf = ImportMML::loadFile(filePath, &ok);
+    } else if (lowerPath.endsWith(".gp3") || lowerPath.endsWith(".gp4") || lowerPath.endsWith(".gp5") || lowerPath.endsWith(".gp6") || lowerPath.endsWith(".gp7") || lowerPath.endsWith(".gpx") || lowerPath.endsWith(".gp")) {
+        mf = ImportGuitarPro::loadFile(filePath, &ok);
+    } else {
+        mf = new MidiFile(filePath, &ok);
+    }
 
-    if (ok) {
+    if (ok && mf) {
         stop();
         setFile(mf);
         updateRecentPathsList();
