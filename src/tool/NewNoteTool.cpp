@@ -90,30 +90,12 @@ void NewNoteTool::draw(QPainter *painter) {
         drawLine = matrixWidget->lineAtY(mouseY);
         if (drawLine >= 0 && drawLine <= 127) {
             doDrawNote = true;
+            drawX = currentX;
+            int startTick;
+            rasteredX(drawX, &startTick);
             int durationTicks = (file()->ticksPerQuarter() * 4) / effectiveDurationDivisor();
-            
-            int startTick, endTick;
-            int snappedStartX = rasteredX(mouseX, &startTick);
-            int distStart = std::abs(snappedStartX - mouseX);
-            
-            int unsnappedStartTick = file()->tick(matrixWidget->msOfXPos(mouseX));
-            int unsnappedEndTick = unsnappedStartTick + durationTicks;
-            int unsnappedEndX = matrixWidget->xPosOfMs(file()->msOfTick(unsnappedEndTick));
-            
-            int snappedEndX = rasteredX(unsnappedEndX, &endTick);
-            int distEnd = std::abs(snappedEndX - unsnappedEndX);
-            
-            if (magnetEnabled() && distEnd < distStart) {
-                startTick = endTick - durationTicks;
-                if (startTick < 0) startTick = 0;
-                drawX = matrixWidget->xPosOfMs(file()->msOfTick(startTick));
-                endTick = startTick + durationTicks;
-                drawCurrentX = matrixWidget->xPosOfMs(file()->msOfTick(endTick));
-            } else {
-                drawX = snappedStartX;
-                endTick = startTick + durationTicks;
-                drawCurrentX = matrixWidget->xPosOfMs(file()->msOfTick(endTick));
-            }
+            int endMs = file()->msOfTick(startTick + durationTicks);
+            drawCurrentX = matrixWidget->xPosOfMs(endMs);
         }
     }
 
@@ -156,31 +138,7 @@ bool NewNoteTool::press(bool leftClick) {
     Q_UNUSED(leftClick);
     inDrag = true;
     line = matrixWidget->lineAtY(mouseY);
-    
-    if (effectiveDurationDivisor() > 0 && line <= 127) {
-        int durationTicks = (file()->ticksPerQuarter() * 4) / effectiveDurationDivisor();
-        
-        int startTick, endTick;
-        int snappedStartX = rasteredX(mouseX, &startTick);
-        int distStart = std::abs(snappedStartX - mouseX);
-        
-        int unsnappedStartTick = file()->tick(matrixWidget->msOfXPos(mouseX));
-        int unsnappedEndTick = unsnappedStartTick + durationTicks;
-        int unsnappedEndX = matrixWidget->xPosOfMs(file()->msOfTick(unsnappedEndTick));
-        
-        int snappedEndX = rasteredX(unsnappedEndX, &endTick);
-        int distEnd = std::abs(snappedEndX - unsnappedEndX);
-        
-        if (magnetEnabled() && distEnd < distStart) {
-            startTick = endTick - durationTicks;
-            if (startTick < 0) startTick = 0;
-            xPos = matrixWidget->xPosOfMs(file()->msOfTick(startTick));
-        } else {
-            xPos = snappedStartX;
-        }
-    } else {
-        xPos = rasteredX(mouseX);
-    }
+    xPos = rasteredX(mouseX);
     return true;
 }
 
