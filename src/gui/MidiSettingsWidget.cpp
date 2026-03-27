@@ -57,6 +57,15 @@
 #include "../midi/MidiOutput.h"
 #include "DownloadSoundFontDialog.h"
 
+#include <QStandardPaths>
+#include <QProcess>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QTemporaryFile>
+#include <QFileInfo>
+#include <QProgressBar>
+#include "MainWindow.h"
+
 // Custom role to mark separator rows
 static const int SeparatorRole = Qt::UserRole + 100;
 
@@ -431,8 +440,8 @@ bool AdditionalMidiSettingsWidget::accept() {
     return true;
 }
 
-MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
-    : SettingsWidget("Midi I/O", parent) {
+MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
+    : SettingsWidget("Midi I/O", parent), _mainWindow(mainWindow) {
     QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
@@ -610,6 +619,19 @@ MidiSettingsWidget::MidiSettingsWidget(QWidget *parent)
     settingsGrid->addLayout(gainRow, 2, 1);
     connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
     connect(_gainResetBtn, SIGNAL(clicked()), this, SLOT(onGainReset()));
+
+    _exportWavBtn = new QPushButton(tr("Export Midi"), _fluidSynthSettingsGroup);
+    _exportWavBtn->setToolTip(tr("Export current workspace to WAV"));
+    settingsGrid->addWidget(_exportWavBtn, 2, 3, Qt::AlignLeft);
+    connect(_exportWavBtn, SIGNAL(clicked()), this, SLOT(onExportToWav()));
+
+    _exportProgressBar = new QProgressBar(_fluidSynthSettingsGroup);
+    _exportProgressBar->setRange(0, 100);
+    _exportProgressBar->setValue(0);
+    _exportProgressBar->setAlignment(Qt::AlignCenter);
+    _exportProgressBar->setFormat(tr("Exporting... %p%"));
+    _exportProgressBar->hide();
+    settingsGrid->addWidget(_exportProgressBar, 2, 3, Qt::AlignLeft);
 
     fsLayout->addLayout(settingsGrid);
 
@@ -805,9 +827,65 @@ void MidiSettingsWidget::moveSoundFontDown() {
     newCollection.append(disabled);
     engine->setSoundFontCollection(newCollection);
     refreshSoundFontList();
-
     _soundFontList->selectRow(row + 1);
     _soundFontList->setCurrentCell(row + 1, 0);
+}
+
+void MidiSettingsWidget::onExportToWav() {
+    if (!_mainWindow) return;
+    MidiFile *file = _mainWindow->getFile();
+    if (!file) return;
+
+    QString exportName = QFileInfo(file->path()).baseName();
+    if (exportName.isEmpty()) {
+        exportName = "Exported_Midi";
+    }
+    
+    QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).filePath(exportName + ".wav");
+    QString wavPath = QFileDialog::getSaveFileName(
+        this,
+        tr("Export Midi to Wav"),
+        defaultPath,
+        tr("WAV Audio Files (*.wav)")
+    );
+
+    if (wavPath.isEmpty()) {
+        return;
+    }
+
+    // Save current memory state to a temporary fast-render file
+    QString tempMidi = QDir::tempPath() + "/MidiEditor_fastrender_" + QString::number(QCoreApplication::applicationPid()) + ".mid";
+    if (!file->save(tempMidi)) {
+        return;
+    }
+
+    _exportWavBtn->hide();
+    _exportProgressBar->setValue(0);
+    _exportProgressBar->show();
+    
+    // Disconnect any old connections to avoid double calls
+    disconnect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
+    disconnect(FluidSynthEngine::instance(), SIGNAL(exportFinished(bool,QString)), this, SLOT(onExportFinished(bool,QString)));
+    
+    connect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
+    connect(FluidSynthEngine::instance(), SIGNAL(exportFinished(bool,QString)), this, SLOT(onExportFinished(bool,QString)));
+
+    QtConcurrent::run([tempMidi, wavPath]() {
+        FluidSynthEngine::instance()->exportToWav(tempMidi, wavPath);
+    });
+}
+
+void MidiSettingsWidget::onExportProgress(int percent) {
+    if (percent < 0) percent = 0;
+    if (percent > 100) percent = 100;
+    _exportProgressBar->setValue(percent);
+}
+
+void MidiSettingsWidget::onExportFinished(bool success, const QString &path) {
+    _exportProgressBar->hide();
+    _exportWavBtn->show();
+
+    QFile::remove(QDir::tempPath() + "/MidiEditor_fastrender_" + QString::number(QCoreApplication::applicationPid()) + ".mid");
 }
 
 void MidiSettingsWidget::onSoundFontToggled() {

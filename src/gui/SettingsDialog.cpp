@@ -93,7 +93,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     layout->addWidget(buttonBar, 2, 0, 1, 1);
 
     // add content
-    addSetting(new MidiSettingsWidget(central));
+    addSetting(new MidiSettingsWidget(_mainWindow, central));
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
     addSetting(new InstrumentSettingsWidget(settings, central));
     addSetting(new ControlChangeSettingsWidget(settings, central));

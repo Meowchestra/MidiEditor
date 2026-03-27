@@ -477,6 +477,90 @@ void FluidSynthEngine::sendMidiData(const QByteArray &data) {
 }
 
 // ============================================================================
+// Export
+// ============================================================================
+
+void FluidSynthEngine::exportToWav(const QString &midiFilePath, const QString &wavFilePath) {
+    if (!_initialized) {
+        emit exportFinished(false, wavFilePath);
+        return;
+    }
+
+    fluid_settings_t* settings = new_fluid_settings();
+    fluid_settings_setstr(settings, "audio.driver", "file");
+    fluid_settings_setstr(settings, "audio.file.name", wavFilePath.toUtf8().constData());
+    
+    _engineMutex.lock();
+    fluid_settings_setnum(settings, "synth.sample-rate", _sampleRate);
+    fluid_settings_setint(settings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
+    fluid_settings_setint(settings, "synth.chorus.active", _chorusEnabled ? 1 : 0);
+    fluid_settings_setnum(settings, "synth.gain", _gain);
+    fluid_settings_setstr(settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
+
+    // Get loaded font paths while holding lock
+    QStringList fontstoload;
+    for (int i = 0; i < _loadedFonts.size(); ++i) {
+        fontstoload.append(_loadedFonts[i].second);
+    }
+    _engineMutex.unlock();
+
+    fluid_synth_t* synth = new_fluid_synth(settings);
+    if (!synth) {
+        delete_fluid_settings(settings);
+        emit exportFinished(false, wavFilePath);
+        return;
+    }
+
+    for (const QString &f : fontstoload) {
+        fluid_synth_sfload(synth, f.toUtf8().constData(), 1);
+    }
+
+    fluid_player_t* player = new_fluid_player(synth);
+    if (fluid_player_add(player, midiFilePath.toUtf8().constData()) != FLUID_OK) {
+        delete_fluid_player(player);
+        delete_fluid_synth(synth);
+        delete_fluid_settings(settings);
+        emit exportFinished(false, wavFilePath);
+        return;
+    }
+
+    fluid_player_play(player);
+    fluid_file_renderer_t* renderer = new_fluid_file_renderer(synth);
+    if (!renderer) {
+        delete_fluid_player(player);
+        delete_fluid_synth(synth);
+        delete_fluid_settings(settings);
+        emit exportFinished(false, wavFilePath);
+        return;
+    }
+
+    int totalTicks = fluid_player_get_total_ticks(player);
+    if (totalTicks <= 0) totalTicks = 1; // guard
+    
+    int lastPercent = -1;
+
+    while (fluid_player_get_status(player) == FLUID_PLAYER_PLAYING) {
+        if (fluid_file_renderer_process_block(renderer) != FLUID_OK) {
+            break;
+        }
+        int curTick = fluid_player_get_current_tick(player);
+        int percent = (int)(100.0 * curTick / totalTicks);
+        if (percent != lastPercent) {
+            lastPercent = percent;
+            emit exportProgress(percent);
+        }
+    }
+
+    delete_fluid_file_renderer(renderer);
+    delete_fluid_player(player);
+    delete_fluid_synth(synth);
+    delete_fluid_settings(settings);
+
+    emit exportProgress(100);
+    emit exportFinished(true, wavFilePath);
+}
+
+// ============================================================================
 // Audio Settings
 // ============================================================================
 

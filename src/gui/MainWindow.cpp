@@ -3384,13 +3384,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     toolsMB->addSeparator();
 
     QMenu *glueMenu = new QMenu(tr("Glue notes"), this);
-    Appearance::setMenuIcon(glueMenu, ":/run_environment/graphics/tool/glue.png");
+    Appearance::setActionIcon(glueMenu->menuAction(), ":/run_environment/graphics/tool/glue.png");
 
     QAction *glueNotesAction = new QAction(tr("Same channel"), this);
     glueNotesAction->setToolTip(tr("Glue notes (Hold Shift for all channels)"));
     glueNotesAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_G)));
     _defaultShortcuts["glue"] = QList<QKeySequence>() << glueNotesAction->shortcut();
     Appearance::setActionIcon(glueNotesAction, ":/run_environment/graphics/tool/glue.png");
+    glueNotesAction->setIconVisibleInMenu(false); // Hide in submenu, but keep for toolbar
     connect(glueNotesAction, SIGNAL(triggered()), this, SLOT(glueSelection()));
     _activateWithSelections.append(glueNotesAction);
     _actionMap["glue"] = glueNotesAction;

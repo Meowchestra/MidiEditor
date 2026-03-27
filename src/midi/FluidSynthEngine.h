@@ -142,6 +142,13 @@ public:
      */
     void sendMidiData(const QByteArray &data);
 
+    // === Export ===
+    
+    /**
+     * \brief Synchronous export to WAV file. Emits progress signals.
+     */
+    void exportToWav(const QString &midiFilePath, const QString &wavFilePath);
+
     // === Audio Settings ===
 
     void setAudioDriver(const QString &driver);
@@ -198,6 +205,8 @@ signals:
     void soundFontsChanged();
     void initializationFailed(const QString &error);
     void engineRestarted();
+    void exportProgress(int percent);
+    void exportFinished(bool success, const QString &path);
 
 private:
     FluidSynthEngine();

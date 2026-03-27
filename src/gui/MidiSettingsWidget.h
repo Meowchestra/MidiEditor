@@ -24,6 +24,8 @@
 
 // Forward declarations
 class QWidget;
+class QProgressBar;
+class MainWindow;
 class QListWidget;
 class QListWidgetItem;
 class QTableWidget;
@@ -141,9 +143,10 @@ class MidiSettingsWidget : public SettingsWidget {
 public:
     /**
      * \brief Creates a new MidiSettingsWidget.
+     * \param mainWindow The main window
      * \param parent The parent widget
      */
-    MidiSettingsWidget(QWidget *parent = 0);
+    MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent = 0);
 
 public slots:
     /**
@@ -183,6 +186,9 @@ private:
     /** \brief Player mode info box */
     QWidget *_playerModeInfoBox;
 
+    /** \brief Main window reference */
+    MainWindow *_mainWindow;
+
 #ifdef FLUIDSYNTH_SUPPORT
     friend class SoundFontDragController;
 private:
@@ -205,6 +211,8 @@ private:
     QComboBox *_reverbEngineCombo;
     QCheckBox *_reverbCheckBox;
     QCheckBox *_chorusCheckBox;
+    QPushButton *_exportWavBtn;
+    QProgressBar *_exportProgressBar;
 
 private slots:
     void onSoundFontTableDropped();
@@ -224,6 +232,10 @@ private slots:
     void refreshSoundFontList();
     void reorderSoundFont(int fromRow, int toRow);
     void showDownloadSoundFontDialog();
+
+    void onExportToWav();
+    void onExportProgress(int percent);
+    void onExportFinished(bool success, const QString &path);
 
 private:
 #endif
