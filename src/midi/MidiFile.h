@@ -362,6 +362,15 @@ public:
     void setMaxLengthMs(int ms);
 
     /**
+     * \brief Sets the file's total length in MIDI ticks directly.
+     *
+     * Unlike setMaxLengthMs(), this avoids a lossy ms→tick→ms round-trip
+     * conversion. Intended for use by importers that know the exact end tick.
+     * \param ticks Total length in MIDI ticks
+     */
+    void setMidiTicks(int ticks);
+
+    /**
      * \brief Deletes a range of measures from the file.
      * \param from Starting measure number
      * \param to Ending measure number

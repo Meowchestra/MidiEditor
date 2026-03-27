@@ -93,6 +93,14 @@ target("MidiEditor") do
         add_frameworks("OpenGL")
     end
 
+    -- zlib is required for GuitarPro GP7 file decompression (raw deflate)
+    if is_plat("windows") then
+        -- Qt ships with zlib on Windows; use its headers and link
+        add_syslinks("zlib")
+    else
+        add_syslinks("z")
+    end
+
     -- Optional FluidSynth support for built-in synthesizer
     on_load(function (target)
         import("lib.detect.find_library")

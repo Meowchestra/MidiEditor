@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <zlib.h>
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Binary reader — mirrors GPBase.cs
@@ -152,12 +153,63 @@ struct Duration {
     }
 };
 
+enum class HarmonicType { None, Natural, Artificial, Pinch, Tapped, Semi };
+enum class Fading { None, FadeIn, FadeOut, VolumeSwell };
+enum class TripletFeel { None, Eighth, Sixteenth, Dotted8th, Dotted16th, Scottish8th, Scottish16th };
+
+struct BendPoint {
+    int index;
+    int value;
+};
+
+struct TremoloPoint {
+    int index;
+    float value;
+};
+
 struct GPNote {
+    int tick = 0;
+    int duration = 0;
+    
     int str = 0;         // string number (1-based)
     int fret = 0;        // fret number
     int velocity = 100;
     bool isTied = false;
     bool isDead = false;
+    
+    // Advanced Effects
+    bool isGhost = false;
+    bool isPalmMute = false;
+    bool isStaccato = false;
+    bool isAccentuated = false;
+    bool isHeavyAccentuated = false;
+
+    bool isVibrato = false;
+    bool isHammer = false;
+    bool isTrill = false;
+    int trillFret = 0;
+    int trillDuration = 0;
+    int tremoloPickingDuration = 0;
+    
+    bool isGrace = false;
+    int graceFret = 0;
+    int graceVelocity = 100;
+    int graceDurationTicks = 120; // Default 32nd note
+
+    HarmonicType harmonic = HarmonicType::None;
+    float harmonicFret = 0.0f;
+
+    Fading fading = Fading::None;
+
+    QList<BendPoint> bendPoints;
+
+    bool slideInFromAbove = false;
+    bool slideInFromBelow = false;
+    bool slideOutDownwards = false;
+    bool slideOutUpwards = false;
+    bool slidesToNext = false;
+
+    int fallbackMidiNote = -1; // Used when fret/str logic isn't available
 };
 
 struct GPMeasureHeader {
@@ -170,6 +222,8 @@ struct GPMeasureHeader {
         int baseTicks = Duration::QUARTER_TIME * 4 / std::max(denominator, 1);
         return numerator * baseTicks;
     }
+    
+    TripletFeel tripletFeel = TripletFeel::None;
 };
 
 struct MidiChannelInfo {
@@ -185,13 +239,22 @@ struct GPTrack {
     int capo = 0;
     QList<GuitarString> strings;
 
-    struct NoteEvent {
+    struct TempoEvent {
         int tick;
-        int midiNote;
-        int velocity;
-        int duration;
+        int tempo;
     };
-    QList<NoteEvent> noteEvents;
+    QList<TempoEvent> tempoEvents;
+
+    QList<TremoloPoint> tremoloPoints;
+    QList<GPNote> noteEvents;
+};
+
+struct GPBeatEffects {
+    int strokeDown = 0;
+    int strokeUp = 0;
+    bool isVibrato = false;
+    Fading fading = Fading::None;
+    QList<BendPoint> tremoloBar;
 };
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -422,7 +485,14 @@ private:
                 if (!(flags & 0x10)) {
                     _r.readByte(); // alternate ending
                 }
-                _r.readByte(); // tripletFeel
+                int tf = _r.readByte(); // tripletFeel
+                if (tf == 1) header.tripletFeel = TripletFeel::Eighth;
+                else if (tf == 2) header.tripletFeel = TripletFeel::Sixteenth;
+                else if (tf == 3) header.tripletFeel = TripletFeel::Dotted8th;
+                else if (tf == 4) header.tripletFeel = TripletFeel::Dotted16th;
+                else if (tf == 5) header.tripletFeel = TripletFeel::Scottish8th;
+                else if (tf == 6) header.tripletFeel = TripletFeel::Scottish16th;
+                
                 _r.readByte(); // padding
             }
 
@@ -464,9 +534,10 @@ private:
 
             // MIDI port (1-based, skip)
             _r.readInt();
-            // MIDI channel index (1-based → 0-based)
+            // MIDI channel index (1-based → 0-based into 64-channel array)
             int channelIdx = _r.readInt() - 1;
-            track.channel = std::clamp(channelIdx, 0, 15);
+            // MIDI channel is the index mod 16 (4 ports × 16 channels)
+            track.channel = (channelIdx >= 0 && channelIdx < 64) ? (channelIdx % 16) : 0;
             // Channel for effects (skip)
             _r.readInt();
             // Number of frets (skip)
@@ -476,14 +547,14 @@ private:
             // Track color (skip)
             _r.readInt();
 
-            // Look up instrument from MIDI channel data
-            int midiChPort = track.channel; // simplified: use channel index directly
-            if (midiChPort >= 0 && midiChPort < 64) {
-                int inst = _midiChannels[midiChPort].instrument;
+            // Look up instrument from MIDI channel data using FULL index
+            if (channelIdx >= 0 && channelIdx < 64) {
+                int inst = _midiChannels[channelIdx].instrument;
+                if (inst < 0) inst = 0;
                 track.instrument = std::clamp(inst, 0, 127);
             }
-            // Percussion
-            if (flags & 0x01) {
+            // Percussion: flag 0x01 or channel 9
+            if ((flags & 0x01) || track.channel == 9) {
                 track.channel = 9;
                 track.instrument = 0;
             }
@@ -602,8 +673,7 @@ private:
         // Text
         if (flags & 0x04) _r.readIntByteSizeString();
 
-        // Beat effects
-        if (flags & 0x08) skipBeatEffects();
+        GPBeatEffects beatEffects = readBeatEffects();
 
         // Mix table change
         int tempoFromMix = -1;
@@ -629,30 +699,45 @@ private:
             }
         }
 
-        // Convert to MIDI events
+        // Convert to GPNote events
         int beatDuration = dur.time();
 
         if (!isEmpty && !isRest) {
-            for (const GPNote& n : notes) {
-                if (n.isDead || n.isTied) continue;
-
-                int openStringMidi = 0;
-                for (const GuitarString& gs : track.strings) {
-                    if (gs.number == n.str) {
-                        openStringMidi = gs.value;
-                        break;
-                    }
-                }
-                int midiNote = std::clamp(openStringMidi + n.fret + track.capo, 0, 127);
-                int vel = std::clamp(n.velocity, 1, 127);
-
-                GPTrack::NoteEvent ne;
-                ne.tick = startTick;
-                ne.midiNote = midiNote;
-                ne.velocity = vel;
-                ne.duration = beatDuration;
-                track.noteEvents.append(ne);
+            // Apply beat stroke
+            int strokeDuration = 0;
+            if (beatEffects.strokeDown > 0) strokeDuration = beatEffects.strokeDown;
+            else if (beatEffects.strokeUp > 0) strokeDuration = beatEffects.strokeUp;
+            
+            int spread = 0;
+            if (strokeDuration > 0 && notes.size() > 1) {
+                // Brush duration in ticks. Rough approximation of GP brushes:
+                spread = (Duration::QUARTER_TIME / 16) * strokeDuration / 64; 
             }
+
+            int noteOffset = 0;
+            if (beatEffects.strokeUp > 0) {
+                noteOffset = spread * (notes.size() - 1);
+                spread = -spread; // Reverse spread for up stroke
+            }
+
+            for (GPNote& n : notes) {
+                n.tick = startTick + noteOffset;
+                n.duration = beatDuration;
+                if (beatEffects.isVibrato) n.isVibrato = true;
+                if (beatEffects.fading != Fading::None) n.fading = beatEffects.fading;
+
+                track.noteEvents.append(n);
+                noteOffset += spread;
+            }
+        }
+
+        // Apply tremolo bar bends to track
+        for (const BendPoint& bp : beatEffects.tremoloBar) {
+            TremoloPoint tp;
+            // The GP bend point index is 0-60 representing 0-100% of duration
+            tp.index = startTick + static_cast<int>(bp.index * beatDuration / 60.0);
+            tp.value = bp.value / 25.6f; // Map GP bend value to float semitones
+            track.tremoloPoints.append(tp);
         }
 
         // Pass tempo changes up
@@ -704,7 +789,7 @@ private:
         }
 
         // Note effects
-        if (flags & 0x08) skipNoteEffects();
+        if (flags & 0x08) readNoteEffects(note);
 
         return note;
     }
@@ -739,40 +824,62 @@ private:
         }
     }
 
-    void skipBeatEffects() {
+    GPBeatEffects readBeatEffects() {
+        GPBeatEffects effects;
         quint8 flags1 = _r.readByte();
         quint8 flags2 = 0;
         if (_version >= 4) {
             flags2 = _r.readByte(); // GP4/GP5: two flags bytes
         }
 
+        if (flags1 & 0x01) effects.isVibrato = true;
+        if (flags1 & 0x02) {
+            // Note: wide vibrato
+        }
+        if (flags1 & 0x10) {
+            int f = _r.readByte(); 
+            if (f == 1) effects.fading = Fading::FadeIn;
+            else if (f == 2) effects.fading = Fading::FadeOut;
+            else if (f == 3) effects.fading = Fading::VolumeSwell;
+        }
+
         if (flags1 & 0x20) {
             if (_version >= 4) {
+                // GP4/GP5: slapEffect byte is a type indicator:
+                //   0=none, 1=tapping, 2=slapping, 3=popping
+                // No additional data follows. Tremolo bar is flags2 & 0x04.
+                _r.readByte(); // slapEffect — just consume, no follow-up data
+            } else {
+                // GP3: flags2 byte is the slapEffect/tremolo selector.
+                // If 0 → tremolo bar (readBend format), else tapping → readInt
                 quint8 slapEffect = _r.readByte();
                 if (slapEffect == 0) {
-                    skipBend(); // tremolo bar (uses bend format in GP4)
+                    effects.tremoloBar = readBend(); // tremolo bar in GP3 uses bend format
+                } else {
+                    _r.readInt(); // tapping/slapping/popping value
                 }
-            } else {
-                // GP3: just reads the tremolo bar value as int
-                _r.readInt();
             }
         }
 
         if (_version >= 4 && (flags2 & 0x04)) {
-            skipBend(); // tremolo bar (GP4 flags2)
+            // Tremolo bar affects all notes in beat; usually we can attach it to the first note or handle separately.
+            // For now, attaching to the entire beat will require passing note array.
+            effects.tremoloBar = readBend(); // Read tremolo
         }
 
         if (flags1 & 0x40) {
-            _r.readSignedByte(); // stroke down
-            _r.readSignedByte(); // stroke up
+            effects.strokeDown = _r.readSignedByte(); // stroke down
+            effects.strokeUp = _r.readSignedByte(); // stroke up
         }
 
         if (_version >= 4) {
             if (flags2 & 0x02) _r.readSignedByte(); // pick stroke
         }
+        
+        return effects;
     }
 
-    void skipNoteEffects() {
+    void readNoteEffects(GPNote& n) {
         quint8 flags1 = _r.readByte();
         quint8 flags2 = 0;
 
@@ -784,13 +891,21 @@ private:
         // 0x01 = bend, 0x02 = hammer, 0x04 = slide (GP3: no data)
         // 0x08 = let ring, 0x10 = grace note
 
-        if (flags1 & 0x01) skipBend();
+        if (flags1 & 0x01) n.bendPoints = readBend();
+        if (flags1 & 0x02) n.isHammer = true;
+        if (flags1 & 0x04) n.slidesToNext = true;
 
         if (flags1 & 0x10) {
-            // Grace note
-            _r.readByte();  // fret
-            _r.readByte();  // velocity
-            _r.readByte();  // transition (GP3) or duration (GP4+)
+            n.isGrace = true;
+            n.graceFret = _r.readByte();
+            n.graceVelocity = std::clamp(static_cast<int>(_r.readByte()) * 10, 1, 127);
+            
+            int gDur = _r.readByte();
+            if (gDur == 1) n.graceDurationTicks = 120; // 32nd (960/8)
+            else if (gDur == 2) n.graceDurationTicks = 160; // 24th
+            else if (gDur == 3) n.graceDurationTicks = 240; // 16th
+            else n.graceDurationTicks = 120;
+            
             if (_version >= 4) _r.readByte(); // extra byte for GP4
             if (_version >= 5) _r.readByte(); // extra flags for GP5
         }
@@ -799,44 +914,68 @@ private:
             // flags2 bits for GP4/GP5:
             // 0x01 = staccato, 0x02 = palm mute, 0x04 = tremolo picking
             // 0x08 = slide, 0x10 = harmonic, 0x20 = trill, 0x40 = vibrato
-            if (flags2 & 0x04) _r.readSignedByte(); // tremolo picking duration
-            if (flags2 & 0x08) _r.readSignedByte(); // slide type
+            if (flags2 & 0x01) n.isStaccato = true;
+            if (flags2 & 0x02) n.isPalmMute = true;
+            if (flags2 & 0x04) n.tremoloPickingDuration = _r.readSignedByte(); 
+            if (flags2 & 0x08) {
+                int slType = _r.readSignedByte(); // slide type
+                if (slType == 1) n.slidesToNext = true; // shift
+                else if (slType == 2) n.slidesToNext = true; // legato
+                else if (slType == 3) n.slideOutDownwards = true;
+                else if (slType == 4) n.slideOutUpwards = true;
+                else if (slType == 5) n.slideInFromBelow = true;
+                else if (slType == 6) n.slideInFromAbove = true;
+            }
             if (flags2 & 0x10) {
                 // Harmonic
                 if (_version >= 5) {
                     qint8 hType = _r.readSignedByte();
-                    switch (hType) {
-                        case 2: // artificial
-                            _r.readByte(); _r.readSignedByte(); _r.readByte();
-                            break;
-                        case 3: // tapped
-                            _r.readByte();
-                            break;
-                        default: break;
+                    if (hType == 1) n.harmonic = HarmonicType::Natural;
+                    else if (hType == 2) {
+                        n.harmonic = HarmonicType::Artificial;
+                        _r.readByte(); _r.readSignedByte(); _r.readByte();
                     }
+                    else if (hType == 3) {
+                        n.harmonic = HarmonicType::Tapped;
+                        _r.readByte();
+                    }
+                    else if (hType == 4) n.harmonic = HarmonicType::Pinch;
+                    else if (hType == 5) n.harmonic = HarmonicType::Semi;
                 } else {
-                    _r.readSignedByte(); // GP4 harmonic type (just one byte)
+                    int hType = _r.readSignedByte(); // GP4 harmonic type (just one byte)
+                    if (hType == 1) n.harmonic = HarmonicType::Natural;
+                    else if (hType == 2) n.harmonic = HarmonicType::Artificial;
+                    else if (hType == 3) n.harmonic = HarmonicType::Tapped;
+                    else if (hType == 4) n.harmonic = HarmonicType::Pinch;
+                    else if (hType == 5) n.harmonic = HarmonicType::Semi;
                 }
             }
             if (flags2 & 0x20) {
                 // Trill
-                _r.readSignedByte(); // fret
-                _r.readSignedByte(); // period
+                n.isTrill = true;
+                n.trillFret = _r.readSignedByte(); // fret
+                n.trillDuration = _r.readSignedByte(); // period
             }
+            if (flags2 & 0x40) n.isVibrato = true;
         } else {
             // GP3: slide flag 0x04 — no extra data to read
+            // already captured above
         }
     }
 
-    void skipBend() {
+    QList<BendPoint> readBend() {
+        QList<BendPoint> points;
         _r.readSignedByte(); // type
         _r.readInt();        // value
         int pointCount = _r.readInt();
         for (int i = 0; i < pointCount && i < 1000; i++) {
-            _r.readInt();  // position
-            _r.readInt();  // value
+            BendPoint bp;
+            bp.index = _r.readInt();  // position
+            bp.value = _r.readInt();  // value
             _r.readBool(); // vibrato
+            points.append(bp);
         }
+        return points;
     }
 
     int readMixTableChange() {
@@ -932,61 +1071,148 @@ static QByteArray decompressGPX(const QByteArray& data) {
 }
 
 // Extract inner XML from decompressed GPX data
-// The decompressed data contains a file table followed by file data
+// The decompressed data contains a sector-based file system:
+//   Header: sector_size (4 bytes)
+//   File table sectors: entries of [offset(4), size(4), name(null-terminated)]
+//   Data sectors: raw file content
 static QString extractXmlFromGPX(const QByteArray& decompressed) {
     if (decompressed.isEmpty()) return QString();
     const quint8* d = reinterpret_cast<const quint8*>(decompressed.constData());
     int len = decompressed.size();
-    int pos = 0;
 
-    // Simple approach: find the XML content (look for "<?xml" or "<GPIF" or "<Score")
-    QString asText = QString::fromUtf8(decompressed);
-    int xmlStart = asText.indexOf("<?xml");
-    if (xmlStart < 0) xmlStart = asText.indexOf("<GPIF");
-    if (xmlStart < 0) xmlStart = asText.indexOf("<Score");
-    if (xmlStart >= 0) {
-        return asText.mid(xmlStart);
-    }
-
-    // Try the file table approach
-    // Header: 4 bytes sector size
-    if (pos + 4 > len) return QString();
-    int sectorSize = d[pos] | (d[pos+1] << 8) | (d[pos+2] << 16) | (d[pos+3] << 24);
-    pos += 4;
+    // Read sector size from header
+    if (len < 4) return QString();
+    int sectorSize = d[0] | (d[1] << 8) | (d[2] << 16) | (d[3] << 24);
     if (sectorSize <= 0 || sectorSize > 65536) sectorSize = 4096;
 
-    // Skip sectors, look for file entries
-    struct FileEntry { int offset; int size; QString name; };
+    // The file table starts at offset = sectorSize (after header sector)
+    // and continues for multiple sectors until we reach the data area.
+    // Each file entry in the table is:
+    //   offset (4 bytes, in sectors from data start)
+    //   size   (4 bytes, in bytes)
+    //   name   (null-terminated, padded to fill rest of entry space)
+
+    struct FileEntry {
+        int sectorOffset;  // sector index into data area
+        int size;          // byte size of file
+        QString name;
+    };
     QList<FileEntry> files;
 
-    while (pos + 8 < len) {
-        // Try reading file entry: offset(4), size(4), name(varies)
-        int fOffset = d[pos] | (d[pos+1] << 8) | (d[pos+2] << 16) | (d[pos+3] << 24);
-        pos += 4;
-        int fSize = d[pos] | (d[pos+1] << 8) | (d[pos+2] << 16) | (d[pos+3] << 24);
-        pos += 4;
+    // Scan file table sectors
+    int fileTableStart = sectorSize;
+    int sectorCount = (len - sectorSize) / sectorSize; // total sectors after header
 
-        if (fSize > 0 && fSize < len && fOffset >= 0 && fOffset + fSize <= len) {
-            FileEntry fe;
-            fe.offset = fOffset;
-            fe.size = fSize;
-            files.append(fe);
-        } else {
+    // Iterate over file table sector(s)
+    int pos = fileTableStart;
+    bool foundDataArea = false;
+
+    while (pos + 8 <= len) {
+        // Read potential file entry header
+        int entryOffset = d[pos] | (d[pos+1] << 8) | (d[pos+2] << 16) | (d[pos+3] << 24);
+        int entrySize   = d[pos+4] | (d[pos+5] << 8) | (d[pos+6] << 16) | (d[pos+7] << 24);
+
+        // Heuristic: if both values are 0 or size is negative, we're past the file table
+        if (entrySize <= 0 && entryOffset == 0) {
+            pos += 8;
+            // Skip remaining null padding in this sector
+            int nextSector = ((pos - fileTableStart + sectorSize - 1) / sectorSize) * sectorSize + fileTableStart;
+            pos = nextSector;
             break;
         }
-    }
-
-    // Return the largest file (likely the score XML)
-    if (!files.isEmpty()) {
-        int maxIdx = 0;
-        for (int i = 1; i < files.size(); i++) {
-            if (files[i].size > files[maxIdx].size) maxIdx = i;
+        if (entrySize <= 0 || entrySize > len) {
+            break;
         }
-        return QString::fromUtf8(decompressed.mid(files[maxIdx].offset, files[maxIdx].size));
+
+        // Read null-terminated filename after the 8-byte header
+        QString name;
+        int nameStart = pos + 8;
+        for (int i = nameStart; i < len && d[i] != 0; i++) {
+            name += QChar(d[i]);
+        }
+
+        FileEntry fe;
+        fe.sectorOffset = entryOffset;
+        fe.size = entrySize;
+        fe.name = name;
+        files.append(fe);
+
+        // Advance past this entry — entries seem to be variable-sized
+        // The name is null-terminated, followed by padding. Skip to next entry.
+        // File table entries are typically 128 bytes in GP6 format
+        pos += 128; // standard GP6 file table entry size
+
+        // If we've crossed a sector boundary, align to next sector
+        if (pos >= fileTableStart + sectorSize) {
+            // Check if next sector is still file table or data
+            int nextSectorStart = ((pos - fileTableStart + sectorSize - 1) / sectorSize) * sectorSize + fileTableStart;
+            if (nextSectorStart + 8 <= len) {
+                int peek1 = d[nextSectorStart] | (d[nextSectorStart+1] << 8) | (d[nextSectorStart+2] << 16) | (d[nextSectorStart+3] << 24);
+                int peek2 = d[nextSectorStart+4] | (d[nextSectorStart+5] << 8) | (d[nextSectorStart+6] << 16) | (d[nextSectorStart+7] << 24);
+                if (peek2 <= 0 && peek1 == 0) {
+                    pos = nextSectorStart + sectorSize; // skip empty sector, move to data
+                    break;
+                }
+            }
+        }
     }
 
-    // Last resort: return as-is
-    return asText;
+    // Data area starts after file table sectors
+    int dataAreaStart = pos;
+
+    // Try to find and extract "score.gpif" first, then any .gpif file, then largest file
+    int bestIdx = -1;
+    int largestIdx = -1;
+    int largestSize = 0;
+
+    for (int i = 0; i < files.size(); i++) {
+        if (files[i].name.contains("score.gpif", Qt::CaseInsensitive)) {
+            bestIdx = i;
+            break;
+        }
+        if (files[i].name.endsWith(".gpif", Qt::CaseInsensitive) && bestIdx < 0) {
+            bestIdx = i;
+        }
+        if (files[i].size > largestSize) {
+            largestSize = files[i].size;
+            largestIdx = i;
+        }
+    }
+
+    if (bestIdx < 0) bestIdx = largestIdx;
+
+    if (bestIdx >= 0) {
+        const FileEntry& fe = files[bestIdx];
+        // File data is at dataAreaStart + (sectorOffset * sectorSize)
+        int fileDataPos = dataAreaStart + fe.sectorOffset * sectorSize;
+        if (fileDataPos >= 0 && fileDataPos + fe.size <= len) {
+            return QString::fromUtf8(decompressed.mid(fileDataPos, fe.size));
+        }
+        // Fallback: try treating sectorOffset as a direct byte offset
+        if (fe.sectorOffset >= 0 && fe.sectorOffset + fe.size <= len) {
+            return QString::fromUtf8(decompressed.mid(fe.sectorOffset, fe.size));
+        }
+    }
+
+    // Fallback: scan for XML markers in the raw decompressed data
+    // (handles edge cases where the file table parsing didn't work)
+    for (int i = 0; i + 5 < len; i++) {
+        if (d[i] == '<' && (
+            (d[i+1] == '?' && d[i+2] == 'x' && d[i+3] == 'm' && d[i+4] == 'l') ||
+            (d[i+1] == 'G' && d[i+2] == 'P' && d[i+3] == 'I' && d[i+4] == 'F') ||
+            (d[i+1] == 'S' && d[i+2] == 'c' && d[i+3] == 'o' && d[i+4] == 'r'))) {
+            // Found XML start — extract until end; scan for closing tag or EOF
+            // Build the string skipping null bytes (which appear between sectors)
+            QByteArray xmlData;
+            xmlData.reserve(len - i);
+            for (int j = i; j < len; j++) {
+                if (d[j] != 0) xmlData.append(static_cast<char>(d[j]));
+            }
+            return QString::fromUtf8(xmlData);
+        }
+    }
+
+    return QString();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1026,32 +1252,28 @@ static QString extractGP7Xml(const QByteArray& data) {
                 // Stored (no compression)
                 fileData = QByteArray(reinterpret_cast<const char*>(d + dataStart), compSize);
             } else if (compression == 8) {
-                // Deflate — use Qt's qUncompress with zlib raw inflate
-                // qUncompress expects zlib format (header+data), so we prepend a minimal header
+                // Deflate — use zlib raw inflate (ZIP stores raw deflate, not zlib format)
                 QByteArray compressed(reinterpret_cast<const char*>(d + dataStart), compSize);
-                // Build zlib-compatible stream: CMF=0x78, FLG=0x01, then deflate data, then Adler32
-                QByteArray zlibData;
-                zlibData.append('\x78');
-                zlibData.append('\x01');
-                zlibData.append(compressed);
-                // Adler32 placeholder (qUncompress may still work or we try raw)
-                quint32 adler = 1; // placeholder
-                zlibData.append(static_cast<char>((adler >> 24) & 0xFF));
-                zlibData.append(static_cast<char>((adler >> 16) & 0xFF));
-                zlibData.append(static_cast<char>((adler >> 8) & 0xFF));
-                zlibData.append(static_cast<char>(adler & 0xFF));
+                fileData.resize(uncompSize + 256); // small extra buffer
 
-                // Prepend expected size for qUncompress (4 bytes, big-endian)
-                QByteArray sizeHeader(4, '\0');
-                sizeHeader[0] = static_cast<char>((uncompSize >> 24) & 0xFF);
-                sizeHeader[1] = static_cast<char>((uncompSize >> 16) & 0xFF);
-                sizeHeader[2] = static_cast<char>((uncompSize >> 8) & 0xFF);
-                sizeHeader[3] = static_cast<char>(uncompSize & 0xFF);
-                fileData = qUncompress(sizeHeader + zlibData);
+                z_stream stream;
+                memset(&stream, 0, sizeof(stream));
+                stream.next_in = reinterpret_cast<Bytef*>(compressed.data());
+                stream.avail_in = compressed.size();
+                stream.next_out = reinterpret_cast<Bytef*>(fileData.data());
+                stream.avail_out = fileData.size();
 
-                if (fileData.isEmpty()) {
-                    // Fallback: try without zlib header manipulation
-                    fileData = qUncompress(sizeHeader + compressed);
+                // -MAX_WBITS = raw deflate (no zlib/gzip header)
+                if (inflateInit2(&stream, -MAX_WBITS) == Z_OK) {
+                    int ret = inflate(&stream, Z_FINISH);
+                    inflateEnd(&stream);
+                    if (ret == Z_STREAM_END || ret == Z_OK) {
+                        fileData.resize(stream.total_out);
+                    } else {
+                        fileData.clear();
+                    }
+                } else {
+                    fileData.clear();
                 }
             }
 
@@ -1115,7 +1337,10 @@ static bool parseGPIF(const QString& xml,
     QMap<QString, XMLBeat> beats;       // id → beat
     struct XMLVoice { QStringList beatRefs; };
     QMap<QString, XMLVoice> voices;     // id → voice
-    struct XMLBar { QStringList voiceRefs; };
+    struct XMLBar {
+        QStringList voiceRefs;
+        int simileMark = 0; // 1=simple, 2=firstOfDouble, 3=secondOfDouble
+    };
     QMap<QString, XMLBar> bars;         // id → bar
 
     // Track info from XML
@@ -1272,6 +1497,12 @@ static bool parseGPIF(const QString& xml,
                     if (reader.isEndElement() && reader.name().toString() == "Bar") break;
                     if (reader.isStartElement() && reader.name().toString() == "Voices")
                         bar.voiceRefs = reader.readElementText().split(' ', Qt::SkipEmptyParts);
+                    if (reader.isStartElement() && reader.name().toString() == "SimileMark") {
+                        QString sm = reader.readElementText();
+                        if (sm == "Simple") bar.simileMark = 1;
+                        else if (sm == "FirstOfDouble") bar.simileMark = 2;
+                        else if (sm == "SecondOfDouble") bar.simileMark = 3;
+                    }
                 }
                 bars[id] = bar;
                 continue;
@@ -1414,6 +1645,9 @@ static bool parseGPIF(const QString& xml,
 
     // ── Build GPMeasureHeaders + note events ──
     int currentTick = 0;
+    QVector<QList<GPNote>> previousMeasureNotes(outTracks.size());
+    QVector<QList<GPNote>> doublePreviousMeasureNotes(outTracks.size());
+
     for (int mbIdx = 0; mbIdx < masterBars.size(); mbIdx++) {
         const XMLMasterBar& mb = masterBars[mbIdx];
 
@@ -1433,14 +1667,15 @@ static bool parseGPIF(const QString& xml,
                 if (ta.pos <= 0.0 || mh.tempo <= 0) mh.tempo = static_cast<int>(ta.tempo);
                 
                 // Add explicit global midi event data representation
-                GPTrack::NoteEvent pseudoTempo;
-                pseudoTempo.tick = tempoTick;
-                pseudoTempo.velocity = static_cast<int>(ta.tempo); // pack tempo
-                pseudoTempo.midiNote = -1; // special flag for tempo change
-                if (!outTracks.isEmpty()) outTracks[0].noteEvents.append(pseudoTempo);
+                GPTrack::TempoEvent te;
+                te.tick = tempoTick;
+                te.tempo = static_cast<int>(ta.tempo);
+                if (!outTracks.isEmpty()) outTracks[0].tempoEvents.append(te);
             }
         }
         outHeaders.append(mh);
+
+        QVector<QList<GPNote>> perTrackCurrentNotes(outTracks.size());
 
         // Process bars for each track
         for (int trackIdx = 0; trackIdx < mb.barRefs.size() && trackIdx < outTracks.size(); trackIdx++) {
@@ -1452,9 +1687,22 @@ static bool parseGPIF(const QString& xml,
             QList<int> tuning;
             for (const GuitarString& gs : gpt.strings) tuning.append(gs.value);
 
-            for (const QString& voiceId : bar.voiceRefs) {
-                if (voiceId == "-1" || !voices.contains(voiceId)) continue;
-                const XMLVoice& voice = voices[voiceId];
+            if (bar.simileMark == 1) { // Simple repeat
+                for (const GPNote& pn : previousMeasureNotes[trackIdx]) {
+                    GPNote copy = pn;
+                    copy.tick += measureLen;
+                    perTrackCurrentNotes[trackIdx].append(copy);
+                }
+            } else if (bar.simileMark == 2 || bar.simileMark == 3) { // Double repeat
+                for (const GPNote& pn : doublePreviousMeasureNotes[trackIdx]) {
+                    GPNote copy = pn;
+                    copy.tick += (measureLen * (bar.simileMark == 2 ? 2 : 1)); // offset
+                    perTrackCurrentNotes[trackIdx].append(copy);
+                }
+            } else {
+                for (const QString& voiceId : bar.voiceRefs) {
+                    if (voiceId == "-1" || !voices.contains(voiceId)) continue;
+                    const XMLVoice& voice = voices[voiceId];
 
                 int beatTick = currentTick;
                 for (const QString& beatId : voice.beatRefs) {
@@ -1478,17 +1726,26 @@ static bool parseGPIF(const QString& xml,
                             midiNote = tuning[note.str] + note.fret + gpt.capo;
                         }
 
-                        GPTrack::NoteEvent ne;
-                        ne.tick = beatTick;
-                        ne.midiNote = qBound(0, midiNote, 127);
-                        ne.velocity = qBound(1, note.velocity, 127);
-                        ne.duration = duration;
-                        gpt.noteEvents.append(ne);
+                        GPNote n;
+                        n.tick = beatTick;
+                        n.str = note.str;
+                        n.fret = note.fret;
+                        n.fallbackMidiNote = midiNote;
+                        n.velocity = qBound(1, note.velocity, 127);
+                        n.duration = duration;
+                        n.isTied = note.isTied;
+                        perTrackCurrentNotes[trackIdx].append(n);
                     }
 
                     beatTick += duration;
                 }
             }
+        }
+
+        for (int trackIdx = 0; trackIdx < mb.barRefs.size() && trackIdx < outTracks.size(); trackIdx++) {
+            outTracks[trackIdx].noteEvents.append(perTrackCurrentNotes[trackIdx]);
+            doublePreviousMeasureNotes[trackIdx] = previousMeasureNotes[trackIdx];
+            previousMeasureNotes[trackIdx] = perTrackCurrentNotes[trackIdx];
         }
 
         currentTick += measureLen;
@@ -1498,6 +1755,303 @@ static bool parseGPIF(const QString& xml,
 }
 
 } // namespace GP
+
+static void applyTripletFeel(QList<GP::GPTrack>& tracks, const QList<GP::GPMeasureHeader>& headers) {
+    if (headers.isEmpty()) return;
+    
+    for (GP::GPTrack& track : tracks) {
+        for (GP::GPNote& n : track.noteEvents) {
+            // Find which measure we are in
+            const GP::GPMeasureHeader* currentHeader = &headers.first();
+            for (const GP::GPMeasureHeader& h : headers) {
+                if (n.tick >= h.start) {
+                    currentHeader = &h;
+                } else break; 
+            }
+            
+            if (currentHeader->tripletFeel != GP::TripletFeel::None) {
+                int measureTick = n.tick - currentHeader->start;
+                bool is8ThPos = (measureTick % 480) == 0;
+                bool is16ThPos = (measureTick % 240) == 0;
+                bool isFirst = true;
+
+                if (is8ThPos) isFirst = (measureTick % 960) == 0;
+                if (is16ThPos) isFirst = is8ThPos;
+                
+                // Assuming simple tuplet filtering
+                bool is8Th = (n.duration == 480);
+                bool is16Th = (n.duration == 240);
+                
+                switch (currentHeader->tripletFeel) {
+                    case GP::TripletFeel::Eighth:
+                        if (is8ThPos && is8Th) {
+                            if (isFirst) n.duration = (n.duration * 4) / 3;
+                            else {
+                                n.duration = (n.duration * 2) / 3;
+                                n.tick += (n.duration / 2); // delay 1/3 of orig
+                            }
+                        }
+                        break;
+                    case GP::TripletFeel::Sixteenth:
+                        if (is16ThPos && is16Th) {
+                            if (isFirst) n.duration = (n.duration * 4) / 3;
+                            else {
+                                n.duration = (n.duration * 2) / 3;
+                                n.tick += (n.duration / 2);
+                            }
+                        }
+                        break;
+                    case GP::TripletFeel::Scottish8th:
+                        if (is8ThPos && is8Th) {
+                            if (isFirst) n.duration /= 2;
+                            else {
+                                n.duration = (n.duration * 3) / 2;
+                                n.tick -= (n.duration / 3);
+                            }
+                        }
+                        break;
+                    default: break;
+                }
+            }
+        }
+    }
+}
+
+static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, double tickScale, int& maxTick) {
+    int channelFreeTime[16] = {0};
+
+    for (int t = 0; t < gpTracks.size(); t++) {
+        const GP::GPTrack& gpTrack = gpTracks[t];
+        int trackIdx = t + 1;
+        while (mf->numTracks() <= trackIdx) mf->addTrack();
+        MidiTrack* midiTrack = mf->track(trackIdx);
+        midiTrack->setName(gpTrack.name.isEmpty() ? QString("Track %1").arg(t+1) : gpTrack.name);
+        int midiChannel = gpTrack.channel;
+
+        if (midiChannel != 9) {
+            ProgChangeEvent* pc = new ProgChangeEvent(midiChannel, gpTrack.instrument, midiTrack);
+            pc->setFile(mf);
+            pc->setMidiTime(0, false);
+        }
+
+        OffEvent* activeStringOffs[10] = {nullptr};
+
+        // Process tempo macros
+        for (const GP::GPTrack::TempoEvent& te : gpTrack.tempoEvents) {
+            TempoChangeEvent* tce = new TempoChangeEvent(17, 60000000 / std::max(te.tempo, 1), mf->track(0));
+            tce->setFile(mf);
+            tce->setMidiTime(static_cast<int>(te.tick * tickScale), false);
+        }
+
+        // Process notes
+        for (const GP::GPNote& n : gpTrack.noteEvents) {
+            int startTick = static_cast<int>(n.tick * tickScale);
+            int durTicks = std::max(1, static_cast<int>(n.duration * tickScale));
+
+            int computedMidiNote = n.fallbackMidiNote;
+            if (n.str > 0) {
+                int openStringMidi = 0;
+                for (const GP::GuitarString& gs : gpTrack.strings) {
+                    if (gs.number == n.str) { openStringMidi = gs.value; break; }
+                }
+                
+                int effectiveFret = n.fret;
+                
+                // Harmonics Simulation
+                if (n.harmonic == GP::HarmonicType::Natural) {
+                    if (n.fret == 12) effectiveFret += 12;
+                    else if (n.fret == 7) effectiveFret += 19;
+                    else if (n.fret == 5) effectiveFret += 24;
+                    else if (n.fret == 4) effectiveFret += 28;
+                    else if (n.fret == 3) effectiveFret += 31;
+                    else effectiveFret += 12;
+                } else if (n.harmonic == GP::HarmonicType::Artificial || 
+                           n.harmonic == GP::HarmonicType::Pinch || 
+                           n.harmonic == GP::HarmonicType::Tapped) {
+                    effectiveFret += 12; // Standard octave artificial bump
+                }
+
+                computedMidiNote = std::clamp(openStringMidi + effectiveFret + gpTrack.capo, 0, 127);
+            }
+
+            if (computedMidiNote < 0) continue;
+
+            if (n.isTied) {
+                if (n.str >= 0 && n.str < 10 && activeStringOffs[n.str]) {
+                    int endT = startTick + durTicks;
+                    activeStringOffs[n.str]->setMidiTime(endT - 1, false);
+                    if (endT > maxTick) maxTick = endT;
+
+                    if (!n.bendPoints.isEmpty()) {
+                        int bentCh = activeStringOffs[n.str]->channel();
+                        for (const GP::BendPoint& bp : n.bendPoints) {
+                            int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
+                            int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
+                            pwVal = std::clamp(pwVal, -8192, 8191);
+                            PitchWheelEvent* pw = new PitchWheelEvent(bentCh, pwVal, midiTrack);
+                            pw->setFile(mf);
+                            pw->setMidiTime(bTick, false);
+                        }
+                        PitchWheelEvent* pwReset = new PitchWheelEvent(bentCh, 0, midiTrack);
+                        pwReset->setFile(mf);
+                        pwReset->setMidiTime(endT, false);
+                    }
+                }
+                continue;
+            }
+
+            int velocity = n.velocity;
+            if (n.isDead || n.isGhost) {
+                velocity = static_cast<int>(velocity * 0.7f);
+                durTicks = std::max(1, durTicks / 4);
+            } else if (n.isPalmMute) {
+                velocity = static_cast<int>(velocity * 0.8f);
+                durTicks = std::max(1, durTicks / 2);
+            } else if (n.isStaccato) {
+                durTicks = std::max(1, durTicks / 2);
+            }
+
+            int endTick = startTick + durTicks;
+            int line = 127 - computedMidiNote;
+
+            int targetChannel = midiChannel;
+            if (midiChannel != 9 && (!n.bendPoints.isEmpty() || !n.tremoloPoints.isEmpty() || n.fading != GP::Fading::None || n.isTrill)) {
+                for (int c = 0; c < 16; c++) {
+                    if (c != 9 && c != midiChannel && startTick >= channelFreeTime[c]) {
+                        targetChannel = c;
+                        channelFreeTime[c] = endTick + 1;
+                        
+                        ProgChangeEvent* pc = new ProgChangeEvent(targetChannel, gpTrack.instrument, midiTrack);
+                        pc->setFile(mf);
+                        pc->setMidiTime(startTick, false);
+
+                        ControlChangeEvent* volReset = new ControlChangeEvent(targetChannel, 7, 100, midiTrack);
+                        volReset->setFile(mf);
+                        volReset->setMidiTime(startTick, false);
+                        break;
+                    }
+                }
+            }
+
+            int tremLen = 0;
+            if (n.tremoloPickingDuration > 0) tremLen = n.tremoloPickingDuration;
+            else if (n.isTrill && n.trillDuration > 0) tremLen = n.trillDuration;
+
+            if (tremLen > 0) {
+                int scaledTrem = std::max(1, static_cast<int>(tremLen * tickScale));
+                int curTick = startTick;
+                bool originalFret = true;
+
+                while (curTick + scaledTrem <= startTick + durTicks) {
+                    int subMidi = computedMidiNote;
+                    // GP represents trillFret directly as the absolute target fret if positive,
+                    // but usually it's a relative offset. Wait, `GuitarProToMidi.Console` does `n.effect.trill.fret - tuning`.
+                    // We'll safely add standard +1 / +2 for now if it's missing or if trillFret is interpreted relative.
+                    if (n.isTrill && !originalFret) subMidi += ((n.trillFret > 0 && n.trillFret < 10) ? n.trillFret : 2);
+                    
+                    int subLine = 127 - subMidi;
+                    NoteOnEvent* subOn = new NoteOnEvent(subMidi, velocity, targetChannel, midiTrack);
+                    subOn->setFile(mf);
+                    subOn->setMidiTime(curTick, false);
+                    
+                    OffEvent* subOff = new OffEvent(targetChannel, subLine, midiTrack);
+                    subOff->setFile(mf);
+                    subOff->setMidiTime(curTick + scaledTrem - 1, false);
+                    
+                    if (n.str >= 0 && n.str < 10) activeStringOffs[n.str] = subOff;
+                    if (curTick + scaledTrem > maxTick) maxTick = curTick + scaledTrem;
+                    
+                    curTick += scaledTrem;
+                    originalFret = !originalFret;
+                }
+            } else {
+                if (n.isGrace && startTick >= n.graceDurationTicks) {
+                    int graceStart = startTick - n.graceDurationTicks;
+                    int graceScaled = std::max(1, static_cast<int>(n.graceDurationTicks * tickScale));
+                    
+                    int graceMidi = std::clamp(computedMidiNote - n.fret + n.graceFret, 0, 127);
+                    NoteOnEvent* gOn = new NoteOnEvent(graceMidi, n.graceVelocity, targetChannel, midiTrack);
+                    gOn->setFile(mf);
+                    gOn->setMidiTime(graceStart, false);
+                    
+                    OffEvent* gOff = new OffEvent(targetChannel, 127 - graceMidi, midiTrack);
+                    gOff->setFile(mf);
+                    gOff->setMidiTime(startTick - 1, false);
+                    
+                    // Steal duration from principal note by squishing it slightly or 
+                    // shifting the entire principal note index back? Format.cs shifts index forward!
+                    // So we shrink principal note duration by graceScaled and shift startTick by graceScaled
+                    startTick += graceScaled;
+                    durTicks = std::max(1, durTicks - graceScaled);
+                }
+
+                NoteOnEvent* noteOn = new NoteOnEvent(computedMidiNote, velocity, targetChannel, midiTrack);
+                noteOn->setFile(mf);
+                noteOn->setMidiTime(startTick, false);
+
+                OffEvent* noteOff = new OffEvent(targetChannel, line, midiTrack);
+                noteOff->setFile(mf);
+                noteOff->setMidiTime(endTick - 1, false);
+                
+                if (n.str >= 0 && n.str < 10) activeStringOffs[n.str] = noteOff;
+                if (endTick > maxTick) maxTick = endTick;
+            }
+
+            // Simplified Bend via PitchWheel
+            if (!n.bendPoints.isEmpty()) {
+                for (const GP::BendPoint& bp : n.bendPoints) {
+                    int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
+                    int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
+                    pwVal = std::clamp(pwVal, -8192, 8191);
+                    PitchWheelEvent* pw = new PitchWheelEvent(targetChannel, pwVal, midiTrack);
+                    pw->setFile(mf);
+                    pw->setMidiTime(bTick, false);
+                }
+                PitchWheelEvent* pwReset = new PitchWheelEvent(targetChannel, 0, midiTrack);
+                pwReset->setFile(mf);
+                pwReset->setMidiTime(endTick, false);
+            }
+            
+            // Fading (Volume Swells)
+            if (n.fading == GP::Fading::FadeIn) {
+                for (int i = 0; i < 4; i++) {
+                    int fTick = startTick + (i * durTicks / 4);
+                    int fVol = (127 * i) / 3;
+                    ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
+                    cc->setFile(mf);
+                    cc->setMidiTime(fTick, false);
+                }
+            } else if (n.fading == GP::Fading::VolumeSwell) {
+                for (int i = 0; i < 5; i++) {
+                    int fTick = startTick + (i * durTicks / 4);
+                    int fVol = (i == 2) ? 127 : ((i == 0 || i == 4) ? 0 : 64);
+                    ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
+                    cc->setFile(mf);
+                    cc->setMidiTime(fTick, false);
+                }
+            } else if (n.fading == GP::Fading::FadeOut) {
+                for (int i = 0; i < 4; i++) {
+                    int fTick = startTick + (i * durTicks / 4);
+                    int fVol = 127 - ((127 * i) / 3);
+                    ControlChangeEvent* cc = new ControlChangeEvent(midiChannel, 7, fVol, midiTrack);
+                    cc->setFile(mf);
+                    cc->setMidiTime(fTick, false);
+                }
+            }
+        }
+        
+        // Tremolo bar
+        for (const GP::TremoloPoint& tp : gpTrack.tremoloPoints) {
+            int tTick = static_cast<int>(tp.index * tickScale);
+            int pwVal = static_cast<int>(tp.value * 8191 / 2.0f); // assuming +-2 semitones
+            pwVal = std::clamp(pwVal, -8192, 8191);
+            PitchWheelEvent* pw = new PitchWheelEvent(midiChannel, pwVal, midiTrack);
+            pw->setFile(mf);
+            pw->setMidiTime(tTick, false);
+            if (tTick > maxTick) maxTick = tTick;
+        }
+    }
+}
 
 // ═══════════════════════════════════════════════════════════════════════
 //  Public API: Convert parsed GP data → MidiFile
@@ -1581,54 +2135,11 @@ MidiFile* ImportGuitarPro::loadFile(QString path, bool* ok) {
 
         // Create tracks with note events
         int maxTick = 0;
-        int currentTempo = tempo;
-        for (int t = 0; t < gpTracks.size(); t++) {
-            const GP::GPTrack& gpTrack = gpTracks[t];
-            int trackIdx = t + 1;
-            while (mf->numTracks() <= trackIdx) mf->addTrack();
-            MidiTrack* midiTrack = mf->track(trackIdx);
-            midiTrack->setName(gpTrack.name.isEmpty() ? QString("Track %1").arg(t+1) : gpTrack.name);
-            int midiChannel = gpTrack.channel;
-
-            if (midiChannel != 9) {
-                ProgChangeEvent* pc = new ProgChangeEvent(midiChannel, gpTrack.instrument, midiTrack);
-                pc->setFile(mf);
-                pc->setMidiTime(0, false);
-            }
-
-            for (const GP::GPTrack::NoteEvent& ne : gpTrack.noteEvents) {
-                int startTick = static_cast<int>(ne.tick * tickScale);
-                
-                // Decode special pseudo-tempo events embedded in track 0
-                if (ne.midiNote == -1) {
-                    if (ne.velocity != currentTempo) {
-                        TempoChangeEvent* te = new TempoChangeEvent(17, 60000000 / std::max(ne.velocity, 1), tempoTrack);
-                        te->setFile(mf);
-                        te->setMidiTime(startTick, false);
-                        currentTempo = ne.velocity;
-                    }
-                    continue;
-                }
-
-                int durTicks = std::max(1, static_cast<int>(ne.duration * tickScale));
-                int endTick = startTick + durTicks;
-                int line = 127 - ne.midiNote;
-
-                NoteOnEvent* noteOn = new NoteOnEvent(ne.midiNote, ne.velocity, midiChannel, midiTrack);
-                noteOn->setFile(mf);
-                noteOn->setMidiTime(startTick, false);
-
-                OffEvent* noteOff = new OffEvent(midiChannel, line, midiTrack);
-                noteOff->setFile(mf);
-                noteOff->setMidiTime(endTick - 1, false);
-
-                if (endTick > maxTick) maxTick = endTick;
-            }
-        }
+        GP::applyTripletFeel(gpTracks, gpHeaders);
+        GP::buildMidiTracks(mf, gpTracks, tickScale, maxTick);
 
         OffEvent::clearOnEvents();
-        if (maxTick > 0) mf->setMaxLengthMs(mf->msOfTick(maxTick) + 2000);
-        mf->calcMaxTime();
+        if (maxTick > 0) mf->setMidiTicks(maxTick);
         mf->setPath(path);
         mf->setSaved(true);
         *ok = true;
@@ -1701,56 +2212,17 @@ MidiFile* ImportGuitarPro::loadFile(QString path, bool* ok) {
 
     // Create tracks with note events
     int maxTick = 0;
-    const QList<GP::GPTrack>& gpTracks = parser.tracks();
-
-    for (int t = 0; t < gpTracks.size(); t++) {
-        const GP::GPTrack& gpTrack = gpTracks[t];
-
-        // Ensure we have enough tracks. Track 0 = tempo, instruments start at 1
-        int trackIdx = t + 1;
-        while (mf->numTracks() <= trackIdx) {
-            mf->addTrack();
-        }
-        MidiTrack* midiTrack = mf->track(trackIdx);
-        midiTrack->setName(gpTrack.name.isEmpty()
-            ? QString("Track %1").arg(t + 1) : gpTrack.name);
-
-        int midiChannel = gpTrack.channel;
-
-        // Program change (skip percussion channel)
-        if (midiChannel != 9) {
-            ProgChangeEvent* pc = new ProgChangeEvent(midiChannel, gpTrack.instrument, midiTrack);
-            pc->setFile(mf);
-            pc->setMidiTime(0, false);
-        }
-
-        // Insert all note events
-        for (const GP::GPTrack::NoteEvent& ne : gpTrack.noteEvents) {
-            int startTick = static_cast<int>(ne.tick * tickScale);
-            int durTicks = std::max(1, static_cast<int>(ne.duration * tickScale));
-            int endTick = startTick + durTicks;
-            int line = 127 - ne.midiNote;
-
-            NoteOnEvent* noteOn = new NoteOnEvent(ne.midiNote, ne.velocity, midiChannel, midiTrack);
-            noteOn->setFile(mf);
-            noteOn->setMidiTime(startTick, false);
-
-            OffEvent* noteOff = new OffEvent(midiChannel, line, midiTrack);
-            noteOff->setFile(mf);
-            noteOff->setMidiTime(endTick - 1, false);
-
-            if (endTick > maxTick) maxTick = endTick;
-        }
-    }
+    QList<GP::GPTrack> gpTracks = parser.tracks();
+    GP::applyTripletFeel(gpTracks, parser.measureHeaders());
+    GP::buildMidiTracks(mf, gpTracks, tickScale, maxTick);
 
     OffEvent::clearOnEvents();
 
-    // Set file total length
+    // Set file total length directly from ticks
     if (maxTick > 0) {
-        mf->setMaxLengthMs(mf->msOfTick(maxTick) + 2000);
+        mf->setMidiTicks(maxTick);
     }
 
-    mf->calcMaxTime();
     mf->setPath(path);
     mf->setSaved(true);
 

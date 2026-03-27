@@ -72,6 +72,10 @@ win32: LIBS += -lopengl32
 unix:!macx: LIBS += -lGL
 macx: LIBS += -framework OpenGL
 
+# Link zlib for GP7 extraction
+win32: LIBS += -lz
+unix: LIBS += -lz
+
 # Optional FluidSynth support for built-in synthesizer
 # Set FLUIDSYNTH_DIR env var to your pre-built FluidSynth install path
 # e.g. export FLUIDSYNTH_DIR=/path/to/fluidsynth

@@ -795,14 +795,13 @@ MidiFile* ImportMML::loadFile(QString path, bool* ok) {
     MML::Parser parser(mf);
     parser.parse(tokens);
 
-    // Set the file's total length to cover all generated events
+    // Set the file's total length directly from ticks
     if (parser.maxTick() > 0) {
-        mf->setMaxLengthMs(mf->msOfTick(parser.maxTick()) + 1000);
+        mf->setMidiTicks(parser.maxTick());
     }
 
     mf->setPath(path);
     mf->setSaved(true);
-    mf->calcMaxTime();
 
     *ok = true;
     return mf;

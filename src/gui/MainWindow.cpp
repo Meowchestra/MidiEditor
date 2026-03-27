@@ -1226,7 +1226,19 @@ void MainWindow::load() {
     if (f->exists()) {
         QFileInfo(*f).dir().path();
     }
-    QString newPath = QFileDialog::getOpenFileName(this, tr("Open file"), dir, tr("Music Files(*.mid *.midi *.mml *.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp);;MIDI Files(*.mid *.midi);;MML Files(*.mml);;GuitarPro Files(*.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp);;All Files(*)"));
+    QString midi = "*.mid *.midi";
+    QString mml = "*.mml *.ms2mml";
+    QString gp  = "*.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp";
+
+    QString filter =
+        QString("Music Files (%1 %2 %3);;"
+                "MIDI Files (%1);;"
+                "MML Files (%2);;"
+                "GuitarPro Files (%3);;"
+                "All Files (*)")
+            .arg(midi, mml, gp);
+
+    QString newPath = QFileDialog::getOpenFileName(this, tr("Open file"), dir, filter);
 
     if (!newPath.isEmpty()) {
         openFile(newPath);
@@ -1261,7 +1273,7 @@ void MainWindow::openFile(QString filePath) {
     MidiFile *mf = nullptr;
     QString lowerPath = filePath.toLower();
     
-    if (lowerPath.endsWith(".mml")) {
+    if (lowerPath.endsWith(".mml") || lowerPath.endsWith(".ms2mml")) {
         mf = ImportMML::loadFile(filePath, &ok);
     } else if (lowerPath.endsWith(".gp3") || lowerPath.endsWith(".gp4") || lowerPath.endsWith(".gp5") || lowerPath.endsWith(".gp6") || lowerPath.endsWith(".gp7") || lowerPath.endsWith(".gpx") || lowerPath.endsWith(".gp")) {
         mf = ImportGuitarPro::loadFile(filePath, &ok);

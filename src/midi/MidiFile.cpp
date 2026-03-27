@@ -1703,6 +1703,11 @@ void MidiFile::setMaxLengthMs(int ms) {
     calcMaxTime();
 }
 
+void MidiFile::setMidiTicks(int ticks) {
+    midiTicks = ticks;
+    calcMaxTime();
+}
+
 ProtocolEntry *MidiFile::copy() {
     MidiFile *file = new MidiFile(midiTicks, protocol());
     file->_tracks = new QList<MidiTrack *>(*(_tracks));

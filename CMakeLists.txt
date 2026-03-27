@@ -186,6 +186,10 @@ target_link_libraries(MidiEditor PRIVATE
 find_package(OpenGL REQUIRED)
 target_link_libraries(MidiEditor PRIVATE ${OPENGL_LIBRARIES})
 
+# Link zlib for GP7 extraction (raw deflate)
+find_package(ZLIB REQUIRED)
+target_link_libraries(MidiEditor PRIVATE ZLIB::ZLIB)
+
 # Optional FluidSynth support for built-in synthesizer
 # Accept pre-built install dir via -DFLUIDSYNTH_DIR=... or FLUIDSYNTH_DIR env var
 if(NOT FLUIDSYNTH_DIR)
