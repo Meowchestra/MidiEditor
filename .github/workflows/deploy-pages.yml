@@ -178,16 +178,16 @@ jobs:
 
           # Latest Jekyll
           gem "jekyll", "~> 4.4.1"
-          gem "jekyll-theme-chirpy", "~> 7.3", ">= 7.3.1"
+          gem "jekyll-theme-chirpy", "~> 7.5"
 
           # Chirpy theme plugins (matching gemspec dependencies)
           group :jekyll_plugins do
             # Core Chirpy dependencies (from gemspec)
-            gem "jekyll-paginate", "~> 1.1"
+            gem "jekyll-paginate-v2", "~> 3.0"
             gem "jekyll-seo-tag", "~> 2.8"
             gem "jekyll-archives", "~> 2.3"
             gem "jekyll-sitemap", "~> 1.4"
-            gem "jekyll-include-cache", "~> 0.2"
+            gem "jekyll-include-cache", "~> 0.2.1"
             # Optional additional plugins
             gem "jekyll-feed", "~> 0.17.0"
             gem "jekyll-github-metadata", "~> 2.16", ">= 2.16.1"
@@ -195,20 +195,20 @@ jobs:
 
           # Platform-specific gems
           platforms :windows, :jruby do
-            gem "tzinfo", "~> 2.0"
-            gem "tzinfo-data", "~> 1.2025", ">= 1.2025.2"
+            gem "tzinfo", "~> 2.0", ">= 2.0.6"
+            gem "tzinfo-data", "~> 1.2026", ">= 1.2026.1"
           end
 
           # Development server and performance
-          gem "webrick", "~> 1.9", ">= 1.9.1"
+          gem "webrick", "~> 1.9", ">= 1.9.2"
           gem "kramdown-parser-gfm", "~> 1.1"
 
           # Fix Faraday v2.0+ compatibilitys
-          gem "faraday-retry", "~> 2.3", ">= 2.3.2"
+          gem "faraday-retry", "~> 2.4"
 
           # Windows/JRuby compatibility
           gem "wdm", "~> 0.2.0", :platforms => [:windows]
-          gem "http_parser.rb", "~> 0.8.0", :platforms => [:jruby]
+          gem "http_parser.rb", "~> 0.8.1", :platforms => [:jruby]
           EOF
 
           # Create homepage from README with cleaned content (About tab)
@@ -483,7 +483,7 @@ jobs:
       - name: Setup Ruby (after Gemfile creation)
         uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 'head'
+          ruby-version: '3.4.9'
           bundler-cache: true
 
       - name: Copy assets and verify icon fix
