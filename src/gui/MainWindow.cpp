@@ -3268,12 +3268,57 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     noteDurationMB->addSeparator();
 
-    QStringList durations = {tr("Whole note"), tr("Half note"), tr("Third note"), tr("Quarter note"),
-                             tr("Fifth note"), tr("Sixth note"), tr("Seventh note"), tr("Eighth note"), tr("Ninth note")};
-    for (int i = 0; i < durations.size(); ++i) {
-        int divisor = i + 1;
-        QAction *durationAction = new QAction(durations[i], this);
-        durationAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, static_cast<Qt::Key>(Qt::Key_1 + i)))); // Alt + 1, Alt + 2
+    QList<QString> stdNames = {
+        tr("Whole note (1/1)"), tr("Half note (1/2)"), tr("Quarter note (1/4)"), 
+        tr("8th note (1/8)"), tr("16th note (1/16)"), tr("32nd note (1/32)"), tr("64th note (1/64)")
+    };
+    QList<int> stdDivs = {1, 2, 4, 8, 16, 32, 64};
+    QList<QKeySequence> stdShortcuts = {
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_1)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_2)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_3)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_4)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_5)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_6)),
+        QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_7))
+    };
+
+    for (int i = 0; i < stdNames.size(); ++i) {
+        int divisor = stdDivs[i];
+        QAction *durationAction = new QAction(stdNames[i], this);
+        durationAction->setShortcut(stdShortcuts[i]);
+        durationAction->setData(divisor);
+        durationAction->setCheckable(true);
+        QString actionId = QString("duration_") + QString::number(divisor);
+        _defaultShortcuts[actionId] = QList<QKeySequence>() << durationAction->shortcut();
+        noteDurationMB->addAction(durationAction);
+        noteDurationGroup->addAction(durationAction);
+        _actionMap[actionId] = durationAction;
+    }
+
+    noteDurationMB->addSeparator();
+
+    QList<QString> tupNames = {
+        tr("Triplet (1/3)"), tr("Quintuplet (1/5)"), tr("Sextuplet (1/6)"),
+        tr("Septuplet (1/7)"), tr("Nonuplet (1/9)"), tr("8th Triplet (1/12)"),
+        tr("16th Triplet (1/24)"), tr("32nd Triplet (1/48)")
+    };
+    QList<int> tupDivs = {3, 5, 6, 7, 9, 12, 24, 48};
+    QList<QKeySequence> tupShortcuts = {
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_1)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_2)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_3)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_4)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_5)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_6)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_7)),
+        QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_8))
+    };
+
+    for (int i = 0; i < tupNames.size(); ++i) {
+        int divisor = tupDivs[i];
+        QAction *durationAction = new QAction(tupNames[i], this);
+        durationAction->setShortcut(tupShortcuts[i]);
         durationAction->setData(divisor);
         durationAction->setCheckable(true);
         QString actionId = QString("duration_") + QString::number(divisor);
