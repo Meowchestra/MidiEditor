@@ -125,9 +125,44 @@ jobs:
           path: libsndfile/
           retention-days: 7
 
+  build-portaudio:
+    runs-on: windows-latest
+    if: always() && !cancelled() && !failure()
+    steps:
+      - name: Clone PortAudio
+        run: git clone --depth=1 https://github.com/PortAudio/portaudio.git portaudio-src
+
+      - name: Cache PortAudio install
+        id: cache-pa
+        uses: actions/cache@v5
+        with:
+          path: portaudio
+          key: portaudio-shared-${{ hashFiles('portaudio-src/**') }}
+
+      - name: Build PortAudio
+        if: steps.cache-pa.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          cmake -S portaudio-src -B portaudio-build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/portaudio" `
+            -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DBUILD_SHARED_LIBS=OFF `
+            -DPA_USE_WDMKS=ON
+          cmake --build portaudio-build --config Release --parallel
+          cmake --install portaudio-build --config Release
+
+      - name: Upload PortAudio artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: portaudio-win64-static
+          path: portaudio/
+          retention-days: 7
+
   build-fluidsynth:
     runs-on: windows-latest
-    needs: build-libsndfile
+    needs: [build-libsndfile, build-portaudio]
     if: always() && !cancelled() && !failure()
     steps:
       - name: Clone FluidSynth branch
@@ -145,30 +180,42 @@ jobs:
           name: libsndfile-static-win64
           path: libsndfile
 
+      - name: Download PortAudio
+        uses: actions/download-artifact@v8
+        with:
+          name: portaudio-win64-static
+          path: portaudio
+
       - name: Cache FluidSynth install
         id: cache-fs
         uses: actions/cache@v5
         with:
           path: fluidsynth
-          key: fluidsynth-multi-reverb-sndfile-${{ hashFiles('fluidsynth-src/**') }}-${{ hashFiles('libsndfile/**') }}
+          key: fluidsynth-multi-reverb-sndfile-pa-static-${{ hashFiles('fluidsynth-src/**') }}-${{ hashFiles('libsndfile/**') }}-${{ hashFiles('portaudio/**') }}
 
       - name: Build FluidSynth
         if: steps.cache-fs.outputs.cache-hit != 'true'
         shell: pwsh
         run: |
           $sndfile = "${{ github.workspace }}/libsndfile"
+          $pa = "${{ github.workspace }}/portaudio"
           $env:PATH = "$sndfile/bin;" + $env:PATH
           mkdir -Force "${{ github.workspace }}/fluidsynth/bin"
           cp "$sndfile/bin/*.dll" "${{ github.workspace }}/fluidsynth/bin/"
           cmake -S fluidsynth-src -B fluidsynth-build `
             -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_INSTALL_PREFIX="${{ github.workspace }}/fluidsynth" `
-            -DCMAKE_PREFIX_PATH="$sndfile" `
+            -DCMAKE_PREFIX_PATH="$sndfile;$pa" `
             -Dosal=cpp11 `
+            -Denable-portaudio=ON `
+            -Denable-alsa=OFF `
+            -Denable-jack=OFF `
+            -Denable-pulseaudio=OFF `
+            -Denable-pipewire=OFF `
+            -Denable-dbus=OFF `
+            -Denable-oss=OFF `
             -Denable-libinstpatch=OFF `
             -Denable-tests=OFF `
-            -Denable-dbus=OFF `
-            -Denable-jack=OFF `
             -DBUILD_SHARED_LIBS=ON `
             -DCMAKE_POLICY_DEFAULT_CMP0091=NEW `
             -DCMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP=TRUE `

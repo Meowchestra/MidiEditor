@@ -1,5 +1,6 @@
 
 local MIDIEDITOR_RELEASE_VERSION_STRING = "4.3.1"
+add_requires("zlib")
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 set_allowedplats("windows", "linux", "macosx")
 
@@ -77,7 +78,7 @@ target("MidiEditor") do
         set_symbols("debug")
     end
 
-    add_packages("qt6widgets")
+    add_packages("qt6widgets", "zlib")
     add_rules("qt.widgetapp")
     add_frameworks({
         "QtGui", "QtWidgets", "QtCore", "QtNetwork",
@@ -91,14 +92,6 @@ target("MidiEditor") do
         add_syslinks("GL", "GLU")
     elseif is_plat("macosx") then
         add_frameworks("OpenGL")
-    end
-
-    -- zlib is required for GuitarPro GP7 file decompression (raw deflate)
-    if is_plat("windows") then
-        -- Qt ships with zlib on Windows; use its headers and link
-        add_syslinks("zlib")
-    else
-        add_syslinks("z")
     end
 
     -- Optional FluidSynth support for built-in synthesizer

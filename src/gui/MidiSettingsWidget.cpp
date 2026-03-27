@@ -871,7 +871,7 @@ void MidiSettingsWidget::onExportToWav() {
     connect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
     connect(FluidSynthEngine::instance(), SIGNAL(exportFinished(bool,QString)), this, SLOT(onExportFinished(bool,QString)));
 
-    QtConcurrent::run([tempMidi, wavPath]() {
+    QThreadPool::globalInstance()->start([tempMidi, wavPath]() {
         FluidSynthEngine::instance()->exportToWav(tempMidi, wavPath);
     });
 }
