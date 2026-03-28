@@ -40,7 +40,7 @@
 #include <zlib.h>
 
 // ═══════════════════════════════════════════════════════════════════════
-//  Binary reader — mirrors GPBase.cs
+//  Binary reader
 // ═══════════════════════════════════════════════════════════════════════
 namespace GP {
 
@@ -753,6 +753,11 @@ private:
         GPNote note;
         quint8 flags = _r.readByte();
 
+        // Accent/Ghost flags from note byte
+        if (flags & 0x02) note.isHeavyAccentuated = true;
+        if (flags & 0x04) note.isGhost = true;
+        if (flags & 0x40) note.isAccentuated = true;
+
         // Note type
         if (flags & 0x20) {
             quint8 noteType = _r.readByte();
@@ -898,16 +903,18 @@ private:
 
         if (flags1 & 0x10) {
             n.isGrace = true;
-            n.graceFret = _r.readByte();
-            n.graceVelocity = std::clamp(static_cast<int>(_r.readByte()) * 10, 1, 127);
+            n.graceFret = _r.readSignedByte(); // fret (signed, -1 = dead)
+            // Velocity: uses unpackVelocity formula = 15 + 16*byte - 16
+            n.graceVelocity = std::clamp(15 + 16 * static_cast<int>(_r.readByte()) - 16, 1, 127);
             
+            // Duration: 1 << (7 - byte) gives Duration.value, convert to ticks
+            // byte=1 -> val=64 (64th), byte=2 -> val=32 (32nd), byte=3 -> val=16 (16th)
             int gDur = _r.readByte();
-            if (gDur == 1) n.graceDurationTicks = 120; // 32nd (960/8)
-            else if (gDur == 2) n.graceDurationTicks = 160; // 24th
-            else if (gDur == 3) n.graceDurationTicks = 240; // 16th
-            else n.graceDurationTicks = 120;
+            int gDurValue = 1 << (7 - std::clamp(gDur, 1, 6));
+            n.graceDurationTicks = std::max(1, static_cast<int>(Duration::QUARTER_TIME * 4.0 / gDurValue));
             
-            if (_version >= 4) _r.readByte(); // extra byte for GP4
+            // GP3: transition byte (none=0, slide=1, bend=2, hammer=3)
+            _r.readSignedByte(); // transition
             if (_version >= 5) _r.readByte(); // extra flags for GP5
         }
 
@@ -1861,16 +1868,56 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                 
                 // Harmonics Simulation
                 if (n.harmonic == GP::HarmonicType::Natural) {
-                    if (n.fret == 12) effectiveFret += 12;
-                    else if (n.fret == 7) effectiveFret += 19;
-                    else if (n.fret == 5) effectiveFret += 24;
-                    else if (n.fret == 4) effectiveFret += 28;
-                    else if (n.fret == 3) effectiveFret += 31;
-                    else effectiveFret += 12;
+                    // Natural harmonics: fret + lookup = final equivalent fret
+                    // GetHarmonic returns baseTone + capo + fret + lookup(harmonicFret)
+                    int harmonicAdd = 0;
+                    float hf = (n.harmonicFret > 0) ? n.harmonicFret : static_cast<float>(n.fret);
+                    if (hf >= 23.5f) harmonicAdd = 0;       // 24f => 0
+                    else if (hf >= 21.0f) harmonicAdd = 12; // 21.7f => 12
+                    else if (hf >= 18.0f) harmonicAdd = 0;  // 19f => 0
+                    else if (hf >= 16.5f) harmonicAdd = 19; // 17f => 19
+                    else if (hf >= 15.5f) harmonicAdd = 12; // 16f => 12
+                    else if (hf >= 14.0f) harmonicAdd = 19; // 14.7f => 19
+                    else if (hf >= 11.0f) harmonicAdd = 0;  // 12f => 0
+                    else if (hf >= 9.3f) harmonicAdd = 24;  // 9.6f => 24
+                    else if (hf >= 8.5f) harmonicAdd = 19;  // 9f => 19
+                    else if (hf >= 7.5f) harmonicAdd = 28;  // 8.2f => 28
+                    else if (hf >= 6.0f) harmonicAdd = 12;  // 7f => 12
+                    else if (hf >= 5.5f) harmonicAdd = 28;  // 5.8f => 28
+                    else if (hf >= 4.5f) harmonicAdd = 19;  // 5f => 19
+                    else if (hf >= 3.5f) harmonicAdd = 24;  // 4f => 24
+                    else if (hf >= 3.0f) harmonicAdd = 28;  // 3.2f => 28
+                    else if (hf >= 2.5f) harmonicAdd = 31;  // 2.7f => 31
+                    else harmonicAdd = 34;                  // 2.4f => 34
+                    effectiveFret += harmonicAdd;
                 } else if (n.harmonic == GP::HarmonicType::Artificial || 
                            n.harmonic == GP::HarmonicType::Pinch || 
                            n.harmonic == GP::HarmonicType::Tapped) {
-                    effectiveFret += 12; // Standard octave artificial bump
+                    // Non-natural harmonics: add rounded harmonicFret to base, then
+                    // apply the same overtone lookup
+                    int roundedHF = static_cast<int>(std::round(n.harmonicFret));
+                    effectiveFret += roundedHF;
+                    // Apply overtone offset from harmonicFret
+                    float hf = n.harmonicFret;
+                    int harmonicAdd = 0;
+                    if (hf >= 23.5f) harmonicAdd = 0;
+                    else if (hf >= 21.0f) harmonicAdd = 12;
+                    else if (hf >= 18.0f) harmonicAdd = 0;
+                    else if (hf >= 16.5f) harmonicAdd = 19;
+                    else if (hf >= 15.5f) harmonicAdd = 12;
+                    else if (hf >= 14.0f) harmonicAdd = 19;
+                    else if (hf >= 11.0f) harmonicAdd = 0;
+                    else if (hf >= 9.3f) harmonicAdd = 24;
+                    else if (hf >= 8.5f) harmonicAdd = 19;
+                    else if (hf >= 7.5f) harmonicAdd = 28;
+                    else if (hf >= 6.0f) harmonicAdd = 12;
+                    else if (hf >= 5.5f) harmonicAdd = 28;
+                    else if (hf >= 4.5f) harmonicAdd = 19;
+                    else if (hf >= 3.5f) harmonicAdd = 24;
+                    else if (hf >= 3.0f) harmonicAdd = 28;
+                    else if (hf >= 2.5f) harmonicAdd = 31;
+                    else harmonicAdd = 34;
+                    effectiveFret += harmonicAdd;
                 }
 
                 computedMidiNote = std::clamp(openStringMidi + effectiveFret + gpTrack.capo, 0, 127);
@@ -1887,8 +1934,11 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                     if (!n.bendPoints.isEmpty()) {
                         int bentCh = activeStringOffs[n.str]->channel();
                         for (const GP::BendPoint& bp : n.bendPoints) {
+                            // GP bend: raw position 0-60 maps to note duration
+                            // Raw value: 25 per semitone. Pitchwheel = rawValue * 25.6
+                            // (BendingPlan: GP6value * 25.6 where GP6value = raw * 25 / 25)
                             int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
-                            int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
+                            int pwVal = static_cast<int>(bp.value * 25.6f);
                             pwVal = std::clamp(pwVal, -8192, 8191);
                             PitchBendEvent* pw = new PitchBendEvent(bentCh, 8192 + pwVal, midiTrack);
                             pw->setFile(mf);
@@ -1903,15 +1953,33 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
             }
 
             int velocity = n.velocity;
-            if (n.isDead || n.isGhost) {
+            // Dead notes: velocity * 0.9, duration / 6
+            if (n.isDead) {
+                velocity = static_cast<int>(velocity * 0.9f);
+                durTicks = std::max(1, durTicks / 6);
+            }
+            // Palm mute: velocity * 0.7, duration / 2
+            if (n.isPalmMute) {
                 velocity = static_cast<int>(velocity * 0.7f);
-                durTicks = std::max(1, durTicks / 4);
-            } else if (n.isPalmMute) {
-                velocity = static_cast<int>(velocity * 0.8f);
-                durTicks = std::max(1, durTicks / 2);
-            } else if (n.isStaccato) {
                 durTicks = std::max(1, durTicks / 2);
             }
+            // Ghost notes: velocity * 0.8, duration unchanged
+            if (n.isGhost) {
+                velocity = static_cast<int>(velocity * 0.8f);
+            }
+            // Staccato: duration / 2
+            if (n.isStaccato) {
+                durTicks = std::max(1, durTicks / 2);
+            }
+            // Accented: velocity * 1.2
+            if (n.isAccentuated) {
+                velocity = static_cast<int>(velocity * 1.2f);
+            }
+            // Heavy Accented: velocity * 1.4
+            if (n.isHeavyAccentuated) {
+                velocity = static_cast<int>(velocity * 1.4f);
+            }
+            velocity = std::clamp(velocity, 1, 127);
 
             int endTick = startTick + durTicks;
             int line = 127 - computedMidiNote;
@@ -1930,6 +1998,22 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                         ControlChangeEvent* volReset = new ControlChangeEvent(targetChannel, 7, 100, midiTrack);
                         volReset->setFile(mf);
                         volReset->setMidiTime(startTick, false);
+
+                        // RPN 0: Set pitch bend sensitivity to 6 semitones
+                        if (!n.bendPoints.isEmpty()) {
+                            ControlChangeEvent* rpnMsb = new ControlChangeEvent(targetChannel, 101, 0, midiTrack);
+                            rpnMsb->setFile(mf);
+                            rpnMsb->setMidiTime(startTick, false);
+                            ControlChangeEvent* rpnLsb = new ControlChangeEvent(targetChannel, 100, 0, midiTrack);
+                            rpnLsb->setFile(mf);
+                            rpnLsb->setMidiTime(startTick, false);
+                            ControlChangeEvent* dataMsb = new ControlChangeEvent(targetChannel, 6, 6, midiTrack);
+                            dataMsb->setFile(mf);
+                            dataMsb->setMidiTime(startTick, false);
+                            ControlChangeEvent* dataLsb = new ControlChangeEvent(targetChannel, 38, 0, midiTrack);
+                            dataLsb->setFile(mf);
+                            dataLsb->setMidiTime(startTick, false);
+                        }
                         break;
                     }
                 }
@@ -1946,10 +2030,10 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
 
                 while (curTick + scaledTrem <= startTick + durTicks) {
                     int subMidi = computedMidiNote;
-                    // GP represents trillFret directly as the absolute target fret if positive,
-                    // but usually it's a relative offset. Wait, `GuitarProToMidi.Console` does `n.effect.trill.fret - tuning`.
-                    // We'll safely add standard +1 / +2 for now if it's missing or if trillFret is interpreted relative.
-                    if (n.isTrill && !originalFret) subMidi += ((n.trillFret > 0 && n.trillFret < 10) ? n.trillFret : 2);
+                    // GP natively represents trillFret natively as the absolute target fret on the same string.
+                    if (n.isTrill && !originalFret) {
+                        subMidi = std::clamp(subMidi - n.fret + n.trillFret, 0, 127);
+                    }
                     
                     int subLine = 127 - subMidi;
                     NoteOnEvent* subOn = new NoteOnEvent(subMidi, velocity, targetChannel, midiTrack);
@@ -1967,9 +2051,11 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                     originalFret = !originalFret;
                 }
             } else {
-                if (n.isGrace && startTick >= n.graceDurationTicks) {
-                    int graceStart = startTick - n.graceDurationTicks;
+                if (n.isGrace) {
                     int graceScaled = std::max(1, static_cast<int>(n.graceDurationTicks * tickScale));
+
+                    // We start the grace note exactly on the beat, then shift the principal note forward.
+                    int graceStart = startTick;
                     
                     int graceMidi = std::clamp(computedMidiNote - n.fret + n.graceFret, 0, 127);
                     NoteOnEvent* gOn = new NoteOnEvent(graceMidi, n.graceVelocity, targetChannel, midiTrack);
@@ -1978,11 +2064,9 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                     
                     OffEvent* gOff = new OffEvent(targetChannel, 127 - graceMidi, midiTrack);
                     gOff->setFile(mf);
-                    gOff->setMidiTime(startTick - 1, false);
+                    gOff->setMidiTime(graceStart + graceScaled - 1, false);
                     
-                    // Steal duration from principal note by squishing it slightly or 
-                    // shifting the entire principal note index back? Format.cs shifts index forward!
-                    // So we shrink principal note duration by graceScaled and shift startTick by graceScaled
+                    // Shrink principal note duration by graceScaled and shift startTick by graceScaled
                     startTick += graceScaled;
                     durTicks = std::max(1, durTicks - graceScaled);
                 }
@@ -1999,11 +2083,13 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                 if (endTick > maxTick) maxTick = endTick;
             }
 
-            // Simplified Bend via PitchWheel
+            // Bend via PitchWheel
+            // GP bend raw values: position 0-60 (fraction of note), value 25 per semitone
+            // Pitchwheel = rawValue * 25.6 (with RPN set to 6 semitones)
             if (!n.bendPoints.isEmpty()) {
                 for (const GP::BendPoint& bp : n.bendPoints) {
                     int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
-                    int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
+                    int pwVal = static_cast<int>(bp.value * 25.6f);
                     pwVal = std::clamp(pwVal, -8192, 8191);
                     PitchBendEvent* pw = new PitchBendEvent(targetChannel, 8192 + pwVal, midiTrack);
                     pw->setFile(mf);
@@ -2014,39 +2100,58 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                 pwReset->setMidiTime(endTick, false);
             }
             
-            // Fading (Volume Swells)
-            if (n.fading == GP::Fading::FadeIn) {
-                for (int i = 0; i < 4; i++) {
-                    int fTick = startTick + (i * durTicks / 4);
-                    int fVol = (127 * i) / 3;
-                    ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
-                    cc->setFile(mf);
-                    cc->setMidiTime(fTick, false);
+            // Fading (Volume Changes) — 20-segment algorithm
+            if (n.fading != GP::Fading::None) {
+                const int segments = 20;
+                if (n.fading == GP::Fading::FadeIn) {
+                    int step = velocity / segments;
+                    int vol = 0;
+                    for (int i = 0; i < segments; i++) {
+                        int fTick = startTick + (i * durTicks / segments);
+                        int fVol = std::clamp(vol, 0, 127);
+                        ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
+                        cc->setFile(mf);
+                        cc->setMidiTime(fTick, false);
+                        vol += step;
+                    }
+                } else if (n.fading == GP::Fading::FadeOut) {
+                    int step = static_cast<int>(-velocity * 1.25f / segments);
+                    int vol = velocity;
+                    for (int i = 0; i < segments; i++) {
+                        int fTick = startTick + (i * durTicks / segments);
+                        int fVol = std::clamp(vol, 0, 127);
+                        ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
+                        cc->setFile(mf);
+                        cc->setMidiTime(fTick, false);
+                        vol += step;
+                    }
+                } else if (n.fading == GP::Fading::VolumeSwell) {
+                    int step = static_cast<int>(velocity / (segments * 0.8f));
+                    int vol = 0;
+                    for (int i = 0; i < segments; i++) {
+                        int fTick = startTick + (i * durTicks / segments);
+                        int fVol = std::clamp(vol, 0, 127);
+                        ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
+                        cc->setFile(mf);
+                        cc->setMidiTime(fTick, false);
+                        vol += step;
+                        if (i == segments / 2) step = -step;
+                    }
                 }
-            } else if (n.fading == GP::Fading::VolumeSwell) {
-                for (int i = 0; i < 5; i++) {
-                    int fTick = startTick + (i * durTicks / 4);
-                    int fVol = (i == 2) ? 127 : ((i == 0 || i == 4) ? 0 : 64);
-                    ControlChangeEvent* cc = new ControlChangeEvent(targetChannel, 7, fVol, midiTrack);
-                    cc->setFile(mf);
-                    cc->setMidiTime(fTick, false);
-                }
-            } else if (n.fading == GP::Fading::FadeOut) {
-                for (int i = 0; i < 4; i++) {
-                    int fTick = startTick + (i * durTicks / 4);
-                    int fVol = 127 - ((127 * i) / 3);
-                    ControlChangeEvent* cc = new ControlChangeEvent(midiChannel, 7, fVol, midiTrack);
-                    cc->setFile(mf);
-                    cc->setMidiTime(fTick, false);
-                }
+                // Reset volume at end of note
+                ControlChangeEvent* ccReset = new ControlChangeEvent(targetChannel, 7, velocity, midiTrack);
+                ccReset->setFile(mf);
+                ccReset->setMidiTime(endTick, false);
             }
         }
         
         // Tremolo bar
         for (const GP::TremoloPoint& tp : gpTrack.tremoloPoints) {
             int tTick = static_cast<int>(tp.index * tickScale);
-            int pwVal = static_cast<int>(tp.value * 8191 / 2.0f); // assuming +-2 semitones
-            pwVal = std::clamp(pwVal, -8192, 8191);
+            // Tremolo bar: value * 25.6
+            float pwFloat = tp.value * 25.6f;
+            pwFloat = std::clamp(pwFloat, -8192.0f, 8191.0f);
+            int pwVal = static_cast<int>(pwFloat);
             PitchBendEvent* pw = new PitchBendEvent(midiChannel, 8192 + pwVal, midiTrack);
             pw->setFile(mf);
             pw->setMidiTime(tTick, false);
@@ -2137,8 +2242,8 @@ MidiFile* ImportGuitarPro::loadFile(QString path, bool* ok) {
 
         // Create tracks with note events
         int maxTick = 0;
-        GP::applyTripletFeel(gpTracks, gpHeaders);
-        GP::buildMidiTracks(mf, gpTracks, tickScale, maxTick);
+        applyTripletFeel(gpTracks, gpHeaders);
+        buildMidiTracks(mf, gpTracks, tickScale, maxTick);
 
         OffEvent::clearOnEvents();
         if (maxTick > 0) mf->setMidiTicks(maxTick);
@@ -2215,8 +2320,8 @@ MidiFile* ImportGuitarPro::loadFile(QString path, bool* ok) {
     // Create tracks with note events
     int maxTick = 0;
     QList<GP::GPTrack> gpTracks = parser.tracks();
-    GP::applyTripletFeel(gpTracks, parser.measureHeaders());
-    GP::buildMidiTracks(mf, gpTracks, tickScale, maxTick);
+    applyTripletFeel(gpTracks, parser.measureHeaders());
+    buildMidiTracks(mf, gpTracks, tickScale, maxTick);
 
     OffEvent::clearOnEvents();
 
