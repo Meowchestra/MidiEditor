@@ -211,9 +211,6 @@ private:
     QComboBox *_reverbEngineCombo;
     QCheckBox *_reverbCheckBox;
     QCheckBox *_chorusCheckBox;
-    QCheckBox *_wasapiExclusiveCheckBox;
-    QComboBox *_periodSizeCombo;
-    QComboBox *_periodsCombo;
     QComboBox *_sampleFormatCombo;
     QComboBox *_polyphonyCombo;
     QPushButton *_exportWavBtn;
@@ -234,9 +231,6 @@ private slots:
     void onReverbEngineChanged(int index);
     void onReverbToggled(bool enabled);
     void onChorusToggled(bool enabled);
-    void onWasapiExclusiveToggled(bool enabled);
-    void onPeriodSizeChanged(int index);
-    void onPeriodsChanged(int index);
     void onSampleFormatChanged(int index);
     void onPolyphonyChanged(int index);
     void refreshSoundFontList();

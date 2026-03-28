@@ -153,28 +153,20 @@ public:
     void setAudioDriver(const QString &driver);
     void setGain(double gain);
     void setSampleRate(double rate);
+    void setSampleFormat(const QString &format);
     void setReverbEngine(const QString &engine);
     void setReverbEnabled(bool enabled);
     void setChorusEnabled(bool enabled);
+    void setPolyphony(int polyphony);
 
     QString audioDriver() const;
     double gain() const;
     double sampleRate() const;
+    QString sampleFormat() const;
     QString reverbEngine() const;
     bool reverbEnabled() const;
     bool chorusEnabled() const;
-
-    void setPolyphony(int polyphony);
-    void setPeriodSize(int size);
-    void setPeriods(int count);
-    void setWasapiExclusive(bool enabled);
-    void setSampleFormat(const QString &format);
-
     int polyphony() const;
-    int periodSize() const;
-    int periods() const;
-    bool wasapiExclusive() const;
-    QString sampleFormat() const;
 
     QStringList availableAudioDrivers() const;
 
@@ -187,17 +179,6 @@ public:
      * \brief Checks if a SoundFont with the same path is already loaded.
      */
     bool isSoundFontLoaded(const QString &path) const;
-
-    /**
-     * \brief Removes all references to soundFontPaths
-     */
-
-    /**
-     * \brief Detects the default sample rate for a given audio driver.
-     * \param driver Audio driver name (e.g. "wasapi", "dsound")
-     * \return Default sample rate, or 44100.0 if detection fails
-     */
-    static double detectDefaultSampleRate(const QString &driver);
 
     // === Persistence ===
 
@@ -250,9 +231,6 @@ private:
     bool _reverbEnabled;
     bool _chorusEnabled;
     int _polyphony;
-    int _periodSize;
-    int _periods;
-    bool _wasapiExclusive;
     QString _sampleFormat;
     
     // Background task debouncing
