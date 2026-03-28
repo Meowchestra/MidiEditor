@@ -551,88 +551,146 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     connect(_moveSoundFontDownBtn, SIGNAL(clicked()), this, SLOT(moveSoundFontDown()));
     connect(_downloadDefaultSoundFontBtn, SIGNAL(clicked()), this, SLOT(showDownloadSoundFontDialog()));
 
-    // Settings grid: left side = Audio Driver / Sample Rate, right side = Reverb Engine / checkboxes
+    // Settings grid: 3 rows x 8 columns (4 settings per row)
+    // Row 0: Audio Driver | Exclusive | Buffer Size | Buffers
+    // Row 1: Sample Rate | Sample Format | Reverb Engine | Polyphony
+    // Row 2: Volume Gain | FX (Reverb + Chorus)
     FluidSynthEngine *engine = FluidSynthEngine::instance();
     QGridLayout *settingsGrid = new QGridLayout();
-    settingsGrid->setColumnStretch(0, 0); // label
-    settingsGrid->setColumnStretch(1, 1); // left dropdown
-    settingsGrid->setColumnStretch(2, 0); // spacer
-    settingsGrid->setColumnStretch(3, 0); // label
-    settingsGrid->setColumnStretch(4, 1); // right dropdown
+    settingsGrid->setHorizontalSpacing(15);
+    settingsGrid->setVerticalSpacing(10);
+    for (int i = 0; i < 8; ++i) settingsGrid->setColumnStretch(i, (i % 2 == 1) ? 1 : 0);
 
-    // Row 0: Audio Driver (left) | Reverb Engine (right)
-    settingsGrid->addWidget(new QLabel(tr("Audio Driver:"), _fluidSynthSettingsGroup), 0, 0);
+    // ========================================================================
+    // ROW 0
+    // ========================================================================
+    
+    // Audio Driver
     _audioDriverCombo = new QComboBox(_fluidSynthSettingsGroup);
     for (const QString &driver : engine->availableAudioDrivers()) {
         _audioDriverCombo->addItem(FluidSynthEngine::audioDriverDisplayName(driver), driver);
     }
     if (!engine->audioDriver().isEmpty()) {
         int driverIdx = _audioDriverCombo->findData(engine->audioDriver());
-        if (driverIdx != -1) {
-            _audioDriverCombo->setCurrentIndex(driverIdx);
-        }
+        if (driverIdx != -1) _audioDriverCombo->setCurrentIndex(driverIdx);
     }
+    settingsGrid->addWidget(new QLabel(tr("Audio Driver:"), _fluidSynthSettingsGroup), 0, 0);
     settingsGrid->addWidget(_audioDriverCombo, 0, 1);
-    connect(_audioDriverCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onAudioDriverChanged(int)));
+    
+    // Exclusive mode
+    _wasapiExclusiveCheckBox = new QCheckBox(_fluidSynthSettingsGroup);
+    _wasapiExclusiveCheckBox->setToolTip(tr("Enable WASAPI Exclusive mode"));
+    _wasapiExclusiveCheckBox->setChecked(engine->wasapiExclusive());
+    settingsGrid->addWidget(new QLabel(tr("Exclusive:"), _fluidSynthSettingsGroup), 0, 2);
+    settingsGrid->addWidget(_wasapiExclusiveCheckBox, 0, 3);
+    
+    // Buffer Size
+    _periodSizeCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _periodSizeCombo->addItems({"64", "128", "256", "384", "448", "512", "768", "1024", "1536", "2048", "3072", "4096", "8192"});
+    _periodSizeCombo->setCurrentText(QString::number(engine->periodSize()));
+    settingsGrid->addWidget(new QLabel(tr("Buffer Size:"), _fluidSynthSettingsGroup), 0, 4);
+    settingsGrid->addWidget(_periodSizeCombo, 0, 5);
 
-    settingsGrid->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup), 0, 3);
+    // Buffers (Periods)
+    _periodsCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _periodsCombo->addItems({"2", "3", "4", "8", "16", "32", "64"});
+    _periodsCombo->setCurrentText(QString::number(engine->periods()));
+    settingsGrid->addWidget(new QLabel(tr("Buffers:"), _fluidSynthSettingsGroup), 0, 6);
+    settingsGrid->addWidget(_periodsCombo, 0, 7);
+
+    // ========================================================================
+    // ROW 1
+    // ========================================================================
+    
+    // Sample Rate
+    _sampleRateCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _sampleRateCombo->addItems({"22050 Hz", "44100 Hz", "48000 Hz", "88200 Hz", "96000 Hz", "176400 Hz", "192000 Hz"});
+    QString rateStr = QString::number(static_cast<int>(engine->sampleRate())) + " Hz";
+    if (_sampleRateCombo->findText(rateStr) != -1) _sampleRateCombo->setCurrentText(rateStr);
+    else _sampleRateCombo->setCurrentText("44100 Hz");
+    settingsGrid->addWidget(new QLabel(tr("Sample Rate:"), _fluidSynthSettingsGroup), 1, 0);
+    settingsGrid->addWidget(_sampleRateCombo, 1, 1);
+    
+    // Sample Format
+    _sampleFormatCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _sampleFormatCombo->addItem("16-bit", "16bits");
+    _sampleFormatCombo->addItem("24-bit", "24bits");
+    _sampleFormatCombo->addItem("32-bit", "32bits");
+    _sampleFormatCombo->addItem("32-bit Float", "float");
+    int formatIdx = _sampleFormatCombo->findData(engine->sampleFormat());
+    if (formatIdx != -1) _sampleFormatCombo->setCurrentIndex(formatIdx);
+    settingsGrid->addWidget(new QLabel(tr("Format:"), _fluidSynthSettingsGroup), 1, 2);
+    settingsGrid->addWidget(_sampleFormatCombo, 1, 3);
+    
+    // Reverb Engine
     _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
     _reverbEngineCombo->addItem(tr("FDN Reverb"), "fdn");
     _reverbEngineCombo->addItem(tr("Freeverb"), "free");
     _reverbEngineCombo->addItem(tr("LEXverb"), "lex");
     _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
-    int engineIdx = _reverbEngineCombo->findData(engine->reverbEngine());
-    if (engineIdx != -1) {
-        _reverbEngineCombo->setCurrentIndex(engineIdx);
-    }
-    settingsGrid->addWidget(_reverbEngineCombo, 0, 4);
-    connect(_reverbEngineCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onReverbEngineChanged(int)));
-
-    // Row 1: Sample Rate (left) | Reverb & Chorus checkboxes (right)
-    settingsGrid->addWidget(new QLabel(tr("Sample Rate:"), _fluidSynthSettingsGroup), 1, 0);
-    _sampleRateCombo = new QComboBox(_fluidSynthSettingsGroup);
-    _sampleRateCombo->addItems({"22050 Hz", "44100 Hz", "48000 Hz", "88200 Hz", "96000 Hz", "176400 Hz", "192000 Hz"});
-    QString engineRate = QString::number(static_cast<int>(engine->sampleRate())) + " Hz";
-    if (_sampleRateCombo->findText(engineRate) != -1) {
-        _sampleRateCombo->setCurrentText(engineRate);
-    } else {
-        _sampleRateCombo->setCurrentText("44100 Hz");
-    }
-    settingsGrid->addWidget(_sampleRateCombo, 1, 1);
-    connect(_sampleRateCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onSampleRateChanged(QString)));
-
-    QHBoxLayout *reverbChorusRow = new QHBoxLayout();
-    _reverbCheckBox = new QCheckBox(tr("Reverb"), _fluidSynthSettingsGroup);
-    _reverbCheckBox->setChecked(engine->reverbEnabled());
-    reverbChorusRow->addWidget(_reverbCheckBox);
-    _chorusCheckBox = new QCheckBox(tr("Chorus"), _fluidSynthSettingsGroup);
-    _chorusCheckBox->setChecked(engine->chorusEnabled());
-    reverbChorusRow->addWidget(_chorusCheckBox);
-    reverbChorusRow->addStretch();
-    connect(_reverbCheckBox, SIGNAL(toggled(bool)), this, SLOT(onReverbToggled(bool)));
-    connect(_chorusCheckBox, SIGNAL(toggled(bool)), this, SLOT(onChorusToggled(bool)));
+    int rEngIdx = _reverbEngineCombo->findData(engine->reverbEngine());
+    if (rEngIdx != -1) _reverbEngineCombo->setCurrentIndex(rEngIdx);
+    settingsGrid->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup), 1, 4);
+    settingsGrid->addWidget(_reverbEngineCombo, 1, 5);
     
-    // Place checkboxes strictly in column 4 (directly under the Reverb engine dropdown)
-    settingsGrid->addLayout(reverbChorusRow, 1, 4);
+    // Polyphony
+    _polyphonyCombo = new QComboBox(_fluidSynthSettingsGroup);
+    _polyphonyCombo->addItems({"16", "32", "64", "128", "256", "384", "512", "768", "1024", "1536", "2048", "4096"});
+    _polyphonyCombo->setCurrentText(QString::number(engine->polyphony()));
+    settingsGrid->addWidget(new QLabel(tr("Polyphony:"), _fluidSynthSettingsGroup), 1, 6);
+    settingsGrid->addWidget(_polyphonyCombo, 1, 7);
 
-    // Row 2: Gain slider with Reset button (spans left columns)
-    settingsGrid->addWidget(new QLabel(tr("Gain:"), _fluidSynthSettingsGroup), 2, 0);
-    QHBoxLayout *gainRow = new QHBoxLayout();
+    // ========================================================================
+    // ROW 2
+    // ========================================================================
+    
+    // Volume Gain
+    QHBoxLayout *gainLayout = new QHBoxLayout();
     _gainSlider = new QSlider(Qt::Horizontal, _fluidSynthSettingsGroup);
     _gainSlider->setMinimum(0);
-    _gainSlider->setMaximum(300); // 0.0 - 3.0 in steps of 0.01
+    _gainSlider->setMaximum(300);
     _gainSlider->setValue(static_cast<int>(engine->gain() * 100.0));
-    gainRow->addWidget(_gainSlider, 1);
+    gainLayout->addWidget(_gainSlider, 1);
+    
     _gainValueLabel = new QLabel(QString::number(engine->gain(), 'f', 2), _fluidSynthSettingsGroup);
     _gainValueLabel->setFixedWidth(40);
-    gainRow->addWidget(_gainValueLabel);
+    gainLayout->addWidget(_gainValueLabel);
+    
     _gainResetBtn = new QPushButton(tr("Reset"), _fluidSynthSettingsGroup);
     _gainResetBtn->setFixedWidth(50);
-    _gainResetBtn->setToolTip(tr("Reset gain to default (0.50)"));
-    gainRow->addWidget(_gainResetBtn);
-    settingsGrid->addLayout(gainRow, 2, 1);
+    gainLayout->addWidget(_gainResetBtn);
+    
+    settingsGrid->addWidget(new QLabel(tr("Volume Gain:"), _fluidSynthSettingsGroup), 2, 0);
+    settingsGrid->addLayout(gainLayout, 2, 1, 1, 3); // Spans Driver + Exclusive area
+    
+    // Reverb + Chorus
+    QHBoxLayout *fxLayout = new QHBoxLayout();
+    _reverbCheckBox = new QCheckBox(tr("Reverb"), _fluidSynthSettingsGroup);
+    _reverbCheckBox->setChecked(engine->reverbEnabled());
+    fxLayout->addWidget(_reverbCheckBox);
+    
+    _chorusCheckBox = new QCheckBox(tr("Chorus"), _fluidSynthSettingsGroup);
+    _chorusCheckBox->setChecked(engine->chorusEnabled());
+    fxLayout->addWidget(_chorusCheckBox);
+    fxLayout->addStretch();
+    
+    settingsGrid->addLayout(fxLayout, 2, 5, 1, 3); // Spans Buffer Size + Buffers area
+
+    // ========================================================================
+    // Connections
+    // ========================================================================
+    connect(_audioDriverCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onAudioDriverChanged(int)));
+    connect(_wasapiExclusiveCheckBox, SIGNAL(toggled(bool)), this, SLOT(onWasapiExclusiveToggled(bool)));
+    connect(_periodSizeCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onPeriodSizeChanged(int)));
+    connect(_periodsCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onPeriodsChanged(int)));
+    connect(_sampleRateCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(onSampleRateChanged(QString)));
+    connect(_sampleFormatCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onSampleFormatChanged(int)));
+    connect(_reverbEngineCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onReverbEngineChanged(int)));
+    connect(_polyphonyCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onPolyphonyChanged(int)));
     connect(_gainSlider, SIGNAL(valueChanged(int)), this, SLOT(onGainChanged(int)));
     connect(_gainResetBtn, SIGNAL(clicked()), this, SLOT(onGainReset()));
+    connect(_reverbCheckBox, SIGNAL(toggled(bool)), this, SLOT(onReverbToggled(bool)));
+    connect(_chorusCheckBox, SIGNAL(toggled(bool)), this, SLOT(onChorusToggled(bool)));
 
     fsLayout->addLayout(settingsGrid);
 
@@ -733,8 +791,14 @@ void MidiSettingsWidget::refreshColors() {
 
 #ifdef FLUIDSYNTH_SUPPORT
 void MidiSettingsWidget::updateFluidSynthSettingsEnabled() {
-    bool enabled = MidiOutput::isFluidSynthOutput();
-    _fluidSynthSettingsGroup->setEnabled(enabled);
+    bool fsOutput = MidiOutput::isFluidSynthOutput();
+    _fluidSynthSettingsGroup->setEnabled(fsOutput);
+    
+    if (fsOutput) {
+        // Exclusive mode only available for WASAPI
+        QString driver = _audioDriverCombo->itemData(_audioDriverCombo->currentIndex()).toString();
+        _wasapiExclusiveCheckBox->setEnabled(driver == "wasapi");
+    }
 }
 
 void MidiSettingsWidget::addSoundFont() {
@@ -997,6 +1061,31 @@ void MidiSettingsWidget::reorderSoundFont(int fromRow, int toRow) {
 void MidiSettingsWidget::onAudioDriverChanged(int index) {
     QString driver = _audioDriverCombo->itemData(index).toString();
     FluidSynthEngine::instance()->setAudioDriver(driver);
+    updateFluidSynthSettingsEnabled();
+}
+
+void MidiSettingsWidget::onWasapiExclusiveToggled(bool enabled) {
+    FluidSynthEngine::instance()->setWasapiExclusive(enabled);
+}
+
+void MidiSettingsWidget::onPeriodSizeChanged(int index) {
+    int size = _periodSizeCombo->itemText(index).toInt();
+    FluidSynthEngine::instance()->setPeriodSize(size);
+}
+
+void MidiSettingsWidget::onPeriodsChanged(int index) {
+    int periods = _periodsCombo->itemText(index).toInt();
+    FluidSynthEngine::instance()->setPeriods(periods);
+}
+
+void MidiSettingsWidget::onSampleFormatChanged(int index) {
+    QString format = _sampleFormatCombo->itemData(index).toString();
+    FluidSynthEngine::instance()->setSampleFormat(format);
+}
+
+void MidiSettingsWidget::onPolyphonyChanged(int index) {
+    int polyphony = _polyphonyCombo->itemText(index).toInt();
+    FluidSynthEngine::instance()->setPolyphony(polyphony);
 }
 
 void MidiSettingsWidget::onGainChanged(int value) {

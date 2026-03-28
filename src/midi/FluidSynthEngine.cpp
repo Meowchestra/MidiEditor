@@ -51,6 +51,11 @@ FluidSynthEngine::FluidSynthEngine()
       _sampleRate(44100.0),
       _reverbEnabled(true),
       _chorusEnabled(true),
+      _polyphony(256),
+      _periodSize(512),
+      _periods(8),
+      _wasapiExclusive(false),
+      _sampleFormat("16bits"),
       _isStackUpdatePending(false),
       _isEngineRestartPending(false) {
 }
@@ -85,8 +90,17 @@ bool FluidSynthEngine::initialize() {
     fluid_settings_setnum(_settings, "synth.sample-rate", _sampleRate);
     fluid_settings_setint(_settings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
     fluid_settings_setint(_settings, "synth.chorus.active", _chorusEnabled ? 1 : 0);
+    fluid_settings_setint(_settings, "synth.polyphony", _polyphony);
     // Set custom reverb engine only if supported (wrap string in literal or standard way to avoid errors if fallback is used)
     fluid_settings_setstr(_settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
+
+    // Audio Buffer and Driver Settings
+    fluid_settings_setint(_settings, "audio.period-size", _periodSize);
+    fluid_settings_setint(_settings, "audio.periods", _periods);
+    fluid_settings_setstr(_settings, "audio.sample-format", _sampleFormat.toUtf8().constData());
+    if (_audioDriverName == "wasapi") {
+        fluid_settings_setint(_settings, "audio.wasapi.exclusive-mode", _wasapiExclusive ? 1 : 0);
+    }
 
     // Enable dynamic sample loading to prevent massive upfront decompresion lag for SF3
     fluid_settings_setint(_settings, "synth.dynamic-sample-loading", 1);
@@ -113,15 +127,13 @@ bool FluidSynthEngine::initialize() {
 
     _initialized = true;
     qDebug() << "FluidSynth engine initialized successfully";
-    qDebug() << "  Audio driver:" << _audioDriverName;
-    qDebug() << "  Sample rate:" << _sampleRate;
-    qDebug() << "  Gain:" << _gain;
-
-    _initialized = true;
-    qDebug() << "FluidSynth engine initialized successfully";
-    qDebug() << "  Audio driver:" << _audioDriverName;
-    qDebug() << "  Sample rate:" << _sampleRate;
-    qDebug() << "  Gain:" << _gain;
+    qDebug() << "  Audio Driver:"    << _audioDriverName;
+    qDebug() << "  Exclusive Mode:"  << _wasapiExclusive;
+    qDebug() << "  Sample Rate:"     << _sampleRate;
+    qDebug() << "  Sample Format:"   << _sampleFormat;
+    qDebug() << "  Buffer Size:"     << _periodSize << "x" << _periods;
+    qDebug() << "  Gain:"            << _gain;
+    qDebug() << "  Polyphony:"       << _polyphony;
 
     // Load the active SoundFont collection into the engine
     QStringList enabledPaths;
@@ -637,6 +649,48 @@ void FluidSynthEngine::setChorusEnabled(bool enabled) {
     }
 }
 
+void FluidSynthEngine::setPolyphony(int polyphony) {
+    QMutexLocker locker(&_engineMutex);
+    if (_polyphony != polyphony) {
+        _polyphony = polyphony;
+        if (_initialized && _synth) {
+            fluid_synth_set_polyphony(_synth, _polyphony);
+        }
+    }
+}
+
+void FluidSynthEngine::setPeriodSize(int size) {
+    QMutexLocker locker(&_engineMutex);
+    if (_periodSize != size) {
+        _periodSize = size;
+        _isEngineRestartPending = true;
+    }
+}
+
+void FluidSynthEngine::setPeriods(int count) {
+    QMutexLocker locker(&_engineMutex);
+    if (_periods != count) {
+        _periods = count;
+        _isEngineRestartPending = true;
+    }
+}
+
+void FluidSynthEngine::setWasapiExclusive(bool enabled) {
+    QMutexLocker locker(&_engineMutex);
+    if (_wasapiExclusive != enabled) {
+        _wasapiExclusive = enabled;
+        _isEngineRestartPending = true;
+    }
+}
+
+void FluidSynthEngine::setSampleFormat(const QString &format) {
+    QMutexLocker locker(&_engineMutex);
+    if (_sampleFormat != format) {
+        _sampleFormat = format;
+        _isEngineRestartPending = true;
+    }
+}
+
 QString FluidSynthEngine::audioDriver() const {
     return _audioDriverName;
 }
@@ -659,6 +713,26 @@ bool FluidSynthEngine::reverbEnabled() const {
 
 bool FluidSynthEngine::chorusEnabled() const {
     return _chorusEnabled;
+}
+
+int FluidSynthEngine::polyphony() const {
+    return _polyphony;
+}
+
+int FluidSynthEngine::periodSize() const {
+    return _periodSize;
+}
+
+int FluidSynthEngine::periods() const {
+    return _periods;
+}
+
+bool FluidSynthEngine::wasapiExclusive() const {
+    return _wasapiExclusive;
+}
+
+QString FluidSynthEngine::sampleFormat() const {
+    return _sampleFormat;
 }
 
 QStringList FluidSynthEngine::availableAudioDrivers() const {
@@ -745,9 +819,14 @@ void FluidSynthEngine::saveSettings(QSettings *settings) {
     settings->beginGroup("FluidSynth");
 
     settings->setValue("audioDriver", _audioDriverName);
-    settings->setValue("reverbEngine", _reverbEngine);
+    settings->setValue("wasapiExclusive", _wasapiExclusive);
     settings->setValue("gain", _gain);
     settings->setValue("sampleRate", _sampleRate);
+    settings->setValue("sampleFormat", _sampleFormat);
+    settings->setValue("periodSize", _periodSize);
+    settings->setValue("periods", _periods);
+    settings->setValue("reverbEngine", _reverbEngine);
+    settings->setValue("polyphony", _polyphony);
     settings->setValue("reverbEnabled", _reverbEnabled);
     settings->setValue("chorusEnabled", _chorusEnabled);
 
@@ -773,6 +852,11 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
     _gain = settings->value("gain", 0.5).toDouble();
     _reverbEnabled = settings->value("reverbEnabled", true).toBool();
     _chorusEnabled = settings->value("chorusEnabled", true).toBool();
+    _polyphony = settings->value("polyphony", 256).toInt();
+    _periodSize = settings->value("periodSize", 512).toInt();
+    _periods = settings->value("periods", 8).toInt();
+    _wasapiExclusive = settings->value("wasapiExclusive", false).toBool();
+    _sampleFormat = settings->value("sampleFormat", "16bits").toString();
 
     // Detect native sample rate if not previously saved
     if (settings->contains("sampleRate")) {

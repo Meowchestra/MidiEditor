@@ -150,7 +150,6 @@ public:
     void exportToWav(const QString &midiFilePath, const QString &wavFilePath);
 
     // === Audio Settings ===
-
     void setAudioDriver(const QString &driver);
     void setGain(double gain);
     void setSampleRate(double rate);
@@ -164,6 +163,19 @@ public:
     QString reverbEngine() const;
     bool reverbEnabled() const;
     bool chorusEnabled() const;
+
+    void setPolyphony(int polyphony);
+    void setPeriodSize(int size);
+    void setPeriods(int count);
+    void setWasapiExclusive(bool enabled);
+    void setSampleFormat(const QString &format);
+
+    int polyphony() const;
+    int periodSize() const;
+    int periods() const;
+    bool wasapiExclusive() const;
+    QString sampleFormat() const;
+
     QStringList availableAudioDrivers() const;
 
     /**
@@ -237,6 +249,11 @@ private:
     double _sampleRate;
     bool _reverbEnabled;
     bool _chorusEnabled;
+    int _polyphony;
+    int _periodSize;
+    int _periods;
+    bool _wasapiExclusive;
+    QString _sampleFormat;
     
     // Background task debouncing
     bool _isStackUpdatePending;
