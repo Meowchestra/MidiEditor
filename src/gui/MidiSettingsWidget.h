@@ -214,7 +214,6 @@ private:
     QComboBox *_sampleFormatCombo;
     QComboBox *_polyphonyCombo;
     QPushButton *_exportWavBtn;
-    QProgressBar *_exportProgressBar;
 
 private slots:
     void onSoundFontTableDropped();

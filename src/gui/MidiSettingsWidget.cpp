@@ -495,8 +495,10 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     _soundFontList->setMinimumHeight(160);
     _soundFontList->setColumnCount(4);
     _soundFontList->setHorizontalHeaderLabels({"", tr("Enabled"), tr("Priority"), tr("SoundFont")});
-    _soundFontList->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    _soundFontList->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+    _soundFontList->setColumnWidth(0, 30);
+    _soundFontList->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Fixed);
+    _soundFontList->setColumnWidth(1, 50);
     _soundFontList->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     _soundFontList->horizontalHeader()->setSectionResizeMode(3, QHeaderView::Stretch);
     _soundFontList->horizontalHeader()->setHighlightSections(false);
@@ -532,16 +534,13 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     
     _exportWavBtn = new QPushButton(tr("Export MIDI"), _fluidSynthSettingsGroup);
     _exportWavBtn->setToolTip(tr("Export current workspace to WAV"));
+
+    QFontMetrics fm(_exportWavBtn->font());
+    int minWidth = qMax(fm.horizontalAdvance(tr("Export MIDI")), fm.horizontalAdvance(tr("Exporting..."))) + 30;
+    _exportWavBtn->setMinimumWidth(minWidth);
+    
     sfBtnCol->addWidget(_exportWavBtn);
     connect(_exportWavBtn, SIGNAL(clicked()), this, SLOT(onExportToWav()));
-
-    _exportProgressBar = new QProgressBar(_fluidSynthSettingsGroup);
-    _exportProgressBar->setRange(0, 100);
-    _exportProgressBar->setValue(0);
-    _exportProgressBar->setAlignment(Qt::AlignCenter);
-    _exportProgressBar->setFormat(tr("Exporting... %p%"));
-    _exportProgressBar->hide();
-    sfBtnCol->addWidget(_exportProgressBar);
 
     sfBtnCol->addStretch();
     sfRow->addLayout(sfBtnCol);
@@ -942,9 +941,11 @@ void MidiSettingsWidget::onExportToWav() {
         return;
     }
 
-    _exportWavBtn->hide();
-    _exportProgressBar->setValue(0);
-    _exportProgressBar->show();
+    _exportWavBtn->setEnabled(false);
+    _exportWavBtn->setText(tr("Exporting..."));
+    
+    // Initialize the visual progress bar immediately at 0%
+    onExportProgress(0);
     
     // Disconnect any old connections to avoid double calls
     disconnect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
@@ -961,12 +962,31 @@ void MidiSettingsWidget::onExportToWav() {
 void MidiSettingsWidget::onExportProgress(int percent) {
     if (percent < 0) percent = 0;
     if (percent > 100) percent = 100;
-    _exportProgressBar->setValue(percent);
+    
+    double progress = percent / 100.0;
+    // 0.001 offset creates a sharp edge for the progress bar look
+    double stop2 = qMin(1.0, progress + 0.001);
+
+    // Provide proper start (0) and end (1) anchors for the gradient to work
+    QString style = QString(
+        "QPushButton:disabled {"
+        "  border: 1px solid #999; border-radius: 4px; padding: 4px;"
+        "  color: #111;"
+        "  background: qlineargradient(x1:0, y1:0, x2:1, y2:0, "
+        "  stop:0 #4CAF50, stop:%1 #4CAF50, "
+        "  stop:%2 #E0E0E0, stop:1 #E0E0E0);"
+        "}"
+    ).arg(progress).arg(stop2);
+    
+    _exportWavBtn->setStyleSheet(style);
 }
 
 void MidiSettingsWidget::onExportFinished(bool success, const QString &path) {
-    _exportProgressBar->hide();
-    _exportWavBtn->show();
+    _exportWavBtn->setEnabled(true);
+    _exportWavBtn->setText(tr("Export MIDI"));
+    
+    // Clearing the stylesheet completely returns the button to its native state
+    _exportWavBtn->setStyleSheet("");
 
     QFile::remove(QDir::tempPath() + "/MidiEditor_fastrender_" + QString::number(QCoreApplication::applicationPid()) + ".mid");
 }
