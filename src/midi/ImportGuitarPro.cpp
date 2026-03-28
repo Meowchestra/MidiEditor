@@ -24,6 +24,7 @@
 #include "../MidiEvent/TempoChangeEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/TextEvent.h"
+#include "../MidiEvent/PitchBendEvent.h"
 
 #include <QFile>
 #include <QDebug>
@@ -1741,14 +1742,15 @@ static bool parseGPIF(const QString& xml,
                 }
             }
         }
+    }
 
-        for (int trackIdx = 0; trackIdx < mb.barRefs.size() && trackIdx < outTracks.size(); trackIdx++) {
-            outTracks[trackIdx].noteEvents.append(perTrackCurrentNotes[trackIdx]);
-            doublePreviousMeasureNotes[trackIdx] = previousMeasureNotes[trackIdx];
-            previousMeasureNotes[trackIdx] = perTrackCurrentNotes[trackIdx];
-        }
+    for (int trackIdx = 0; trackIdx < mb.barRefs.size() && trackIdx < outTracks.size(); trackIdx++) {
+        outTracks[trackIdx].noteEvents.append(perTrackCurrentNotes[trackIdx]);
+        doublePreviousMeasureNotes[trackIdx] = previousMeasureNotes[trackIdx];
+        previousMeasureNotes[trackIdx] = perTrackCurrentNotes[trackIdx];
+    }
 
-        currentTick += measureLen;
+    currentTick += measureLen;
     }
 
     return !outTracks.isEmpty();
@@ -1888,11 +1890,11 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                             int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
                             int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
                             pwVal = std::clamp(pwVal, -8192, 8191);
-                            PitchWheelEvent* pw = new PitchWheelEvent(bentCh, pwVal, midiTrack);
+                            PitchBendEvent* pw = new PitchBendEvent(bentCh, 8192 + pwVal, midiTrack);
                             pw->setFile(mf);
                             pw->setMidiTime(bTick, false);
                         }
-                        PitchWheelEvent* pwReset = new PitchWheelEvent(bentCh, 0, midiTrack);
+                        PitchBendEvent* pwReset = new PitchBendEvent(bentCh, 8192, midiTrack);
                         pwReset->setFile(mf);
                         pwReset->setMidiTime(endT, false);
                     }
@@ -1915,7 +1917,7 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
             int line = 127 - computedMidiNote;
 
             int targetChannel = midiChannel;
-            if (midiChannel != 9 && (!n.bendPoints.isEmpty() || !n.tremoloPoints.isEmpty() || n.fading != GP::Fading::None || n.isTrill)) {
+            if (midiChannel != 9 && (!n.bendPoints.isEmpty() || !gpTrack.tremoloPoints.isEmpty() || n.fading != GP::Fading::None || n.isTrill)) {
                 for (int c = 0; c < 16; c++) {
                     if (c != 9 && c != midiChannel && startTick >= channelFreeTime[c]) {
                         targetChannel = c;
@@ -2003,11 +2005,11 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
                     int bTick = startTick + static_cast<int>(bp.index * durTicks / 60.0);
                     int pwVal = static_cast<int>(bp.value * 8191 / 50.0);
                     pwVal = std::clamp(pwVal, -8192, 8191);
-                    PitchWheelEvent* pw = new PitchWheelEvent(targetChannel, pwVal, midiTrack);
+                    PitchBendEvent* pw = new PitchBendEvent(targetChannel, 8192 + pwVal, midiTrack);
                     pw->setFile(mf);
                     pw->setMidiTime(bTick, false);
                 }
-                PitchWheelEvent* pwReset = new PitchWheelEvent(targetChannel, 0, midiTrack);
+                PitchBendEvent* pwReset = new PitchBendEvent(targetChannel, 8192, midiTrack);
                 pwReset->setFile(mf);
                 pwReset->setMidiTime(endTick, false);
             }
@@ -2045,7 +2047,7 @@ static void buildMidiTracks(MidiFile* mf, const QList<GP::GPTrack>& gpTracks, do
             int tTick = static_cast<int>(tp.index * tickScale);
             int pwVal = static_cast<int>(tp.value * 8191 / 2.0f); // assuming +-2 semitones
             pwVal = std::clamp(pwVal, -8192, 8191);
-            PitchWheelEvent* pw = new PitchWheelEvent(midiChannel, pwVal, midiTrack);
+            PitchBendEvent* pw = new PitchBendEvent(midiChannel, 8192 + pwVal, midiTrack);
             pw->setFile(mf);
             pw->setMidiTime(tTick, false);
             if (tTick > maxTick) maxTick = tTick;

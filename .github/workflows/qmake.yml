@@ -176,7 +176,8 @@ jobs:
           cd fluidsynth-src
           git submodule update --init --depth=1 gcem
           git submodule update --init --depth=1 signalsmith-audio-basics
-          Remove-Item -Path cmake_admin/FindPortAudio.cmake -ErrorAction SilentlyContinue
+          # Workaround FluidSynth bug: unconditionally expecting ALSA on Windows when pkg-config is absent
+          (Get-Content cmake_admin/FindPortAudio.cmake) -replace "ALSA::ALSA", "" | Set-Content cmake_admin/FindPortAudio.cmake
           dir gcem
           dir signalsmith-audio-basics
 
