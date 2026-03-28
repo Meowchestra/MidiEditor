@@ -557,22 +557,25 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     FluidSynthEngine *engine = FluidSynthEngine::instance();
     QGridLayout *settingsGrid = new QGridLayout();
     settingsGrid->setSpacing(0);
+    settingsGrid->setVerticalSpacing(8);
+    settingsGrid->setHorizontalSpacing(10);
     settingsGrid->setContentsMargins(0, 0, 0, 0);
 
     // Column Stretch: Labels (0, 3) fixed, Widgets (1, 4) stretch
     settingsGrid->setColumnStretch(0, 0);
     settingsGrid->setColumnStretch(1, 1);
-    settingsGrid->setColumnStretch(2, 0); // Spacer column
+    settingsGrid->setColumnStretch(2, 0); // Spacer column / Reset button
+    settingsGrid->setColumnMinimumWidth(2, 20); 
     settingsGrid->setColumnStretch(3, 0);
     settingsGrid->setColumnStretch(4, 1);
 
     // ========================================================================
     // ROW 0
     // ========================================================================
-    
+
     // (0,0): Audio Driver Label
     settingsGrid->addWidget(new QLabel(tr("Audio Driver:"), _fluidSynthSettingsGroup), 0, 0);
-    
+
     // (0,1): Audio Driver Combo (Stretches)
     _audioDriverCombo = new QComboBox(_fluidSynthSettingsGroup);
     for (const QString &driver : engine->availableAudioDrivers()) {
@@ -588,10 +591,7 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     // (0,3): Reverb Engine Label
     settingsGrid->addWidget(new QLabel(tr("Reverb Engine:"), _fluidSynthSettingsGroup), 0, 3);
 
-    // (0,4): Reverb Engine (Stretch 1) + Polyphony (Stretch 0)
-    QHBoxLayout *row0RightLayout = new QHBoxLayout();
-    row0RightLayout->setContentsMargins(0, 0, 0, 0);
-    row0RightLayout->setSpacing(8);
+    // (0,4): Reverb Engine Combo (Stretch 1)
     _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
     _reverbEngineCombo->addItem(tr("FDN Reverb"), "fdn");
     _reverbEngineCombo->addItem(tr("Freeverb"), "free");
@@ -599,27 +599,8 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
     int rEngIdx = _reverbEngineCombo->findData(engine->reverbEngine());
     if (rEngIdx != -1) _reverbEngineCombo->setCurrentIndex(rEngIdx);
-    row0RightLayout->addWidget(_reverbEngineCombo, 1);
-
-    _polyphonyCombo = new QComboBox(_fluidSynthSettingsGroup);
-    QStringList polyPresets = {"8", "16", "32", "64", "128", "256"};
-    _polyphonyCombo->addItems(polyPresets);
-    _polyphonyCombo->addItem(tr("Custom"));
-    
-    int currentPoly = engine->polyphony();
-    int polyIdx = _polyphonyCombo->findText(QString::number(currentPoly));
-    if (polyIdx != -1) {
-        _polyphonyCombo->setCurrentIndex(polyIdx);
-    } else {
-        // It's a custom value: rename the 'Custom' item and select it
-        int lastIdx = _polyphonyCombo->count() - 1;
-        _polyphonyCombo->setItemText(lastIdx, QString::number(currentPoly));
-        _polyphonyCombo->setCurrentIndex(lastIdx);
-    }
-    
-    row0RightLayout->addWidget(new QLabel(tr("Polyphony:"), _fluidSynthSettingsGroup));
-    row0RightLayout->addWidget(_polyphonyCombo, 0);
-    settingsGrid->addLayout(row0RightLayout, 0, 4);
+    _reverbEngineCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    settingsGrid->addWidget(_reverbEngineCombo, 0, 4);
 
     // ========================================================================
     // ROW 1
@@ -648,28 +629,62 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     row1LeftLayout->addWidget(_sampleFormatCombo, 0);
     settingsGrid->addLayout(row1LeftLayout, 1, 1);
 
-    // (1,4): Checkboxes (Aligned under Reverb Engine dropdown)
-    QHBoxLayout *fxLayout = new QHBoxLayout();
-    fxLayout->setContentsMargins(0, 0, 0, 0);
+    // (1,4) [ ] Reverb [ ] Chorus
+    QHBoxLayout *row1RightLayout = new QHBoxLayout();
+    row1RightLayout->setContentsMargins(0, 0, 0, 0);
+    row1RightLayout->setSpacing(8);
     _reverbCheckBox = new QCheckBox(tr("Reverb"), _fluidSynthSettingsGroup);
     _reverbCheckBox->setChecked(engine->reverbEnabled());
-    fxLayout->addWidget(_reverbCheckBox);
+    row1RightLayout->addWidget(_reverbCheckBox, 0);
+    
     _chorusCheckBox = new QCheckBox(tr("Chorus"), _fluidSynthSettingsGroup);
     _chorusCheckBox->setChecked(engine->chorusEnabled());
-    fxLayout->addWidget(_chorusCheckBox);
-    fxLayout->addStretch();
-    settingsGrid->addLayout(fxLayout, 1, 4);
+    row1RightLayout->addWidget(_chorusCheckBox, 0);
+    
+    row1RightLayout->addStretch(1);
+    settingsGrid->addLayout(row1RightLayout, 1, 4);
+    
+    // (2,4): Polyphony: [_poly_]
+    QHBoxLayout *row2RightLayout = new QHBoxLayout();
+    row2RightLayout->setContentsMargins(0, 0, 0, 0);
+    row2RightLayout->setSpacing(8);
+    
+    QLabel *polyLabel = new QLabel(tr("Polyphony:"), _fluidSynthSettingsGroup);
+    row2RightLayout->addWidget(polyLabel, 0);
+    
+    _polyphonyCombo = new QComboBox(_fluidSynthSettingsGroup);
+    QStringList polyPresets = {"8", "16", "32", "64", "128", "256"};
+    _polyphonyCombo->addItems(polyPresets);
+    _polyphonyCombo->addItem(tr("Custom"));
+    
+    int currentPoly = engine->polyphony();
+    int polyIdx = _polyphonyCombo->findText(QString::number(currentPoly));
+    if (polyIdx != -1) {
+        _polyphonyCombo->setCurrentIndex(polyIdx);
+    } else {
+        // It's a custom value: rename the 'Custom' item and select it
+        int lastIdx = _polyphonyCombo->count() - 1;
+        _polyphonyCombo->setItemText(lastIdx, QString::number(currentPoly));
+        _polyphonyCombo->setCurrentIndex(lastIdx);
+    }
+    _polyphonyCombo->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    _polyphonyCombo->setMinimumWidth(80);
+    row2RightLayout->addWidget(_polyphonyCombo, 0);
+    
+    row2RightLayout->addStretch(1);
+    settingsGrid->addLayout(row2RightLayout, 2, 4);
 
     // ========================================================================
     // ROW 2
     // ========================================================================
 
-    // (2,0): Volume Gain Label
-    settingsGrid->addWidget(new QLabel(tr("Volume Gain:"), _fluidSynthSettingsGroup), 2, 0);
+    // (2,0): Gain Label (Right Aligned)
+    settingsGrid->addWidget(new QLabel(tr("Gain:"), _fluidSynthSettingsGroup), 2, 0, Qt::AlignRight | Qt::AlignVCenter);
 
-    // (2,1): Volume Gain Area
+    // (2,1): Gain Slider + Value label
     QHBoxLayout *gainLayout = new QHBoxLayout();
     gainLayout->setContentsMargins(0, 0, 0, 0);
+    gainLayout->setSpacing(10);
     _gainSlider = new QSlider(Qt::Horizontal, _fluidSynthSettingsGroup);
     _gainSlider->setMinimum(0);
     _gainSlider->setMaximum(300);
@@ -677,17 +692,16 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     _gainSlider->setPageStep(5);
     _gainSlider->setValue(static_cast<int>(engine->gain() * 100.0));
     gainLayout->addWidget(_gainSlider, 1);
-    
+
     _gainValueLabel = new QLabel(QString::number(engine->gain(), 'f', 2), _fluidSynthSettingsGroup);
     _gainValueLabel->setFixedWidth(35);
-    gainLayout->addWidget(_gainValueLabel);
-    _gainResetBtn = new QPushButton(tr("Reset"), _fluidSynthSettingsGroup);
-    _gainResetBtn->setFixedWidth(45);
-    gainLayout->addWidget(_gainResetBtn);
+    gainLayout->addWidget(_gainValueLabel, 0);
     settingsGrid->addLayout(gainLayout, 2, 1);
 
-    // (2,4): Reserved or empty space 
-    settingsGrid->addItem(new QSpacerItem(1, 1, QSizePolicy::Minimum, QSizePolicy::Minimum), 2, 4);
+    // (2,2): Gain Reset (Center column)
+    _gainResetBtn = new QPushButton(tr("Reset"), _fluidSynthSettingsGroup);
+    _gainResetBtn->setFixedWidth(45);
+    settingsGrid->addWidget(_gainResetBtn, 2, 2, Qt::AlignCenter);
 
     // ========================================================================
     // Connections
@@ -1114,6 +1128,15 @@ void MidiSettingsWidget::onPolyphonyChanged(int index) {
 }
 
 void MidiSettingsWidget::onGainChanged(int value) {
+    // Snap to nearest 5 (0.05 step units) to ensure consistent behavior during drag
+    int snappedValue = (value + 2) / 5 * 5;
+    if (snappedValue != value) {
+        _gainSlider->blockSignals(true);
+        _gainSlider->setValue(snappedValue);
+        _gainSlider->blockSignals(false);
+        value = snappedValue;
+    }
+    
     double gain = value / 100.0;
     _gainValueLabel->setText(QString::number(gain, 'f', 2));
     FluidSynthEngine::instance()->setGain(gain);
