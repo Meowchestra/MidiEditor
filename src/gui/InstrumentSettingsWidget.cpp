@@ -61,7 +61,8 @@ InstrumentSettingsWidget::InstrumentSettingsWidget(QSettings *settings, QWidget 
     _tableWidget = new QTableWidget(128, 2, this);
     _tableWidget->setHorizontalHeaderLabels(QStringList() << tr("Program") << tr("Name"));
     _tableWidget->verticalHeader()->setVisible(false);
-    _tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+    _tableWidget->horizontalHeader()->resizeSection(0, 60);
     _tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     connect(_tableWidget, SIGNAL(itemChanged(QTableWidgetItem*)), this, SLOT(onTableItemChanged(QTableWidgetItem*)));
     layout->addWidget(_tableWidget, 4, 0, 1, 3);

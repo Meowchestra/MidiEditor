@@ -781,7 +781,11 @@ void FluidSynthEngine::saveSettings(QSettings *settings) {
     // Save SoundFont collection
     // Uses soundFontCollection() which works even when the engine is shut down
     QList<QPair<QString, bool>> collection = soundFontCollection();
-    settings->beginWriteArray("soundFontCollection");
+    
+    // Explicitly remove old collection to ensure a clean write (especially if empty)
+    settings->remove("soundFontCollection");
+    
+    settings->beginWriteArray("soundFontCollection", collection.size());
     for (int i = 0; i < collection.size(); ++i) {
         settings->setArrayIndex(i);
         settings->setValue("path", collection[i].first);
@@ -812,13 +816,13 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
             settings->setArrayIndex(i);
             QString path = settings->value("path").toString();
             bool enabled = settings->value("enabled", true).toBool();
+            
+            // Auto-disable if file is missing
+            if (enabled && !QFileInfo::exists(path)) {
+                enabled = false;
+                qDebug() << "FluidSynth: Disabling missing SoundFont on startup:" << path;
+            }
             collection.append(qMakePair(path, enabled));
-        }
-    } else {
-        // Fallback for older versions that stored soundFontPaths
-        QStringList fontPaths = settings->value("soundFontPaths").toStringList();
-        for (const QString &p : fontPaths) {
-            collection.append(qMakePair(p, true)); // Default to enabled
         }
     }
     settings->endArray();

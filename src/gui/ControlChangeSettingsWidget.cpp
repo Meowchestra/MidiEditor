@@ -43,7 +43,8 @@ ControlChangeSettingsWidget::ControlChangeSettingsWidget(QSettings *settings, QW
     _tableWidget = new QTableWidget(128, 2, this);
     _tableWidget->setHorizontalHeaderLabels(QStringList() << tr("Control") << tr("Name"));
     _tableWidget->verticalHeader()->setVisible(false);
-    _tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _tableWidget->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Fixed);
+    _tableWidget->horizontalHeader()->resizeSection(0, 60);
     _tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     connect(_tableWidget, SIGNAL(itemChanged(QTableWidgetItem*)), this, SLOT(onTableItemChanged(QTableWidgetItem*)));
     layout->addWidget(_tableWidget, 2, 0, 1, 2);
