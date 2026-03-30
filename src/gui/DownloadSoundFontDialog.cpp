@@ -61,18 +61,18 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
         },
         {
             tr("MS Basic 2 (MuseScore 4)"),
-            tr("38 MB"),
-            tr("SF3"),
-            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
-            QStringLiteral("MS_Basic-v2.0.0.sf3"),
-            false
-        },
-        {
-            tr("MS Basic 2 (Uncompressed)"),
             tr("205 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
             QStringLiteral("MS_Basic-v2.0.0.sf2"),
+            false
+        },
+        {
+            tr("MS Basic 2 (Compressed)"),
+            tr("38 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
+            QStringLiteral("MS_Basic-v2.0.0.sf3"),
             false
         },
         {
@@ -107,17 +107,41 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("Meowsic_Cat_Soundfont.sf2"),
             false
         },
-        // --- Legacy section ---
         {
-            tr("MS Basic (MuseScore 4)"),
-            tr("48.9 MB"),
-            tr("SF3"),
-            QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/MS%20Basic.sf3"),
-            QStringLiteral("MS Basic.sf3"),
-            true
+            tr("FFXIV Standard"),
+            tr("14.2 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf2"),
+            QStringLiteral("FFXIV-Standard.sf2"),
+            false
         },
         {
-            tr("MS Basic (Uncompressed)"),
+            tr("FFXIV Standard (Compressed)"),
+            tr("3 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf3"),
+            QStringLiteral("FFXIV-Standard.sf3"),
+            false
+        },
+        {
+            tr("FFXIV Expanded"),
+            tr("14.2 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf2"),
+            QStringLiteral("FFXIV-Expanded.sf2"),
+            false
+        },
+        {
+            tr("FFXIV Expanded (Compressed)"),
+            tr("3 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf3"),
+            QStringLiteral("FFXIV-Expanded.sf3"),
+            false
+        },
+        // --- Legacy section ---
+        {
+            tr("MS Basic (MuseScore 3)"),
             tr("466 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/3001/MS_Basic.sf2"),
@@ -125,19 +149,27 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             true
         },
         {
-            tr("MuseScore_General (MuseScore 3)"),
-            tr("35.9 MB"),
+            tr("MS Basic (Compressed)"),
+            tr("48.9 MB"),
             tr("SF3"),
-            QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3"),
-            QStringLiteral("MuseScore_General.sf3"),
+            QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/MS%20Basic.sf3"),
+            QStringLiteral("MS Basic.sf3"),
             true
         },
         {
-            tr("MuseScore_General (Uncompressed)"),
+            tr("MuseScore_General (MuseScore 3)"),
             tr("208 MB"),
             tr("SF2"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2"),
             QStringLiteral("MuseScore_General.sf2"),
+            true
+        },
+        {
+            tr("MuseScore_General (Compressed)"),
+            tr("35.9 MB"),
+            tr("SF3"),
+            QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3"),
+            QStringLiteral("MuseScore_General.sf3"),
             true
         },
         {
