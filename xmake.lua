@@ -152,6 +152,7 @@ target("MidiEditor") do
     end)
 
     add_files("src/*.cpp")
+    add_files("src/converter/**.cpp")
     add_files("src/MidiEvent/**.cpp")
     add_files("src/gui/**.cpp")
     add_files("src/midi/*.cpp")
@@ -160,6 +161,7 @@ target("MidiEditor") do
     add_files("src/midi/rtmidi/RtMidi.cpp")
 
     add_files("src/*.h")
+    add_files("src/converter/**.h")
     add_files("src/MidiEvent/**.h")
     add_files("src/gui/**.h")
     add_files("src/midi/*.h")

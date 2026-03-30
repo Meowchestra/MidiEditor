@@ -1,13 +1,13 @@
-#ifndef IMPORTMML_H
-#define IMPORTMML_H
-
+#pragma once
 #include <QString>
 
 class MidiFile;
 
-class ImportMML {
+namespace MML {
+
+class MmlImporter {
 public:
     static MidiFile* loadFile(QString path, bool* ok);
 };
 
-#endif
+} // namespace MML

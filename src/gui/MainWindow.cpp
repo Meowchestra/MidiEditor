@@ -112,8 +112,8 @@
 #include "../midi/FluidSynthEngine.h"
 #endif
 
-#include "../midi/ImportMML.h"
-#include "../midi/ImportGuitarPro.h"
+#include "../converter/MML/MmlImporter.h"
+#include "../converter/GuitarPro/GpImporter.h"
 
 MainWindow::MainWindow(QString initFile)
     : QMainWindow()
@@ -1228,7 +1228,7 @@ void MainWindow::load() {
     }
     QString midi = "*.mid *.midi";
     QString mml = "*.mml *.ms2mml";
-    QString gp  = "*.gp3 *.gp4 *.gp5 *.gpx *.gp6 *.gp7 *.gp";
+    QString gp  = "*.gp3 *.gp4 *.gp5 *.gp6 *.gp7 *.gp8 *.gpx *.gp";
 
     QString filter =
         QString("Music Files (%1 %2 %3);;"
@@ -1274,9 +1274,9 @@ void MainWindow::openFile(QString filePath) {
     QString lowerPath = filePath.toLower();
     
     if (lowerPath.endsWith(".mml") || lowerPath.endsWith(".ms2mml")) {
-        mf = ImportMML::loadFile(filePath, &ok);
-    } else if (lowerPath.endsWith(".gp3") || lowerPath.endsWith(".gp4") || lowerPath.endsWith(".gp5") || lowerPath.endsWith(".gp6") || lowerPath.endsWith(".gp7") || lowerPath.endsWith(".gpx") || lowerPath.endsWith(".gp")) {
-        mf = ImportGuitarPro::loadFile(filePath, &ok);
+        mf = MML::MmlImporter::loadFile(filePath, &ok);
+    } else if (lowerPath.endsWith(".gp3") || lowerPath.endsWith(".gp4") || lowerPath.endsWith(".gp5") || lowerPath.endsWith(".gp6") || lowerPath.endsWith(".gp7") || lowerPath.endsWith(".gp8") || lowerPath.endsWith(".gpx") || lowerPath.endsWith(".gp")) {
+        mf = GpImporter::loadFile(filePath, &ok);
     } else {
         mf = new MidiFile(filePath, &ok);
     }
