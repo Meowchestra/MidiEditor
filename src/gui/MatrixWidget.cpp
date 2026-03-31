@@ -28,24 +28,37 @@
 #include "../midi/MidiInput.h"
 #include "../midi/MidiPlayer.h"
 #include "../midi/MidiTrack.h"
+#include "../midi/MidiPlayer.h"
 #include "../midi/PlayerThread.h"
 #include "../protocol/Protocol.h"
+#include "../tool/Tool.h"
 #include "../tool/EditorTool.h"
 #include "../tool/Selection.h"
-#include "../tool/Tool.h"
+#include "../tool/StandardTool.h"
+#include "../tool/SelectTool.h"
+#include "../tool/EventTool.h"
+#include "MainWindow.h"
+#include <algorithm>
+#include <set>
 #include "../gui/Appearance.h"
 #include "../gui/ChannelVisibilityManager.h"
 #include "../midi/MidiOutput.h"
 
 #include <QList>
 #include <QSettings>
+#include <QApplication>
 #include <cmath>
 #include <QContextMenuEvent>
 #include <QMenu>
-#include <QAction>
 #include <QInputDialog>
+#include <QWidgetAction>
+#include <QHBoxLayout>
+#include <QToolButton>
 #include "TransposeDialog.h"
 #include "MainWindow.h"
+#include "../tool/StandardTool.h"
+#include "../tool/SelectTool.h"
+#include "../tool/EventTool.h"
 
 #define NUM_LINES 139
 #define PIXEL_PER_S 100
@@ -1093,6 +1106,16 @@ void MatrixWidget::leaveEvent(QEvent *event) {
 }
 
 void MatrixWidget::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::RightButton && (event->modifiers() & Qt::ControlModifier)) {
+        // Ignore the press; let contextMenuEvent handle it cleanly on release
+        return;
+    }
+
+    if (event->button() == Qt::MiddleButton) {
+        showContextMenu(event->globalPos(), event->pos());
+        return;
+    }
+
     PaintWidget::mousePressEvent(event);
     if (!MidiPlayer::isPlaying() && Tool::currentTool() && mouseInRect(ToolArea)) {
         if (Tool::currentTool()->press(event->buttons() == Qt::LeftButton)) {
@@ -1508,71 +1531,180 @@ void MatrixWidget::keyReleaseEvent(QKeyEvent *event) {
 
 void MatrixWidget::contextMenuEvent(QContextMenuEvent* event)
 {
-    // Check if there are selected events
-    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
-
-    if (selectedEvents.isEmpty() || !file || inDrag) {
-        return; // No selection, no file, or currently dragging (drawing)
+    // Context menu requires Ctrl + Right Click
+    if (!(QApplication::keyboardModifiers() & Qt::ControlModifier)) {
+        return;
     }
+
+    showContextMenu(event->globalPos(), event->pos());
+}
+
+void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localPos)
+{
+    // Only appear for Standard Tool and certain Select Tools
+    EditorTool* currentTool = Tool::currentTool();
+    bool allowedTool = false;
+    if (dynamic_cast<StandardTool*>(currentTool)) {
+        allowedTool = true;
+    } else if (SelectTool* st = dynamic_cast<SelectTool*>(currentTool)) {
+        int type = st->stoolType();
+        if (type == SELECTION_TYPE_SINGLE || type == SELECTION_TYPE_BOX) {
+            allowedTool = true;
+        }
+    }
+
+    if (!allowedTool || !file) {
+        return;
+    }
+
+    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+    bool hasSelection = !selectedEvents.isEmpty();
+    bool hasClipboard = (EventTool::copiedEvents && !EventTool::copiedEvents->isEmpty()) || EventTool::hasSharedClipboardData();
 
     // Create the context menu
     QMenu contextMenu(this);
 
+    // Top Actions (Windows 11 Style Horizontal Bar)
+    QWidget* actionHeader = new QWidget(&contextMenu);
+    QHBoxLayout* headerLayout = new QHBoxLayout(actionHeader);
+    headerLayout->setContentsMargins(0, 0, 0, 0);
+    headerLayout->setSpacing(0);
+
+    auto createToolButton = [&](const QString& text, const QString& iconPath, bool enabled, double scale = 1.0) {
+        QToolButton* btn = new QToolButton(actionHeader);
+        btn->setText(text);
+        btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
+        
+        QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
+        // Intermediate size optimized for high-quality downscaling
+        int baseCanvasSize = 128; 
+        QPixmap outPix(baseCanvasSize, baseCanvasSize);
+        outPix.fill(Qt::transparent);
+        
+        QPainter p(&outPix);
+        p.setRenderHint(QPainter::SmoothPixmapTransform);
+        
+        // Request a large pixmap for sharp rendering within the 38x38 button
+        int drawSize = static_cast<int>(baseCanvasSize * scale);
+        QPixmap pixmap = icon.pixmap(drawSize, drawSize);
+        
+        p.drawPixmap((baseCanvasSize - pixmap.width())/2, (baseCanvasSize - pixmap.height())/2, pixmap);
+        p.end(); 
+        
+        btn->setIcon(QIcon(outPix));
+        btn->setEnabled(enabled);
+        btn->setAutoRaise(true);
+        btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+        btn->setIconSize(QSize(38, 38)); 
+        btn->setMinimumHeight(54); 
+        return btn;
+    };
+
+    QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
+    QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
+    // Delete icon has larger margins in source, so 1.3x helps it match perceived size of others without clipping
+    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 1.3);
+
+    headerLayout->addWidget(copyBtn);
+    headerLayout->addWidget(pasteBtn);
+    headerLayout->addWidget(deleteBtn);
+
+    QWidgetAction* headerAction = new QWidgetAction(&contextMenu);
+    headerAction->setDefaultWidget(actionHeader);
+    contextMenu.addAction(headerAction);
+
+    // Connect buttons to close menu and trigger actions
+    connect(copyBtn, &QToolButton::clicked, [&](){ 
+        contextMenu.close(); 
+        EditorTool::mainWindow()->copy(); 
+    });
+    connect(pasteBtn, &QToolButton::clicked, [&](){ 
+        contextMenu.close(); 
+        int tick = file->tick(msOfXPos(localPos.x()));
+        EditorTool::mainWindow()->pasteAt(tick); 
+    });
+    connect(deleteBtn, &QToolButton::clicked, [&](){ 
+        contextMenu.close(); 
+        EditorTool::mainWindow()->deleteSelectedEvents(); 
+    });
+
+    contextMenu.addSeparator();
+
     // Selection Operations
     QAction* quantizeAction = contextMenu.addAction(tr("Quantize Selection"));
+    quantizeAction->setEnabled(hasSelection);
+
     contextMenu.addSeparator();
-    QAction* copyAction = contextMenu.addAction(tr("Copy"));
-    QAction* deleteAction = contextMenu.addAction(tr("Delete"));
+
+    // Move to Channel (Above Track)
+    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move to Channel"));
+    moveToChannelMenu->setEnabled(hasSelection);
+    for (int i = 0; i < 16; i++) {
+        QString instrument = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
+        QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instrument));
+        action->setData(i);
+    }
+
+    // Move to Track
+    QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move to Track"));
+    moveToTrackMenu->setEnabled(hasSelection);
+    for (int i = 0; i < file->numTracks(); i++) {
+        QString trackName = file->tracks()->at(i)->name();
+        QAction* action = moveToTrackMenu->addAction(tr("Track %1: %2").arg(i).arg(trackName));
+        action->setData(i);
+    }
+
     contextMenu.addSeparator();
 
     // Transpose actions
-    QAction* transposeAction = contextMenu.addAction(tr("Transpose Selection..."));
-    QAction* octaveUpAction = contextMenu.addAction(tr("Transpose Octave Up"));
-    QAction* octaveDownAction = contextMenu.addAction(tr("Transpose Octave Down"));
+    QMenu* transposeSubMenu = contextMenu.addMenu(tr("Transpose"));
+    transposeSubMenu->setEnabled(hasSelection);
+    QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose Selection..."));
+    QAction* octaveUpAction = transposeSubMenu->addAction(tr("Transpose Octave Up"));
+    QAction* octaveDownAction = transposeSubMenu->addAction(tr("Transpose Octave Down"));
 
-    contextMenu.addSeparator();
-
-    // Move to Track submenu
-    QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move to Track"));
-    for (int i = 0; i < file->tracks()->size(); i++) {
-        QAction* action = moveToTrackMenu->addAction(tr("Track %1").arg(i));
-        action->setData(i);
-    }
-
-    // Move to Channel submenu
-    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move to Channel"));
-    for (int i = 0; i < 16; i++) {
-        QAction* action = moveToChannelMenu->addAction(tr("Channel %1").arg(i + 1));
-        action->setData(i);
-    }
-
-    contextMenu.addSeparator();
-
-    // Scale and Legato actions
+    // General actions
     QAction* scaleAction = contextMenu.addAction(tr("Scale Events..."));
+    scaleAction->setEnabled(hasSelection);
+    contextMenu.addSeparator();
+
+    // Duration Adjustments (Per-Note)
     contextMenu.addSeparator();
     QAction* fitBetweenAction = contextMenu.addAction(tr("Stretch to Fill Neighbors"));
-    QAction* moveAfterPrevAction = contextMenu.addAction(tr("Snap Start to Previous End"));
-    QAction* resizeBeforeNextAction = contextMenu.addAction(tr("Extend End to Next (Legato)"));
+    fitBetweenAction->setEnabled(hasSelection);
+    QAction* extendStartAction = contextMenu.addAction(tr("Extend Start to Previous End"));
+    extendStartAction->setEnabled(hasSelection);
+    QAction* extendEndAction = contextMenu.addAction(tr("Extend End to Next Start"));
+    extendEndAction->setEnabled(hasSelection);
+
+    // Snapping (Block-Based Movement)
+    contextMenu.addSeparator();
+    QAction* snapStartAction = contextMenu.addAction(tr("Snap Start to Previous End"));
+    snapStartAction->setEnabled(hasSelection);
+    QAction* snapEndAction = contextMenu.addAction(tr("Snap End to Next Start"));
+    snapEndAction->setEnabled(hasSelection);
 
     // Show menu and get selected action
-    QAction* selectedAction = contextMenu.exec(event->globalPos());
+    QAction* selectedAction = contextMenu.exec(globalPos);
 
     if (!selectedAction) {
         return; // User cancelled
     }
 
+    // Sort selection for logical left-to-right processing
+    QList<MidiEvent*> sortedSelection = Selection::instance()->selectedEvents();
+    std::sort(sortedSelection.begin(), sortedSelection.end(), [](MidiEvent* a, MidiEvent* b) {
+        return a->midiTime() < b->midiTime();
+    });
+
+    // Handle Actions
+    if (!selectedAction) {
+        return; // User cancelled OR horizontal action was triggered manually via connect
+    }
+
     // Handle Quantize
     if (selectedAction == quantizeAction) {
         EditorTool::mainWindow()->quantizeSelection();
-    }
-    // Handle Copy
-    else if (selectedAction == copyAction) {
-        EditorTool::mainWindow()->copy();
-    }
-    // Handle Delete
-    else if (selectedAction == deleteAction) {
-        EditorTool::mainWindow()->deleteSelectedEvents();
     }
     // Handle Move to Channel
     else if (moveToChannelMenu->actions().contains(selectedAction)) {
@@ -1597,99 +1729,129 @@ void MatrixWidget::contextMenuEvent(QContextMenuEvent* event)
     // Handle Scale Events
     else if (selectedAction == scaleAction) {
         bool ok;
-        double scale = QInputDialog::getDouble(this, "Scalefactor",
-            "Scalefactor:", 1.0, 0, 2147483647, 17, &ok);
+        double scale = QInputDialog::getDouble(this, tr("Scale Events"),
+                                              tr("Factor:"), 1.0, 0.0, 100.0, 2, &ok);
 
         if (ok && scale > 0) {
             // Find minimum time
             int minTime = 2147483647;
-            foreach (MidiEvent* e, selectedEvents) {
+            foreach (MidiEvent* e, sortedSelection) {
                 if (e->midiTime() < minTime) {
                     minTime = e->midiTime();
                 }
             }
 
             file->protocol()->startNewAction(tr("Scale events"));
-            foreach (MidiEvent* e, selectedEvents) {
-                e->setMidiTime((e->midiTime() - minTime) * scale + minTime);
-                OnEvent* on = dynamic_cast<OnEvent*>(e);
-                if (on) {
-                    MidiEvent* off = on->offEvent();
-                    off->setMidiTime((off->midiTime() - minTime) * scale + minTime);
+            foreach (MidiEvent* e, sortedSelection) {
+                int newTime = minTime + (int)((e->midiTime() - minTime) * scale);
+                e->setMidiTime(newTime);
+                
+                NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(e);
+                if (note && note->offEvent()) {
+                    int duration = note->offEvent()->midiTime() - note->midiTime();
+                    int newEnd = newTime + (int)(duration * scale);
+                    note->offEvent()->setMidiTime(newEnd);
                 }
             }
             file->protocol()->endAction();
+            update();
         }
     }
-    // Handle Fit Between Adjacent Notes
+    // Handle Stretch to Fill Neighbors (Per-note)
     else if (selectedAction == fitBetweenAction) {
         file->protocol()->startNewAction(tr("Stretch to Fill Neighbors"));
-
-        foreach (MidiEvent* ev, selectedEvents) {
+        foreach (MidiEvent* ev, sortedSelection) {
             NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
             if (!note) continue;
-
             NoteOnEvent* prevNote = findPreviousNoteInTrack(note);
             NoteOnEvent* nextNote = findNextNoteInTrack(note);
-
             if (prevNote && nextNote) {
-                int newStart = prevNote->offEvent()->midiTime();
-                int newEnd = nextNote->midiTime();
-
-                if (newStart < newEnd) {
-                    note->setMidiTime(newStart);
-                    note->offEvent()->setMidiTime(newEnd);
-                }
+                note->setMidiTime(prevNote->offEvent()->midiTime());
+                note->offEvent()->setMidiTime(nextNote->midiTime());
             }
         }
-
         file->protocol()->endAction();
     }
-    // Handle Move to After Previous Note
-    else if (selectedAction == moveAfterPrevAction) {
-        file->protocol()->startNewAction(tr("Snap Start to Previous End"));
-
-        foreach (MidiEvent* ev, selectedEvents) {
+    // Handle Extend Start to Previous End (Per-note)
+    else if (selectedAction == extendStartAction) {
+        file->protocol()->startNewAction(tr("Extend Start to Previous End"));
+        foreach (MidiEvent* ev, sortedSelection) {
             NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
             if (!note) continue;
-
             NoteOnEvent* prevNote = findPreviousNoteInTrack(note);
-
             if (prevNote) {
-                int duration = note->offEvent()->midiTime() - note->midiTime();
-                int newStart = prevNote->offEvent()->midiTime();
-
-                note->setMidiTime(newStart);
-                note->offEvent()->setMidiTime(newStart + duration);
+                note->setMidiTime(prevNote->offEvent()->midiTime());
             }
         }
-
         file->protocol()->endAction();
     }
-    // Handle Resize to Before Next Note
-    else if (selectedAction == resizeBeforeNextAction) {
-        file->protocol()->startNewAction(tr("Extend End to Next (Legato)"));
-
-        foreach (MidiEvent* ev, selectedEvents) {
+    // Handle Extend End to Next Start (Per-note)
+    else if (selectedAction == extendEndAction) {
+        file->protocol()->startNewAction(tr("Extend End to Next Start"));
+        foreach (MidiEvent* ev, sortedSelection) {
             NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
             if (!note) continue;
-
             NoteOnEvent* nextNote = findNextNoteInTrack(note);
-
             if (nextNote) {
-                int newEnd = nextNote->midiTime();
-
-                if (newEnd > note->midiTime()) {
-                    note->offEvent()->setMidiTime(newEnd);
+                note->offEvent()->setMidiTime(nextNote->midiTime());
+            }
+        }
+        file->protocol()->endAction();
+    }
+    // Handle Snap Start to Previous End (Block-based)
+    else if (selectedAction == snapStartAction) {
+        if (!sortedSelection.isEmpty()) {
+            NoteOnEvent* earliest = nullptr;
+            foreach (MidiEvent* ev, sortedSelection) {
+                if ((earliest = dynamic_cast<NoteOnEvent*>(ev))) break;
+            }
+            if (earliest) {
+                std::set<MidiEvent*> selectionSet(sortedSelection.begin(), sortedSelection.end());
+                NoteOnEvent* prevNote = findPreviousNoteInTrack(earliest, selectionSet);
+                if (prevNote) {
+                    int offset = prevNote->offEvent()->midiTime() - earliest->midiTime();
+                    file->protocol()->startNewAction(tr("Snap selection to previous"));
+                    foreach (MidiEvent* ev, sortedSelection) {
+                        ev->setMidiTime(ev->midiTime() + offset);
+                        NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
+                        if (note && note->offEvent()) {
+                            note->offEvent()->setMidiTime(note->offEvent()->midiTime() + offset);
+                        }
+                    }
+                    file->protocol()->endAction();
                 }
             }
         }
-
-        file->protocol()->endAction();
     }
+    // Handle Snap End to Next Start (Block-based)
+    else if (selectedAction == snapEndAction) {
+        if (!sortedSelection.isEmpty()) {
+            NoteOnEvent* latest = nullptr;
+            for (int i = sortedSelection.size() - 1; i >= 0; --i) {
+                if ((latest = dynamic_cast<NoteOnEvent*>(sortedSelection.at(i)))) break;
+            }
+            if (latest) {
+                std::set<MidiEvent*> selectionSet(sortedSelection.begin(), sortedSelection.end());
+                NoteOnEvent* nextNote = findNextNoteInTrack(latest, selectionSet);
+                if (nextNote) {
+                    int offset = nextNote->midiTime() - latest->offEvent()->midiTime();
+                    file->protocol()->startNewAction(tr("Snap selection to next"));
+                    foreach (MidiEvent* ev, sortedSelection) {
+                        ev->setMidiTime(ev->midiTime() + offset);
+                        NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
+                        if (note && note->offEvent()) {
+                            note->offEvent()->setMidiTime(note->offEvent()->midiTime() + offset);
+                        }
+                    }
+                    file->protocol()->endAction();
+                }
+            }
+        }
+    }
+    update();
 }
 
-NoteOnEvent* MatrixWidget::findPreviousNoteInTrack(NoteOnEvent* note)
+NoteOnEvent* MatrixWidget::findPreviousNoteInTrack(NoteOnEvent* note, const std::set<MidiEvent*>& exclude)
 {
     if (!note || !file) {
         return nullptr;
@@ -1698,9 +1860,13 @@ NoteOnEvent* MatrixWidget::findPreviousNoteInTrack(NoteOnEvent* note)
     MidiTrack* track = note->track();
     int currentTick = note->midiTime();
 
+    NoteOnEvent* lastNote = nullptr;
+    int latestOffTick = -1;
+
     for (int channel = 0; channel < 16; channel++) {
         QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
-        QMultiMap<int, MidiEvent*>::iterator it = map->upperBound(currentTick);
+        // Look at all notes starting strictly before currentTick
+        QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(currentTick);
 
         while (it != map->begin()) {
             --it;
@@ -1708,16 +1874,20 @@ NoteOnEvent* MatrixWidget::findPreviousNoteInTrack(NoteOnEvent* note)
 
             if (event->track() == track) {
                 NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
-                if (noteOn && noteOn->offEvent()->midiTime() <= currentTick) {
-                    return noteOn;
+                if (noteOn && noteOn != note && !exclude.count(noteOn)) {
+                    int offTick = noteOn->offEvent()->midiTime();
+                    if (offTick <= currentTick && offTick > latestOffTick) {
+                        latestOffTick = offTick;
+                        lastNote = noteOn;
+                    }
                 }
             }
         }
     }
-    return nullptr;
+    return lastNote;
 }
 
-NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note)
+NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note, const std::set<MidiEvent*>& exclude)
 {
     if (!note || !file) {
         return nullptr;
@@ -1726,8 +1896,12 @@ NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note)
     MidiTrack* track = note->track();
     int currentTick = note->offEvent()->midiTime();
 
+    NoteOnEvent* nextNote = nullptr;
+    int earliestOnTick = -1;
+
     for (int channel = 0; channel < 16; channel++) {
         QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+        // Look at all notes starting at or after currentTick
         QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(currentTick);
 
         while (it != map->end()) {
@@ -1735,15 +1909,19 @@ NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note)
 
             if (event->track() == track) {
                 NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
-                if (noteOn && noteOn->midiTime() >= currentTick) {
-                    return noteOn;
+                if (noteOn && noteOn != note && !exclude.count(noteOn)) {
+                    int onTick = noteOn->midiTime();
+                    if (earliestOnTick == -1 || onTick < earliestOnTick) {
+                        earliestOnTick = onTick;
+                        nextNote = noteOn;
+                    }
                 }
             }
             ++it;
         }
     }
 
-    return nullptr;
+    return nextNote;
 }
 
 void MatrixWidget::setColorsByChannel() {

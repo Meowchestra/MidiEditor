@@ -126,8 +126,8 @@ void LayoutSettingsWidget::setupUI() {
     mainLayout->setSpacing(10);
 
     // Enable customize toolbar checkbox
-    _enableCustomizeCheckbox = new QCheckBox("Enable Customize Toolbar", this);
-    _enableCustomizeCheckbox->setToolTip("Enable this to customize individual actions and their order. When disabled, uses ideal default layouts.");
+    _enableCustomizeCheckbox = new QCheckBox("Customize Toolbar", this);
+    _enableCustomizeCheckbox->setToolTip("Enable to customize individual actions and their order. When disabled, uses ideal default layouts.");
     connect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
     mainLayout->addWidget(_enableCustomizeCheckbox);
 

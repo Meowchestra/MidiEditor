@@ -55,6 +55,7 @@ class Update;
 class SelectionNavigator;
 class TweakTarget;
 class UpdateChecker;
+class QLabel;
 
 /**
  * \class MainWindow
@@ -435,6 +436,7 @@ public slots:
      * \param action The action containing channel information
      */
     void deleteChannel(QAction *action);
+    void deleteTrack(QAction *action);
 
     /**
      * \brief Moves selected events to a specific channel.
@@ -515,11 +517,14 @@ public slots:
 
     void paste();
 
+    void pasteAt(int tick);
+
     void addTrack();
 
     void selectAll();
 
     void transposeNSemitones();
+
     void transposeSelection(int semitones);
 
     /**
@@ -878,7 +883,7 @@ private:
     // === Menus ===
 
     /** \brief Various context and action menus */
-    QMenu *_recentPathsMenu, *_deleteChannelMenu, *_moveSelectedEventsToTrackMenu, *_moveSelectedEventsToChannelMenu,
+    QMenu *_recentPathsMenu, *_deleteChannelMenu, *_deleteTrackMenu, *_moveSelectedEventsToTrackMenu, *_moveSelectedEventsToChannelMenu,
     *_pasteToTrackMenu, *_pasteToChannelMenu, *_selectAllFromTrackMenu, *_selectAllFromChannelMenu, *_pasteOptionsMenu;
 
     /** \brief Lower tab widget for additional panels */
@@ -1027,6 +1032,7 @@ private:
     /** \brief Main window status bar */
     QAction *_showStatusBarAction;
     QStatusBar *_statusBar;
+    QLabel *_statusLabel;
 };
 
 #endif // MAINWINDOW_H_

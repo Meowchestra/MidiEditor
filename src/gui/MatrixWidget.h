@@ -27,8 +27,9 @@
 // Qt includes
 #include <QApplication>
 #include <QEnterEvent>
-#include <QHash>
-#include <QMap>
+#include <QObject>
+#include <QString>
+#include <set>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QWidget>
@@ -492,14 +493,19 @@ private:
     // === Helper Methods ===
 
     /**
-     * \brief Finds the previous note in the track
+     * \brief Shows the context menu at the specified position
      */
-    NoteOnEvent* findPreviousNoteInTrack(NoteOnEvent* note);
+    void showContextMenu(const QPoint &globalPos, const QPoint &localPos);
 
     /**
-     * \brief Finds the next note in the track
+     * \brief Finds the previous note in the track, optionally excluding a set of events
      */
-    NoteOnEvent* findNextNoteInTrack(NoteOnEvent* note);
+    NoteOnEvent* findPreviousNoteInTrack(NoteOnEvent* note, const std::set<class MidiEvent*>& exclude = std::set<class MidiEvent*>());
+
+    /**
+     * \brief Finds the next note in the track, optionally excluding a set of events
+     */
+    NoteOnEvent* findNextNoteInTrack(NoteOnEvent* note, const std::set<class MidiEvent*>& exclude = std::set<class MidiEvent*>());
 
     /**
      * \brief Handles piano emulation for keyboard input.

@@ -122,12 +122,19 @@ public:
      */
     bool showsSelection();
 
+    /**
+     * \brief Returns the selection type.
+     * \return The selection type (SELECTION_TYPE_*)
+     */
+    int stoolType() const { return stool_type; }
+
 protected:
     /** \brief The selection type for this tool instance */
     int stool_type;
 
     /** \brief Selection rectangle coordinates */
     int x_rect, y_rect;
+    bool _isActive = false;
 };
 
 #endif // SELECTTOOL_H_

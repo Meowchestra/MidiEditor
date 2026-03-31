@@ -185,6 +185,9 @@ bool StandardTool::press(bool leftClick) {
         }
     } else {
         // right: new note tool
+        if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+            return false;
+        }
         Tool::setCurrentTool(newNoteTool);
         newNoteTool->move(mouseX, mouseY);
         newNoteTool->press(leftClick);

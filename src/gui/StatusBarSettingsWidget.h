@@ -15,8 +15,12 @@ public:
 
     virtual bool accept() override;
 
+signals:
+    void statusBarSettingsChanged();
+
 private slots:
     void strategyChanged(int index);
+    void notifyChanged();
 
 private:
     QComboBox *_strategyCombo;

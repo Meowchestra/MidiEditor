@@ -36,6 +36,7 @@
 #include <QDesktopServices>
 #include <QKeyEvent>
 #include <QTimer>
+#include <QLabel>
 
 #include <cmath>
 #include <algorithm>
@@ -58,6 +59,7 @@
 #include "OpenGLMiscWidget.h"
 #include "MiscWidget.h"
 #include "PerformanceSettingsWidget.h"
+#include "StatusBarSettingsWidget.h"
 #include "NToleQuantizationDialog.h"
 #include "ProtocolWidget.h"
 #include "RecordDialog.h"
@@ -549,10 +551,11 @@ MainWindow::MainWindow(QString initFile)
     lowerTabWidget->addTab(_eventWidget, tr("Event"));
     MidiEvent::setEventWidget(_eventWidget);
 
-    // Initialize status bar
+    // Initialize status bar with a permanent label
     _statusBar = new QStatusBar(this);
     setStatusBar(_statusBar);
-    _statusBar->showMessage(tr("Ready"));
+    _statusLabel = new QLabel(tr("Ready"), _statusBar);
+    _statusBar->addPermanentWidget(_statusLabel, 1);
 
     // Connect selection changes to status bar updates
     connect(_eventWidget, &EventWidget::selectionChanged, this, &MainWindow::updateStatusBar);
@@ -627,8 +630,8 @@ MainWindow::MainWindow(QString initFile)
     // Check for updates silently on startup
     QTimer::singleShot(2000, this, [this](){ checkForUpdates(true); });
 
-    // Initialize status bar visibility from settings
-    bool showStatusBar = _settings->value("status_bar/visible", true).toBool();
+    // Initialize status bar visibility from settings (default off)
+    bool showStatusBar = _settings->value("status_bar/visible", false).toBool();
     _statusBar->setVisible(showStatusBar);
 }
 
@@ -771,6 +774,7 @@ void MainWindow::setFile(MidiFile *newFile) {
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
+    connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(updateStatusBar()));
     // Set file on the appropriate widget based on rendering mode
     if (OpenGLMatrixWidget *openglMatrix = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
         // Using OpenGL acceleration - set file on OpenGL widget (which delegates to internal widget)
@@ -1809,6 +1813,34 @@ void MainWindow::deleteChannel(QAction *action) {
     file->protocol()->endAction();
 }
 
+void MainWindow::deleteTrack(QAction *action) {
+    if (!file) {
+        return;
+    }
+
+    int num = action->data().toInt();
+    if (num < 0 || num >= file->numTracks()) return;
+
+    MidiTrack* track = file->track(num);
+    file->protocol()->startNewAction(tr("Remove all events from track ") + QString::number(num) + ": " + track->name());
+    
+    for (int i = 0; i < 19; i++) {
+        MidiChannel* ch = file->channel(i);
+        QList<MidiEvent*> events = ch->eventMap()->values();
+        foreach(MidiEvent* event, events) {
+            if (event->track() == track) {
+                if (Selection::instance()->selectedEvents().contains(event)) {
+                    EventTool::deselectEvent(event);
+                }
+                ch->removeEvent(event);
+            }
+        }
+    }
+    
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+    file->protocol()->endAction();
+}
+
 void MainWindow::moveSelectedEventsToChannel(QAction *action) {
     if (!file) {
         return;
@@ -1831,6 +1863,7 @@ void MainWindow::moveSelectedEventsToChannel(QAction *action) {
         }
 
         file->protocol()->endAction();
+        updateStatusBar();
     }
 }
 
@@ -1853,6 +1886,7 @@ void MainWindow::moveSelectedEventsToTrack(QAction *action) {
         }
 
         file->protocol()->endAction();
+        updateStatusBar();
     }
 }
 
@@ -1939,6 +1973,7 @@ void MainWindow::updateChannelMenu() {
 
 void MainWindow::updateTrackMenu() {
     _moveSelectedEventsToTrackMenu->clear();
+    _deleteTrackMenu->clear();
     _chooseEditTrack->clear();
     _selectAllFromTrackMenu->clear();
 
@@ -1955,6 +1990,10 @@ void MainWindow::updateTrackMenu() {
         moveToTrackAction->setShortcut(QKeySequence::fromString(formattedKeySequence));
 
         _moveSelectedEventsToTrackMenu->addAction(moveToTrackAction);
+
+        QAction *delTrackAction = new QAction(QString::number(i) + " " + file->tracks()->at(i)->name(), this);
+        delTrackAction->setData(variant);
+        _deleteTrackMenu->addAction(delTrackAction);
     }
 
     for (int i = 0; i < file->numTracks(); i++) {
@@ -2723,6 +2762,14 @@ void MainWindow::paste() {
     EventTool::pasteAction();
 }
 
+void MainWindow::pasteAt(int tick) {
+    if (!file) return;
+    int oldTick = file->cursorTick();
+    file->setCursorTick(tick);
+    EventTool::pasteAction();
+    file->setCursorTick(oldTick);
+}
+
 void MainWindow::markEdited() {
     setWindowModified(true);
 }
@@ -3118,17 +3165,6 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     editMB->addSeparator();
 
-    _deleteChannelMenu = new QMenu(tr("Remove events from channel..."), editMB);
-    editMB->addMenu(_deleteChannelMenu);
-    connect(_deleteChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteChannel(QAction*)));
-
-    for (int i = 0; i < 16; i++) {
-        QVariant variant(i);
-        QAction *delChannelAction = new QAction(QString::number(i), this);
-        delChannelAction->setData(variant);
-        _deleteChannelMenu->addAction(delChannelAction);
-    }
-
     _moveSelectedEventsToChannelMenu = new QMenu(tr("Move events to channel..."), editMB);
     editMB->addMenu(_moveSelectedEventsToChannelMenu);
     connect(_moveSelectedEventsToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToChannel(QAction*)));
@@ -3143,6 +3179,21 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _moveSelectedEventsToTrackMenu = new QMenu(tr("Move events to track..."), editMB);
     editMB->addMenu(_moveSelectedEventsToTrackMenu);
     connect(_moveSelectedEventsToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToTrack(QAction*)));
+
+    _deleteChannelMenu = new QMenu(tr("Remove events from channel..."), editMB);
+    editMB->addMenu(_deleteChannelMenu);
+    connect(_deleteChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteChannel(QAction*)));
+
+    for (int i = 0; i < 16; i++) {
+        QVariant variant(i);
+        QAction *delChannelAction = new QAction(QString::number(i), this);
+        delChannelAction->setData(variant);
+        _deleteChannelMenu->addAction(delChannelAction);
+    }
+
+    _deleteTrackMenu = new QMenu(tr("Remove events from track..."), editMB);
+    editMB->addMenu(_deleteTrackMenu);
+    connect(_deleteTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteTrack(QAction*)));
 
     editMB->addSeparator();
 
@@ -3973,7 +4024,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     viewMB->addSeparator();
 
-    _showStatusBarAction = new QAction(tr("Show Status Bar"), this);
+    _showStatusBarAction = new QAction(tr("Status Bar"), this);
     _showStatusBarAction->setCheckable(true);
     _showStatusBarAction->setChecked(_statusBar->isVisible());
     connect(_showStatusBarAction, SIGNAL(toggled(bool)), this, SLOT(toggleStatusBar(bool)));
@@ -4321,6 +4372,15 @@ void MainWindow::openConfig() {
     if (!appearanceWidgets.isEmpty()) {
         AppearanceSettingsWidget *appearanceWidget = appearanceWidgets.first();
         connect(appearanceWidget, &AppearanceSettingsWidget::appearanceChanged,
+                this, &MainWindow::updateAll);
+    }
+
+    // Connect to StatusBarSettingsWidget for immediate updates
+    // Use updateAll to sync visibility, View menu checkbox, and status bar content
+    QList<StatusBarSettingsWidget*> statusBarWidgets = d->findChildren<StatusBarSettingsWidget*>();
+    if (!statusBarWidgets.isEmpty()) {
+        StatusBarSettingsWidget *statusBarWidget = statusBarWidgets.first();
+        connect(statusBarWidget, &StatusBarSettingsWidget::statusBarSettingsChanged,
                 this, &MainWindow::updateAll);
     }
 
@@ -5349,9 +5409,9 @@ void MainWindow::updateAll() {
     _trackWidget->update();
     _miscWidgetContainer->update();
     
-    // Update status bar visibility from settings
+    // Update status bar visibility from settings (default off)
     if (_statusBar) {
-        bool showStatusBar = _settings->value("status_bar/visible", true).toBool();
+        bool showStatusBar = _settings->value("status_bar/visible", false).toBool();
         _statusBar->setVisible(showStatusBar);
         if (_showStatusBarAction) {
             _showStatusBarAction->setChecked(showStatusBar);
@@ -5652,14 +5712,14 @@ void MainWindow::toggleStatusBar(bool visible) {
 }
 
 void MainWindow::updateStatusBar() {
-    if (!_statusBar || !_statusBar->isVisible()) {
+    if (!_statusBar || !_statusBar->isVisible() || !_statusLabel) {
         return;
     }
 
     QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
 
     if (selectedEvents.isEmpty()) {
-        _statusBar->showMessage(tr("No Selection"));
+        _statusLabel->setText(tr("No Selection"));
         return;
     }
 
@@ -5684,7 +5744,6 @@ void MainWindow::updateStatusBar() {
     int maxNote = 0;
     int minTick = -1;
     int maxTick = -1;
-    bool allSameTick = true;
 
     foreach(MidiEvent* event, selectedEvents) {
         if (event->track() != firstTrack) multipleTracks = true;
@@ -5700,8 +5759,6 @@ void MainWindow::updateStatusBar() {
             int tick = noteEvent->midiTime();
             if (minTick == -1 || tick < minTick) minTick = tick;
             if (maxTick == -1 || tick > maxTick) maxTick = tick;
-            
-            if (tick != minTick) allSameTick = false;
         }
     }
 
@@ -5735,25 +5792,39 @@ void MainWindow::updateStatusBar() {
         segments.append(QString("%1 | %2").arg(trackStr).arg(channelStr));
     }
 
-    // Segment 2: Detail (Note Name, Range, Chord)
+    // Segment 2: Detail (Note Name/Count, Range, Chord)
     QString detail;
-    if (selectedEvents.size() == 1) {
+    int count = selectedEvents.size();
+    
+    if (count == 1) {
         if (showNoteName) {
             NoteOnEvent* noteEvent = dynamic_cast<NoteOnEvent*>(selectedEvents.first());
             if (noteEvent) {
                 detail = tr("Note: %1").arg(ChordDetector::getNoteName(noteEvent->note(), true));
             } else {
-                detail = tr("Event");
+                detail = tr("1 event selected");
             }
         }
     } else {
-        QStringList detailParts;
+        QString countStr = noteValues.isEmpty() ? tr("%1 events selected").arg(count) : tr("%1 notes selected").arg(count);
+        
+        if (showNoteName) {
+            detail = countStr;
+        }
+
         if (!noteValues.isEmpty()) {
+            QStringList detailParts;
+            
+            // Note range
+            if (showNoteRange) {
+                detailParts.append(tr("(%1 - %2)").arg(ChordDetector::getNoteName(minNote, true)).arg(ChordDetector::getNoteName(maxNote, true)));
+            }
+            
             // Chord name
             if (showChordName) {
                 bool detect = false;
                 if (strategy == 0) { // Strict
-                    detect = allSameTick && noteValues.size() >= 2;
+                    detect = (minTick == maxTick && minTick != -1) && noteValues.size() >= 2;
                 } else if (strategy == 1) { // Flexible
                     detect = noteValues.size() >= 2;
                 } else if (strategy == 2) { // Humanized
@@ -5768,24 +5839,19 @@ void MainWindow::updateStatusBar() {
                 }
             }
 
-            // Note range
-            if (showNoteRange) {
-                detailParts.append(tr("(%1 - %2)").arg(ChordDetector::getNoteName(minNote, true)).arg(ChordDetector::getNoteName(maxNote, true)));
+            if (!detailParts.isEmpty()) {
+                if (detail.isEmpty()) {
+                    detail = detailParts.join(" | ");
+                } else {
+                    detail += " | " + detailParts.join(" | ");
+                }
             }
-
-            if (detailParts.isEmpty()) {
-                detail = tr("%1 notes selected").arg(selectedEvents.size());
-            } else {
-                detail = detailParts.join(" ");
-            }
-        } else {
-            detail = tr("%1 events selected").arg(selectedEvents.size());
         }
     }
-    
+ 
     if (!detail.isEmpty()) {
         segments.append(detail);
     }
 
-    _statusBar->showMessage(segments.join(" | "));
+    _statusLabel->setText(segments.join(" | "));
 }

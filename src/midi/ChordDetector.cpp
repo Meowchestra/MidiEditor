@@ -14,7 +14,7 @@ QString ChordDetector::detectChord(QList<int> notes) {
       uniqueNotesCopy.insert(note % 12);
     }
 
-    if (uniqueNotes.size() == 1) return getNoteName(*uniqueNotes.begin());
+    if (uniqueNotes.size() == 1) return QString(); // Unison is not a chord
 
     for (int base: uniqueNotesCopy) {
         uniqueNotes.erase(base);

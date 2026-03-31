@@ -59,11 +59,12 @@ SelectTool::SelectTool(SelectTool &other)
     stool_type = other.stool_type;
     x_rect = 0;
     y_rect = 0;
+    _isActive = false;
 }
 
 void SelectTool::draw(QPainter *painter) {
     paintSelectedEvents(painter);
-    if (SELECTION_TYPE_BOX && (x_rect || y_rect)) {
+    if (stool_type == SELECTION_TYPE_BOX && (x_rect || y_rect)) {
         painter->setPen(Appearance::borderColor());
         QColor selectionColor = Appearance::foregroundColor();
         selectionColor.setAlpha(100);
@@ -85,7 +86,11 @@ void SelectTool::draw(QPainter *painter) {
 }
 
 bool SelectTool::press(bool leftClick) {
-    Q_UNUSED(leftClick);
+    if (!leftClick && QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+        _isActive = false;
+        return false;
+    }
+    _isActive = true;
     if (stool_type == SELECTION_TYPE_BOX) {
         y_rect = mouseY;
         x_rect = mouseX;
@@ -94,9 +99,12 @@ bool SelectTool::press(bool leftClick) {
 }
 
 bool SelectTool::release() {
-    if (!file()) {
+    if (!file() || !_isActive) {
+        _isActive = false;
         return false;
     }
+    _isActive = false;
+
     file()->protocol()->startNewAction("Selection changed", image());
     ProtocolEntry *toCopy = copy();
 
@@ -188,6 +196,7 @@ void SelectTool::reloadState(ProtocolEntry *entry) {
     x_rect = 0;
     y_rect = 0;
     stool_type = other->stool_type;
+    _isActive = false;
 }
 
 bool SelectTool::releaseOnly() {

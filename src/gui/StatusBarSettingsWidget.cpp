@@ -13,7 +13,7 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     QFormLayout *layout = new QFormLayout(this);
     setLayout(layout);
 
-    _showStatusBar = new QCheckBox(tr("Show Status Bar"), this);
+    _showStatusBar = new QCheckBox(tr("Status Bar"), this);
     layout->addRow(_showStatusBar);
 
     layout->addRow(separator());
@@ -21,10 +21,10 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     _showTrackChannel = new QCheckBox(tr("Show Track and Channel Info"), this);
     layout->addRow(_showTrackChannel);
 
-    _showNoteName = new QCheckBox(tr("Show Note Name (Single Selection)"), this);
+    _showNoteName = new QCheckBox(tr("Show Note Info (Name and Count)"), this);
     layout->addRow(_showNoteName);
 
-    _showNoteRange = new QCheckBox(tr("Show Note Range"), this);
+    _showNoteRange = new QCheckBox(tr("Show Selection Range"), this);
     layout->addRow(_showNoteRange);
 
     _showChordName = new QCheckBox(tr("Show Chord Name"), this);
@@ -43,23 +43,47 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     _toleranceSpin->setSuffix(tr(" ticks"));
     layout->addRow(tr("Humanization Tolerance"), _toleranceSpin);
 
-    // Load current values
-    SettingsDialog *dialog = qobject_cast<SettingsDialog *>(parent);
-    if (dialog) {
-        QSettings *settings = dialog->settings();
-        settings->beginGroup("status_bar");
-        _strategyCombo->setCurrentIndex(settings->value("strategy", 0).toInt());
-        _toleranceSpin->setValue(settings->value("tolerance", 10).toInt());
-        _showStatusBar->setChecked(settings->value("visible", true).toBool());
-        _showTrackChannel->setChecked(settings->value("show_track_channel", true).toBool());
-        _showNoteName->setChecked(settings->value("show_note_name", true).toBool());
-        _showNoteRange->setChecked(settings->value("show_note_range", true).toBool());
-        _showChordName->setChecked(settings->value("show_chord_name", true).toBool());
-        settings->endGroup();
-    }
+    // Load current values directly from QSettings (not through dialog cast,
+    // since widget may not be fully parented to the dialog yet at construction time)
+    QSettings settings("MidiEditor", "NONE");
+    settings.beginGroup("status_bar");
+    _strategyCombo->setCurrentIndex(settings.value("strategy", 0).toInt());
+    _toleranceSpin->setValue(settings.value("tolerance", 10).toInt());
+    // Default to false to match MainWindow's default
+    _showStatusBar->setChecked(settings.value("visible", false).toBool());
+    _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
+    _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
+    _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());
+    _showChordName->setChecked(settings.value("show_chord_name", true).toBool());
+    settings.endGroup();
 
     connect(_strategyCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(strategyChanged(int)));
+    connect(_strategyCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(notifyChanged()));
+    connect(_toleranceSpin, SIGNAL(valueChanged(int)), this, SLOT(notifyChanged()));
+    connect(_showStatusBar, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+    connect(_showTrackChannel, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+    connect(_showNoteName, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+    connect(_showNoteRange, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+    connect(_showChordName, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+
     strategyChanged(_strategyCombo->currentIndex());
+}
+
+void StatusBarSettingsWidget::notifyChanged() {
+    // Write settings directly to QSettings (same instance used by the app)
+    QSettings settings("MidiEditor", "NONE");
+    settings.beginGroup("status_bar");
+    settings.setValue("strategy", _strategyCombo->currentIndex());
+    settings.setValue("tolerance", _toleranceSpin->value());
+    settings.setValue("visible", _showStatusBar->isChecked());
+    settings.setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings.setValue("show_note_name", _showNoteName->isChecked());
+    settings.setValue("show_note_range", _showNoteRange->isChecked());
+    settings.setValue("show_chord_name", _showChordName->isChecked());
+    settings.endGroup();
+    settings.sync(); // Force write to registry/disk immediately
+
+    emit statusBarSettingsChanged();
 }
 
 void StatusBarSettingsWidget::strategyChanged(int index) {
@@ -67,18 +91,18 @@ void StatusBarSettingsWidget::strategyChanged(int index) {
 }
 
 bool StatusBarSettingsWidget::accept() {
-    SettingsDialog *dialog = qobject_cast<SettingsDialog *>(parent());
-    if (dialog) {
-        QSettings *settings = dialog->settings();
-        settings->beginGroup("status_bar");
-        settings->setValue("strategy", _strategyCombo->currentIndex());
-        settings->setValue("tolerance", _toleranceSpin->value());
-        settings->setValue("visible", _showStatusBar->isChecked());
-        settings->setValue("show_track_channel", _showTrackChannel->isChecked());
-        settings->setValue("show_note_name", _showNoteName->isChecked());
-        settings->setValue("show_note_range", _showNoteRange->isChecked());
-        settings->setValue("show_chord_name", _showChordName->isChecked());
-        settings->endGroup();
-    }
+    // Write settings on accept as well
+    QSettings settings("MidiEditor", "NONE");
+    settings.beginGroup("status_bar");
+    settings.setValue("strategy", _strategyCombo->currentIndex());
+    settings.setValue("tolerance", _toleranceSpin->value());
+    settings.setValue("visible", _showStatusBar->isChecked());
+    settings.setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings.setValue("show_note_name", _showNoteName->isChecked());
+    settings.setValue("show_note_range", _showNoteRange->isChecked());
+    settings.setValue("show_chord_name", _showChordName->isChecked());
+    settings.endGroup();
+    settings.sync(); // Force write to registry/disk immediately
+
     return true;
 }

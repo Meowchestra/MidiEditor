@@ -135,7 +135,10 @@ void NewNoteTool::draw(QPainter *painter) {
 }
 
 bool NewNoteTool::press(bool leftClick) {
-    Q_UNUSED(leftClick);
+    if (!leftClick && QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+        inDrag = false;
+        return false;
+    }
     inDrag = true;
     line = matrixWidget->lineAtY(mouseY);
     xPos = rasteredX(mouseX);
@@ -143,6 +146,9 @@ bool NewNoteTool::press(bool leftClick) {
 }
 
 bool NewNoteTool::release() {
+    if (!inDrag) {
+        return false;
+    }
     int startTick, endTick;
     int currentX = rasteredX(mouseX);
     inDrag = false;
