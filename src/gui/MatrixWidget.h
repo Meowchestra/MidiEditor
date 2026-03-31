@@ -423,6 +423,12 @@ protected:
     void paintEvent(QPaintEvent *event);
 
     /**
+     * \brief Handles context menu events.
+     * \param event The context menu event
+     */
+    void contextMenuEvent(QContextMenuEvent *event);
+
+    /**
      * \brief Handles mouse move events.
      * \param event The mouse move event
      */
@@ -484,6 +490,16 @@ protected:
 
 private:
     // === Helper Methods ===
+
+    /**
+     * \brief Finds the previous note in the track
+     */
+    NoteOnEvent* findPreviousNoteInTrack(NoteOnEvent* note);
+
+    /**
+     * \brief Finds the next note in the track
+     */
+    NoteOnEvent* findNextNoteInTrack(NoteOnEvent* note);
 
     /**
      * \brief Handles piano emulation for keyboard input.

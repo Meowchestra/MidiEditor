@@ -517,6 +517,7 @@ public slots:
     void selectAll();
 
     void transposeNSemitones();
+    void transposeSelection(int semitones);
 
     /**
      * \brief Converts pitch bend data affecting selected notes into discrete notes.

@@ -40,6 +40,11 @@
 #include <QList>
 #include <QSettings>
 #include <cmath>
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QAction>
+#include <QInputDialog>
+#include "TransposeDialog.h"
 
 #define NUM_LINES 139
 #define PIXEL_PER_S 100
@@ -1498,6 +1503,246 @@ void MatrixWidget::keyPressEvent(QKeyEvent *event) {
 
 void MatrixWidget::keyReleaseEvent(QKeyEvent *event) {
     takeKeyReleaseEvent(event);
+}
+
+void MatrixWidget::contextMenuEvent(QContextMenuEvent* event)
+{
+    // Check if there are selected events
+    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+
+    if (selectedEvents.isEmpty() || !file || inDrag) {
+        return; // No selection, no file, or currently dragging (drawing)
+    }
+
+    // Create the context menu
+    QMenu contextMenu(this);
+
+    // Selection Operations
+    QAction* quantizeAction = contextMenu.addAction(tr("Quantize Selection"));
+    contextMenu.addSeparator();
+    QAction* copyAction = contextMenu.addAction(tr("Copy"));
+    QAction* deleteAction = contextMenu.addAction(tr("Delete"));
+    contextMenu.addSeparator();
+
+    // Transpose actions
+    QAction* transposeAction = contextMenu.addAction(tr("Transpose Selection..."));
+    QAction* octaveUpAction = contextMenu.addAction(tr("Transpose Octave Up"));
+    QAction* octaveDownAction = contextMenu.addAction(tr("Transpose Octave Down"));
+
+    contextMenu.addSeparator();
+
+    // Move to Track submenu
+    QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move to Track"));
+    for (int i = 0; i < file->tracks()->size(); i++) {
+        QAction* action = moveToTrackMenu->addAction(tr("Track %1").arg(i));
+        action->setData(i);
+    }
+
+    // Move to Channel submenu
+    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move to Channel"));
+    for (int i = 0; i < 16; i++) {
+        QAction* action = moveToChannelMenu->addAction(tr("Channel %1").arg(i + 1));
+        action->setData(i);
+    }
+
+    contextMenu.addSeparator();
+
+    // Scale and Legato actions
+    QAction* scaleAction = contextMenu.addAction(tr("Scale Events..."));
+    contextMenu.addSeparator();
+    QAction* fitBetweenAction = contextMenu.addAction(tr("Stretch to Fill Neighbors"));
+    QAction* moveAfterPrevAction = contextMenu.addAction(tr("Snap Start to Previous End"));
+    QAction* resizeBeforeNextAction = contextMenu.addAction(tr("Extend End to Next (Legato)"));
+
+    // Show menu and get selected action
+    QAction* selectedAction = contextMenu.exec(event->globalPos());
+
+    if (!selectedAction) {
+        return; // User cancelled
+    }
+
+    // Handle Quantize
+    if (selectedAction == quantizeAction) {
+        EditorTool::mainWindow()->quantizeSelection();
+    }
+    // Handle Copy
+    else if (selectedAction == copyAction) {
+        EditorTool::mainWindow()->copy();
+    }
+    // Handle Delete
+    else if (selectedAction == deleteAction) {
+        EditorTool::mainWindow()->deleteSelectedEvents();
+    }
+    // Handle Move to Channel
+    else if (moveToChannelMenu->actions().contains(selectedAction)) {
+        EditorTool::mainWindow()->moveSelectedEventsToChannel(selectedAction);
+    }
+    // Handle Move to Track
+    else if (moveToTrackMenu->actions().contains(selectedAction)) {
+        EditorTool::mainWindow()->moveSelectedEventsToTrack(selectedAction);
+    }
+    // Handle Transpose
+    else if (selectedAction == transposeAction) {
+        EditorTool::mainWindow()->transposeNSemitones();
+    }
+    // Handle Transpose Octave Up
+    else if (selectedAction == octaveUpAction) {
+        EditorTool::mainWindow()->transposeSelectedNotesOctaveUp();
+    }
+    // Handle Transpose Octave Down
+    else if (selectedAction == octaveDownAction) {
+        EditorTool::mainWindow()->transposeSelectedNotesOctaveDown();
+    }
+    // Handle Scale Events
+    else if (selectedAction == scaleAction) {
+        bool ok;
+        double scale = QInputDialog::getDouble(this, "Scalefactor",
+            "Scalefactor:", 1.0, 0, 2147483647, 17, &ok);
+
+        if (ok && scale > 0) {
+            // Find minimum time
+            int minTime = 2147483647;
+            foreach (MidiEvent* e, selectedEvents) {
+                if (e->midiTime() < minTime) {
+                    minTime = e->midiTime();
+                }
+            }
+
+            file->protocol()->startNewAction(tr("Scale events"));
+            foreach (MidiEvent* e, selectedEvents) {
+                e->setMidiTime((e->midiTime() - minTime) * scale + minTime);
+                OnEvent* on = dynamic_cast<OnEvent*>(e);
+                if (on) {
+                    MidiEvent* off = on->offEvent();
+                    off->setMidiTime((off->midiTime() - minTime) * scale + minTime);
+                }
+            }
+            file->protocol()->endAction();
+        }
+    }
+    // Handle Fit Between Adjacent Notes
+    else if (selectedAction == fitBetweenAction) {
+        file->protocol()->startNewAction(tr("Stretch to Fill Neighbors"));
+
+        foreach (MidiEvent* ev, selectedEvents) {
+            NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
+            if (!note) continue;
+
+            NoteOnEvent* prevNote = findPreviousNoteInTrack(note);
+            NoteOnEvent* nextNote = findNextNoteInTrack(note);
+
+            if (prevNote && nextNote) {
+                int newStart = prevNote->offEvent()->midiTime();
+                int newEnd = nextNote->midiTime();
+
+                if (newStart < newEnd) {
+                    note->setMidiTime(newStart);
+                    note->offEvent()->setMidiTime(newEnd);
+                }
+            }
+        }
+
+        file->protocol()->endAction();
+    }
+    // Handle Move to After Previous Note
+    else if (selectedAction == moveAfterPrevAction) {
+        file->protocol()->startNewAction(tr("Snap Start to Previous End"));
+
+        foreach (MidiEvent* ev, selectedEvents) {
+            NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
+            if (!note) continue;
+
+            NoteOnEvent* prevNote = findPreviousNoteInTrack(note);
+
+            if (prevNote) {
+                int duration = note->offEvent()->midiTime() - note->midiTime();
+                int newStart = prevNote->offEvent()->midiTime();
+
+                note->setMidiTime(newStart);
+                note->offEvent()->setMidiTime(newStart + duration);
+            }
+        }
+
+        file->protocol()->endAction();
+    }
+    // Handle Resize to Before Next Note
+    else if (selectedAction == resizeBeforeNextAction) {
+        file->protocol()->startNewAction(tr("Extend End to Next (Legato)"));
+
+        foreach (MidiEvent* ev, selectedEvents) {
+            NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
+            if (!note) continue;
+
+            NoteOnEvent* nextNote = findNextNoteInTrack(note);
+
+            if (nextNote) {
+                int newEnd = nextNote->midiTime();
+
+                if (newEnd > note->midiTime()) {
+                    note->offEvent()->setMidiTime(newEnd);
+                }
+            }
+        }
+
+        file->protocol()->endAction();
+    }
+}
+
+NoteOnEvent* MatrixWidget::findPreviousNoteInTrack(NoteOnEvent* note)
+{
+    if (!note || !file) {
+        return nullptr;
+    }
+
+    MidiTrack* track = note->track();
+    int currentTick = note->midiTime();
+
+    for (int channel = 0; channel < 16; channel++) {
+        QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+        QMultiMap<int, MidiEvent*>::iterator it = map->upperBound(currentTick);
+
+        while (it != map->begin()) {
+            --it;
+            MidiEvent* event = it.value();
+
+            if (event->track() == track) {
+                NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
+                if (noteOn && noteOn->offEvent()->midiTime() <= currentTick) {
+                    return noteOn;
+                }
+            }
+        }
+    }
+    return nullptr;
+}
+
+NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note)
+{
+    if (!note || !file) {
+        return nullptr;
+    }
+
+    MidiTrack* track = note->track();
+    int currentTick = note->offEvent()->midiTime();
+
+    for (int channel = 0; channel < 16; channel++) {
+        QMultiMap<int, MidiEvent*>* map = file->channelEvents(channel);
+        QMultiMap<int, MidiEvent*>::iterator it = map->lowerBound(currentTick);
+
+        while (it != map->end()) {
+            MidiEvent* event = it.value();
+
+            if (event->track() == track) {
+                NoteOnEvent* noteOn = dynamic_cast<NoteOnEvent*>(event);
+                if (noteOn && noteOn->midiTime() >= currentTick) {
+                    return noteOn;
+                }
+            }
+            ++it;
+        }
+    }
+
+    return nullptr;
 }
 
 void MatrixWidget::setColorsByChannel() {

@@ -2658,6 +2658,49 @@ void MainWindow::transposeNSemitones() {
     d->show();
 }
 
+void MainWindow::transposeSelection(int semitones) {
+    if (!file || semitones == 0) {
+        return;
+    }
+
+    QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
+    if (selectedEvents.isEmpty()) {
+        return;
+    }
+
+    // Boundary check (All-or-nothing)
+    foreach(MidiEvent* event, selectedEvents) {
+        NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);
+        if (noteOnEvent) {
+            int newNote = noteOnEvent->note() + semitones;
+            if (newNote < 0 || newNote > 127) {
+                return; // Prevent shifting any notes if any one would go out of bounds
+            }
+        }
+    }
+
+    QString actionName;
+    if (semitones == 12) {
+        actionName = tr("Transpose octave up");
+    } else if (semitones == -12) {
+        actionName = tr("Transpose octave down");
+    } else {
+        actionName = tr("Transpose selection");
+    }
+
+    file->protocol()->startNewAction(actionName, new QImage(":/run_environment/graphics/tool/transpose.png"));
+
+    foreach(MidiEvent* event, selectedEvents) {
+        NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);
+        if (noteOnEvent) {
+            noteOnEvent->setNote(noteOnEvent->note() + semitones);
+        }
+    }
+
+    file->protocol()->endAction();
+    updateAll();
+}
+
 void MainWindow::copy() {
     EventTool::copyAction();
 }
@@ -5468,55 +5511,11 @@ void MainWindow::navigateSelectionRight() {
 }
 
 void MainWindow::transposeSelectedNotesOctaveUp() {
-    if (!file) {
-        return;
-    }
-
-    QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
-    if (selectedEvents.isEmpty()) {
-        return;
-    }
-
-    file->protocol()->startNewAction(tr("Transpose octave up"), new QImage(":/run_environment/graphics/tool/transpose_up.png"));
-
-    foreach(MidiEvent* event, selectedEvents) {
-        NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);
-        if (noteOnEvent) {
-            int newNote = noteOnEvent->note() + 12; // Move up one octave (12 semitones)
-            if (newNote <= 127) { // MIDI note range is 0-127
-                noteOnEvent->setNote(newNote);
-            }
-        }
-    }
-
-    file->protocol()->endAction();
-    updateAll();
+    transposeSelection(12);
 }
 
 void MainWindow::transposeSelectedNotesOctaveDown() {
-    if (!file) {
-        return;
-    }
-
-    QList<MidiEvent *> selectedEvents = Selection::instance()->selectedEvents();
-    if (selectedEvents.isEmpty()) {
-        return;
-    }
-
-    file->protocol()->startNewAction(tr("Transpose octave down"), new QImage(":/run_environment/graphics/tool/transpose_down.png"));
-
-    foreach(MidiEvent* event, selectedEvents) {
-        NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(event);
-        if (noteOnEvent) {
-            int newNote = noteOnEvent->note() - 12; // Move down one octave (12 semitones)
-            if (newNote >= 0) { // MIDI note range is 0-127
-                noteOnEvent->setNote(newNote);
-            }
-        }
-    }
-
-    file->protocol()->endAction();
-    updateAll();
+    transposeSelection(-12);
 }
 
 void MainWindow::removeTrailingSeparators(QToolBar *toolbar) {

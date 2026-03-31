@@ -17,6 +17,7 @@
  */
 
 #include "TransposeDialog.h"
+#include "MainWindow.h"
 
 #include <QButtonGroup>
 #include <QGridLayout>
@@ -64,20 +65,15 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *fil
 }
 
 void TransposeDialog::accept() {
-    _file->protocol()->startNewAction(tr("Transpose selection"), new QImage(":/run_environment/graphics/tool/transpose.png"));
-
     int num = _valueBox->value();
     if (_down->isChecked()) {
         num *= -1;
     }
-    foreach(NoteOnEvent* onEvent, _toTranspose) {
-        int oldVal = onEvent->note();
 
-        if (oldVal + num >= 0 && oldVal + num < 128) {
-            onEvent->setNote(oldVal + num);
-        }
+    MainWindow* mw = qobject_cast<MainWindow*>(parent());
+    if (mw) {
+        mw->transposeSelection(num);
     }
+    
     hide();
-
-    _file->protocol()->endAction();
 }
