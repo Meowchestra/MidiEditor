@@ -28,6 +28,7 @@
 #include "AppearanceSettingsWidget.h"
 #include "LayoutSettingsWidget.h"
 #include "PerformanceSettingsWidget.h"
+#include "StatusBarSettingsWidget.h"
 #include "SettingsWidget.h"
 #include "MainWindow.h"
 #include "KeybindsSettingsWidget.h"
@@ -100,6 +101,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     addSetting(new AppearanceSettingsWidget(central));
     addSetting(new LayoutSettingsWidget(central));
     addSetting(new KeybindsSettingsWidget(this, central));
+    addSetting(new StatusBarSettingsWidget(central));
     addSetting(new PerformanceSettingsWidget(settings, central));
 }
 

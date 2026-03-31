@@ -188,6 +188,12 @@ public:
     static void setMainWindow(MainWindow *mw);
 
     /**
+     * \brief Gets the main window associated with editor tools.
+     * \return Pointer to the MainWindow
+     */
+    static MainWindow* mainWindow() { return _mainWindow; }
+
+    /**
      * \brief Tests if a point is within a rectangle.
      * \param x Point X coordinate
      * \param y Point Y coordinate

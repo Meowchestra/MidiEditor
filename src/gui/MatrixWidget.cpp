@@ -45,6 +45,7 @@
 #include <QAction>
 #include <QInputDialog>
 #include "TransposeDialog.h"
+#include "MainWindow.h"
 
 #define NUM_LINES 139
 #define PIXEL_PER_S 100

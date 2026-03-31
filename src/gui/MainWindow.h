@@ -22,9 +22,12 @@
 // Qt includes
 #include <QCloseEvent>
 #include <QMainWindow>
+#include <algorithm>
+#include <QComboBox>
+#include <QStatusBar>
+#include <QKeySequence>
 #include <QScrollBar>
 #include <QSettings>
-#include <QKeySequence>
 
 // Project includes
 #include "ToolbarActionInfo.h"
@@ -699,6 +702,8 @@ public slots:
      * \brief Handles note duration preset selection.
      */
     void noteDurationSelected(QAction *action);
+    void toggleStatusBar(bool visible);
+    void updateStatusBar();
 
     /**
      * \brief Handles changes to copied events.
@@ -1018,6 +1023,10 @@ private:
 
     /** \brief Whether the current update check should be silent (no UI if no update) */
     bool _silentUpdateCheck;
+
+    /** \brief Main window status bar */
+    QAction *_showStatusBarAction;
+    QStatusBar *_statusBar;
 };
 
 #endif // MAINWINDOW_H_

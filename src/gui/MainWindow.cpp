@@ -114,6 +114,7 @@
 
 #include "../converter/MML/MmlImporter.h"
 #include "../converter/GuitarPro/GpImporter.h"
+#include "../midi/ChordDetector.h"
 
 MainWindow::MainWindow(QString initFile)
     : QMainWindow()
@@ -548,6 +549,15 @@ MainWindow::MainWindow(QString initFile)
     lowerTabWidget->addTab(_eventWidget, tr("Event"));
     MidiEvent::setEventWidget(_eventWidget);
 
+    // Initialize status bar
+    _statusBar = new QStatusBar(this);
+    setStatusBar(_statusBar);
+    _statusBar->showMessage(tr("Ready"));
+
+    // Connect selection changes to status bar updates
+    connect(_eventWidget, &EventWidget::selectionChanged, this, &MainWindow::updateStatusBar);
+    connect(_eventWidget, &EventWidget::selectionChangedByTool, this, &MainWindow::updateStatusBar);
+
     // below add two rows for choosing track/channel new events shall be assigned to
     chooserWidget = new QWidget(rightSplitter);
     chooserWidget->setMinimumWidth(350);
@@ -616,6 +626,10 @@ MainWindow::MainWindow(QString initFile)
 
     // Check for updates silently on startup
     QTimer::singleShot(2000, this, [this](){ checkForUpdates(true); });
+
+    // Initialize status bar visibility from settings
+    bool showStatusBar = _settings->value("status_bar/visible", true).toBool();
+    _statusBar->setVisible(showStatusBar);
 }
 
 MainWindow::~MainWindow() {
@@ -3957,6 +3971,15 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(divMenu, SIGNAL(triggered(QAction*)), this, SLOT(divChanged(QAction*)));
     viewMB->addMenu(divMenu);
 
+    viewMB->addSeparator();
+
+    _showStatusBarAction = new QAction(tr("Show Status Bar"), this);
+    _showStatusBarAction->setCheckable(true);
+    _showStatusBarAction->setChecked(_statusBar->isVisible());
+    connect(_showStatusBarAction, SIGNAL(toggled(bool)), this, SLOT(toggleStatusBar(bool)));
+    viewMB->addAction(_showStatusBarAction);
+    _actionMap["show_status_bar"] = _showStatusBarAction;
+
     // Playback
     QAction *playStopAction = new QAction("PlayStop", this);
     QList<QKeySequence> playStopActionShortcuts;
@@ -5325,6 +5348,16 @@ void MainWindow::updateAll() {
     channelWidget->update();
     _trackWidget->update();
     _miscWidgetContainer->update();
+    
+    // Update status bar visibility from settings
+    if (_statusBar) {
+        bool showStatusBar = _settings->value("status_bar/visible", true).toBool();
+        _statusBar->setVisible(showStatusBar);
+        if (_showStatusBarAction) {
+            _showStatusBarAction->setChecked(showStatusBar);
+        }
+        updateStatusBar(); // Refresh content if visible
+    }
 }
 
 void MainWindow::updateRenderingMode() {
@@ -5609,4 +5642,150 @@ void MainWindow::noteDurationSelected(QAction *action) {
             _actionMap["new_note"]->trigger();
         }
     }
+}
+
+void MainWindow::toggleStatusBar(bool visible) {
+    if (_statusBar) {
+        _statusBar->setVisible(visible);
+        _settings->setValue("status_bar/visible", visible);
+    }
+}
+
+void MainWindow::updateStatusBar() {
+    if (!_statusBar || !_statusBar->isVisible()) {
+        return;
+    }
+
+    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+
+    if (selectedEvents.isEmpty()) {
+        _statusBar->showMessage(tr("No Selection"));
+        return;
+    }
+
+    // Load settings
+    _settings->beginGroup("status_bar");
+    int strategy = _settings->value("strategy", 0).toInt();
+    int tolerance = _settings->value("tolerance", 10).toInt();
+    bool showTrackChannel = _settings->value("show_track_channel", true).toBool();
+    bool showNoteName = _settings->value("show_note_name", true).toBool();
+    bool showNoteRange = _settings->value("show_note_range", true).toBool();
+    bool showChordName = _settings->value("show_chord_name", true).toBool();
+    _settings->endGroup();
+
+    // Determine if multiple tracks or channels are present
+    bool multipleTracks = false;
+    bool multipleChannels = false;
+    MidiTrack* firstTrack = selectedEvents.first()->track();
+    int firstChannel = selectedEvents.first()->channel();
+
+    QList<int> noteValues;
+    int minNote = 127;
+    int maxNote = 0;
+    int minTick = -1;
+    int maxTick = -1;
+    bool allSameTick = true;
+
+    foreach(MidiEvent* event, selectedEvents) {
+        if (event->track() != firstTrack) multipleTracks = true;
+        if (event->channel() != firstChannel) multipleChannels = true;
+
+        NoteOnEvent* noteEvent = dynamic_cast<NoteOnEvent*>(event);
+        if (noteEvent) {
+            int note = noteEvent->note();
+            noteValues.append(note);
+            if (note < minNote) minNote = note;
+            if (note > maxNote) maxNote = note;
+            
+            int tick = noteEvent->midiTime();
+            if (minTick == -1 || tick < minTick) minTick = tick;
+            if (maxTick == -1 || tick > maxTick) maxTick = tick;
+            
+            if (tick != minTick) allSameTick = false;
+        }
+    }
+
+    QStringList segments;
+
+    // Segment 1: Track and Channel information
+    if (showTrackChannel) {
+        QString trackStr;
+        if (multipleTracks) {
+            trackStr = tr("Multiple Tracks");
+        } else if (firstTrack) {
+            QString trackName = firstTrack->name();
+            int trackNum = firstTrack->number();
+            if (!trackName.isEmpty()) {
+                trackStr = tr("Track: %1 (%2)").arg(trackNum).arg(trackName);
+            } else {
+                trackStr = tr("Track: %1").arg(trackNum);
+            }
+        } else {
+            trackStr = tr("Track: N/A");
+        }
+
+        QString channelStr;
+        if (multipleChannels) {
+            channelStr = tr("Multiple Channels");
+        } else {
+            channelStr = (firstChannel >= 0 && firstChannel < 16)
+                ? tr("Channel: %1").arg(firstChannel)
+                : tr("Channel: N/A");
+        }
+        segments.append(QString("%1 | %2").arg(trackStr).arg(channelStr));
+    }
+
+    // Segment 2: Detail (Note Name, Range, Chord)
+    QString detail;
+    if (selectedEvents.size() == 1) {
+        if (showNoteName) {
+            NoteOnEvent* noteEvent = dynamic_cast<NoteOnEvent*>(selectedEvents.first());
+            if (noteEvent) {
+                detail = tr("Note: %1").arg(ChordDetector::getNoteName(noteEvent->note(), true));
+            } else {
+                detail = tr("Event");
+            }
+        }
+    } else {
+        QStringList detailParts;
+        if (!noteValues.isEmpty()) {
+            // Chord name
+            if (showChordName) {
+                bool detect = false;
+                if (strategy == 0) { // Strict
+                    detect = allSameTick && noteValues.size() >= 2;
+                } else if (strategy == 1) { // Flexible
+                    detect = noteValues.size() >= 2;
+                } else if (strategy == 2) { // Humanized
+                    detect = (maxTick - minTick <= tolerance) && noteValues.size() >= 2;
+                }
+
+                if (detect) {
+                    QString chordName = ChordDetector::detectChord(noteValues);
+                    if (!chordName.isEmpty() && chordName != "INVALID") {
+                        detailParts.append(tr("Chord: %1").arg(chordName));
+                    }
+                }
+            }
+
+            // Note range
+            if (showNoteRange) {
+                detailParts.append(tr("(%1 - %2)").arg(ChordDetector::getNoteName(minNote, true)).arg(ChordDetector::getNoteName(maxNote, true)));
+            }
+
+            if (detailParts.isEmpty()) {
+                detail = tr("%1 notes selected").arg(selectedEvents.size());
+            } else {
+                detail = detailParts.join(" ");
+            }
+        } else {
+            detail = tr("%1 events selected").arg(selectedEvents.size());
+        }
+    }
+    
+    if (!detail.isEmpty()) {
+        segments.append(detail);
+    }
+
+    _statusBar->showMessage(segments.join(" | "));
 }
