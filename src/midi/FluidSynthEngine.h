@@ -82,7 +82,7 @@ public:
 
     /**
      * \brief Loads a SoundFont file.
-     * \param path Absolute path to an SF2 or SF3 file
+     * \param path Absolute path to an SF2, SF3, or DLS file
      * \return FluidSynth sfont_id on success, -1 on error
      */
     int loadSoundFont(const QString &path);
@@ -124,7 +124,7 @@ public:
      * (loaded last). The UI presents top = highest priority, so this method
      * loads items in reverse order.
      *
-     * \param paths List of SF2/SF3 file paths, top = highest priority
+     * \param paths List of SF2/SF3/DLS file paths, top = highest priority
      */
     void setSoundFontStack(const QStringList &paths);
 

@@ -419,9 +419,9 @@ QString DownloadSoundFontDialog::extractZipAndFindSoundFont(const QString &zipPa
         return QString(); // Timed out or failed
     }
     
-    // Search the temporary directory for the actual .sf2 or .sf3 file
+    // Search the temporary directory for the actual .sf2, .sf3, or .dls file
     QString foundSfPath;
-    QDirIterator it(tempDirPath, QStringList() << "*.sf2" << "*.sf3", QDir::Files, QDirIterator::Subdirectories);
+    QDirIterator it(tempDirPath, QStringList() << "*.sf2" << "*.sf3" << "*.dls", QDir::Files, QDirIterator::Subdirectories);
     if (it.hasNext()) {
         foundSfPath = it.next();
     }

@@ -832,7 +832,7 @@ void MidiSettingsWidget::addSoundFont() {
         this,
         tr("Select SoundFont Files"),
         sfDir,
-        tr("SoundFont Files (*.sf2 *.sf3);;All Files (*)")
+        tr("SoundFont Files (*.sf2 *.sf3 *.dls);;All Files (*)")
     );
 
     FluidSynthEngine *engine = FluidSynthEngine::instance();
