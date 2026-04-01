@@ -80,10 +80,10 @@ bool StandardTool::press(bool leftClick) {
                 if (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
                                 ev->y() + ev->height())) {
                     diffToMousePos = ev->x() - mouseX;
-                    if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
-                        currentAction = SIZE_CHANGE_ACTION; // Change duration from left edge
+                    if (QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) {
+                        currentAction = MOVE_ACTION; // Force move even on edge if any movement modifier is held
                     } else {
-                        currentAction = MOVE_ACTION; // Move note
+                        currentAction = SIZE_CHANGE_ACTION; // Resize from left edge (default)
                     }
                 }
 
@@ -91,10 +91,10 @@ bool StandardTool::press(bool leftClick) {
                 else if (pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),
                                      ev->x() + ev->width() + 2, ev->y() + ev->height())) {
                     diffToMousePos = ev->x() + ev->width() - mouseX;
-                    if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
-                        currentAction = SIZE_CHANGE_ACTION; // Change duration from right edge
+                    if (QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) {
+                        currentAction = MOVE_ACTION; // Force move even on edge if any movement modifier is held
                     } else {
-                        currentAction = MOVE_ACTION; // Move note
+                        currentAction = SIZE_CHANGE_ACTION; // Resize from right edge (default)
                     }
                 }
 
@@ -202,11 +202,12 @@ bool StandardTool::press(bool leftClick) {
 bool StandardTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
     foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
-        // left/right side always shows resize cursor
-        if (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
+        // left/right side always shows resize cursor unless a movement modifier is held (bypass)
+        if (!(QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) &&
+            (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
                         ev->y() + ev->height())
             || pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),
-                           ev->x() + ev->width() + 2, ev->y() + ev->height())) {
+                           ev->x() + ev->width() + 2, ev->y() + ev->height()))) {
             // Set cursor on OpenGL container if available, otherwise on matrix widget
             if (_openglContainer) {
                 _openglContainer->setCursor(Qt::SplitHCursor);
