@@ -1571,34 +1571,16 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
-        // Render at 2x target size for supersampling/retina-style quality
-        QSize targetSize(42, 42); 
-        int renderSize = 84; 
         
-        // Request a pixmap at the render size. 
-        // We use the 'scale' parameter here to increase the size specifically for icons with large margins (like Delete).
-        QPixmap pixmap = icon.pixmap(static_cast<int>(renderSize * scale), static_cast<int>(renderSize * scale));
+        // Use 1:1 icons natively (scaled up slightly if requested)
+        QSize targetSize(24 * scale, 24 * scale);
         
-        // Ensure the pixmap actually matches the requested size (upscale if necessary)
-        if (pixmap.width() < static_cast<int>(renderSize * scale)) {
-            pixmap = pixmap.scaled(static_cast<int>(renderSize * scale), static_cast<int>(renderSize * scale), 
-                                   Qt::KeepAspectRatio, Qt::SmoothTransformation);
-        }
-        
-        // Draw into a transparent canvas to maintain center alignment
-        QPixmap outPix(renderSize, renderSize);
-        outPix.fill(Qt::transparent);
-        QPainter p(&outPix);
-        p.setRenderHint(QPainter::SmoothPixmapTransform);
-        p.drawPixmap((renderSize - pixmap.width())/2, (renderSize - pixmap.height())/2, pixmap);
-        p.end(); 
-        
-        btn->setIcon(QIcon(outPix));
+        btn->setIcon(icon);
         btn->setEnabled(enabled);
         btn->setAutoRaise(true);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         btn->setIconSize(targetSize); 
-        btn->setMinimumHeight(54); 
+        btn->setMinimumHeight(48); // Fit smaller 24px icons
         return btn;
     };
 

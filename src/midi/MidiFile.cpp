@@ -900,7 +900,7 @@ QString MidiFile::gmInstrumentName(int prog) {
             return tr("Distortion Guitar");
         }
         case 32: {
-            return tr("Guitar harmonics");
+            return tr("Guitar Harmonics");
         }
         case 33: {
             return tr("Acoustic Bass");
@@ -1270,7 +1270,7 @@ QString MidiFile::controlChangeName(int control) {
             return tr("Portamento Time (LSB)");
         }
         case 38: {
-            return tr("Data Entry (LSB) Channel");
+            return tr("Data Entry (LSB)");
         }
         case 39: {
             return tr("Channel Volume (LSB)");
@@ -1394,13 +1394,13 @@ QString MidiFile::controlChangeName(int control) {
             return tr("Non-Registered Parameter Number (LSB)");
         }
         case 99: {
-            return tr("Non-Registered Parameter Number(MSB)");
+            return tr("Non-Registered Parameter Number (MSB)");
         }
         case 100: {
             return tr("Registered Parameter Number (LSB)");
         }
         case 101: {
-            return tr("Registered Parameter Number(MSB)");
+            return tr("Registered Parameter Number (MSB)");
         }
 
         case 120: {

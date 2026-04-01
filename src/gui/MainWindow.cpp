@@ -392,7 +392,7 @@ MainWindow::MainWindow(QString initFile)
     _miscController = new QComboBox(_miscWidgetControl);
     for (int i = 0; i < 128; i++) {
         QString name = MidiFile::controlChangeName(i);
-        if (name == MidiFile::tr("undefined")) {
+        if (name == MidiFile::tr("Undefined")) {
             _miscController->addItem(QString::number(i) + ": ");
         } else {
             _miscController->addItem(QString::number(i) + ": " + name);
@@ -1902,16 +1902,20 @@ void MainWindow::updateRecentPathsList() {
     // if file opened put it at the top of the list
     if (file) {
         QString currentPath = file->path();
-        QStringList newList;
-        newList.append(currentPath);
+        if (!currentPath.isEmpty()) {
+            QStringList newList;
+            newList.append(currentPath);
 
-        foreach(QString str, _recentFilePaths) {
-            if (str != currentPath && newList.size() < 10) {
-                newList.append(str);
+            foreach(QString str, _recentFilePaths) {
+                if (str != currentPath && newList.size() < 10) {
+                    if (!str.isEmpty()) {
+                        newList.append(str);
+                    }
+                }
             }
-        }
 
-        _recentFilePaths = newList;
+            _recentFilePaths = newList;
+        }
     }
 
     // save list
@@ -2939,7 +2943,7 @@ void MainWindow::changeMiscMode(int mode) {
         if (mode == ControllEditor) {
             for (int i = 0; i < 128; i++) {
                 QString name = MidiFile::controlChangeName(i);
-                if (name == MidiFile::tr("undefined")) {
+                if (name == MidiFile::tr("Undefined")) {
                     _miscController->addItem(QString::number(i) + ": ");
                 } else {
                     _miscController->addItem(QString::number(i) + ": " + name);
@@ -2989,7 +2993,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QMenu *toolsMB = menuBar()->addMenu(tr("Tools"));
     QMenu *viewMB = menuBar()->addMenu(tr("View"));
     QMenu *playbackMB = menuBar()->addMenu(tr("Playback"));
-    QMenu *midiMB = menuBar()->addMenu(tr("Midi"));
+    QMenu *midiMB = menuBar()->addMenu(tr("MIDI"));
     QMenu *helpMB = menuBar()->addMenu(tr("Help"));
 
     // File
@@ -3396,7 +3400,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QActionGroup *noteDurationGroup = new QActionGroup(this);
     connect(noteDurationGroup, SIGNAL(triggered(QAction*)), this, SLOT(noteDurationSelected(QAction*)));
 
-    QAction *dragModeAction = new QAction(tr("Drag Mode (No Preset)"), this);
+    QAction *dragModeAction = new QAction(tr("Drag Mode"), this);
     dragModeAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_QuoteLeft))); // Alt + ~ (backtick/tilde key)
     dragModeAction->setData(0);
     dragModeAction->setCheckable(true);
@@ -3559,7 +3563,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     toolsMB->addAction(convertPitchBendAction);
     _actionMap["convert_pitch_bend_to_notes"] = convertPitchBendAction;
 
-    QAction *explodeChordsAction = new QAction(tr("Explode Chords To Tracks"), this);
+    QAction *explodeChordsAction = new QAction(tr("Explode Chords to Tracks"), this);
     explodeChordsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_E)));
     _defaultShortcuts["explode_chords_to_tracks"] = QList<QKeySequence>() << explodeChordsAction->shortcut();
     connect(explodeChordsAction, SIGNAL(triggered()), this, SLOT(explodeChordsToTracks()));
@@ -3922,12 +3926,12 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     divMenu->addMenu(tripletsMenu);
 
     QStringList rasterTripletNames = QStringList()
-                                     << tr("Whole note triplets")
-                                     << tr("Half note triplets")
-                                     << tr("Quarter note triplets")
-                                     << tr("8th note triplets")
-                                     << tr("16th note triplets")
-                                     << tr("32nd note triplets");
+                                     << tr("Whole Note Triplets")
+                                     << tr("Half Note Triplets")
+                                     << tr("Quarter Note Triplets")
+                                     << tr("8th Note Triplets")
+                                     << tr("16th Note Triplets")
+                                     << tr("32nd Note Triplets");
 
     for (int i = 0; i < rasterTripletNames.size(); i++) {
         QAction *tripletAction = new QAction(rasterTripletNames[i], this);
@@ -3949,9 +3953,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     tupletsMenu->addMenu(quintupletsMenu);
 
     QStringList rasterQuintupletNames = QStringList()
-                                        << tr("Quarter quintuplets")
-                                        << tr("8th quintuplets")
-                                        << tr("16th quintuplets");
+                                        << tr("Quarter Quintuplets")
+                                        << tr("8th Quintuplets")
+                                        << tr("16th Quintuplets");
     for (int i = 0; i < rasterQuintupletNames.size(); i++) {
         QAction *quintupletAction = new QAction(rasterQuintupletNames[i], this);
         quintupletAction->setData(QVariant(-202 - i)); // -202, -203, -204
@@ -3966,9 +3970,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     tupletsMenu->addMenu(sextupletsMenu);
 
     QStringList rasterSextupletNames = QStringList()
-                                       << tr("Quarter sextuplets")
-                                       << tr("8th sextuplets")
-                                       << tr("16th sextuplets");
+                                       << tr("Quarter Sextuplets")
+                                       << tr("8th Sextuplets")
+                                       << tr("16th Sextuplets");
     for (int i = 0; i < rasterSextupletNames.size(); i++) {
         QAction *sextupletAction = new QAction(rasterSextupletNames[i], this);
         sextupletAction->setData(QVariant(-302 - i)); // -302, -303, -304
@@ -3983,9 +3987,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     tupletsMenu->addMenu(septupletsMenu);
 
     QStringList rasterSeptupletNames = QStringList()
-                                       << tr("Quarter septuplets")
-                                       << tr("8th septuplets")
-                                       << tr("16th septuplets");
+                                       << tr("Quarter Septuplets")
+                                       << tr("8th Septuplets")
+                                       << tr("16th Septuplets");
     for (int i = 0; i < rasterSeptupletNames.size(); i++) {
         QAction *septupletAction = new QAction(rasterSeptupletNames[i], this);
         septupletAction->setData(QVariant(-402 - i)); // -402, -403, -404
@@ -4003,9 +4007,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     // Regular dotted notes
     QStringList rasterDottedNames = QStringList()
-                                    << tr("Dotted half notes")
-                                    << tr("Dotted quarter notes")
-                                    << tr("Dotted 8th notes");
+                                    << tr("Dotted Half Notes")
+                                    << tr("Dotted Quarter Notes")
+                                    << tr("Dotted 8th Notes");
     QList<int> rasterDottedValues = QList<int>() << -501 << -502 << -503;
 
     for (int i = 0; i < rasterDottedNames.size(); i++) {
@@ -4677,7 +4681,7 @@ QWidget *MainWindow::createCustomToolbar(QWidget *parent) {
                     }
                 } else if (actionId == "paste") {
                     // Create special paste action with options menu
-                    action = new QAction(tr("Paste events"), currentToolBar);
+                    action = new QAction(tr("Paste Events"), currentToolBar);
                     action->setToolTip(tr("Paste events at cursor position"));
                     Appearance::setActionIcon(action, ":/run_environment/graphics/tool/paste.png");
                     connect(action, SIGNAL(triggered()), this, SLOT(paste()));
@@ -5252,7 +5256,7 @@ void MainWindow::quantizeSelection() {
     // get list with all quantization ticks
     QList<int> ticks = file->quantization(_quantizationGrid);
 
-    file->protocol()->startNewAction(tr("Quantize events"), new QImage(":/run_environment/graphics/tool/quantize.png"));
+    file->protocol()->startNewAction(tr("Quantize Events"), new QImage(":/run_environment/graphics/tool/quantize.png"));
     foreach(MidiEvent* e, Selection::instance()->selectedEvents()) {
         int onTime = e->midiTime();
         e->setMidiTime(quantize(onTime, ticks));
@@ -5318,7 +5322,7 @@ void MainWindow::quantizeNtole() {
     // get list with all quantization ticks
     QList<int> ticks = file->quantization(_quantizationGrid);
 
-    file->protocol()->startNewAction(tr("Quantize tuplet"), new QImage(":/run_environment/graphics/tool/quantize.png"));
+    file->protocol()->startNewAction(tr("Quantize Tuplet"), new QImage(":/run_environment/graphics/tool/quantize.png"));
 
     // find minimum starting time
     int startTick = -1;

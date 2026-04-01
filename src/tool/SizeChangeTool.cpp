@@ -34,7 +34,7 @@ SizeChangeTool::SizeChangeTool()
     xPos = 0;
     dragsOnEvent = false;
     setImage(":/run_environment/graphics/tool/change_size.png");
-    setToolTipText(QObject::tr("Resize Tool"));
+    setToolTipText(QObject::tr("Resize Events"));
 }
 
 SizeChangeTool::SizeChangeTool(SizeChangeTool &other)
@@ -63,69 +63,10 @@ void SizeChangeTool::draw(QPainter *painter) {
     } else {
         matrixWidget->setCursor(Qt::ArrowCursor);
     }
+
+    paintSelectedEvents(painter);
+
     if (!inDrag) {
-        paintSelectedEvents(painter);
-        return;
-    } else {
-        painter->setPen(Qt::gray);
-        painter->drawLine(currentX, 0, currentX, matrixWidget->height());
-        painter->setPen(Qt::black);
-    }
-    int endEventShift = 0;
-    int startEventShift = 0;
-    if (dragsOnEvent) {
-        startEventShift = currentX - xPos;
-    } else {
-        endEventShift = currentX - xPos;
-    }
-    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-        bool show = event->shown();
-        if (!show) {
-            OnEvent *ev = dynamic_cast<OnEvent *>(event);
-            if (ev) {
-                show = ev->offEvent() && ev->offEvent()->shown();
-            }
-        }
-        if (show) {
-            painter->fillRect(event->x() + startEventShift, event->y(), event->width() - startEventShift + endEventShift, event->height(), Qt::black);
-            if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2 + endEventShift, event->y(), event->x() + event->width() + 2 + endEventShift, event->y() + event->height())) {
-                // Set cursor on OpenGL container if available, otherwise on matrix widget
-                if (_openglContainer) {
-                    _openglContainer->setCursor(Qt::SplitHCursor);
-                } else {
-                    matrixWidget->setCursor(Qt::SplitHCursor);
-                }
-            }
-            if (pointInRect(mouseX, mouseY, event->x() - 2 + startEventShift, event->y(), event->x() + 2 + startEventShift, event->y() + event->height())) {
-                // Set cursor on OpenGL container if available, otherwise on matrix widget
-                if (_openglContainer) {
-                    _openglContainer->setCursor(Qt::SplitHCursor);
-                } else {
-                    matrixWidget->setCursor(Qt::SplitHCursor);
-                }
-            }
-        }
-    }
-
-    if (inDrag) {
-        // Force the resize cursor during drawing if we are dragging
-        if (_openglContainer) {
-            _openglContainer->setCursor(Qt::SplitHCursor);
-        } else {
-            matrixWidget->setCursor(Qt::SplitHCursor);
-        }
-
-        painter->setPen(Qt::gray);
-        painter->drawLine(currentX, 0, currentX, matrixWidget->height());
-
-        // Ghost Note Colors (DAW Standards)
-        bool darkMode = Appearance::shouldUseDarkMode();
-        QColor ghostFill = darkMode ? QColor(255, 255, 255, 60) : QColor(0, 0, 0, 40);
-        QColor ghostBorder = darkMode ? QColor(255, 255, 255, 120) : QColor(0, 0, 0, 80);
-
-        int endEventShift = dragsOnEvent ? 0 : currentX - xPos;
-        int startEventShift = dragsOnEvent ? currentX - xPos : 0;
-
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             bool show = event->shown();
             if (!show) {
@@ -135,14 +76,67 @@ void SizeChangeTool::draw(QPainter *painter) {
                 }
             }
             if (show) {
-                QRectF ghostRect(event->x() + startEventShift, event->y(),
-                                 event->width() - startEventShift + endEventShift,
-                                 event->height());
-                
-                painter->setBrush(ghostFill);
-                painter->setPen(QPen(ghostBorder, 1, Qt::SolidLine));
-                painter->drawRoundedRect(ghostRect, 1, 1);
+                if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height())) {
+                    if (_openglContainer) _openglContainer->setCursor(Qt::SplitHCursor); else matrixWidget->setCursor(Qt::SplitHCursor);
+                }
+                if (pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height())) {
+                    if (_openglContainer) _openglContainer->setCursor(Qt::SplitHCursor); else matrixWidget->setCursor(Qt::SplitHCursor);
+                }
             }
+        }
+        return;
+    }
+
+    // Force the resize cursor during drawing if we are dragging
+    if (_openglContainer) {
+        _openglContainer->setCursor(Qt::SplitHCursor);
+    } else {
+        matrixWidget->setCursor(Qt::SplitHCursor);
+    }
+
+    painter->setPen(Qt::gray);
+    painter->drawLine(currentX, 0, currentX, matrixWidget->height());
+
+    // Ghost Note Colors (DAW Standards)
+    bool darkMode = Appearance::shouldUseDarkMode();
+    QColor ghostFill = darkMode ? QColor(255, 255, 255, 60) : QColor(0, 0, 0, 40);
+    QColor ghostBorder = darkMode ? QColor(255, 255, 255, 120) : QColor(0, 0, 0, 80);
+
+    int endEventShift = dragsOnEvent ? 0 : currentX - xPos;
+    int startEventShift = dragsOnEvent ? currentX - xPos : 0;
+
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        bool show = event->shown();
+        if (!show) {
+            OnEvent *ev = dynamic_cast<OnEvent *>(event);
+            if (ev) {
+                show = ev->offEvent() && ev->offEvent()->shown();
+            }
+        }
+        if (show) {
+            int dragX, dragWidth;
+            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
+            if (onEvent && onEvent->offEvent()) {
+                int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->midiTime()));
+                int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->offEvent()->midiTime()));
+                dragX = rawX;
+                dragWidth = rawEndX - rawX;
+            } else {
+                dragX = event->x();
+                dragWidth = event->width();
+            }
+
+            QRectF ghostRect(dragX + startEventShift, event->y(),
+                             dragWidth - startEventShift + endEventShift,
+                             event->height());
+            
+            if (ghostRect.width() < 1) {
+                ghostRect.setWidth(1);
+            }
+            
+            painter->setBrush(ghostFill);
+            painter->setPen(QPen(ghostBorder, 1, Qt::SolidLine));
+            painter->drawRoundedRect(ghostRect, 1, 1);
         }
     }
 }

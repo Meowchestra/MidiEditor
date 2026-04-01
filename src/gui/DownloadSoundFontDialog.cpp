@@ -40,6 +40,8 @@
 #include <QProcess>
 #include <QDirIterator>
 #include <QDateTime>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
 
 DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
     : QDialog(parent),
@@ -263,6 +265,7 @@ void DownloadSoundFontDialog::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     mainLayout->setSpacing(10);
 
+    QLabel *infoLabel = new QLabel(tr("Select a SoundFont to download:"), this);
     mainLayout->addWidget(infoLabel);
 
     // Tab bar for categories
