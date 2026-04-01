@@ -1228,8 +1228,10 @@ void MidiSettingsWidget::refreshSoundFontList() {
         gripItem->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
 
         QWidget *cbWidget = new QWidget();
+        cbWidget->setCursor(Qt::ArrowCursor);
         QHBoxLayout *cbLayout = new QHBoxLayout(cbWidget);
         QCheckBox *cb = new QCheckBox();
+        cb->setCursor(Qt::ArrowCursor);
         cb->setChecked(enabled);
         cbLayout->addWidget(cb);
         cbLayout->setAlignment(Qt::AlignCenter);

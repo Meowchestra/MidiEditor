@@ -25,7 +25,7 @@
 #include <QString>
 #include <QList>
 
-class QCheckBox;
+class QTabBar;
 class QTableWidget;
 class QPushButton;
 class QNetworkAccessManager;
@@ -33,13 +33,19 @@ class QNetworkReply;
 class QProgressDialog;
 class QFile;
 
+enum class SoundFontCategory {
+    General,
+    Games,
+    Legacy
+};
+
 struct SoundFontDownloadItem {
     QString name;
     QString size;
     QString format;
     QString url;
     QString filename;
-    bool isLegacy;
+    SoundFontCategory category;
 };
 
 /**
@@ -72,10 +78,10 @@ private:
     void setupUI();
     void populateTable();
     QString getSoundFontsDirectory() const;
-    QString extractZipAndFindSoundFont(const QString &zipPath) const;
+    QString extractZipAndFindSoundFont(const QString &zipPath, const QString &targetFilename) const;
 
     QTableWidget *_table;
-    QCheckBox *_showLegacyCheckBox;
+    QTabBar *_categoryTabBar;
     QPushButton *_downloadBtn;
     QPushButton *_findMoreBtn;
     QPushButton *_closeBtn;

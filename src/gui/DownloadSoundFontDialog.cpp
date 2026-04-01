@@ -20,8 +20,7 @@
 
 #include "DownloadSoundFontDialog.h"
 
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QTabBar>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QPushButton>
@@ -49,136 +48,188 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
       _progressDialog(nullptr),
       _downloadFile(nullptr)
 {
-    // Define available high-quality SoundFonts
+    // Define available high-quality SoundFonts with mirrored URLs and pretty filenames
     _items = {
+        // --- General Section ---
         {
             tr("GeneralUser GS"),
             tr("30.8 MB"),
             tr("SF2"),
-            QStringLiteral("https://raw.githubusercontent.com/mrbumpy409/GeneralUser-GS/refs/heads/main/GeneralUser-GS.sf2"),
-            QStringLiteral("GeneralUser-GS.sf2"),
-            false
+            QStringLiteral("https://github.com/mrbumpy409/GeneralUser-GS/raw/refs/heads/main/GeneralUser-GS.sf2"),
+            QStringLiteral("GeneralUser GS.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("MS Basic 2 (MuseScore 4)"),
             tr("205 MB"),
             tr("SF2"),
-            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
-            QStringLiteral("MS_Basic-v2.0.0.sf2"),
-            false
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
+            QStringLiteral("MS Basic 2.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("MS Basic 2 (Compressed)"),
             tr("38 MB"),
             tr("SF3"),
-            QStringLiteral("https://github.com/Meowchestra/MS_Basic/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
-            QStringLiteral("MS_Basic-v2.0.0.sf3"),
-            false
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
+            QStringLiteral("MS Basic 2.sf3"),
+            SoundFontCategory::General
+        },
+        {
+            tr("Arachno SoundFont"),
+            tr("148 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Arachno.SoundFont.-.Version.1.0.sf2"),
+            QStringLiteral("Arachno SoundFont.sf2"),
+            SoundFontCategory::General
+        },
+        {
+            tr("SGM Pro"),
+            tr("124 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Shan.SGM-Pro.11.sf2"),
+            QStringLiteral("SGM Pro.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("SGM"),
             tr("309 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/855/SGM-v2.01-NicePianosGuitarsBass-V1.2.sf2"),
-            QStringLiteral("SGM-v2.01-NicePianosGuitarsBass-V1.2.sf2"),
-            false
+            QStringLiteral("SGM.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("FluidR3 GM+GS"),
             tr("144 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/1229/FluidR3_GM_GS.sf2"),
-            QStringLiteral("FluidR3_GM_GS.sf2"),
-            false
+            QStringLiteral("FluidR3.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("Microsoft GS Wavetable Synth"),
             tr("3.07 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/5190/microsoft_gm_3.sf2"),
-            QStringLiteral("microsoft_gm_3.sf2"),
-            false
+            QStringLiteral("Microsoft GS Wavetable Synth.sf2"),
+            SoundFontCategory::General
         },
         {
             tr("B. Meowsic"),
             tr("18.9 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/2617/Meowsic_Cat_Soundfont.sf2"),
-            QStringLiteral("Meowsic_Cat_Soundfont.sf2"),
-            false
+            QStringLiteral("Meowsic.sf2"),
+            SoundFontCategory::General
         },
+
+        // --- Games Section ---
         {
-            tr("FFXIV Standard"),
+            tr("Final Fantasy XIV (Standard)"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf2"),
-            QStringLiteral("FFXIV-Standard.sf2"),
-            false
+            QStringLiteral("FFXIV (Standard).sf2"),
+            SoundFontCategory::Games
         },
         {
-            tr("FFXIV Standard (Compressed)"),
+            tr("Final Fantasy XIV (Standard/Compressed)"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf3"),
-            QStringLiteral("FFXIV-Standard.sf3"),
-            false
+            QStringLiteral("FFXIV (Standard).sf3"),
+            SoundFontCategory::Games
         },
         {
-            tr("FFXIV Expanded"),
+            tr("Final Fantasy XIV (Expanded)"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf2"),
-            QStringLiteral("FFXIV-Expanded.sf2"),
-            false
+            QStringLiteral("FFXIV (Expanded).sf2"),
+            SoundFontCategory::Games
         },
         {
-            tr("FFXIV Expanded (Compressed)"),
+            tr("Final Fantasy XIV (Expanded/Compressed)"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf3"),
-            QStringLiteral("FFXIV-Expanded.sf3"),
-            false
+            QStringLiteral("FFXIV (Expanded).sf3"),
+            SoundFontCategory::Games
         },
-        // --- Legacy section ---
+        {
+            tr("Mabinogi (3MLE)"),
+            tr("317 MB"),
+            tr("DLS"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/musicalnexus3-level2.dls"),
+            QStringLiteral("Mabinogi (3MLE).dls"),
+            SoundFontCategory::Games
+        },
+        {
+            tr("Mabinogi (MabiMML)"),
+            tr("36.5 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/mabi_instruments_high_quality.sf3"),
+            QStringLiteral("Mabinogi (MabiMML).sf3"),
+            SoundFontCategory::Games
+        },
+        {
+            tr("MapleStory 2 (3MLE)"),
+            tr("3.12 MB"),
+            tr("DLS"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/maplebeats-2.dls"),
+            QStringLiteral("MapleStory 2 (3MLE).dls"),
+            SoundFontCategory::Games
+        },
+        {
+            tr("Old School RuneScape (OSRS)"),
+            tr("30.8 MB"),
+            tr("SF2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/6871/Old_School_RuneScape.sf2"),
+            QStringLiteral("Old School RuneScape.sf2"),
+            SoundFontCategory::Games
+        },
+
+        // --- Legacy Section ---
         {
             tr("MS Basic (MuseScore 3)"),
             tr("466 MB"),
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/3001/MS_Basic.sf2"),
-            QStringLiteral("MS_Basic.sf2"),
-            true
+            QStringLiteral("MS Basic.sf2"),
+            SoundFontCategory::Legacy
         },
         {
             tr("MS Basic (Compressed)"),
             tr("48.9 MB"),
             tr("SF3"),
-            QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/MS%20Basic.sf3"),
+            QStringLiteral("https://github.com/musescore/MuseScore/raw/refs/heads/master/share/sound/MS%20Basic.sf3"),
             QStringLiteral("MS Basic.sf3"),
-            true
+            SoundFontCategory::Legacy
         },
         {
-            tr("MuseScore_General (MuseScore 3)"),
+            tr("MuseScore General (MuseScore 3)"),
             tr("208 MB"),
             tr("SF2"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2"),
-            QStringLiteral("MuseScore_General.sf2"),
-            true
+            QStringLiteral("MuseScore General.sf2"),
+            SoundFontCategory::Legacy
         },
         {
-            tr("MuseScore_General (Compressed)"),
+            tr("MuseScore General (Compressed)"),
             tr("35.9 MB"),
             tr("SF3"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3"),
-            QStringLiteral("MuseScore_General.sf3"),
-            true
+            QStringLiteral("MuseScore General.sf3"),
+            SoundFontCategory::Legacy
         },
         {
-            tr("FluidR3Mono_GM (MuseScore 2)"),
+            tr("FluidR3Mono GM (MuseScore 2)"),
             tr("22.6 MB"),
             tr("SF3"),
-            QStringLiteral("https://raw.githubusercontent.com/musescore/MuseScore/refs/heads/master/share/sound/FluidR3Mono_GM.sf3"),
-            QStringLiteral("FluidR3Mono_GM.sf3"),
-            true
+            QStringLiteral("https://github.com/musescore/MuseScore/raw/refs/heads/master/share/sound/FluidR3Mono_GM.sf3"),
+            QStringLiteral("FluidR3Mono GM.sf3"),
+            SoundFontCategory::Legacy
         },
         {
             tr("TimGM6mb (MuseScore 1)"),
@@ -186,7 +237,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://sourceforge.net/p/mscore/code/HEAD/tree/trunk/mscore/share/sound/TimGM6mb.sf2?format=raw"),
             QStringLiteral("TimGM6mb.sf2"),
-            true
+            SoundFontCategory::Legacy
         }
     };
 
@@ -210,10 +261,21 @@ void DownloadSoundFontDialog::setupUI() {
     setMinimumSize(500, 300);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setSpacing(10);
 
-    QLabel *infoLabel = new QLabel(tr("Select a SoundFont to download and install automatically.\n"
-                                      "Files will be saved to the soundfonts folder."));
     mainLayout->addWidget(infoLabel);
+
+    // Tab bar for categories
+    _categoryTabBar = new QTabBar(this);
+    _categoryTabBar->addTab(tr("General"));
+    _categoryTabBar->addTab(tr("Games"));
+    _categoryTabBar->addTab(tr("Legacy"));
+    _categoryTabBar->setExpanding(true);
+    _categoryTabBar->setDrawBase(true);
+    _categoryTabBar->setShape(QTabBar::RoundedNorth);
+    mainLayout->addWidget(_categoryTabBar);
+
+    connect(_categoryTabBar, &QTabBar::currentChanged, this, &DownloadSoundFontDialog::populateTable);
 
     _table = new QTableWidget(this);
     _table->setColumnCount(3);
@@ -225,14 +287,6 @@ void DownloadSoundFontDialog::setupUI() {
     _table->setSelectionMode(QAbstractItemView::SingleSelection);
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     mainLayout->addWidget(_table);
-
-    QHBoxLayout *bottomLayout = new QHBoxLayout();
-    
-    _showLegacyCheckBox = new QCheckBox(tr("Show Legacy SoundFonts"), this);
-    bottomLayout->addWidget(_showLegacyCheckBox);
-    connect(_showLegacyCheckBox, &QCheckBox::toggled, this, &DownloadSoundFontDialog::populateTable);
-    
-    bottomLayout->addStretch();
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
     
@@ -246,7 +300,6 @@ void DownloadSoundFontDialog::setupUI() {
     
     btnLayout->addWidget(_downloadBtn);
     btnLayout->addWidget(_closeBtn);
-    mainLayout->addLayout(bottomLayout);
     mainLayout->addLayout(btnLayout);
 
     connect(_downloadBtn, SIGNAL(clicked()), this, SLOT(onDownloadButtonClicked()));
@@ -260,12 +313,28 @@ void DownloadSoundFontDialog::setupUI() {
 }
 
 void DownloadSoundFontDialog::populateTable() {
-    _table->setRowCount(_items.size());
-    QString currentDir = getSoundFontsDirectory();
-    bool showLegacy = _showLegacyCheckBox->isChecked();
+    _table->clearContents();
+    
+    // Determine target category based on tab index
+    SoundFontCategory targetCategory = SoundFontCategory::General;
+    int tabIndex = _categoryTabBar->currentIndex();
+    if (tabIndex == 1) targetCategory = SoundFontCategory::Games;
+    else if (tabIndex == 2) targetCategory = SoundFontCategory::Legacy;
 
+    // Filter items
+    QList<int> visibleIndices;
     for (int i = 0; i < _items.size(); ++i) {
-        const auto &item = _items[i];
+        if (_items[i].category == targetCategory) {
+            visibleIndices.append(i);
+        }
+    }
+
+    _table->setRowCount(visibleIndices.size());
+    QString currentDir = getSoundFontsDirectory();
+
+    for (int i = 0; i < visibleIndices.size(); ++i) {
+        int originalIndex = visibleIndices[i];
+        const auto &item = _items[originalIndex];
         
         QTableWidgetItem *nameItem = new QTableWidgetItem(item.name);
         QTableWidgetItem *sizeItem = new QTableWidgetItem(item.size);
@@ -284,8 +353,8 @@ void DownloadSoundFontDialog::populateTable() {
         _table->setItem(i, 1, sizeItem);
         _table->setItem(i, 2, formatItem);
         
-        // Hide legacy items if checkbox is unchecked
-        _table->setRowHidden(i, item.isLegacy && !showLegacy);
+        // Store the original index in the name item's user data for retrieval in download slot
+        nameItem->setData(Qt::UserRole, originalIndex);
     }
 }
 
@@ -301,17 +370,29 @@ QString DownloadSoundFontDialog::getSoundFontsDirectory() const {
 
 void DownloadSoundFontDialog::onDownloadButtonClicked() {
     int row = _table->currentRow();
-    if (row < 0 || row >= _items.size()) return;
+    if (row < 0) return;
+    
+    // Retrieve original index from user data
+    QTableWidgetItem *nameItem = _table->item(row, 0);
+    if (!nameItem) return;
+    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+    if (originalIndex < 0 || originalIndex >= _items.size()) return;
 
-    const auto &item = _items[row];
+    const auto &item = _items[originalIndex];
     QUrl url(item.url);
     _currentDownloadName = item.filename;
     
-    QString destPath = QDir(getSoundFontsDirectory()).filePath(_currentDownloadName);
+    // If the URL is a ZIP but we want an SF2/SF3, download as ZIP first
+    if (url.path().endsWith(".zip", Qt::CaseInsensitive) && !item.filename.endsWith(".zip", Qt::CaseInsensitive)) {
+        _currentDownloadName += ".zip";
+    }
     
-    if (QFile::exists(destPath)) {
+    QString destPath = QDir(getSoundFontsDirectory()).filePath(_currentDownloadName);
+    QString installedPath = QDir(getSoundFontsDirectory()).filePath(item.filename);
+    
+    if (QFile::exists(installedPath)) {
         QMessageBox::information(this, tr("Already Downloaded"), tr("This SoundFont is already downloaded."));
-        emit soundFontDownloaded(destPath);
+        emit soundFontDownloaded(installedPath);
         return;
     }
 
@@ -376,12 +457,42 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
         
         // Auto-extract ZIP files using system tar (available on Win10+, Mac, Linux)
         if (destPath.endsWith(".zip", Qt::CaseInsensitive)) {
-            QString extractedFile = extractZipAndFindSoundFont(destPath);
+            int row = _table->currentRow();
+            QString targetFilename;
+            if (row >= 0) {
+                QTableWidgetItem *nameItem = _table->item(row, 0);
+                if (nameItem) {
+                    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+                    if (originalIndex >= 0 && originalIndex < _items.size()) {
+                        targetFilename = _items[originalIndex].filename;
+                    }
+                }
+            }
+            
+            QString extractedFile = extractZipAndFindSoundFont(destPath, targetFilename);
             if (!extractedFile.isEmpty()) {
                 finalPath = extractedFile;
                 QMessageBox::information(this, tr("Extraction Complete"), tr("ZIP file extracted successfully. Proceeding to add SoundFont."));
             } else {
-                QMessageBox::warning(this, tr("Extraction Failed"), tr("Downloaded the ZIP, but could not extract the SF2 file automatically. You may need to unzip it manually."));
+                QMessageBox::warning(this, tr("Extraction Failed"), tr("Downloaded the ZIP, but could not extract the SoundFont file automatically. You may need to unzip it manually."));
+            }
+        } else {
+            // For non-ZIP files, ensure they are named correctly as per "pretty" filename
+            int row = _table->currentRow();
+            if (row >= 0) {
+                QTableWidgetItem *nameItem = _table->item(row, 0);
+                if (nameItem) {
+                    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+                    if (originalIndex >= 0 && originalIndex < _items.size()) {
+                        QString targetName = _items[originalIndex].filename;
+                        QString targetPath = QDir(getSoundFontsDirectory()).filePath(targetName);
+                        if (destPath != targetPath) {
+                            if (QFile::exists(targetPath)) QFile::remove(targetPath);
+                            QFile::rename(destPath, targetPath);
+                            finalPath = targetPath;
+                        }
+                    }
+                }
             }
         }
         
@@ -397,7 +508,7 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
     _downloadReply = nullptr;
 }
 
-QString DownloadSoundFontDialog::extractZipAndFindSoundFont(const QString &zipPath) const {
+QString DownloadSoundFontDialog::extractZipAndFindSoundFont(const QString &zipPath, const QString &targetFilename) const {
     QFileInfo zipInfo(zipPath);
     QDir baseDir(zipInfo.absolutePath());
     
@@ -429,7 +540,10 @@ QString DownloadSoundFontDialog::extractZipAndFindSoundFont(const QString &zipPa
     QString finalDestPath;
     if (!foundSfPath.isEmpty()) {
         QFileInfo foundInfo(foundSfPath);
-        finalDestPath = baseDir.filePath(foundInfo.fileName());
+        
+        // Use targetFilename if provided, otherwise keep original name
+        QString finalName = targetFilename.isEmpty() ? foundInfo.fileName() : targetFilename;
+        finalDestPath = baseDir.filePath(finalName);
         
         // Remove existing file to allow overwrite
         if (QFile::exists(finalDestPath)) {
