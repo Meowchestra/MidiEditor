@@ -45,8 +45,8 @@ ExplodeChordsDialog::ExplodeChordsDialog(MidiFile *file, MidiTrack *sourceTrack,
     QVBoxLayout *strategyLayout = new QVBoxLayout(strategyGroup);
     
     _strategyCombo = new QComboBox(this);
-    _strategyCombo->addItem(tr("Same start tick"));
-    _strategyCombo->addItem(tr("Same start tick & note length"));
+    _strategyCombo->addItem(tr("Same Start Tick"));
+    _strategyCombo->addItem(tr("Same Start Tick & Note Length"));
     strategyLayout->addWidget(_strategyCombo);
     
     QLabel *strategyHelp = new QLabel(tr("How to identify which notes belong to the same chord"), this);
@@ -77,7 +77,7 @@ ExplodeChordsDialog::ExplodeChordsDialog(MidiFile *file, MidiTrack *sourceTrack,
     QGroupBox *settingsGroup = new QGroupBox(tr("Settings"), this);
     QGridLayout *settingsLayout = new QGridLayout(settingsGroup);
     
-    QLabel *minNotesLabel = new QLabel(tr("Minimum simultaneous notes:"), this);
+    QLabel *minNotesLabel = new QLabel(tr("Minimum Simultaneous Notes:"), this);
     _minNotesCombo = new QComboBox(this);
     for (int i = 2; i <= 10; ++i) {
         _minNotesCombo->addItem(QString::number(i));

@@ -83,7 +83,7 @@ void TimeTweakTarget::offset(int amount) {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
 
             foreach(MidiEvent* e, selectedEvents) {
                 int newTime = e->midiTime() + amount;
@@ -128,7 +128,7 @@ void TimeTweakTarget::largeDecrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -159,7 +159,7 @@ void TimeTweakTarget::largeIncrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -192,7 +192,7 @@ void StartTimeTweakTarget::offset(int amount) {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
 
             foreach(MidiEvent* e, selectedEvents) {
                 int newTime = e->midiTime() + amount;
@@ -228,7 +228,7 @@ void StartTimeTweakTarget::largeDecrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -249,7 +249,7 @@ void StartTimeTweakTarget::largeIncrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -280,7 +280,7 @@ void EndTimeTweakTarget::offset(int amount) {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
 
             foreach(MidiEvent* e, selectedEvents) {
                 OnEvent *onEvent = dynamic_cast<OnEvent *>(e);
@@ -326,7 +326,7 @@ void EndTimeTweakTarget::largeDecrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -357,7 +357,7 @@ void EndTimeTweakTarget::largeIncrease() {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
             QList<QPair<int, int> > divs = mainWindow->matrixWidget()->divs();
 
             foreach(MidiEvent* e, selectedEvents) {
@@ -389,7 +389,7 @@ void NoteTweakTarget::offset(int amount) {
 
         if (selectedEvents.size() > 0) {
             Protocol *protocol = file->protocol();
-            protocol->startNewAction("Tweak");
+            protocol->startNewAction(QObject::tr("Tweak"));
 
             foreach(MidiEvent* e, selectedEvents) {
                 NoteOnEvent *noteOnEvent = dynamic_cast<NoteOnEvent *>(e);

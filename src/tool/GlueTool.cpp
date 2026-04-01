@@ -35,7 +35,7 @@
 GlueTool::GlueTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/glue.png");
-    setToolTipText("Glue notes");
+    setToolTipText(QObject::tr("Glue Notes"));
 }
 
 GlueTool::GlueTool(GlueTool &other)
@@ -100,7 +100,7 @@ void GlueTool::performGlueOperation(bool respectChannels) {
     }
 
     // Start protocol action
-    currentProtocol()->startNewAction(QObject::tr("Glue notes"), image());
+    currentProtocol()->startNewAction(QObject::tr("Glue Notes"), image());
 
     bool anyNotesGlued = false;
 

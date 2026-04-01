@@ -35,7 +35,7 @@
 DeleteOverlapsTool::DeleteOverlapsTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/deleteoverlap.png");
-    setToolTipText("Delete overlapping notes");
+    setToolTipText(QObject::tr("Delete Overlapping Notes"));
 }
 
 DeleteOverlapsTool::DeleteOverlapsTool(DeleteOverlapsTool &other)
@@ -110,13 +110,13 @@ void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool r
     QString actionName;
     switch (mode) {
         case MONO_MODE:
-            actionName = QObject::tr("Delete overlaps (mono)");
+            actionName = QObject::tr("Delete Overlaps (Mono)");
             break;
         case POLY_MODE:
-            actionName = QObject::tr("Delete overlaps (poly)");
+            actionName = QObject::tr("Delete Overlaps (Poly)");
             break;
         case DOUBLES_MODE:
-            actionName = QObject::tr("Delete doubles");
+            actionName = QObject::tr("Delete Doubles");
             break;
     }
 

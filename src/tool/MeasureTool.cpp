@@ -11,7 +11,7 @@
 MeasureTool::MeasureTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/measure.png");
-    setToolTipText("Insert or delete measures");
+    setToolTipText(QObject::tr("Insert or Delete Measures"));
     _firstSelectedMeasure = -1;
     _secondSelectedMeasure = -1;
 }
@@ -92,7 +92,7 @@ bool MeasureTool::release() {
         int num = QInputDialog::getInt(matrixWidget, "Insert Measures",
                                        "Number of measures:", 1, 1, 100000, 1, &ok);
         if (ok) {
-            file()->protocol()->startNewAction("Insert measures", image());
+            file()->protocol()->startNewAction(QObject::tr("Insert Measures"), image());
             file()->insertMeasures(measure - 1, num);
             _firstSelectedMeasure = -1;
             _secondSelectedMeasure = -1;
@@ -121,7 +121,7 @@ bool MeasureTool::releaseOnly() {
 
 bool MeasureTool::releaseKey(int key) {
     if (key == Qt::Key_Delete && _firstSelectedMeasure > -1) {
-        file()->protocol()->startNewAction("Remove measures", image());
+        file()->protocol()->startNewAction(QObject::tr("Remove Measures"), image());
         if (_secondSelectedMeasure == -1) {
             _secondSelectedMeasure = _firstSelectedMeasure;
         }

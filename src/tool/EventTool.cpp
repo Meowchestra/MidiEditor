@@ -279,7 +279,7 @@ void EventTool::pasteAction() {
 
     if (copiedCopiedEvents.count() > 0) {
         // Begin a new ProtocolAction
-        currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(copiedCopiedEvents.count()) + QObject::tr(" events"));
+        currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(copiedCopiedEvents.count()) + QObject::tr(" Events"));
 
         double tickscale = 1;
         if (currentFile() != copiedEvents->first()->file()) {
@@ -544,7 +544,7 @@ bool EventTool::pasteFromSharedClipboard() {
     // Now actually paste these events using the same logic as regular paste
     if (sharedEvents.count() > 0) {
         // Begin a new ProtocolAction
-        currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(sharedEvents.count()) + QObject::tr(" events from shared clipboard"));
+        currentFile()->protocol()->startNewAction(QObject::tr("Paste ") + QString::number(sharedEvents.count()) + QObject::tr(" Events from Shared Clipboard"));
 
         // Get first tick using the original timing information (not deserialized timing)
         int firstTick = -1;

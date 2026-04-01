@@ -56,7 +56,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
     text1->setAlignment(Qt::AlignBottom | Qt::AlignLeft);
     layout->addWidget(text1, 0, 1, 1, 1);
 
-    instrumentLabel = new QLabel(tr("none"), this);
+    instrumentLabel = new QLabel(tr("None"), this);
     instrumentLabel->setFixedHeight(18);
     instrumentLabel->setAlignment(Qt::AlignTop | Qt::AlignLeft);
     layout->addWidget(instrumentLabel, 1, 1, 1, 1);
@@ -68,7 +68,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
     toolBar->setPalette(palette);
 
     // visibility
-    visibleAction = new QAction(tr("Channel visible"), toolBar);
+    visibleAction = new QAction(tr("Channel Visible"), toolBar);
     Appearance::setActionIcon(visibleAction, ":/run_environment/graphics/channelwidget/visible.png");
     visibleAction->setCheckable(true);
     visibleAction->setChecked(true);
@@ -77,7 +77,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
 
     // audibility
     if (channel < 16) {
-        loudAction = new QAction(tr("Channel audible"), toolBar);
+        loudAction = new QAction(tr("Channel Audible"), toolBar);
         Appearance::setActionIcon(loudAction, ":/run_environment/graphics/channelwidget/loud.png");
         loudAction->setCheckable(true);
         loudAction->setChecked(true);
@@ -85,7 +85,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
         connect(loudAction, SIGNAL(toggled(bool)), this, SLOT(toggleAudibility(bool)));
 
         // solo
-        soloAction = new QAction(tr("Solo mode"), toolBar);
+        soloAction = new QAction(tr("Solo Mode"), toolBar);
         Appearance::setActionIcon(soloAction, ":/run_environment/graphics/channelwidget/solo.png");
         soloAction->setCheckable(true);
         soloAction->setChecked(false);
@@ -96,7 +96,7 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
 
         if (channel != 9) {
             // instrument
-            QAction *instrumentAction = new QAction(tr("Select instrument"), toolBar);
+            QAction *instrumentAction = new QAction(tr("Select Instrument"), toolBar);
             Appearance::setActionIcon(instrumentAction, ":/run_environment/graphics/channelwidget/instrument.png");
             toolBar->addAction(instrumentAction);
             connect(instrumentAction, SIGNAL(triggered()), this, SLOT(instrument()));
@@ -111,9 +111,9 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
 }
 
 void ChannelListItem::toggleVisibility(bool visible) {
-    QString text = tr("Hide channel");
+    QString text = tr("Hide Channel");
     if (visible) {
-        text = tr("Show channel");
+        text = tr("Show Channel");
     }
     channelList->midiFile()->protocol()->startNewAction(text);
 
@@ -132,9 +132,9 @@ void ChannelListItem::toggleVisibility(bool visible) {
 }
 
 void ChannelListItem::toggleAudibility(bool audible) {
-    QString text = tr("Mute channel");
+    QString text = tr("Mute Channel");
     if (audible) {
-        text = tr("Channel audible");
+        text = tr("Channel Audible");
     }
     channelList->midiFile()->protocol()->startNewAction(text);
     channelList->midiFile()->channel(channel)->setMute(!audible);

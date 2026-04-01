@@ -65,7 +65,7 @@ TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
     palette.setColor(QPalette::Window, Appearance::toolbarBackgroundColor());
     toolBar->setPalette(palette);
     // visibility
-    visibleAction = new QAction(tr("Track visible"), toolBar);
+    visibleAction = new QAction(tr("Track Visible"), toolBar);
     Appearance::setActionIcon(visibleAction, ":/run_environment/graphics/trackwidget/visible.png");
     visibleAction->setCheckable(true);
     visibleAction->setChecked(true);
@@ -73,7 +73,7 @@ TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
     connect(visibleAction, SIGNAL(toggled(bool)), this, SLOT(toggleVisibility(bool)));
 
     // audibility
-    loudAction = new QAction(tr("Track audible"), toolBar);
+    loudAction = new QAction(tr("Track Audible"), toolBar);
     Appearance::setActionIcon(loudAction, ":/run_environment/graphics/trackwidget/loud.png");
     loudAction->setCheckable(true);
     loudAction->setChecked(true);
@@ -83,13 +83,13 @@ TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
     toolBar->addSeparator();
 
     // name
-    QAction *renameAction = new QAction(tr("Rename track"), toolBar);
+    QAction *renameAction = new QAction(tr("Rename Track"), toolBar);
     Appearance::setActionIcon(renameAction, ":/run_environment/graphics/trackwidget/rename.png");
     toolBar->addAction(renameAction);
     connect(renameAction, SIGNAL(triggered()), this, SLOT(renameTrack()));
 
     // remove
-    QAction *removeAction = new QAction(tr("Remove track"), toolBar);
+    QAction *removeAction = new QAction(tr("Remove Track"), toolBar);
     Appearance::setActionIcon(removeAction, ":/run_environment/graphics/trackwidget/remove.png");
     toolBar->addAction(removeAction);
     connect(removeAction, SIGNAL(triggered()), this, SLOT(removeTrack()));
@@ -102,9 +102,9 @@ TrackListItem::TrackListItem(MidiTrack *track, TrackListWidget *parent)
 }
 
 void TrackListItem::toggleVisibility(bool visible) {
-    QString text = tr("Hide track");
+    QString text = tr("Hide Track");
     if (visible) {
-        text = tr("Show track");
+        text = tr("Show Track");
     }
     trackList->midiFile()->protocol()->startNewAction(text);
     track->setHidden(!visible);
@@ -112,9 +112,9 @@ void TrackListItem::toggleVisibility(bool visible) {
 }
 
 void TrackListItem::toggleAudibility(bool audible) {
-    QString text = tr("Mute track");
+    QString text = tr("Mute Track");
     if (audible) {
-        text = tr("Track audible");
+        text = tr("Track Audible");
     }
     trackList->midiFile()->protocol()->startNewAction(text);
     track->setMuted(!audible);
@@ -286,7 +286,7 @@ void TrackListWidget::reorderTracks(int fromIndex, int toIndex) {
     }
 
     // Start protocol action for undo/redo support
-    file->protocol()->startNewAction(tr("Reorder tracks"));
+    file->protocol()->startNewAction(tr("Reorder Tracks"));
 
     // Get the track being moved
     MidiTrack *track = trackorder[fromIndex];

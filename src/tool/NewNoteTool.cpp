@@ -49,7 +49,7 @@ NewNoteTool::NewNoteTool()
     _channel = 0;
     _track = 0;
     setImage(":/run_environment/graphics/tool/newnote.png");
-    setToolTipText(QObject::tr("Create new Events"));
+    setToolTipText(QObject::tr("Create New Events"));
 }
 
 NewNoteTool::NewNoteTool(NewNoteTool &other)
@@ -172,7 +172,7 @@ bool NewNoteTool::release() {
     if (currentX - xPos > 2 || line > 127 || (effectiveDurationDivisor() > 0 && line <= 127)) {
         // note
         if (line >= 0 && line <= 127) {
-            currentProtocol()->startNewAction(QObject::tr("Create note"), image());
+            currentProtocol()->startNewAction(QObject::tr("Create Note"), image());
 
             NoteOnEvent *on = file()->channel(_channel)->insertNote(127 - line,
                                                                     startTick, endTick, 100, track);
@@ -260,7 +260,7 @@ bool NewNoteTool::release() {
                 currentProtocol()->endAction();
             } else if (line == MidiEvent::PITCH_BEND_LINE) {
                 currentProtocol()->startNewAction(
-                    "Create Pitch Bend Event", image());
+                    QObject::tr("Create Pitch Bend Event"), image());
                 event = new PitchBendEvent(_channel, 8192, track);
                 int startMs = matrixWidget->msOfXPos(xPos);
                 int startTick = file()->tick(startMs);

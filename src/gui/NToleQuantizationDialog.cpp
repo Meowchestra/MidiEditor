@@ -19,8 +19,8 @@ NToleQuantizationDialog::NToleQuantizationDialog(QWidget *parent)
     setWindowTitle(tr("Tuplet Quantization"));
 
     QGridLayout *layout = new QGridLayout(this);
-    layout->addWidget(new QLabel(tr("tuplet: "), this), 0, 0, 1, 1);
-    layout->addWidget(new QLabel(tr("instead of: "), this), 1, 0, 1, 1);
+    layout->addWidget(new QLabel(tr("Tuplet: "), this), 0, 0, 1, 1);
+    layout->addWidget(new QLabel(tr("Instead of: "), this), 1, 0, 1, 1);
 
     ntoleBeat = new QComboBox(this);
     ntoleN = new QComboBox(this);
@@ -41,13 +41,13 @@ NToleQuantizationDialog::NToleQuantizationDialog(QWidget *parent)
         QString text = "";
 
         if (i == 0) {
-            text = tr("Whole note");
+            text = tr("Whole Note");
         } else if (i == 1) {
-            text = tr("Half note");
+            text = tr("Half Note");
         } else if (i == 2) {
-            text = tr("Quarter note");
+            text = tr("Quarter Note");
         } else {
-            text = QString::number((int) qPow(2, i)) + tr("th note");
+            text = QString::number((int) qPow(2, i)) + tr("th Note");
         }
 
         ntoleBeat->addItem(text);
@@ -59,7 +59,7 @@ NToleQuantizationDialog::NToleQuantizationDialog(QWidget *parent)
     replaceDenom->setCurrentIndex(replaceDenomNum);
     replaceNum->setCurrentIndex(replaceNumNum - 1);
 
-    QPushButton *ok = new QPushButton(tr("Ok"), this);
+    QPushButton *ok = new QPushButton(tr("OK"), this);
     connect(ok, SIGNAL(clicked()), this, SLOT(accept()));
     layout->addWidget(ok, 2, 0, 1, 2);
 

@@ -1429,7 +1429,7 @@ QString MidiFile::controlChangeName(int control) {
         }
     }
 
-    return tr("undefined");
+    return tr("Undefined");
 }
 
 QList<MidiEvent *> *MidiFile::eventsBetween(int start, int end) {

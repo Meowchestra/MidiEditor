@@ -35,7 +35,7 @@
 ScissorsTool::ScissorsTool()
     : EventTool(), _splitTick(0) {
     setImage(":/run_environment/graphics/tool/scissors.png");
-    setToolTipText("Split notes");
+    setToolTipText(QObject::tr("Split Notes"));
 }
 
 ScissorsTool::ScissorsTool(ScissorsTool &other)
@@ -115,7 +115,7 @@ void ScissorsTool::performSplitOperation() {
     }
 
     // Start protocol action
-    currentProtocol()->startNewAction(QObject::tr("Split notes"), image());
+    currentProtocol()->startNewAction(QObject::tr("Split Notes"), image());
 
     // Split each note
     for (NoteOnEvent *note: notesToSplit) {

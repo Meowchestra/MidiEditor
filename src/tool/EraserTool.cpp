@@ -28,7 +28,7 @@
 EraserTool::EraserTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/eraser.png");
-    setToolTipText(QObject::tr("Eraser (remove Events)"));
+    setToolTipText(QObject::tr("Eraser (Remove Events)"));
 }
 
 EraserTool::EraserTool(EraserTool &other)
@@ -63,7 +63,7 @@ bool EraserTool::move(int mouseX, int mouseY) {
 }
 
 bool EraserTool::release() {
-    currentProtocol()->startNewAction(QObject::tr("Remove event"), image());
+    currentProtocol()->startNewAction(QObject::tr("Remove Event"), image());
     foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
         if (pointInRect(mouseX, mouseY, ev->x(), ev->y(), ev->x() + ev->width(),
                         ev->y() + ev->height())) {

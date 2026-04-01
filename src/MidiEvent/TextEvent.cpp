@@ -89,13 +89,13 @@ void TextEvent::reloadState(ProtocolEntry *entry) {
 QString TextEvent::textTypeString(int type) {
     switch (type) {
         case TEXT:
-            return QObject::tr("General text");
+            return QObject::tr("General Text");
         case COPYRIGHT:
             return QObject::tr("Copyright");
         case TRACKNAME:
-            return QObject::tr("Trackname");
+            return QObject::tr("Track Name");
         case INSTRUMENT_NAME:
-            return QObject::tr("Instrument name");
+            return QObject::tr("Instrument Name");
         case LYRIK:
             return QObject::tr("Lyric");
         case MARKER:

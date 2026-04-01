@@ -10,7 +10,7 @@
 TimeSignatureTool::TimeSignatureTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/meter.png");
-    setToolTipText("Edit time signatures");
+    setToolTipText(QObject::tr("Edit Time Signatures"));
 }
 
 TimeSignatureTool::TimeSignatureTool(TimeSignatureTool &other) : TimeSignatureTool() {

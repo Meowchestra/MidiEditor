@@ -18,10 +18,10 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
 
     layout->addRow(separator());
 
-    _showTrackChannel = new QCheckBox(tr("Show Track and Channel Info"), this);
+    _showTrackChannel = new QCheckBox(tr("Show Track/Channel Info"), this);
     layout->addRow(_showTrackChannel);
 
-    _showNoteName = new QCheckBox(tr("Show Note Info (Name and Count)"), this);
+    _showNoteName = new QCheckBox(tr("Show Note Info (Name/Count)"), this);
     layout->addRow(_showNoteName);
 
     _showNoteRange = new QCheckBox(tr("Show Selection Range"), this);

@@ -21,7 +21,7 @@
 
 StrummerTool::StrummerTool()
     : EventTool() {
-    setToolTipText("Strummer");
+    setToolTipText(QObject::tr("Strummer"));
 }
 
 StrummerTool::StrummerTool(StrummerTool &other)
@@ -70,7 +70,7 @@ void StrummerTool::performStrum(int startStrengthMs, double startTension, int en
     }
 
     // Start protocol action
-    currentProtocol()->startNewAction(QObject::tr("Strum notes"), image());
+    currentProtocol()->startNewAction(QObject::tr("Strum Notes"), image());
 
     // Process each track independently
     for (auto it = notesByTrack.begin(); it != notesByTrack.end(); ++it) {

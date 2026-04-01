@@ -36,13 +36,13 @@ EventMoveTool::EventMoveTool(bool upDown, bool leftRight)
     startY = 0;
     if (moveUpDown && moveLeftRight) {
         setImage(":/run_environment/graphics/tool/move_up_down_left_right.png");
-        setToolTipText(QObject::tr("Move Events (all directions)"));
+        setToolTipText(QObject::tr("Move Events (All Directions)"));
     } else if (moveUpDown) {
         setImage(":/run_environment/graphics/tool/move_up_down.png");
-        setToolTipText(QObject::tr("Move Events (up and down)"));
+        setToolTipText(QObject::tr("Move Events (Up and Down)"));
     } else {
         setImage(":/run_environment/graphics/tool/move_left_right.png");
-        setToolTipText(QObject::tr("Move Events (left and right)"));
+        setToolTipText(QObject::tr("Move Events (Left and Right)"));
     }
 }
 
@@ -182,7 +182,7 @@ bool EventMoveTool::release() {
         return true;
     }
 
-    currentProtocol()->startNewAction(QObject::tr("Move events"), image());
+    currentProtocol()->startNewAction(QObject::tr("Move Events"), image());
 
     // backwards to hold stability
     for (int i = Selection::instance()->selectedEvents().count() - 1; i >= 0; i--) {

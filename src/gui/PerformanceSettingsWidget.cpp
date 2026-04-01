@@ -45,7 +45,7 @@ void PerformanceSettingsWidget::setupUI() {
     QGroupBox *scalingGroup = new QGroupBox(tr("High DPI Scaling"), this);
     QGridLayout *scalingLayout = new QGridLayout(scalingGroup);
 
-    _ignoreSystemUIScaling = new QCheckBox(tr("Ignore system UI scaling"), this);
+    _ignoreSystemUIScaling = new QCheckBox(tr("Ignore System UI Scaling"), this);
     _ignoreSystemUIScaling->setChecked(Appearance::ignoreSystemScaling());
     _ignoreSystemUIScaling->setToolTip(tr("Disable high DPI scaling for UI elements"));
     connect(_ignoreSystemUIScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::ignoreScalingChanged);
@@ -56,7 +56,7 @@ void PerformanceSettingsWidget::setupUI() {
     ignoreDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     scalingLayout->addWidget(ignoreDesc, 1, 0, 1, 2);
 
-    _ignoreSystemFontScaling = new QCheckBox(tr("Ignore system font scaling"), this);
+    _ignoreSystemFontScaling = new QCheckBox(tr("Ignore System Font Scaling"), this);
     _ignoreSystemFontScaling->setChecked(Appearance::ignoreFontScaling());
     _ignoreSystemFontScaling->setToolTip(tr("Keep fonts at their original sizes regardless of system DPI."));
     connect(_ignoreSystemFontScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::ignoreFontScalingChanged);
@@ -67,7 +67,7 @@ void PerformanceSettingsWidget::setupUI() {
     fontDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     scalingLayout->addWidget(fontDesc, 3, 0, 1, 2);
 
-    _useRoundedScaling = new QCheckBox(tr("Use rounded scaling behavior"), this);
+    _useRoundedScaling = new QCheckBox(tr("Use Rounded Scaling Behavior"), this);
     _useRoundedScaling->setChecked(Appearance::useRoundedScaling());
     _useRoundedScaling->setToolTip(tr("Use integer scaling instead of fractional."));
     connect(_useRoundedScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::roundedScalingChanged);
@@ -78,7 +78,7 @@ void PerformanceSettingsWidget::setupUI() {
     roundedDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     scalingLayout->addWidget(roundedDesc, 5, 0, 1, 2);
 
-    _unlockWidgetSizes = new QCheckBox(tr("Unlock widget minimum sizes"), this);
+    _unlockWidgetSizes = new QCheckBox(tr("Unlock Widget Minimum Sizes"), this);
     _unlockWidgetSizes->setChecked(_settings->value("unlock_widget_sizes", false).toBool());
     _unlockWidgetSizes->setToolTip(tr("When enabled, allows widget tabs to be resized to very small sizes without snapping closed. Useful for compact layouts."));
     connect(_unlockWidgetSizes, &QCheckBox::toggled, this, &PerformanceSettingsWidget::widgetSizeUnlockChanged);
@@ -95,12 +95,12 @@ void PerformanceSettingsWidget::setupUI() {
     _renderingQualityGroup = new QGroupBox(tr("Rendering Quality"), this);
     QGridLayout *qualityLayout = new QGridLayout(_renderingQualityGroup);
 
-    _enableAntialiasing = new QCheckBox(tr("Enable software anti-aliasing"), this);
+    _enableAntialiasing = new QCheckBox(tr("Enable Software Anti-Aliasing"), this);
     _enableAntialiasing->setToolTip(tr("CPU-based anti-aliasing. Smoother edges but reduces performance."));
     connect(_enableAntialiasing, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableAntialiasingChanged);
     qualityLayout->addWidget(_enableAntialiasing, 0, 0, 1, 2);
 
-    _enableSmoothPixmapTransform = new QCheckBox(tr("Enable software smooth pixmap transforms"), this);
+    _enableSmoothPixmapTransform = new QCheckBox(tr("Enable Software Smooth Pixmap Transforms"), this);
     _enableSmoothPixmapTransform->setToolTip(tr("CPU-based smooth pixmap transforms. Smoother scaling but reduces performance."));
     connect(_enableSmoothPixmapTransform, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableSmoothPixmapTransformChanged);
     qualityLayout->addWidget(_enableSmoothPixmapTransform, 1, 0, 1, 2);
@@ -129,7 +129,7 @@ void PerformanceSettingsWidget::setupUI() {
     accelLayout->addWidget(accelDesc, 1, 0, 1, 2);
 
     // Multisampling option
-    QLabel *multisamplingLabel = new QLabel(tr("Hardware anti-aliasing (MSAA):"), this);
+    QLabel *multisamplingLabel = new QLabel(tr("Hardware Anti-Aliasing (MSAA):"), this);
     accelLayout->addWidget(multisamplingLabel, 2, 0);
 
     _multisamplingCombo = new QComboBox(this);
@@ -142,7 +142,7 @@ void PerformanceSettingsWidget::setupUI() {
     accelLayout->addWidget(_multisamplingCombo, 2, 1);
 
     // Hardware smooth transforms option
-    _enableHardwareSmoothTransforms = new QCheckBox(tr("Enable hardware smooth transforms"), this);
+    _enableHardwareSmoothTransforms = new QCheckBox(tr("Enable Hardware Smooth Transforms"), this);
     _enableHardwareSmoothTransforms->setToolTip(tr("GPU-based texture filtering for smoother scaling but reduces performance."));
     connect(_enableHardwareSmoothTransforms, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableHardwareSmoothTransformsChanged);
     accelLayout->addWidget(_enableHardwareSmoothTransforms, 3, 0, 1, 2);

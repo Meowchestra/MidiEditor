@@ -38,17 +38,17 @@ SelectTool::SelectTool(int type)
         }
         case SELECTION_TYPE_SINGLE: {
             setImage(":/run_environment/graphics/tool/select_single.png");
-            setToolTipText(QObject::tr("Select single Events"));
+            setToolTipText(QObject::tr("Select Events (Single)"));
             break;
         }
         case SELECTION_TYPE_LEFT: {
             setImage(":/run_environment/graphics/tool/select_left.png");
-            setToolTipText(QObject::tr("Select all Events on the left side"));
+            setToolTipText(QObject::tr("Select All Events (Left Side)"));
             break;
         }
         case SELECTION_TYPE_RIGHT: {
             setImage(":/run_environment/graphics/tool/select_right.png");
-            setToolTipText(QObject::tr("Select all Events on the right side"));
+            setToolTipText(QObject::tr("Select All Events (Right Side)"));
             break;
         }
     }
@@ -105,7 +105,7 @@ bool SelectTool::release() {
     }
     _isActive = false;
 
-    file()->protocol()->startNewAction("Selection changed", image());
+    file()->protocol()->startNewAction(QObject::tr("Selection Changed"), image());
     ProtocolEntry *toCopy = copy();
 
     if (!QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier) && !QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {

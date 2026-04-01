@@ -1544,13 +1544,8 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     // Only appear for Standard Tool and certain Select Tools
     EditorTool* currentTool = Tool::currentTool();
     bool allowedTool = false;
-    if (dynamic_cast<StandardTool*>(currentTool)) {
+    if (dynamic_cast<StandardTool*>(currentTool) || dynamic_cast<SelectTool*>(currentTool)) {
         allowedTool = true;
-    } else if (SelectTool* st = dynamic_cast<SelectTool*>(currentTool)) {
-        int type = st->stoolType();
-        if (type == SELECTION_TYPE_SINGLE || type == SELECTION_TYPE_BOX) {
-            allowedTool = true;
-        }
     }
 
     if (!allowedTool || !file) {
@@ -1576,34 +1571,41 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
-        // Intermediate size optimized for high-quality downscaling
-        int baseCanvasSize = 128; 
-        QPixmap outPix(baseCanvasSize, baseCanvasSize);
-        outPix.fill(Qt::transparent);
+        // Render at 2x target size for supersampling/retina-style quality
+        QSize targetSize(42, 42); 
+        int renderSize = 84; 
         
+        // Request a pixmap at the render size. 
+        // We use the 'scale' parameter here to increase the size specifically for icons with large margins (like Delete).
+        QPixmap pixmap = icon.pixmap(static_cast<int>(renderSize * scale), static_cast<int>(renderSize * scale));
+        
+        // Ensure the pixmap actually matches the requested size (upscale if necessary)
+        if (pixmap.width() < static_cast<int>(renderSize * scale)) {
+            pixmap = pixmap.scaled(static_cast<int>(renderSize * scale), static_cast<int>(renderSize * scale), 
+                                   Qt::KeepAspectRatio, Qt::SmoothTransformation);
+        }
+        
+        // Draw into a transparent canvas to maintain center alignment
+        QPixmap outPix(renderSize, renderSize);
+        outPix.fill(Qt::transparent);
         QPainter p(&outPix);
         p.setRenderHint(QPainter::SmoothPixmapTransform);
-        
-        // Request a large pixmap for sharp rendering within the 38x38 button
-        int drawSize = static_cast<int>(baseCanvasSize * scale);
-        QPixmap pixmap = icon.pixmap(drawSize, drawSize);
-        
-        p.drawPixmap((baseCanvasSize - pixmap.width())/2, (baseCanvasSize - pixmap.height())/2, pixmap);
+        p.drawPixmap((renderSize - pixmap.width())/2, (renderSize - pixmap.height())/2, pixmap);
         p.end(); 
         
         btn->setIcon(QIcon(outPix));
         btn->setEnabled(enabled);
         btn->setAutoRaise(true);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        btn->setIconSize(QSize(38, 38)); 
+        btn->setIconSize(targetSize); 
         btn->setMinimumHeight(54); 
         return btn;
     };
 
     QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
     QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
-    // Delete icon has larger margins in source, so 1.3x helps it match perceived size of others without clipping
-    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 1.3);
+    // Delete icon has larger margins in source, so 1.4x helps it match perceived size of others
+    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 1.4);
 
     headerLayout->addWidget(copyBtn);
     headerLayout->addWidget(pasteBtn);
@@ -1637,7 +1639,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     contextMenu.addSeparator();
 
     // Move to Channel (Above Track)
-    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move to Channel"));
+    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move Events to Channel..."));
     moveToChannelMenu->setEnabled(hasSelection);
     for (int i = 0; i < 16; i++) {
         QString instrument = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
@@ -1646,7 +1648,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     }
 
     // Move to Track
-    QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move to Track"));
+    QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move Events to Track..."));
     moveToTrackMenu->setEnabled(hasSelection);
     for (int i = 0; i < file->numTracks(); i++) {
         QString trackName = file->tracks()->at(i)->name();
@@ -1659,12 +1661,12 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     // Transpose actions
     QMenu* transposeSubMenu = contextMenu.addMenu(tr("Transpose"));
     transposeSubMenu->setEnabled(hasSelection);
-    QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose Selection..."));
+    QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose Selection"));
     QAction* octaveUpAction = transposeSubMenu->addAction(tr("Transpose Octave Up"));
     QAction* octaveDownAction = transposeSubMenu->addAction(tr("Transpose Octave Down"));
 
     // General actions
-    QAction* scaleAction = contextMenu.addAction(tr("Scale Events..."));
+    QAction* scaleAction = contextMenu.addAction(tr("Scale Events"));
     scaleAction->setEnabled(hasSelection);
     contextMenu.addSeparator();
 
@@ -1728,34 +1730,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     }
     // Handle Scale Events
     else if (selectedAction == scaleAction) {
-        bool ok;
-        double scale = QInputDialog::getDouble(this, tr("Scale Events"),
-                                              tr("Factor:"), 1.0, 0.0, 100.0, 2, &ok);
-
-        if (ok && scale > 0) {
-            // Find minimum time
-            int minTime = 2147483647;
-            foreach (MidiEvent* e, sortedSelection) {
-                if (e->midiTime() < minTime) {
-                    minTime = e->midiTime();
-                }
-            }
-
-            file->protocol()->startNewAction(tr("Scale events"));
-            foreach (MidiEvent* e, sortedSelection) {
-                int newTime = minTime + (int)((e->midiTime() - minTime) * scale);
-                e->setMidiTime(newTime);
-                
-                NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(e);
-                if (note && note->offEvent()) {
-                    int duration = note->offEvent()->midiTime() - note->midiTime();
-                    int newEnd = newTime + (int)(duration * scale);
-                    note->offEvent()->setMidiTime(newEnd);
-                }
-            }
-            file->protocol()->endAction();
-            update();
-        }
+        EditorTool::mainWindow()->scaleSelection();
     }
     // Handle Stretch to Fill Neighbors (Per-note)
     else if (selectedAction == fitBetweenAction) {
@@ -1810,7 +1785,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
                 NoteOnEvent* prevNote = findPreviousNoteInTrack(earliest, selectionSet);
                 if (prevNote) {
                     int offset = prevNote->offEvent()->midiTime() - earliest->midiTime();
-                    file->protocol()->startNewAction(tr("Snap selection to previous"));
+                    file->protocol()->startNewAction(tr("Snap Start to Previous End"));
                     foreach (MidiEvent* ev, sortedSelection) {
                         ev->setMidiTime(ev->midiTime() + offset);
                         NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);
@@ -1835,7 +1810,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
                 NoteOnEvent* nextNote = findNextNoteInTrack(latest, selectionSet);
                 if (nextNote) {
                     int offset = nextNote->midiTime() - latest->offEvent()->midiTime();
-                    file->protocol()->startNewAction(tr("Snap selection to next"));
+                    file->protocol()->startNewAction(tr("Snap End to Next Start"));
                     foreach (MidiEvent* ev, sortedSelection) {
                         ev->setMidiTime(ev->midiTime() + offset);
                         NoteOnEvent* note = dynamic_cast<NoteOnEvent*>(ev);

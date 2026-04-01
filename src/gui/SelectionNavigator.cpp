@@ -82,7 +82,7 @@ void SelectionNavigator::navigate(qreal searchAngle) {
 
     if (!newSelectedEvent) return;
     Protocol *protocol = file->protocol();
-    protocol->startNewAction("Tweak selection");
+    protocol->startNewAction(QObject::tr("Tweak Selection"));
     EventTool::selectEvent(newSelectedEvent, true);
     protocol->endAction();
     mainWindow->updateAll();

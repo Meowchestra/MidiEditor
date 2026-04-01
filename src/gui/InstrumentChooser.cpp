@@ -35,6 +35,7 @@ InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
     _file = f;
     _channel = channel;
 
+    setWindowTitle(tr("Channel Instrument"));
     QLabel *starttext = new QLabel(tr("Choose Instrument for Channel ") + QString::number(channel), this);
 
     QLabel *text = new QLabel(tr("Instrument: "), this);
@@ -50,7 +51,7 @@ InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
         "<br>If you want all other Program Change Events to be"
         "<br>removed, select the box below."));
 
-    _removeOthers = new QCheckBox(tr("Remove other Program Change Events"), this);
+    _removeOthers = new QCheckBox(tr("Remove Other Program Change Events"), this);
 
     QPushButton *breakButton = new QPushButton(tr("Cancel"));
     connect(breakButton, SIGNAL(clicked()), this, SLOT(hide()));
@@ -88,7 +89,7 @@ void InstrumentChooser::accept() {
 
     ProgChangeEvent *event = 0;
 
-    _file->protocol()->startNewAction(tr("Edited instrument for channel"));
+    _file->protocol()->startNewAction(tr("Channel Instrument Changed"));
     if (events.size() > 0 && events.first()->midiTime() == 0) {
         event = events.first();
         event->setProgram(program);

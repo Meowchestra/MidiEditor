@@ -149,7 +149,7 @@ void LayoutSettingsWidget::setupUI() {
 
     // Toolbar Icon Size
     QHBoxLayout *iconSizeLayout = new QHBoxLayout();
-    QLabel *iconSizeLabel = new QLabel("Toolbar Icon Size:", this);
+    QLabel *iconSizeLabel = new QLabel(tr("Toolbar Icon Size:"), this);
     iconSizeLayout->addWidget(iconSizeLabel);
 
     _iconSizeSpinBox = new QSpinBox(this);
@@ -170,7 +170,7 @@ void LayoutSettingsWidget::setupUI() {
     customizationLayout->setContentsMargins(0, 0, 0, 0);
 
     // Actions list - split for two-row mode
-    QLabel *actionsLabel = new QLabel("Toolbar Actions (drag to reorder):", _customizationWidget);
+    QLabel *actionsLabel = new QLabel(tr("Toolbar Actions (drag to reorder):"), _customizationWidget);
     customizationLayout->addWidget(actionsLabel);
 
     // Create horizontal layout for split view
@@ -178,7 +178,7 @@ void LayoutSettingsWidget::setupUI() {
 
     // Left side - main actions list
     QVBoxLayout *leftLayout = new QVBoxLayout();
-    QLabel *firstRowLabel = new QLabel("Row 1:", _customizationWidget);
+    QLabel *firstRowLabel = new QLabel(tr("Row 1:"), _customizationWidget);
     firstRowLabel->setStyleSheet("font-weight: bold;");
     leftLayout->addWidget(firstRowLabel);
 
@@ -190,7 +190,7 @@ void LayoutSettingsWidget::setupUI() {
 
     // Right side - second row (initially hidden)
     QVBoxLayout *rightLayout = new QVBoxLayout();
-    _secondRowLabel = new QLabel("Row 2:", _customizationWidget);
+    _secondRowLabel = new QLabel(tr("Row 2:"), _customizationWidget);
     _secondRowLabel->setStyleSheet("font-weight: bold;");
     rightLayout->addWidget(_secondRowLabel);
 
@@ -210,7 +210,7 @@ void LayoutSettingsWidget::setupUI() {
     customizationLayout->addLayout(_actionsLayout);
 
     // Reset button
-    _resetButton = new QPushButton("Reset to Default", _customizationWidget);
+    _resetButton = new QPushButton(tr("Reset to Default"), _customizationWidget);
     connect(_resetButton, SIGNAL(clicked()), this, SLOT(resetToDefault()));
     customizationLayout->addWidget(_resetButton);
 
@@ -662,81 +662,81 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     // Essential actions (New, Open, Save, Undo, Redo) are defined in getEssentialActionIds() and getEssentialActionInfos()
 
     // Tool actions - these were in the original toolbar, so enable by default
-    actions << ToolbarActionInfo{"standard_tool", "Standard Tool", ":/run_environment/graphics/tool/select.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"select_left", "Select Left", ":/run_environment/graphics/tool/select_left.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"select_right", "Select Right", ":/run_environment/graphics/tool/select_right.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"standard_tool", tr("Standard Tool"), ":/run_environment/graphics/tool/select.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"select_left", tr("Select Left"), ":/run_environment/graphics/tool/select_left.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"select_right", tr("Select Right"), ":/run_environment/graphics/tool/select_right.png", nullptr, true, false, "Tools"};
 
     // Additional selection tools (disabled by default)
-    actions << ToolbarActionInfo{"select_single", "Select Single", ":/run_environment/graphics/tool/select_single.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"select_box", "Select Box", ":/run_environment/graphics/tool/select_box.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"select_single", tr("Select Single"), ":/run_environment/graphics/tool/select_single.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"select_box", tr("Select Box"), ":/run_environment/graphics/tool/select_box.png", nullptr, false, false, "Tools"};
 
     // Edit actions
-    actions << ToolbarActionInfo{"separator3", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"new_note", "New Note", ":/run_environment/graphics/tool/newnote.png", nullptr, true, false, "Edit"};
-    actions << ToolbarActionInfo{"remove_notes", "Remove Notes", ":/run_environment/graphics/tool/eraser.png", nullptr, true, false, "Edit"};
-    actions << ToolbarActionInfo{"copy", "Copy", ":/run_environment/graphics/tool/copy.png", nullptr, true, false, "Edit"};
-    actions << ToolbarActionInfo{"paste", "Paste", ":/run_environment/graphics/tool/paste.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"separator3", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"new_note", tr("New Note"), ":/run_environment/graphics/tool/newnote.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"remove_notes", tr("Remove Notes"), ":/run_environment/graphics/tool/eraser.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"copy", tr("Copy"), ":/run_environment/graphics/tool/copy.png", nullptr, true, false, "Edit"};
+    actions << ToolbarActionInfo{"paste", tr("Paste"), ":/run_environment/graphics/tool/paste.png", nullptr, true, false, "Edit"};
 
     // Tool actions
-    actions << ToolbarActionInfo{"separator4", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"glue", "Glue Notes", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"separator4", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"glue", tr("Glue Notes"), ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"scissors", tr("Scissors"), ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"delete_overlaps", tr("Delete Overlaps"), ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
 
     // Playback actions
-    actions << ToolbarActionInfo{"separator5", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"back_to_begin", "Back to Begin", ":/run_environment/graphics/tool/back_to_begin.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"back_marker", "Back Marker", ":/run_environment/graphics/tool/back_marker.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"play", "Play", ":/run_environment/graphics/tool/play.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"pause", "Pause", ":/run_environment/graphics/tool/pause.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"stop", "Stop", ":/run_environment/graphics/tool/stop.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"record", "Record", ":/run_environment/graphics/tool/record.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"forward", "Forward", ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
-    actions << ToolbarActionInfo{"forward_marker", "Forward Marker", ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"separator5", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"back_to_begin", tr("Back to Beginning"), ":/run_environment/graphics/tool/back_to_begin.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"back_marker", tr("Back Marker"), ":/run_environment/graphics/tool/back_marker.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"back", tr("Back"), ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"play", tr("Play"), ":/run_environment/graphics/tool/play.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"pause", tr("Pause"), ":/run_environment/graphics/tool/pause.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"stop", tr("Stop"), ":/run_environment/graphics/tool/stop.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"record", tr("Record"), ":/run_environment/graphics/tool/record.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"forward", tr("Forward"), ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
+    actions << ToolbarActionInfo{"forward_marker", tr("Forward Marker"), ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
 
     // Additional tools - these were in the original toolbar, so enable by default
-    actions << ToolbarActionInfo{"separator6", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"metronome", "Metronome", ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback" };
-    actions << ToolbarActionInfo{"align_left", "Align Left", ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"equalize", "Equalize", ":/run_environment/graphics/tool/equalize.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"align_right", "Align Right", ":/run_environment/graphics/tool/align_right.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"separator6", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"metronome", tr("Metronome"), ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback" };
+    actions << ToolbarActionInfo{"align_left", tr("Align Left"), ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"equalize", tr("Equalize"), ":/run_environment/graphics/tool/equalize.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"align_right", tr("Align Right"), ":/run_environment/graphics/tool/align_right.png", nullptr, true, false, "Tools"};
 
     // Zoom actions
-    actions << ToolbarActionInfo{"separator7", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"zoom_hor_in", "Zoom Horizontal In", ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false,"View"};
-    actions << ToolbarActionInfo{"zoom_hor_out", "Zoom Horizontal Out", ":/run_environment/graphics/tool/zoom_hor_out.png", nullptr, true, false, "View"};
-    actions << ToolbarActionInfo{"zoom_ver_in", "Zoom Vertical In", ":/run_environment/graphics/tool/zoom_ver_in.png", nullptr, true, false, "View"};
-    actions << ToolbarActionInfo{"zoom_ver_out", "Zoom Vertical Out", ":/run_environment/graphics/tool/zoom_ver_out.png", nullptr, true, false, "View"};
-    actions << ToolbarActionInfo{"lock", "Lock Screen", ":/run_environment/graphics/tool/screen_unlocked.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"separator7", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"zoom_hor_in", tr("Zoom Horizontal In"), ":/run_environment/graphics/tool/zoom_hor_in.png", nullptr, true, false,"View"};
+    actions << ToolbarActionInfo{"zoom_hor_out", tr("Zoom Horizontal Out"), ":/run_environment/graphics/tool/zoom_hor_out.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_ver_in", tr("Zoom Vertical In"), ":/run_environment/graphics/tool/zoom_ver_in.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"zoom_ver_out", tr("Zoom Vertical Out"), ":/run_environment/graphics/tool/zoom_ver_out.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"lock", tr("Lock Screen"), ":/run_environment/graphics/tool/screen_unlocked.png", nullptr, true, false, "View"};
 
     // Additional tools
-    actions << ToolbarActionInfo{"separator8", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"quantize", "Quantize", ":/run_environment/graphics/tool/quantize.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"magnet", "Magnet", ":/run_environment/graphics/tool/magnet.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"separator8", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"quantize", tr("Quantize"), ":/run_environment/graphics/tool/quantize.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"magnet", tr("Magnet"), ":/run_environment/graphics/tool/magnet.png", nullptr, true, false, "Tools"};
 
     // MIDI actions
-    actions << ToolbarActionInfo{"separator9", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"thru", "MIDI Thru", ":/run_environment/graphics/tool/connection.png", nullptr, true, false, "MIDI"};
-    actions << ToolbarActionInfo{"separator10", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"measure", "Measure", ":/run_environment/graphics/tool/measure.png", nullptr, true, false, "View"};
-    actions << ToolbarActionInfo{"time_signature", "Time Signature", ":/run_environment/graphics/tool/meter.png", nullptr, true, false, "View"};
-    actions << ToolbarActionInfo{"tempo", "Tempo", ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"separator9", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"thru", tr("MIDI Thru"), ":/run_environment/graphics/tool/connection.png", nullptr, true, false, "MIDI"};
+    actions << ToolbarActionInfo{"separator10", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"measure", tr("Measure"), ":/run_environment/graphics/tool/measure.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"time_signature", tr("Time Signature"), ":/run_environment/graphics/tool/meter.png", nullptr, true, false, "View"};
+    actions << ToolbarActionInfo{"tempo", tr("Tempo"), ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
 
     // Movement and editing tools (from MainWindow action map) - disabled by default but available
-    actions << ToolbarActionInfo{"separator11", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"move_all", "Move All Directions", ":/run_environment/graphics/tool/move_up_down_left_right.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"move_lr", "Move Left/Right", ":/run_environment/graphics/tool/move_left_right.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"move_ud", "Move Up/Down", ":/run_environment/graphics/tool/move_up_down.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"separator11", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"move_all", tr("Move All Directions"), ":/run_environment/graphics/tool/move_up_down_left_right.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"move_lr", tr("Move Left/Right"), ":/run_environment/graphics/tool/move_left_right.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"move_ud", tr("Move Up/Down"), ":/run_environment/graphics/tool/move_up_down.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"size_change", tr("Size Change"), ":/run_environment/graphics/tool/change_size.png", nullptr, false, false, "Tools"};
 
     // Additional useful actions (only include those with icons)
-    actions << ToolbarActionInfo{"separator12", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"panic", "MIDI Panic", ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
-    actions << ToolbarActionInfo{"separator13", "--- Separator ---", "", nullptr, true, false, "Separator"};
-    actions << ToolbarActionInfo{"transpose", "Transpose Selection", ":/run_environment/graphics/tool/transpose.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"transpose_up", "Transpose Up", ":/run_environment/graphics/tool/transpose_up.png", nullptr, false, false, "Tools"};
-    actions << ToolbarActionInfo{"transpose_down", "Transpose Down", ":/run_environment/graphics/tool/transpose_down.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"separator12", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"panic", tr("MIDI Panic"), ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
+    actions << ToolbarActionInfo{"separator13", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    actions << ToolbarActionInfo{"transpose", tr("Transpose Selection"), ":/run_environment/graphics/tool/transpose.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"transpose_up", tr("Transpose Up"), ":/run_environment/graphics/tool/transpose_up.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"transpose_down", tr("Transpose Down"), ":/run_environment/graphics/tool/transpose_down.png", nullptr, false, false, "Tools"};
 
     return actions;
 }
@@ -871,13 +871,13 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getEssentialActionInfos() {
     // Used for fallback scenarios when full action info is needed
     // Includes separator2 after redo because customizable actions don't start with separators
     QList<ToolbarActionInfo> essential;
-    essential << ToolbarActionInfo{"new", "New", ":/run_environment/graphics/tool/new.png", nullptr, true, true, "File"};
-    essential << ToolbarActionInfo{"open", "Open", ":/run_environment/graphics/tool/load.png", nullptr, true, true, "File"};
-    essential << ToolbarActionInfo{"save", "Save", ":/run_environment/graphics/tool/save.png", nullptr, true, true, "File"};
-    essential << ToolbarActionInfo{"separator1", "--- Separator ---", "", nullptr, true, true, "Separator"};
-    essential << ToolbarActionInfo{"undo", "Undo", ":/run_environment/graphics/tool/undo.png", nullptr, true, true, "Edit"};
-    essential << ToolbarActionInfo{"redo", "Redo", ":/run_environment/graphics/tool/redo.png", nullptr, true, true, "Edit"};
-    essential << ToolbarActionInfo{"separator2", "--- Separator ---", "", nullptr, true, true, "Separator"};
+    essential << ToolbarActionInfo{"new", tr("New"), ":/run_environment/graphics/tool/new.png", nullptr, true, true, "File"};
+    essential << ToolbarActionInfo{"open", tr("Open"), ":/run_environment/graphics/tool/load.png", nullptr, true, true, "File"};
+    essential << ToolbarActionInfo{"save", tr("Save"), ":/run_environment/graphics/tool/save.png", nullptr, true, true, "File"};
+    essential << ToolbarActionInfo{"separator1", tr("--- Separator ---"), "", nullptr, true, true, "Separator"};
+    essential << ToolbarActionInfo{"undo", tr("Undo"), ":/run_environment/graphics/tool/undo.png", nullptr, true, true, "Edit"};
+    essential << ToolbarActionInfo{"redo", tr("Redo"), ":/run_environment/graphics/tool/redo.png", nullptr, true, true, "Edit"};
+    essential << ToolbarActionInfo{"separator2", tr("--- Separator ---"), "", nullptr, true, true, "Separator"};
     return essential;
 }
 

@@ -140,7 +140,7 @@ bool StandardTool::press(bool leftClick) {
 
                 case SIZE_CHANGE_ACTION: {
                     if (!onSelectedEvent) {
-                        file()->protocol()->startNewAction("Selection changed", image());
+                        file()->protocol()->startNewAction(QObject::tr("Selection Changed"), image());
                         ProtocolEntry *toCopy = copy();
                         EventTool::selectEvent(event, !Selection::instance()->selectedEvents().contains(event));
                         protocol(toCopy, this);
@@ -153,7 +153,7 @@ bool StandardTool::press(bool leftClick) {
                 }
                 case MOVE_ACTION: {
                     if (!onSelectedEvent) {
-                        file()->protocol()->startNewAction("Selection changed", image());
+                        file()->protocol()->startNewAction(QObject::tr("Selection Changed"), image());
                         ProtocolEntry *toCopy = copy();
                         EventTool::selectEvent(event, !Selection::instance()->selectedEvents().contains(event));
                         protocol(toCopy, this);

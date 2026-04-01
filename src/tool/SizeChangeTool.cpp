@@ -144,7 +144,7 @@ bool SizeChangeTool::release() {
     }
     xPos = 0;
     if (Selection::instance()->selectedEvents().count() > 0) {
-        currentProtocol()->startNewAction(QObject::tr("Change event duration"), image());
+        currentProtocol()->startNewAction(QObject::tr("Change Event Duration"), image());
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             OnEvent *on = dynamic_cast<OnEvent *>(event);
             OffEvent *off = dynamic_cast<OffEvent *>(event);

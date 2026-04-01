@@ -10,7 +10,7 @@
 TempoTool::TempoTool()
     : EventTool() {
     setImage(":/run_environment/graphics/tool/tempo.png");
-    setToolTipText("Edit tempo");
+    setToolTipText(QObject::tr("Edit Tempo"));
     _startX = -1;
 }
 

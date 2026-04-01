@@ -24,6 +24,8 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QImage>
+#include <QRadioButton>
+#include <QSpinBox>
 
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../midi/MidiFile.h"
@@ -32,22 +34,25 @@
 TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *file, QWidget *parent) {
     setWindowTitle(tr("Transpose Selection"));
 
+    _toTranspose = toTranspose;
+    _file = file;
+
     QLabel *text = new QLabel(tr("Number of semitones: "), this);
     _valueBox = new QSpinBox(this);
     _valueBox->setMinimum(0);
-    _valueBox->setMaximum(2147483647);
+    _valueBox->setMaximum(127);
     _valueBox->setValue(0);
 
-    QButtonGroup *group = new QButtonGroup();
-    _up = new QRadioButton(tr("up"), this);
-    _down = new QRadioButton(tr("down"), this);
+    QButtonGroup *group = new QButtonGroup(this);
+    _up = new QRadioButton(tr("Up"), this);
+    _down = new QRadioButton(tr("Down"), this);
     _up->setChecked(true);
     group->addButton(_up);
     group->addButton(_down);
 
-    QPushButton *breakButton = new QPushButton(tr("Cancel"));
+    QPushButton *breakButton = new QPushButton(tr("Cancel"), this);
     connect(breakButton, SIGNAL(clicked()), this, SLOT(hide()));
-    QPushButton *acceptButton = new QPushButton(tr("Accept"));
+    QPushButton *acceptButton = new QPushButton(tr("Accept"), this);
     connect(acceptButton, SIGNAL(clicked()), this, SLOT(accept()));
 
     QGridLayout *layout = new QGridLayout(this);
@@ -60,20 +65,24 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *fil
     layout->setColumnStretch(1, 1);
 
     _valueBox->setFocus();
-    _toTranspose = toTranspose;
-    _file = file;
 }
 
 void TransposeDialog::accept() {
-    int num = _valueBox->value();
+    int semitones = _valueBox->value();
     if (_down->isChecked()) {
-        num *= -1;
+        semitones *= -1;
     }
 
-    MainWindow* mw = qobject_cast<MainWindow*>(parent());
-    if (mw) {
-        mw->transposeSelection(num);
+    if (semitones != 0) {
+        QString actionName = tr("Transpose Selection");
+        if (semitones == 12) actionName = tr("Transpose Octave Up");
+        else if (semitones == -12) actionName = tr("Transpose Octave Down");
+
+        _file->protocol()->startNewAction(actionName, new QImage(":/run_environment/graphics/tool/transpose.png"));
+        foreach(NoteOnEvent* e, _toTranspose) {
+            e->setKey(e->key() + semitones);
+        }
+        _file->protocol()->endAction();
     }
-    
     hide();
 }

@@ -50,14 +50,22 @@ RecordDialog::RecordDialog(MidiFile *file, QMultiMap<int, MidiEvent *> data, QSe
     QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
-    setWindowTitle(tr("Add ") + QString::number(data.size()) + tr(" recorded Events"));
+    setWindowTitle(tr("Add ") + QString::number(data.size()) + tr(" Recorded Events"));
     // track
-    QLabel *tracklabel = new QLabel(tr("Add to track: "), this);
+    QLabel *tracklabel = new QLabel(tr("Add to Track: "), this);
     layout->addWidget(tracklabel, 1, 0, 1, 1);
     _trackBox = new QComboBox(this);
-    _trackBox->addItem(tr("Same as selected for new events"));
-    for (int i = 0; i < _file->numTracks(); i++) {
-        _trackBox->addItem(tr("Track ") + QString::number(i) + ": " + _file->track(i)->name());
+    for (int i = -2; i < _file->numTracks(); i++) {
+        QVariant variant(i);
+        QString text = "";
+        if (i == -2) {
+            text = tr("Same as Selected for New Events");
+        } else if (i == -1) {
+            text = tr("Keep Track");
+        } else {
+            text = tr("Track ") + QString::number(i) + ": " + _file->tracks()->at(i)->name();
+        }
+        _trackBox->addItem(text, variant);
     }
     layout->addWidget(_trackBox, 1, 1, 1, 3);
     int oldTrack = _settings->value("record_track_index", 0).toInt();
@@ -67,24 +75,31 @@ RecordDialog::RecordDialog(MidiFile *file, QMultiMap<int, MidiEvent *> data, QSe
     _trackBox->setCurrentIndex(oldTrack);
 
     // channel
-    QLabel *channellabel = new QLabel(tr("Add tochannel: "), this);
+    QLabel *channellabel = new QLabel(tr("Add to Channel: "), this);
     layout->addWidget(channellabel, 2, 0, 1, 1);
     _channelBox = new QComboBox(this);
-    _channelBox->addItem(tr("Same as selected for new events"));
-    _channelBox->addItem(tr("Keep channel"));
-    for (int i = 0; i < 16; i++) {
-        _channelBox->addItem(tr("Channel ") + QString::number(i));
+    for (int i = -2; i < 16; i++) {
+        QVariant variant(i);
+        QString text = "";
+        if (i == -2) {
+            text = tr("Same As Selected For New Events");
+        } else if (i == -1) {
+            text = tr("Keep Channel");
+        } else {
+            text = tr("Channel ") + QString::number(i);
+        }
+        _channelBox->addItem(text, variant);
     }
     _channelBox->setCurrentIndex(_settings->value("record_channel_index", 0).toInt());
 
     layout->addWidget(_channelBox, 2, 1, 1, 3);
 
     // ignore types
-    QLabel *ignorelabel = new QLabel(tr("Select events to add:"), this);
+    QLabel *ignorelabel = new QLabel(tr("Select Events to Add:"), this);
     layout->addWidget(ignorelabel, 3, 0, 1, 4);
 
     addTypes = new QListWidget(this);
-    addListItem(addTypes, tr("Note on/off Events"), 0, true);
+    addListItem(addTypes, tr("Note On/Off Events"), 0, true);
     addListItem(addTypes, tr("Control Change Events"), MidiEvent::CONTROLLER_LINE, true);
     addListItem(addTypes, tr("Pitch Bend Events"), MidiEvent::PITCH_BEND_LINE, true);
     addListItem(addTypes, tr("Channel Pressure Events"), MidiEvent::CHANNEL_PRESSURE_LINE, true);
@@ -145,7 +160,7 @@ void RecordDialog::enter() {
     }
 
     if (_data.size() > 0) {
-        _file->protocol()->startNewAction(tr("Added recorded events"));
+        _file->protocol()->startNewAction(tr("Added Recorded Events"));
 
         // first enlarge the file ( last event + 1000 ms)
         QMultiMap<int, MidiEvent *>::iterator it = _data.end();
