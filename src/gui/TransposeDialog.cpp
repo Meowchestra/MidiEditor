@@ -80,7 +80,10 @@ void TransposeDialog::accept() {
 
         _file->protocol()->startNewAction(actionName, new QImage(":/run_environment/graphics/tool/transpose.png"));
         foreach(NoteOnEvent* e, _toTranspose) {
-            e->setKey(e->key() + semitones);
+            int newNote = e->note() + semitones;
+            if (newNote >= 0 && newNote <= 127) {
+                e->setNote(newNote);
+            }
         }
         _file->protocol()->endAction();
     }

@@ -5421,8 +5421,8 @@ void MainWindow::updateAll() {
     if (_statusBar) {
         bool showStatusBar = _settings->value("status_bar/visible", true).toBool();
         _statusBar->setVisible(showStatusBar);
-        if (_showStatusBarAction) {
-            _showStatusBarAction->setChecked(showStatusBar);
+        if (_statusBarAction) {
+            _statusBarAction->setChecked(showStatusBar);
         }
         updateStatusBar(); // Refresh content if visible
     }

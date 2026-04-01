@@ -1030,7 +1030,7 @@ private:
     bool _silentUpdateCheck;
 
     /** \brief Main window status bar */
-    QAction *_showStatusBarAction;
+    QAction *_statusBarAction;
     QStatusBar *_statusBar;
     QLabel *_statusLabel;
 };

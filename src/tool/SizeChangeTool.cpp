@@ -34,7 +34,7 @@ SizeChangeTool::SizeChangeTool()
     xPos = 0;
     dragsOnEvent = false;
     setImage(":/run_environment/graphics/tool/change_size.png");
-    setToolTipText(QObject::tr("Change the duration of the selected event"));
+    setToolTipText(QObject::tr("Resize Tool"));
 }
 
 SizeChangeTool::SizeChangeTool(SizeChangeTool &other)
@@ -106,6 +106,45 @@ void SizeChangeTool::draw(QPainter *painter) {
             }
         }
     }
+
+    if (inDrag) {
+        // Force the resize cursor during drawing if we are dragging
+        if (_openglContainer) {
+            _openglContainer->setCursor(Qt::SplitHCursor);
+        } else {
+            matrixWidget->setCursor(Qt::SplitHCursor);
+        }
+
+        painter->setPen(Qt::gray);
+        painter->drawLine(currentX, 0, currentX, matrixWidget->height());
+
+        // Ghost Note Colors (DAW Standards)
+        bool darkMode = Appearance::shouldUseDarkMode();
+        QColor ghostFill = darkMode ? QColor(255, 255, 255, 60) : QColor(0, 0, 0, 40);
+        QColor ghostBorder = darkMode ? QColor(255, 255, 255, 120) : QColor(0, 0, 0, 80);
+
+        int endEventShift = dragsOnEvent ? 0 : currentX - xPos;
+        int startEventShift = dragsOnEvent ? currentX - xPos : 0;
+
+        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+            bool show = event->shown();
+            if (!show) {
+                OnEvent *ev = dynamic_cast<OnEvent *>(event);
+                if (ev) {
+                    show = ev->offEvent() && ev->offEvent()->shown();
+                }
+            }
+            if (show) {
+                QRectF ghostRect(event->x() + startEventShift, event->y(),
+                                 event->width() - startEventShift + endEventShift,
+                                 event->height());
+                
+                painter->setBrush(ghostFill);
+                painter->setPen(QPen(ghostBorder, 1, Qt::SolidLine));
+                painter->drawRoundedRect(ghostRect, 1, 1);
+            }
+        }
+    }
 }
 
 bool SizeChangeTool::press(bool leftClick) {
@@ -113,14 +152,31 @@ bool SizeChangeTool::press(bool leftClick) {
 
     inDrag = false;
     xPos = mouseX;
+
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-        if (pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height())) {
+        // If this is the standalone Resize Tool (not Standard Tool), be more forgiving
+        // and allow clicking anywhere in the note to resize the nearest edge.
+        bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
+        bool onRightEdge = pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height());
+        
+        // If tool is in standalone mode (F11), clicking anywhere in note targets nearest edge
+        if (!onLeftEdge && !onRightEdge && _standardTool == 0) {
+            if (pointInRect(mouseX, mouseY, event->x(), event->y(), event->x() + event->width(), event->y() + event->height())) {
+                if (mouseX < event->x() + event->width() / 2) {
+                    onLeftEdge = true;
+                } else {
+                    onRightEdge = true;
+                }
+            }
+        }
+
+        if (onLeftEdge) {
             dragsOnEvent = true;
             xPos = event->x();
             inDrag = true;
             return true;
         }
-        if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height())) {
+        if (onRightEdge) {
             dragsOnEvent = false;
             inDrag = true;
             xPos = event->x() + event->width();
@@ -183,7 +239,16 @@ bool SizeChangeTool::release() {
 }
 
 bool SizeChangeTool::move(int mouseX, int mouseY) {
-    EventTool::move(mouseX, mouseY);
+    if (inDrag) {
+        // Set cursor on OpenGL container if available, otherwise on matrix widget
+        if (_openglContainer) {
+            _openglContainer->setCursor(Qt::SplitHCursor);
+        } else {
+            matrixWidget->setCursor(Qt::SplitHCursor);
+        }
+        return true;
+    }
+
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         if (pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height())) {
             // Set cursor on OpenGL container if available, otherwise on matrix widget
@@ -192,7 +257,7 @@ bool SizeChangeTool::move(int mouseX, int mouseY) {
             } else {
                 matrixWidget->setCursor(Qt::SplitHCursor);
             }
-            return inDrag;
+            return false;
         }
         if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height())) {
             // Set cursor on OpenGL container if available, otherwise on matrix widget
@@ -201,7 +266,7 @@ bool SizeChangeTool::move(int mouseX, int mouseY) {
             } else {
                 matrixWidget->setCursor(Qt::SplitHCursor);
             }
-            return inDrag;
+            return false;
         }
     }
     // Set cursor on OpenGL container if available, otherwise on matrix widget
@@ -210,7 +275,7 @@ bool SizeChangeTool::move(int mouseX, int mouseY) {
     } else {
         matrixWidget->setCursor(Qt::ArrowCursor);
     }
-    return inDrag;
+    return false;
 }
 
 bool SizeChangeTool::releaseOnly() {
