@@ -9,7 +9,7 @@ Controller.prototype.TargetDirectoryPageCallback = function()
         var targetDir = widget.TargetDirectoryLineEdit.text;
         // Normalize path separators just in case
         var maintenanceTool = targetDir.replace(/\\/g, "/") + "/maintenancetool.exe";
-        
+
         console.log("Checking for maintenance tool at: " + maintenanceTool);
 
         if (installer.fileExists(maintenanceTool)) {

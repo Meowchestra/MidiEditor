@@ -1567,50 +1567,48 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     headerLayout->setContentsMargins(0, 0, 0, 0);
     headerLayout->setSpacing(0);
 
-    // Creates a context menu action button with icon centered and text pinned at the absolute bottom.
-    // Returns {container widget, clickable button} pair. Uses a custom layout instead of
-    // QToolButton's TextUnderIcon to guarantee text alignment consistency across different icon sizes.
+    // Creates a context menu action button with native hover state.
+    // Uses QToolButton as the background host to inherit styling but overrides internals
+    // with a rigorous layout to guarantee text/icon alignment regardless of icon scaling.
     auto createToolButton = [&](const QString& text, const QString& iconPath, bool enabled, int iconSize = 24) {
-        QWidget* container = new QWidget(actionHeader);
-        QVBoxLayout* vLayout = new QVBoxLayout(container);
+        QToolButton* btn = new QToolButton(actionHeader);
+        btn->setAutoRaise(true); // Native flat style & hover highlight
+        btn->setEnabled(enabled);
+        btn->setStyleSheet("QToolButton { padding: 0px; margin: 0px; }");
+        
+        QVBoxLayout* vLayout = new QVBoxLayout(btn);
         vLayout->setContentsMargins(2, 4, 2, 2);
         vLayout->setSpacing(0);
 
-        QToolButton* btn = new QToolButton(container);
+        QLabel* iconLabel = new QLabel(btn);
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
-        btn->setIcon(icon);
-        btn->setEnabled(enabled);
-        btn->setAutoRaise(true);
-        btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
-        btn->setIconSize(QSize(iconSize, iconSize));
+        QPixmap pixmap = icon.pixmap(iconSize, iconSize, enabled ? QIcon::Normal : QIcon::Disabled);
+        iconLabel->setPixmap(pixmap);
+        iconLabel->setAlignment(Qt::AlignCenter);
+        iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+        QLabel* textLabel = new QLabel(text, btn);
+        textLabel->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+        textLabel->setEnabled(enabled);
+        textLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+        vLayout->addWidget(iconLabel, 1, Qt::AlignCenter);
+        vLayout->addWidget(textLabel, 0, Qt::AlignHCenter);
+
+        btn->setMinimumHeight(48);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        btn->setStyleSheet("QToolButton { border: none; }");
 
-        QLabel* label = new QLabel(text, container);
-        label->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
-        label->setEnabled(enabled);
-
-        vLayout->addWidget(btn, 1, Qt::AlignCenter);  // Icon takes available space
-        vLayout->addWidget(label, 0, Qt::AlignHCenter); // Text pinned at bottom
-
-        container->setMinimumHeight(48);
-        container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-
-        return qMakePair(container, btn);
+        return btn;
     };
 
-    auto copyPair = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
-    auto pastePair = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
-    // Delete icon has larger margins in source image, so use larger icon size to match perceived size
-    auto deletePair = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 32);
+    QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
+    QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
+    // Delete icon has significant invisible padding in graphic file; bumping standard to 32px helps it match 24px core
+    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 32);
 
-    QToolButton* copyBtn = copyPair.second;
-    QToolButton* pasteBtn = pastePair.second;
-    QToolButton* deleteBtn = deletePair.second;
-
-    headerLayout->addWidget(copyPair.first);
-    headerLayout->addWidget(pastePair.first);
-    headerLayout->addWidget(deletePair.first);
+    headerLayout->addWidget(copyBtn);
+    headerLayout->addWidget(pasteBtn);
+    headerLayout->addWidget(deleteBtn);
 
     QWidgetAction* headerAction = new QWidgetAction(&contextMenu);
     headerAction->setDefaultWidget(actionHeader);
