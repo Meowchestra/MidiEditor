@@ -54,6 +54,7 @@
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
 #include "LayoutSettingsWidget.h"
+#include "SplitChannelsDialog.h"
 #include "MatrixWidget.h"
 #include "OpenGLMatrixWidget.h"
 #include "OpenGLMiscWidget.h"
@@ -100,6 +101,7 @@
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/PitchBendEvent.h"
+#include "../MidiEvent/ProgChangeEvent.h"
 #include "../midi/Metronome.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
@@ -2701,6 +2703,247 @@ void MainWindow::explodeChordsToTracks() {
     updateAll();
 }
 
+void MainWindow::splitChannelsToTracks() {
+    if (!file) {
+        return;
+    }
+
+    // Determine default source track: the current edit track
+    MidiTrack *sourceTrack = file->track(NewNoteTool::editTrack());
+    if (!sourceTrack) {
+        return;
+    }
+
+    // Show dialog
+    SplitChannelsDialog *dialog = new SplitChannelsDialog(file, sourceTrack, this);
+    if (dialog->exec() != QDialog::Accepted) {
+        delete dialog;
+        return;
+    }
+
+    bool skipDrums = dialog->keepDrumsOnSource();
+    bool removeSource = dialog->removeEmptySource();
+    bool insertAtEnd = dialog->insertAtEnd();
+    bool useDrumPreset = dialog->useDrumKitPreset();
+    DrumKitPreset drumPreset = dialog->selectedDrumKitPreset();
+    sourceTrack = dialog->sourceTrack();
+    delete dialog;
+
+    if (!sourceTrack) return;
+
+    // Analyze — collect channel info for events on the confirmed source track
+    struct ChannelInfo {
+        int channel;
+        int eventCount;
+        int noteCount;
+        int programNumber;
+        QString instrumentName;
+    };
+    QList<ChannelInfo> activeChannels;
+
+    for (int ch = 0; ch < 16; ++ch) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        int eventCount = 0;
+        int noteCount = 0;
+        int prog = -1;
+
+        for (auto it = emap->begin(); it != emap->end(); ++it) {
+            MidiEvent *ev = it.value();
+            if (ev->track() != sourceTrack) {
+                continue;
+            }
+            eventCount++;
+            if (dynamic_cast<NoteOnEvent *>(ev)) {
+                noteCount++;
+            }
+            if (prog < 0) {
+                if (ProgChangeEvent *pc = dynamic_cast<ProgChangeEvent *>(ev)) {
+                    prog = pc->program();
+                }
+            }
+        }
+
+        if (eventCount > 0) {
+            QString name;
+            if (ch == 9) {
+                name = tr("Drums");
+            } else if (prog >= 0) {
+                name = MidiFile::gmInstrumentName(prog);
+            } else {
+                name = tr("Channel %1").arg(ch);
+            }
+            activeChannels.append({ch, eventCount, noteCount, prog, name});
+        }
+    }
+
+    if (activeChannels.size() <= 1 && !(activeChannels.size() == 1 && activeChannels[0].channel == 9 && useDrumPreset)) {
+        QMessageBox::information(this, tr("Split Channels to Tracks"),
+            tr("This track only uses one channel (and is not being drum-split) — nothing to split."));
+        return;
+    }
+
+    // Create tracks and move events
+    file->protocol()->startNewAction(tr("Split channels to tracks"));
+
+    int sourceTrackIdx = file->tracks()->indexOf(sourceTrack);
+    QList<MidiTrack *> newTracks;
+    int movedEvents = 0;
+
+    for (const auto &info : activeChannels) {
+        if (info.channel == 9) {
+            if (skipDrums) {
+                continue;
+            }
+            if (useDrumPreset) {
+                // Determine group mapping
+                QMap<int, QPair<QString, int>> noteToTargetMap;
+                for (const auto &g : drumPreset.groups) {
+                    for (const auto &m : g.mappings) {
+                        noteToTargetMap.insert(m.sourceNote, qMakePair(g.trackName, m.targetNote));
+                    }
+                }
+
+                // Collect NoteOn events and ProgChange events, group them
+                QMultiMap<int, MidiEvent *> *emap = file->channel(9)->eventMap();
+                QMap<QString, QList<NoteOnEvent*> > groupNotes;
+                
+                for (auto it = emap->begin(); it != emap->end(); ++it) {
+                    if (it.value()->track() == sourceTrack) {
+                        if (NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent*>(it.value())) {
+                            int srcNote = noteOn->note();
+                            if (noteToTargetMap.contains(srcNote)) {
+                                QString groupName = noteToTargetMap[srcNote].first;
+                                groupNotes[groupName].append(noteOn);
+                            }
+                        }
+                    }
+                }
+
+                // Create a track for each used group
+                for (const auto &g : drumPreset.groups) {
+                    if (!groupNotes[g.trackName].isEmpty()) {
+                        file->addTrack();
+                        MidiTrack *dst = file->tracks()->last();
+                        dst->setName(g.trackName);
+                        
+                        // Set channel (10 or 1-9/11-15 for melodic)
+                        int newCh = g.staysOnPercussionChannel ? 9 : 0;
+                        dst->assignChannel(newCh);
+                        newTracks.append(dst);
+
+                        // Move and transpose events
+                        for (NoteOnEvent *noteOn : groupNotes[g.trackName]) {
+                            int targetNote = noteToTargetMap[noteOn->note()].second;
+                            
+                            // Move NoteOn
+                            noteOn->setTrack(dst);
+                            noteOn->moveToChannel(newCh);
+                            if (noteOn->note() != targetNote) {
+                                noteOn->setNote(targetNote);
+                            }
+                            movedEvents++;
+                            
+                            // Move paired NoteOff
+                            if (OffEvent *offEv = noteOn->offEvent()) {
+                                offEv->setTrack(dst);
+                                // OffEvent moves channel via NoteOnEvent::moveToChannel inside OnEvent
+                                movedEvents++;
+                            }
+                        }
+                        
+                        // Add program change if needed for melodic tracks
+                        if (!g.staysOnPercussionChannel && g.programNumber >= 0) {
+                            new ProgChangeEvent(newCh, g.programNumber, dst);
+                        }
+                    }
+                }
+                
+                // What about non-note events on Channel 9? (CC, PitchBend, etc.)
+                // Usually we copy them to all split tracks, or just leave them.
+                // For now, let's leave them on the source track (if not removing) or delete them.
+                // Since this splits drums efficiently, we skip moving generic CH9 CCs.
+                continue;
+            }
+        }
+
+        // Regular channel split logic (or drums without preset)
+        file->addTrack();
+        MidiTrack *dst = file->tracks()->last();
+        dst->setName(info.instrumentName);
+        dst->assignChannel(info.channel);
+        newTracks.append(dst);
+
+        // Move all events on this channel from source track to new track
+        QMultiMap<int, MidiEvent *> *emap = file->channel(info.channel)->eventMap();
+        QList<MidiEvent *> toMove;
+        for (auto it = emap->begin(); it != emap->end(); ++it) {
+            if (it.value()->track() == sourceTrack) {
+                toMove.append(it.value());
+            }
+        }
+        for (MidiEvent *ev : toMove) {
+            ev->setTrack(dst);
+            movedEvents++;
+        }
+    }
+
+    // Reorder tracks if not inserting at end
+    if (!insertAtEnd && sourceTrackIdx >= 0) {
+        QList<MidiTrack *> *trackList = file->tracks();
+        for (MidiTrack *newTrack : newTracks) {
+            trackList->removeOne(newTrack);
+        }
+        int insertPos = sourceTrackIdx + 1;
+        for (MidiTrack *newTrack : newTracks) {
+            trackList->insert(insertPos++, newTrack);
+        }
+        int n = 0;
+        foreach (MidiTrack *track, *trackList) {
+            track->setNumber(n++);
+        }
+    }
+
+    // Remove empty source track if requested
+    if (removeSource) {
+        bool sourceEmpty = true;
+        for (int ch = 0; ch < 16; ++ch) {
+            QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+            for (auto it = emap->begin(); it != emap->end(); ++it) {
+                if (it.value()->track() == sourceTrack) {
+                    sourceEmpty = false;
+                    break;
+                }
+            }
+            if (!sourceEmpty) break;
+        }
+        // Also check meta channel for tempo/time sig events
+        // Keep the source track if it has meta events
+        if (sourceEmpty) {
+            QMultiMap<int, MidiEvent *> *metaMap = file->channelEvents(17);
+            if (metaMap) {
+                for (auto it = metaMap->begin(); it != metaMap->end(); ++it) {
+                    if (it.value()->track() == sourceTrack) {
+                        sourceEmpty = false;
+                        break;
+                    }
+                }
+            }
+        }
+        if (sourceEmpty) {
+            file->removeTrack(sourceTrack);
+        }
+    }
+
+    file->protocol()->endAction();
+
+    statusBar()->showMessage(tr("Split %1 channels into %2 tracks (%3 events moved)")
+        .arg(activeChannels.size())
+        .arg(newTracks.size())
+        .arg(movedEvents), 5000);
+
+    updateAll();
+}
+
 void MainWindow::transposeNSemitones() {
     if (!file) {
         return;
@@ -3569,6 +3812,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(explodeChordsAction, SIGNAL(triggered()), this, SLOT(explodeChordsToTracks()));
     toolsMB->addAction(explodeChordsAction);
     _actionMap["explode_chords_to_tracks"] = explodeChordsAction;
+
+    QAction *splitChannelsAction = new QAction(tr("Split Channels to Tracks"), this);
+    splitChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_E)));
+    _defaultShortcuts["split_channels_to_tracks"] = QList<QKeySequence>() << splitChannelsAction->shortcut();
+    connect(splitChannelsAction, SIGNAL(triggered()), this, SLOT(splitChannelsToTracks()));
+    toolsMB->addAction(splitChannelsAction);
+    _actionMap["split_channels_to_tracks"] = splitChannelsAction;
 
     QAction *strumAction = new QAction(tr("Strum Selection"), this);
     strumAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT, Qt::Key_S)));

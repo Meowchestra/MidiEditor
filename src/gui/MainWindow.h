@@ -541,6 +541,11 @@ public slots:
     void explodeChordsToTracks();
 
     /**
+     * \brief Splits a multi-channel track into one track per channel.
+     */
+    void splitChannelsToTracks();
+
+    /**
      * \brief Opens the Strummer dialog to stagger notes.
      */
     void strumNotes();

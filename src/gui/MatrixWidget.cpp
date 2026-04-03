@@ -53,7 +53,9 @@
 #include <QInputDialog>
 #include <QWidgetAction>
 #include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QToolButton>
+#include <QLabel>
 #include "TransposeDialog.h"
 #include "MainWindow.h"
 #include "../tool/StandardTool.h"
@@ -1565,37 +1567,50 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     headerLayout->setContentsMargins(0, 0, 0, 0);
     headerLayout->setSpacing(0);
 
+    // Creates a context menu action button with icon centered and text pinned at the absolute bottom.
+    // Returns {container widget, clickable button} pair. Uses a custom layout instead of
+    // QToolButton's TextUnderIcon to guarantee text alignment consistency across different icon sizes.
     auto createToolButton = [&](const QString& text, const QString& iconPath, bool enabled, int iconSize = 24) {
-        QToolButton* btn = new QToolButton(actionHeader);
-        btn->setText(text);
-        btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
-        
+        QWidget* container = new QWidget(actionHeader);
+        QVBoxLayout* vLayout = new QVBoxLayout(container);
+        vLayout->setContentsMargins(2, 4, 2, 2);
+        vLayout->setSpacing(0);
+
+        QToolButton* btn = new QToolButton(container);
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
-        
         btn->setIcon(icon);
         btn->setEnabled(enabled);
         btn->setAutoRaise(true);
+        btn->setToolButtonStyle(Qt::ToolButtonIconOnly);
+        btn->setIconSize(QSize(iconSize, iconSize));
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        btn->setIconSize(QSize(iconSize, iconSize)); 
-        btn->setMinimumHeight(48);
-        // Pin text to the absolute bottom of the button area
-        btn->setStyleSheet(
-            "QToolButton {"
-            "  padding-bottom: 2px;"
-            "  padding-top: 0px;"
-            "}"
-        );
-        return btn;
+        btn->setStyleSheet("QToolButton { border: none; }");
+
+        QLabel* label = new QLabel(text, container);
+        label->setAlignment(Qt::AlignHCenter | Qt::AlignBottom);
+        label->setEnabled(enabled);
+
+        vLayout->addWidget(btn, 1, Qt::AlignCenter);  // Icon takes available space
+        vLayout->addWidget(label, 0, Qt::AlignHCenter); // Text pinned at bottom
+
+        container->setMinimumHeight(48);
+        container->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+        return qMakePair(container, btn);
     };
 
-    QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
-    QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
-    // Delete icon has larger margins in source, so use larger icon size to match perceived size
-    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 32);
+    auto copyPair = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
+    auto pastePair = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
+    // Delete icon has larger margins in source image, so use larger icon size to match perceived size
+    auto deletePair = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 32);
 
-    headerLayout->addWidget(copyBtn);
-    headerLayout->addWidget(pasteBtn);
-    headerLayout->addWidget(deleteBtn);
+    QToolButton* copyBtn = copyPair.second;
+    QToolButton* pasteBtn = pastePair.second;
+    QToolButton* deleteBtn = deletePair.second;
+
+    headerLayout->addWidget(copyPair.first);
+    headerLayout->addWidget(pastePair.first);
+    headerLayout->addWidget(deletePair.first);
 
     QWidgetAction* headerAction = new QWidgetAction(&contextMenu);
     headerAction->setDefaultWidget(actionHeader);

@@ -137,14 +137,25 @@ bool SelectTool::release() {
         }
         foreach(MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
-                // When Ctrl is held with BOX selection, the SelectTool handles the keep/clear decision
-                // itself, so we pass ignoreStr=true to bypass selectEvent's
-                // internal Ctrl toggle logic which would prevent adding new events.
-                // For SINGLE selection, we leave ignoreStr=false so the built-in
-                // Ctrl toggle (deselect if already selected) works correctly.
-                bool ctrlHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
-                bool ignoreStr = (stool_type != SELECTION_TYPE_SINGLE) && ctrlHeld;
-                selectEvent(event, false, ignoreStr, false);
+                if (stool_type == SELECTION_TYPE_SINGLE) {
+                    bool modifierHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier) ||
+                                        QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
+                    if (modifierHeld) {
+                        // Toggle: deselect if already selected, select if not
+                        QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
+                        if (selected.contains(event)) {
+                            deselectEvent(event);
+                        } else {
+                            selectEvent(event, false, true, false);
+                        }
+                    } else {
+                        selectEvent(event, false, false, false);
+                    }
+                } else {
+                    // BOX selection: Ctrl adds without toggling
+                    bool ctrlHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
+                    selectEvent(event, false, ctrlHeld, false);
+                }
             }
         }
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());
