@@ -142,43 +142,40 @@ void SizeChangeTool::draw(QPainter *painter) {
 }
 
 bool SizeChangeTool::press(bool leftClick) {
-    Q_UNUSED(leftClick);
-
-    inDrag = false;
-    xPos = mouseX;
-
-    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-        // If this is the standalone Resize Tool (not Standard Tool), be more forgiving
-        // and allow clicking anywhere in the note to resize the nearest edge.
-        bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
-        bool onRightEdge = pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height());
-        
-        // If tool is in standalone mode (F11), clicking anywhere in note targets nearest edge
-        if (!onLeftEdge && !onRightEdge && _standardTool == 0) {
-            if (pointInRect(mouseX, mouseY, event->x(), event->y(), event->x() + event->width(), event->y() + event->height())) {
-                if (mouseX < event->x() + event->width() / 2) {
-                    onLeftEdge = true;
-                } else {
-                    onRightEdge = true;
-                }
-            }
-        }
-
-        if (onLeftEdge) {
-            dragsOnEvent = true;
-            xPos = event->x();
-            inDrag = true;
-            return true;
-        }
-        if (onRightEdge) {
-            dragsOnEvent = false;
-            inDrag = true;
-            xPos = event->x() + event->width();
-            return true;
-        }
+    if (Selection::instance()->selectedEvents().isEmpty()) {
+        return false;
     }
 
-    return false;
+    inDrag = true;
+    xPos = rasteredX(mouseX);
+
+    if (_standardTool != 0) {
+        // Edge drag delegated from Standard Tool
+        bool foundEdge = false;
+        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+            bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
+            if (onLeftEdge) { 
+                dragsOnEvent = true; 
+                foundEdge = true; 
+                break; 
+            }
+            bool onRightEdge = pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height());
+            if (onRightEdge) { 
+                dragsOnEvent = false; 
+                foundEdge = true; 
+                break; 
+            }
+        }
+        if (!foundEdge) {
+            dragsOnEvent = false;
+        }
+    } else {
+        // Standalone Resize Events Tool
+        // Left click grabs Note On (start), Right click grabs Note Off (end)
+        dragsOnEvent = leftClick;
+    }
+
+    return true;
 }
 
 bool SizeChangeTool::release() {

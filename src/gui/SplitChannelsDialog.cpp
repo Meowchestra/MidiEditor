@@ -18,6 +18,8 @@
 
 #include "SplitChannelsDialog.h"
 #include "../midi/MidiFile.h"
+#include "../midi/MidiTrack.h"
+#include "../midi/MidiChannel.h"
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
