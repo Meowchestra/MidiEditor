@@ -1565,29 +1565,28 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     headerLayout->setContentsMargins(0, 0, 0, 0);
     headerLayout->setSpacing(0);
 
-    auto createToolButton = [&](const QString& text, const QString& iconPath, bool enabled, double scale = 1.0) {
+    auto createToolButton = [&](const QString& text, const QString& iconPath, bool enabled, int iconSize = 24) {
         QToolButton* btn = new QToolButton(actionHeader);
         btn->setText(text);
         btn->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
         
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
         
-        // Use 1:1 icons natively (scaled up slightly if requested)
-        QSize targetSize(24 * scale, 24 * scale);
-        
         btn->setIcon(icon);
         btn->setEnabled(enabled);
         btn->setAutoRaise(true);
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-        btn->setIconSize(targetSize); 
-        btn->setMinimumHeight(48); // Fit smaller 24px icons
+        btn->setIconSize(QSize(iconSize, iconSize)); 
+        btn->setMinimumHeight(48);
+        // Align text to bottom of button
+        btn->setStyleSheet("QToolButton { padding-bottom: 2px; }");
         return btn;
     };
 
     QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
     QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
-    // Delete icon has larger margins in source, so 1.4x helps it match perceived size of others
-    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 1.4);
+    // Delete icon has larger margins in source, so slightly larger icon size to match perceived size
+    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 28);
 
     headerLayout->addWidget(copyBtn);
     headerLayout->addWidget(pasteBtn);
@@ -1781,17 +1780,26 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
         }
     }
     // Handle Snap End to Next Start (Block-based)
+    // Find the note with the furthest end tick (max offEvent time) to snap to the next note
     else if (selectedAction == snapEndAction) {
         if (!sortedSelection.isEmpty()) {
-            NoteOnEvent* latest = nullptr;
-            for (int i = sortedSelection.size() - 1; i >= 0; --i) {
-                if ((latest = dynamic_cast<NoteOnEvent*>(sortedSelection.at(i)))) break;
+            NoteOnEvent* furthestEnd = nullptr;
+            int maxEndTick = -1;
+            foreach (MidiEvent* ev, sortedSelection) {
+                NoteOnEvent* n = dynamic_cast<NoteOnEvent*>(ev);
+                if (n && n->offEvent()) {
+                    int endTick = n->offEvent()->midiTime();
+                    if (endTick > maxEndTick) {
+                        maxEndTick = endTick;
+                        furthestEnd = n;
+                    }
+                }
             }
-            if (latest) {
+            if (furthestEnd) {
                 std::set<MidiEvent*> selectionSet(sortedSelection.begin(), sortedSelection.end());
-                NoteOnEvent* nextNote = findNextNoteInTrack(latest, selectionSet);
+                NoteOnEvent* nextNote = findNextNoteInTrack(furthestEnd, selectionSet);
                 if (nextNote) {
-                    int offset = nextNote->midiTime() - latest->offEvent()->midiTime();
+                    int offset = nextNote->midiTime() - furthestEnd->offEvent()->midiTime();
                     file->protocol()->startNewAction(tr("Snap End to Next Start"));
                     foreach (MidiEvent* ev, sortedSelection) {
                         ev->setMidiTime(ev->midiTime() + offset);

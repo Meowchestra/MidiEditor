@@ -328,7 +328,7 @@ private:
 #endif
 
 AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, QWidget *parent)
-    : SettingsWidget(tr("Additional Midi Settings"), parent) {
+    : SettingsWidget(tr("Additional MIDI Settings"), parent) {
     _settings = settings;
 
     QGridLayout *layout = new QGridLayout(this);
@@ -443,15 +443,15 @@ bool AdditionalMidiSettingsWidget::accept() {
 }
 
 MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
-    : SettingsWidget("Midi I/O", parent), _mainWindow(mainWindow) {
+    : SettingsWidget("MIDI I/O", parent), _mainWindow(mainWindow) {
     QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
-    _playerModeInfoBox = createInfoBox(tr("Choose the Midi ports on your machine to which MidiEditor connects in order to play and record Midi data."));
+    _playerModeInfoBox = createInfoBox(tr("Choose the MIDI ports on your machine to which MidiEditor connects in order to play and record MIDI data."));
     layout->addWidget(_playerModeInfoBox, 0, 0, 1, 6);
 
     // output
-    layout->addWidget(new QLabel(tr("Midi output: "), this), 1, 0, 1, 2);
+    layout->addWidget(new QLabel(tr("MIDI Output: "), this), 1, 0, 1, 2);
     _outList = new QListWidget(this);
     connect(_outList, SIGNAL(itemChanged(QListWidgetItem*)), this,
             SLOT(outputChanged(QListWidgetItem*)));
@@ -468,7 +468,7 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     reloadOutputPorts();
 
     // input
-    layout->addWidget(new QLabel(tr("Midi input: "), this), 1, 3, 1, 2);
+    layout->addWidget(new QLabel(tr("MIDI Input: "), this), 1, 3, 1, 2);
     _inList = new QListWidget(this);
     connect(_inList, SIGNAL(itemChanged(QListWidgetItem*)), this,
             SLOT(inputChanged(QListWidgetItem*)));

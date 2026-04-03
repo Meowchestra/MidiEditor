@@ -30,7 +30,7 @@ InstrumentSettingsWidget::InstrumentSettingsWidget(QSettings *settings, QWidget 
     layout->addWidget(_infoBox, 0, 0, 1, 3);
 
     // File selection
-    layout->addWidget(new QLabel(tr("Definition file:"), this), 1, 0);
+    layout->addWidget(new QLabel(tr("Definition File:"), this), 1, 0);
     _fileEdit = new QLineEdit(this);
     _fileEdit->setReadOnly(true);
     layout->addWidget(_fileEdit, 1, 1);

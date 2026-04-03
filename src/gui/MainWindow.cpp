@@ -473,7 +473,7 @@ MainWindow::MainWindow(QString initFile)
 
     tracksTB->addSeparator();
 
-    _allTracksAudible = new QAction(tr("All Tracks Audible"), this);
+    _allTracksAudible = new QAction(tr("Audible All Tracks"), this);
     Appearance::setActionIcon(_allTracksAudible, ":/run_environment/graphics/tool/all_audible.png");
     connect(_allTracksAudible, SIGNAL(triggered()), this,
             SLOT(unmuteAllTracks()));
@@ -515,7 +515,7 @@ MainWindow::MainWindow(QString initFile)
     channelsTB->setIconSize(QSize(20, 20));
     channelsLayout->addWidget(channelsTB, 0, 0, 1, 1);
 
-    _allChannelsAudible = new QAction(tr("All Channels Audible"), this);
+    _allChannelsAudible = new QAction(tr("Audible All Channels"), this);
     Appearance::setActionIcon(_allChannelsAudible, ":/run_environment/graphics/tool/all_audible.png");
     connect(_allChannelsAudible, SIGNAL(triggered()), this, SLOT(unmuteAllChannels()));
     channelsTB->addAction(_allChannelsAudible);
@@ -3855,8 +3855,8 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     viewMB->addSeparator();
 
     viewMB->addAction(_allChannelsVisible);
-    viewMB->addAction(_allChannelsInvisible);
     viewMB->addAction(_allTracksVisible);
+    viewMB->addAction(_allChannelsInvisible);
     viewMB->addAction(_allTracksInvisible);
 
     viewMB->addSeparator();
@@ -4171,8 +4171,8 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     playbackMB->addSeparator();
 
     playbackMB->addAction(_allChannelsAudible);
-    playbackMB->addAction(_allChannelsMute);
     playbackMB->addAction(_allTracksAudible);
+    playbackMB->addAction(_allChannelsMute);
     playbackMB->addAction(_allTracksMute);
 
     playbackMB->addSeparator();

@@ -83,9 +83,9 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     layout->addWidget(new QLabel(tr("Strip Style")), 7, 0, 1, 1);
     QComboBox *strip = new QComboBox(this);
     strip->addItems({
-        tr("Octaves"),
-        tr("Scale"),
-        tr("Alternating")
+        tr("Highlight by Octaves"),
+        tr("Highlight by Scale"),
+        tr("Highlight by Alternating")
     });
     strip->setCurrentIndex(Appearance::strip());
     connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));

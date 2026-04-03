@@ -233,6 +233,9 @@ bool SizeChangeTool::release() {
 }
 
 bool SizeChangeTool::move(int mouseX, int mouseY) {
+    // Update member variables so draw() uses current mouse position
+    EditorTool::move(mouseX, mouseY);
+
     if (inDrag) {
         // Set cursor on OpenGL container if available, otherwise on matrix widget
         if (_openglContainer) {

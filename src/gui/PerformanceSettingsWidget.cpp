@@ -117,7 +117,7 @@ void PerformanceSettingsWidget::setupUI() {
     _hardwareAccelerationGroup = new QGroupBox(tr("Hardware Acceleration"), this);
     QGridLayout *accelLayout = new QGridLayout(_hardwareAccelerationGroup);
 
-    _enableHardwareAcceleration = new QCheckBox(tr("Enable GPU acceleration for MIDI events"), this);
+    _enableHardwareAcceleration = new QCheckBox(tr("Enable GPU Acceleration for MIDI Events"), this);
     _enableHardwareAcceleration->setToolTip(tr("Use OpenGL for GPU-accelerated MIDI rendering."));
     connect(_enableHardwareAcceleration, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableHardwareAccelerationChanged);
     accelLayout->addWidget(_enableHardwareAcceleration, 0, 0, 1, 2);

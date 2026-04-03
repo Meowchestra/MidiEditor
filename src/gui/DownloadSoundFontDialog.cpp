@@ -276,6 +276,7 @@ void DownloadSoundFontDialog::setupUI() {
     _categoryTabBar->setExpanding(true);
     _categoryTabBar->setDrawBase(true);
     _categoryTabBar->setShape(QTabBar::RoundedNorth);
+    _categoryTabBar->setStyleSheet("QTabBar::tab { min-width: 80px; padding: 6px 8px; }");
     mainLayout->addWidget(_categoryTabBar);
 
     connect(_categoryTabBar, &QTabBar::currentChanged, this, &DownloadSoundFontDialog::populateTable);
@@ -341,7 +342,9 @@ void DownloadSoundFontDialog::populateTable() {
         
         QTableWidgetItem *nameItem = new QTableWidgetItem(item.name);
         QTableWidgetItem *sizeItem = new QTableWidgetItem(item.size);
+        sizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         QTableWidgetItem *formatItem = new QTableWidgetItem(item.format);
+        formatItem->setTextAlignment(Qt::AlignCenter);
         
         // Check if already downloaded
         QString destPath = QDir(currentDir).filePath(item.filename);

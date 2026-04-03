@@ -136,8 +136,8 @@ void LayoutSettingsWidget::setupUI() {
     rowModeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     QVBoxLayout *rowModeLayout = new QVBoxLayout(rowModeGroup);
 
-    _singleRowRadio = new QRadioButton("Single row (compact)", rowModeGroup);
-    _doubleRowRadio = new QRadioButton("Double row (larger icons with text)", rowModeGroup);
+    _singleRowRadio = new QRadioButton("Single Row (Compact)", rowModeGroup);
+    _doubleRowRadio = new QRadioButton("Double Row (Icons with Text)", rowModeGroup);
 
     rowModeLayout->addWidget(_singleRowRadio);
     rowModeLayout->addWidget(_doubleRowRadio);
@@ -149,7 +149,7 @@ void LayoutSettingsWidget::setupUI() {
 
     // Toolbar Icon Size
     QHBoxLayout *iconSizeLayout = new QHBoxLayout();
-    QLabel *iconSizeLabel = new QLabel(tr("Toolbar Icon Size:"), this);
+    QLabel *iconSizeLabel = new QLabel(tr("Icon Size:"), this);
     iconSizeLayout->addWidget(iconSizeLabel);
 
     _iconSizeSpinBox = new QSpinBox(this);
