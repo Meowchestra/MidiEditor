@@ -149,30 +149,33 @@ bool SizeChangeTool::press(bool leftClick) {
     inDrag = true;
     xPos = rasteredX(mouseX);
 
-    if (_standardTool != 0) {
-        // Edge drag delegated from Standard Tool
-        bool foundEdge = false;
-        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-            bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
-            if (onLeftEdge) { 
-                dragsOnEvent = true; 
-                foundEdge = true; 
-                break; 
-            }
-            bool onRightEdge = pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height());
-            if (onRightEdge) { 
-                dragsOnEvent = false; 
-                foundEdge = true; 
-                break; 
-            }
+    // First check if the user clicked directly on any selected note's edge
+    bool foundEdge = false;
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
+        if (onLeftEdge) { 
+            dragsOnEvent = true; 
+            foundEdge = true; 
+            break; 
         }
-        if (!foundEdge) {
+        bool onRightEdge = pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height());
+        if (onRightEdge) { 
+            dragsOnEvent = false; 
+            foundEdge = true; 
+            break; 
+        }
+    }
+
+    // If an edge wasn't directly grabbed, evaluate fallback behavior
+    if (!foundEdge) {
+        if (_standardTool != 0) {
+            // Edge drag delegated from Standard Tool (fallback)
             dragsOnEvent = false;
+        } else {
+            // Standalone Resize Events Tool global grid drag:
+            // Left click grabs Note On (start), Right click grabs Note Off (end)
+            dragsOnEvent = leftClick;
         }
-    } else {
-        // Standalone Resize Events Tool
-        // Left click grabs Note On (start), Right click grabs Note Off (end)
-        dragsOnEvent = leftClick;
     }
 
     return true;

@@ -326,9 +326,15 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                     textData.append((char) tempByte);
                                 }
 
+                                // Remove any terminator null bytes which cause truncation and "[]" characters in Windows UI
+                                int nullIdx = textData.indexOf('\0');
+                                if (nullIdx != -1) {
+                                    textData.truncate(nullIdx);
+                                }
+                                
                                 // QString::fromUtf8() safely handles malformed UTF-8 by replacing
                                 // invalid sequences with Unicode replacement characters (U+FFFD)
-                                textEvent->setText(QString::fromUtf8(textData));
+                                textEvent->setText(QString::fromUtf8(textData).remove(QChar(0)).trimmed());
                                 *ok = true;
                                 return textEvent;
                             } else {
