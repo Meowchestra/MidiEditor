@@ -31,7 +31,9 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     layout->addWidget(channelList, 1, 0, 1, 2);
     for (int i = 0; i < 17; i++) {
         QString name = tr("Channel %1").arg(i);
-        if (i == 16) {
+        if (i == 9) {
+            name = tr("Channel 9 (Percussion)");
+        } else if (i == 16) {
             name = tr("General Events (affecting all channels)");
         }
         QColor *channelColor = Appearance::channelColor(i);

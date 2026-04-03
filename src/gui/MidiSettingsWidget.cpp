@@ -347,7 +347,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 2, 0, 1, 6);
 
-    _alternativePlayerModeBox = new QCheckBox(tr("Manually stop notes"), this);
+    _alternativePlayerModeBox = new QCheckBox(tr("Manually Stop Notes"), this);
     _alternativePlayerModeBox->setChecked(MidiOutput::isAlternativePlayer);
 
     connect(_alternativePlayerModeBox, SIGNAL(toggled(bool)), this, SLOT(manualModeToggled(bool)));
@@ -358,7 +358,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 5, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Metronome loudness:"), this), 6, 0, 1, 2);
+    layout->addWidget(new QLabel(tr("Metronome Loudness:"), this), 6, 0, 1, 2);
     _metronomeLoudnessBox = new QSpinBox(this);
     _metronomeLoudnessBox->setMinimum(10);
     _metronomeLoudnessBox->setMaximum(100);
@@ -368,11 +368,11 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 7, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Start command:"), this), 8, 0, 1, 2);
+    layout->addWidget(new QLabel(tr("Start Command:"), this), 8, 0, 1, 2);
     startCmd = new QLineEdit(this);
     layout->addWidget(startCmd, 8, 2, 1, 4);
 
-    _startCmdInfoBox = createInfoBox(tr("The start command can be used to start additional software components (e.g. Midi synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
+    _startCmdInfoBox = createInfoBox(tr("The start command can be used to start additional software components (e.g. MIDI synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
     layout->addWidget(_startCmdInfoBox, 9, 0, 1, 6);
 
     layout->addWidget(Terminal::terminal()->console(), 10, 0, 1, 6);

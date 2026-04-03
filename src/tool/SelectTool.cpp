@@ -137,11 +137,14 @@ bool SelectTool::release() {
         }
         foreach(MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
-                // When Ctrl is held, the SelectTool handles the keep/clear decision
+                // When Ctrl is held with BOX selection, the SelectTool handles the keep/clear decision
                 // itself, so we pass ignoreStr=true to bypass selectEvent's
                 // internal Ctrl toggle logic which would prevent adding new events.
+                // For SINGLE selection, we leave ignoreStr=false so the built-in
+                // Ctrl toggle (deselect if already selected) works correctly.
                 bool ctrlHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
-                selectEvent(event, false, ctrlHeld, false);
+                bool ignoreStr = (stool_type != SELECTION_TYPE_SINGLE) && ctrlHeld;
+                selectEvent(event, false, ignoreStr, false);
             }
         }
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());

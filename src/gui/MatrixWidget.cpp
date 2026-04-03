@@ -1578,15 +1578,20 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
         btn->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
         btn->setIconSize(QSize(iconSize, iconSize)); 
         btn->setMinimumHeight(48);
-        // Align text to bottom of button
-        btn->setStyleSheet("QToolButton { padding-bottom: 2px; }");
+        // Pin text to the absolute bottom of the button area
+        btn->setStyleSheet(
+            "QToolButton {"
+            "  padding-bottom: 2px;"
+            "  padding-top: 0px;"
+            "}"
+        );
         return btn;
     };
 
     QToolButton* copyBtn = createToolButton(tr("Copy"), ":/run_environment/graphics/tool/copy.png", hasSelection);
     QToolButton* pasteBtn = createToolButton(tr("Paste"), ":/run_environment/graphics/tool/paste.png", hasClipboard);
-    // Delete icon has larger margins in source, so slightly larger icon size to match perceived size
-    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 28);
+    // Delete icon has larger margins in source, so use larger icon size to match perceived size
+    QToolButton* deleteBtn = createToolButton(tr("Delete"), ":/run_environment/graphics/tool/eraser.png", hasSelection, 32);
 
     headerLayout->addWidget(copyBtn);
     headerLayout->addWidget(pasteBtn);

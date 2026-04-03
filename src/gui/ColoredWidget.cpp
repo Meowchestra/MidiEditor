@@ -12,13 +12,14 @@ ColoredWidget::ColoredWidget(QColor color, QWidget *parent)
 
 void ColoredWidget::paintEvent(QPaintEvent *event) {
     QPainter p;
-    int l = width() - 1;
-    int x = 0;
-    int y = (height() - 1 - l) / 2;
-    if (l > height() - 1) {
-        l = height() - 1;
-        y = 0;
-        x = (width() - 1 - l) / 2;
+    // Leave 1px margin on each side for the pen stroke to prevent clipping
+    int l = width() - 3;
+    int x = 1;
+    int y = (height() - l) / 2;
+    if (l > height() - 3) {
+        l = height() - 3;
+        y = 1;
+        x = (width() - l) / 2;
     }
 
     p.begin(this);
