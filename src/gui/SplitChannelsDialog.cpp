@@ -23,10 +23,40 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
+#include "../midi/MidiOutput.h"
+#include <QSettings>
+#include <QToolButton>
+#include <QTimer>
+#include <QSpinBox>
+
+static QString getNoteName(int note) {
+    if (note < 0 || note > 127) return "";
+    static const QString pitchClass[12] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+    return QString("%1%2").arg(pitchClass[note % 12]).arg((note / 12) - 1);
+}
+
+class NoteSpinBox : public QSpinBox {
+public:
+    NoteSpinBox(QWidget *parent = nullptr) : QSpinBox(parent) {}
+    QString textFromValue(int val) const override {
+        return QString("%1 (%2)").arg(val).arg(getNoteName(val));
+    }
+};
 
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QGroupBox>
+#include <QHeaderView>
+#include <QDialogButtonBox>
+#include <QPushButton>
+#include <QLabel>
+#include <QSpinBox>
+#include <QMessageBox>
+#include <QVariant>
+#include <QScrollArea>
+#include <QGridLayout>
+#include <QFrame>
+#include <algorithm>
 #include <QHeaderView>
 #include <QDialogButtonBox>
 #include <QPushButton>
@@ -41,11 +71,13 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
       _insertAfterRadio(nullptr), _insertAtEndRadio(nullptr),
       _channelTable(nullptr), _drumsGroup(nullptr),
       _usePresetCheck(nullptr), _presetCombo(nullptr),
-      _mappingTable(nullptr), _resetPresetBtn(nullptr),
+      _mappingScrollArea(nullptr), _resetPresetBtn(nullptr),
       _savePresetBtn(nullptr), _updatingTable(false) {
 
     setWindowTitle(tr("Split Channels to Tracks"));
     setModal(true);
+    setMinimumSize(850, 750);
+    resize(850, 750);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
@@ -67,7 +99,7 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     connect(_sourceTrackCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SplitChannelsDialog::onSourceTrackChanged);
 
     // Channel preview table
-    QGroupBox *previewGroup = new QGroupBox(tr("Channels found"), this);
+    QGroupBox *previewGroup = new QGroupBox(tr("Channels Found"), this);
     QVBoxLayout *previewLayout = new QVBoxLayout(previewGroup);
 
     _channelTable = new QTableWidget(0, 4, this);
@@ -91,20 +123,44 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     
     QLabel *presetLabel = new QLabel(tr("Preset:"), this);
     _presetCombo = new QComboBox(this);
-    _presetCombo->addItems(DrumKitPresetManager::instance().presetNames());
+    
+    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
+    QString lastPreset = settings.value("SplitChannelsDialog/lastPreset", DrumKitPresetManager::instance().presetNames().first()).toString();
+
+    QStringList presets = DrumKitPresetManager::instance().presetNames();
+    presets.sort(Qt::CaseInsensitive);
+
+    for (const QString &p : presets) {
+        QString displayName = DrumKitPresetManager::instance().isCustomPreset(p) ? p + " *" : p;
+        _presetCombo->addItem(displayName, p);
+    }
+    
+    int idx = _presetCombo->findData(lastPreset);
+    if (idx >= 0) _presetCombo->setCurrentIndex(idx);
+    else _presetCombo->setCurrentIndex(0);
     
     presetLayout->addWidget(_usePresetCheck);
     presetLayout->addStretch();
     presetLayout->addWidget(presetLabel);
+    _presetCombo->setMinimumWidth(250);
     presetLayout->addWidget(_presetCombo);
+    
+    _editMapBtn = new QPushButton(tr("Edit Preset Map..."), this);
+    _editMapBtn->setCheckable(true);
+    presetLayout->addWidget(_editMapBtn);
+    
     drumsLayout->addLayout(presetLayout);
 
-    _mappingTable = new QTableWidget(0, 4, this);
-    _mappingTable->setHorizontalHeaderLabels({tr("Source Note"), tr("Instrument"), tr("Group"), tr("Target Note")});
-    _mappingTable->horizontalHeader()->setStretchLastSection(true);
-    _mappingTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    _mappingTable->verticalHeader()->setVisible(false);
-    drumsLayout->addWidget(_mappingTable);
+    _mappingContainer = new QWidget(this);
+    QVBoxLayout *mapLayout = new QVBoxLayout(_mappingContainer);
+    mapLayout->setContentsMargins(0, 0, 0, 0);
+
+    _mappingScrollArea = new QScrollArea(this);
+    _mappingScrollArea->setWidgetResizable(true);
+    _mappingScrollArea->setMinimumHeight(400);
+    _mappingScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    _mappingScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    mapLayout->addWidget(_mappingScrollArea);
     
     QHBoxLayout *btnLayout = new QHBoxLayout();
     _resetPresetBtn = new QPushButton(tr("Reset Default"), this);
@@ -112,16 +168,22 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     btnLayout->addStretch();
     btnLayout->addWidget(_resetPresetBtn);
     btnLayout->addWidget(_savePresetBtn);
-    drumsLayout->addLayout(btnLayout);
+    mapLayout->addLayout(btnLayout);
+    
+    drumsLayout->addWidget(_mappingContainer);
+    _mappingContainer->hide();
     
     mainLayout->addWidget(_drumsGroup);
     _drumsGroup->hide();
     
+    connect(_editMapBtn, &QPushButton::toggled, this, [this](bool checked) {
+        _mappingContainer->setVisible(checked);
+    });
+    
     connect(_usePresetCheck, &QCheckBox::toggled, this, [this](bool checked) {
         _presetCombo->setEnabled(checked);
-        _mappingTable->setEnabled(checked);
-        _resetPresetBtn->setEnabled(checked);
-        _savePresetBtn->setEnabled(checked);
+        _editMapBtn->setEnabled(checked);
+        _mappingContainer->setEnabled(checked);
         if (_keepDrumsCheck) {
             _keepDrumsCheck->setEnabled(!checked);
             if (checked) _keepDrumsCheck->setChecked(false);
@@ -132,13 +194,13 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     connect(_resetPresetBtn, &QPushButton::clicked, this, &SplitChannelsDialog::onResetPresetClicked);
     connect(_savePresetBtn, &QPushButton::clicked, this, &SplitChannelsDialog::onSavePresetClicked);
     
-    _currentPreset = DrumKitPresetManager::instance().preset(_presetCombo->currentText());
+    _currentPreset = DrumKitPresetManager::instance().preset(_presetCombo->currentData().toString());
 
     // Options
     QGroupBox *optionsGroup = new QGroupBox(tr("Options"), this);
     QVBoxLayout *optionsLayout = new QVBoxLayout(optionsGroup);
 
-    _keepDrumsCheck = new QCheckBox(tr("Keep Channel 9 (Drums) on original track"), this);
+    _keepDrumsCheck = new QCheckBox(tr("Keep Channel 9 (Percussion) on source track"), this);
     _keepDrumsCheck->setToolTip(tr("When checked, drum events stay on the source track instead of getting their own track"));
     optionsLayout->addWidget(_keepDrumsCheck);
 
@@ -150,7 +212,7 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     mainLayout->addWidget(optionsGroup);
 
     // Track position
-    QGroupBox *positionGroup = new QGroupBox(tr("New track position"), this);
+    QGroupBox *positionGroup = new QGroupBox(tr("New Track Position"), this);
     QVBoxLayout *positionLayout = new QVBoxLayout(positionGroup);
 
     _insertAfterRadio = new QRadioButton(tr("Insert after source track"), this);
@@ -233,7 +295,7 @@ void SplitChannelsDialog::analyzeTrack(MidiTrack *track) {
         if (eventCount > 0) {
             QString name;
             if (ch == 9) {
-                name = tr("Drums");
+                name = tr("Drumkit");
             } else if (prog >= 0) {
                 name = MidiFile::gmInstrumentName(prog);
             } else {
@@ -261,9 +323,6 @@ void SplitChannelsDialog::analyzeTrack(MidiTrack *track) {
         _drumsGroup->hide();
         _keepDrumsCheck->setEnabled(true);
     }
-    
-    // Adjust size appropriately
-    resize(520, qMin(activeChannels.size() * 30 + (hasDrums ? 680 : 380), 800));
 }
 
 void SplitChannelsDialog::populatePreviewTable(const QList<ChannelInfo> &channels) {
@@ -275,7 +334,7 @@ void SplitChannelsDialog::populatePreviewTable(const QList<ChannelInfo> &channel
         chItem->setTextAlignment(Qt::AlignCenter);
         _channelTable->setItem(row, 0, chItem);
 
-        QString progStr = (info.channel == 9) ? tr("Drums") :
+        QString progStr = (info.channel == 9) ? tr("Drumkit") :
                           (info.programNumber >= 0) ? QString::number(info.programNumber) : QStringLiteral("-");
         auto *progItem = new QTableWidgetItem(progStr);
         progItem->setTextAlignment(Qt::AlignCenter);
@@ -288,70 +347,156 @@ void SplitChannelsDialog::populatePreviewTable(const QList<ChannelInfo> &channel
         _channelTable->setItem(row, 3, noteItem);
     }
     _channelTable->resizeColumnsToContents();
+    _channelTable->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _channelTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    _channelTable->horizontalHeader()->setSectionResizeMode(2, QHeaderView::Stretch);
+    _channelTable->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     _channelTable->setMinimumHeight(qMin(channels.size() * 30 + 30, 200));
 }
 
 void SplitChannelsDialog::populateMappingTable() {
-    if (!_mappingTable) return;
+    if (!_mappingScrollArea) return;
     
     _updatingTable = true;
     
-    int rowCount = 0;
-    for (const auto &g : _currentPreset.groups) {
-        rowCount += g.mappings.size();
-    }
+    QWidget *scrollWidget = new QWidget(this);
+    QVBoxLayout *scrollLayout = new QVBoxLayout(scrollWidget);
+    scrollLayout->setSpacing(10);
     
-    _mappingTable->setRowCount(rowCount);
-    _mappingTable->clearContents();
-    
-    int row = 0;
     for (int g = 0; g < _currentPreset.groups.size(); ++g) {
-        const auto &group = _currentPreset.groups[g];
+        DrumTrackGroup group = _currentPreset.groups[g];
+        if (group.mappings.isEmpty()) continue;
+        
+        QGroupBox *groupFrame = new QGroupBox(tr("Track: ") + group.trackName, scrollWidget);
+        QFont f = groupFrame->font();
+        f.setBold(true);
+        groupFrame->setFont(f);
+        
+        QGridLayout *gridLayout = new QGridLayout(groupFrame);
+        gridLayout->setSpacing(6);
+        
+        std::sort(group.mappings.begin(), group.mappings.end(), [](const DrumNoteMapping &a, const DrumNoteMapping &b) {
+            return a.sourceNote < b.sourceNote;
+        });
+        
+        int col = 0;
+        int row = 0;
         for (int m = 0; m < group.mappings.size(); ++m) {
             const auto &mapping = group.mappings[m];
             
-            auto *srcNoteItem = new QTableWidgetItem(QString::number(mapping.sourceNote));
-            srcNoteItem->setFlags(srcNoteItem->flags() & ~Qt::ItemIsEditable);
-            srcNoteItem->setTextAlignment(Qt::AlignCenter);
-            _mappingTable->setItem(row, 0, srcNoteItem);
+            QFrame *card = new QFrame(groupFrame);
+            card->setFrameShape(QFrame::StyledPanel);
+            card->setFrameShadow(QFrame::Raised);
+            QVBoxLayout *cardLayout = new QVBoxLayout(card);
+            cardLayout->setContentsMargins(4, 4, 4, 4);
+            cardLayout->setSpacing(4);
             
-            auto *nameItem = new QTableWidgetItem(mapping.drumName);
-            nameItem->setFlags(nameItem->flags() & ~Qt::ItemIsEditable);
-            _mappingTable->setItem(row, 1, nameItem);
+            QHBoxLayout *topLayout = new QHBoxLayout;
+            topLayout->setSpacing(4);
             
-            QComboBox *groupCombo = new QComboBox(this);
+            QGroupBox *sourceBox = new QGroupBox(mapping.drumName, card);
+            QVBoxLayout *srcL = new QVBoxLayout(sourceBox);
+            srcL->setContentsMargins(4, 12, 4, 4);
+            QLabel *srcLabel = new QLabel(QString("%1 (%2)").arg(mapping.sourceNote).arg(getNoteName(mapping.sourceNote)), sourceBox);
+            srcLabel->setAlignment(Qt::AlignCenter);
+            srcL->addWidget(srcLabel);
+            
+            QGroupBox *targetBox = new QGroupBox(tr("Transpose to Note"), card);
+            QHBoxLayout *tgtL = new QHBoxLayout(targetBox);
+            tgtL->setContentsMargins(4, 12, 4, 4);
+            
+            NoteSpinBox *targetNoteSpin = new NoteSpinBox(targetBox);
+            targetNoteSpin->setRange(0, 127);
+            targetNoteSpin->setValue(mapping.targetNote);
+            
+            QToolButton *playBtn = new QToolButton(targetBox);
+            playBtn->setIcon(QIcon(":/run_environment/graphics/tool/play.png"));
+            playBtn->setToolTip(tr("Preview Note"));
+            
+            tgtL->addWidget(targetNoteSpin);
+            tgtL->addWidget(playBtn);
+            
+            topLayout->addWidget(sourceBox);
+            topLayout->addWidget(targetBox);
+            cardLayout->addLayout(topLayout);
+            
+            QHBoxLayout *bottomLayout = new QHBoxLayout;
+            QComboBox *groupCombo = new QComboBox(card);
             for (const auto &grp : _currentPreset.groups) {
                 groupCombo->addItem(grp.trackName);
             }
             groupCombo->setCurrentText(group.trackName);
+            bottomLayout->addWidget(groupCombo);
+            cardLayout->addLayout(bottomLayout);
             
-            QSpinBox *targetNoteSpin = new QSpinBox(this);
-            targetNoteSpin->setRange(0, 127);
-            targetNoteSpin->setValue(mapping.targetNote);
+            gridLayout->addWidget(card, row, col);
             
-            _mappingTable->setCellWidget(row, 2, groupCombo);
-            _mappingTable->setCellWidget(row, 3, targetNoteSpin);
+            col++;
+            if (col >= 2) {
+                col = 0;
+                row++;
+            }
             
             int sNote = mapping.sourceNote;
+            bool isPerc = group.staysOnPercussionChannel;
+            int prog = group.programNumber;
+            
             connect(groupCombo, &QComboBox::currentTextChanged, this, [this, sNote](const QString &txt) {
-                if (!_updatingTable) onGroupChanged(sNote, txt);
+                if (!_updatingTable) {
+                    onGroupChanged(sNote, txt);
+                    populateMappingTable();
+                }
             });
             connect(targetNoteSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, sNote](int val) {
                 if (!_updatingTable) onTargetNoteChanged(sNote, val);
             });
-            
-            ++row;
+            connect(playBtn, &QToolButton::clicked, this, [playBtn, targetNoteSpin, isPerc, prog]() {
+                QTimer *tmr = playBtn->findChild<QTimer*>("PlayTimer");
+                if (!tmr) {
+                    tmr = new QTimer(playBtn);
+                    tmr->setObjectName("PlayTimer");
+                    tmr->setSingleShot(true);
+                }
+                tmr->disconnect();
+                
+                int ch = isPerc ? 9 : 0;
+                int note = targetNoteSpin->value();
+                
+                // Ensure any previous preview is properly silenced
+                QByteArray off; off.append((char)(0x80 | ch)); off.append((char)note); off.append((char)0);
+                MidiOutput::sendCommand(off);
+                
+                if (!isPerc && prog >= 0) {
+                    MidiOutput::sendProgram(ch, prog);
+                }
+                QByteArray onMsg; onMsg.append((char)(0x90 | ch)); onMsg.append((char)note); onMsg.append((char)100);
+                MidiOutput::sendCommand(onMsg);
+                
+                QObject::connect(tmr, &QTimer::timeout, playBtn, [ch, note]() {
+                    QByteArray offMsg; offMsg.append((char)(0x80 | ch)); offMsg.append((char)note); offMsg.append((char)0);
+                    MidiOutput::sendCommand(offMsg);
+                });
+                tmr->start(500);
+            });
         }
+        scrollLayout->addWidget(groupFrame);
     }
     
-    _mappingTable->resizeColumnsToContents();
-    _mappingTable->setMinimumHeight(200);
+    scrollLayout->addStretch();
+    _mappingScrollArea->setWidget(scrollWidget);
+    
     _updatingTable = false;
 }
 
 void SplitChannelsDialog::onPresetSelected(const QString &presetName) {
     if (_usePresetCheck && !_usePresetCheck->isChecked()) return;
-    _currentPreset = DrumKitPresetManager::instance().preset(presetName);
+    int idx = _presetCombo->findText(presetName);
+    if (idx < 0) return;
+    QString realName = _presetCombo->itemData(idx).toString();
+    _currentPreset = DrumKitPresetManager::instance().preset(realName);
+    
+    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
+    settings.setValue("SplitChannelsDialog/lastPreset", realName);
     populateMappingTable();
 }
 
@@ -393,11 +538,22 @@ void SplitChannelsDialog::onGroupChanged(int sourceNote, const QString &newGroup
 }
 
 void SplitChannelsDialog::onResetPresetClicked() {
-    DrumKitPresetManager::instance().resetPreset(_currentPreset.name);
-    _currentPreset = DrumKitPresetManager::instance().preset(_currentPreset.name);
+    int res = QMessageBox::warning(this, tr("Reset Preset"), tr("Are you sure you want to discard your custom edits to this preset and restore the defaults?"), QMessageBox::Yes | QMessageBox::No, QMessageBox::No);
+    if(res != QMessageBox::Yes) return;
+    
+    QString realName = _presetCombo->currentData().toString();
+    DrumKitPresetManager::instance().resetPreset(realName);
+    _currentPreset = DrumKitPresetManager::instance().preset(realName);
+    int idx = _presetCombo->currentIndex();
+    _presetCombo->setItemText(idx, realName); // Remove *
     populateMappingTable();
 }
 
 void SplitChannelsDialog::onSavePresetClicked() {
     DrumKitPresetManager::instance().savePreset(_currentPreset);
+    int idx = _presetCombo->currentIndex();
+    QString realName = _presetCombo->itemData(idx).toString();
+    if(DrumKitPresetManager::instance().isCustomPreset(realName)) {
+        _presetCombo->setItemText(idx, realName + " *");
+    }
 }

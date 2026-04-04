@@ -71,6 +71,9 @@ public:
     /// Returns the list of all available preset names.
     QStringList presetNames() const;
 
+    /// Returns true if a preset has user edits saved/exists in memory.
+    bool isCustomPreset(const QString &name) const;
+
     /// Returns a preset by name. If user has saved edits, those are returned.
     DrumKitPreset preset(const QString &name) const;
 

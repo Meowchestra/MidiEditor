@@ -30,7 +30,7 @@ DrumKitPresetManager::DrumKitPresetManager() {
     initDefaults();
     
     // Load any user edits from QSettings
-    QSettings settings;
+    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
     settings.beginGroup("DrumKitPresets");
     QStringList savedPresets = settings.childGroups();
     
@@ -113,6 +113,10 @@ QStringList DrumKitPresetManager::presetNames() const {
     return names;
 }
 
+bool DrumKitPresetManager::isCustomPreset(const QString &name) const {
+    return _userEdits.contains(name);
+}
+
 DrumKitPreset DrumKitPresetManager::preset(const QString &name) const {
     if (_userEdits.contains(name)) {
         return _userEdits.value(name);
@@ -170,7 +174,7 @@ void DrumKitPresetManager::savePreset(const DrumKitPreset &preset) {
         }
     }
     
-    QSettings settings;
+    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
     settings.beginGroup("DrumKitPresets");
     settings.beginGroup(preset.name);
     settings.remove(""); // clear old edits
@@ -193,7 +197,7 @@ void DrumKitPresetManager::savePreset(const DrumKitPreset &preset) {
 void DrumKitPresetManager::resetPreset(const QString &name) {
     _userEdits.remove(name);
     
-    QSettings settings;
+    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
     settings.beginGroup("DrumKitPresets");
     settings.remove(name);
     settings.endGroup();
@@ -244,7 +248,7 @@ void DrumKitPresetManager::initDefaults() {
         QList<DrumTrackGroup> groups;
         
         DrumTrackGroup bDrum;
-        bDrum.trackName = "BassDrum";
+        bDrum.trackName = "Bass Drum";
         bDrum.programNumber = 97; // FFXIV BassDrum
         bDrum.staysOnPercussionChannel = false;
         
@@ -289,10 +293,16 @@ void DrumKitPresetManager::initDefaults() {
             }
         }
         
+        DrumTrackGroup timp;
+        timp.trackName = "Timpani";
+        timp.programNumber = 47;
+        timp.staysOnPercussionChannel = false;
+        
         preset.groups.append(bDrum);
         preset.groups.append(sDrum);
         preset.groups.append(cym);
         preset.groups.append(bgo);
+        preset.groups.append(timp);
         preset.groups.append(rest);
         
         return preset;

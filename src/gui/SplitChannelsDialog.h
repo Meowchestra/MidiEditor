@@ -23,6 +23,7 @@
 #include <QCheckBox>
 #include <QRadioButton>
 #include <QTableWidget>
+#include <QScrollArea>
 #include <QComboBox>
 #include <QPushButton>
 #include <QGroupBox>
@@ -80,7 +81,9 @@ private:
     QGroupBox *_drumsGroup;
     QCheckBox *_usePresetCheck;
     QComboBox *_presetCombo;
-    QTableWidget *_mappingTable;
+    QPushButton *_editMapBtn;
+    QWidget *_mappingContainer;
+    QScrollArea *_mappingScrollArea;
     QPushButton *_resetPresetBtn;
     QPushButton *_savePresetBtn;
 

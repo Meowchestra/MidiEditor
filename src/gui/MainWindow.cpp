@@ -2819,11 +2819,14 @@ void MainWindow::splitChannelsToTracks() {
                     }
                 }
 
+                MidiTrack *firstDrumTrack = nullptr;
+
                 // Create a track for each used group
                 for (const auto &g : drumPreset.groups) {
                     if (!groupNotes[g.trackName].isEmpty()) {
                         file->addTrack();
                         MidiTrack *dst = file->tracks()->last();
+                        if (!firstDrumTrack) firstDrumTrack = dst;
                         dst->setName(g.trackName);
                         
                         // Set channel (10 or 1-9/11-15 for melodic)
@@ -2858,10 +2861,20 @@ void MainWindow::splitChannelsToTracks() {
                     }
                 }
                 
-                // What about non-note events on Channel 9? (CC, PitchBend, etc.)
-                // Usually we copy them to all split tracks, or just leave them.
-                // For now, let's leave them on the source track (if not removing) or delete them.
-                // Since this splits drums efficiently, we skip moving generic CH9 CCs.
+                if (firstDrumTrack) {
+                    QList<MidiEvent *> remainingEvents;
+                    for (auto it = emap->begin(); it != emap->end(); ++it) {
+                        if (it.value()->track() == sourceTrack && 
+                            !dynamic_cast<NoteOnEvent*>(it.value()) && 
+                            !dynamic_cast<OffEvent*>(it.value())) {
+                            remainingEvents.append(it.value());
+                        }
+                    }
+                    for (MidiEvent *ev : remainingEvents) {
+                        ev->setTrack(firstDrumTrack);
+                        movedEvents++;
+                    }
+                }
                 continue;
             }
         }
@@ -2923,6 +2936,7 @@ void MainWindow::splitChannelsToTracks() {
             if (metaMap) {
                 for (auto it = metaMap->begin(); it != metaMap->end(); ++it) {
                     if (it.value()->track() == sourceTrack) {
+                        if (dynamic_cast<TextEvent*>(it.value())) continue; // Ignore track names and texts when resolving emptiness
                         sourceEmpty = false;
                         break;
                     }
