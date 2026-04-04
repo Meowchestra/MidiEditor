@@ -12,4 +12,5 @@
     <ForcedInstallation>true</ForcedInstallation>
     <ForcedUpdate>false</ForcedUpdate>
     <Essential>false</Essential>
+    <Script>installscript.qs</Script>
 </Package>
