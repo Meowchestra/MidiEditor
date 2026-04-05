@@ -409,7 +409,17 @@ BeatEffect Gp3Parser::readBeatEffects(GpNoteEffect* /*effect*/) {
     if (flags & 0x20) {
         int8_t slapValue = reader.readSignedByte()[0];
         if (slapValue == 0) {
-            beatEffect.tremoloBar = std::make_unique<BendEffect>(readBend());
+            // GP3 tremoloBar: simplified dip with just a value, not full bend curve
+            auto tremoloBar = std::make_unique<BendEffect>();
+            tremoloBar->type = BendType::dip;
+            tremoloBar->value = reader.readInt()[0];
+            tremoloBar->points.push_back(BendPoint(0, 0, false));
+            tremoloBar->points.push_back(BendPoint(
+                static_cast<int>(std::round(BendEffect::maxPosition / 2.0f)),
+                static_cast<int>(std::round(tremoloBar->value * BendEffect::semitoneLength * 2.0f / static_cast<float>(GPBaseConstants::bendSemitone))),
+                false));
+            tremoloBar->points.push_back(BendPoint(BendEffect::maxPosition, 0, false));
+            beatEffect.tremoloBar = std::move(tremoloBar);
         } else {
             beatEffect.slapEffect = static_cast<SlapEffect>(slapValue);
             reader.readInt(); // skip value
@@ -524,37 +534,34 @@ void Gp3Parser::readOldChord(Chord& chord) {
 }
 
 void Gp3Parser::readNewChord(Chord& chord) {
+    // GP3 uses readInt for most fields (4 bytes each)
     chord.sharp = reader.readBool()[0];
     reader.skip(3);
-    chord.root = PitchClass(reader.readByte()[0], -1);
-    chord.chordType = static_cast<ChordType>(reader.readByte()[0]);
-    chord.extension = static_cast<ChordExtension>(reader.readByte()[0]);
+    chord.root = PitchClass(reader.readInt()[0], -1);
+    chord.chordType = static_cast<ChordType>(reader.readInt()[0]);
+    chord.extension = static_cast<ChordExtension>(reader.readInt()[0]);
     chord.bass = PitchClass(reader.readInt()[0], -1);
     chord.tonality = static_cast<ChordAlteration>(reader.readInt()[0]);
     chord.add = reader.readBool()[0];
     chord.name = reader.readByteSizeString(22);
-    chord.fifth = static_cast<ChordAlteration>(reader.readByte()[0]);
-    chord.ninth = static_cast<ChordAlteration>(reader.readByte()[0]);
-    chord.eleventh = static_cast<ChordAlteration>(reader.readByte()[0]);
+    chord.fifth = static_cast<ChordAlteration>(reader.readInt()[0]);
+    chord.ninth = static_cast<ChordAlteration>(reader.readInt()[0]);
+    chord.eleventh = static_cast<ChordAlteration>(reader.readInt()[0]);
     chord.firstFret = reader.readInt()[0];
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 6; i++) {
         int fret = reader.readInt()[0];
         if (i < static_cast<int>(chord.strings.size())) chord.strings[i] = fret;
     }
     chord.barres.clear();
-    int barresCount = reader.readByte()[0];
-    auto barreFrets = reader.readByte(5);
-    auto barreStarts = reader.readByte(5);
-    auto barreEnds = reader.readByte(5);
-    for (int x = 0; x < std::min(5, barresCount); x++) {
+    int barresCount = reader.readInt()[0];
+    auto barreFrets = reader.readInt(2);
+    auto barreStarts = reader.readInt(2);
+    auto barreEnds = reader.readInt(2);
+    for (int x = 0; x < std::min(2, barresCount); x++) {
         chord.barres.push_back(Chord::Barre(barreFrets[x], barreStarts[x], barreEnds[x]));
     }
     chord.omissions = reader.readBool(7);
     reader.skip(1);
-    for (int x = 0; x < 7; x++) {
-        chord.fingerings.push_back(static_cast<Fingering>(reader.readSignedByte()[0]));
-    }
-    chord.show = reader.readBool()[0];
 }
 
 BeatText Gp3Parser::readText() {
@@ -703,6 +710,16 @@ void Gp4Parser::readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) {
     }
 
     readMixTableChangeDurations(tc.get());
+
+    // GP4+ reads allTracks flags byte after durations
+    int8_t allTracksFlags = reader.readSignedByte()[0];
+    if (tc->volume) tc->volume->allTracks = (allTracksFlags & 0x01) != 0;
+    if (tc->balance) tc->balance->allTracks = (allTracksFlags & 0x02) != 0;
+    if (tc->chorus) tc->chorus->allTracks = (allTracksFlags & 0x04) != 0;
+    if (tc->reverb) tc->reverb->allTracks = (allTracksFlags & 0x08) != 0;
+    if (tc->phaser) tc->phaser->allTracks = (allTracksFlags & 0x10) != 0;
+    if (tc->tremolo) tc->tremolo->allTracks = (allTracksFlags & 0x20) != 0;
+
     beatEffect.mixTableChange = std::move(tc);
 }
 
@@ -718,6 +735,42 @@ void Gp4Parser::readMixTableChangeDurations(MixTableChange* tc) {
     }
 }
 
+void Gp4Parser::readNewChord(Chord& chord) {
+    // GP4 uses readByte (1 byte) for root/type/extension/fifth/ninth/eleventh
+    // GP3 used readInt (4 bytes) for those same fields
+    chord.sharp = reader.readBool()[0];
+    reader.skip(3);
+    chord.root = PitchClass(reader.readByte()[0], -1);
+    chord.chordType = static_cast<ChordType>(reader.readByte()[0]);
+    chord.extension = static_cast<ChordExtension>(reader.readByte()[0]);
+    chord.bass = PitchClass(reader.readInt()[0], -1);
+    chord.tonality = static_cast<ChordAlteration>(reader.readInt()[0]);
+    chord.add = reader.readBool()[0];
+    chord.name = reader.readByteSizeString(22);
+    chord.fifth = static_cast<ChordAlteration>(reader.readByte()[0]);
+    chord.ninth = static_cast<ChordAlteration>(reader.readByte()[0]);
+    chord.eleventh = static_cast<ChordAlteration>(reader.readByte()[0]);
+    chord.firstFret = reader.readInt()[0];
+    for (int i = 0; i < 7; i++) {
+        int fret = reader.readInt()[0];
+        if (i < static_cast<int>(chord.strings.size())) chord.strings[i] = fret;
+    }
+    chord.barres.clear();
+    int barresCount = reader.readByte()[0];
+    auto barreFrets = reader.readByte(5);
+    auto barreStarts = reader.readByte(5);
+    auto barreEnds = reader.readByte(5);
+    for (int x = 0; x < std::min(5, barresCount); x++) {
+        chord.barres.push_back(Chord::Barre(barreFrets[x], barreStarts[x], barreEnds[x]));
+    }
+    chord.omissions = reader.readBool(7);
+    reader.skip(1);
+    for (int x = 0; x < 7; x++) {
+        chord.fingerings.push_back(static_cast<Fingering>(reader.readSignedByte()[0]));
+    }
+    chord.show = reader.readBool()[0];
+}
+
 // ============================================================
 // GP5 Parser — ported from GP5File.cs
 // ============================================================
@@ -728,9 +781,10 @@ void Gp5Parser::readSong() {
     version = readVersion();
     readVersionTuple();
     readInfo();
-    readDirections();
-    tripletFeel_ = reader.readBool()[0] ? TripletFeel::eigth : TripletFeel::none;
     readLyrics();
+
+    // GP5: RSE master effect (volume + equalizer, only v5.1+)
+    readRSEMasterEffect();
 
     // GP5 page setup
     readPageSetup();
@@ -742,10 +796,14 @@ void Gp5Parser::readSong() {
     }
 
     key_ = static_cast<KeySignature>(reader.readSignedByte()[0] * 10);
-    reader.readInt(); // skip
-    reader.readBool(); // octave
+    reader.readInt(); // octave (GP5 uses readInt, not readSignedByte)
 
     readMidiChannels();
+    readDirections();
+
+    // GP5: master reverb
+    reader.readInt(); // masterEffect.reverb
+
     measureCount = reader.readInt()[0];
     trackCount = reader.readInt()[0];
 
@@ -795,6 +853,37 @@ void Gp5Parser::readPageSetup() {
     pageSetup->copyright = reader.readIntByteSizeString();
     pageSetup->copyright += "\n" + reader.readIntByteSizeString();
     pageSetup->pageNumber = reader.readIntByteSizeString();
+}
+
+void Gp5Parser::readInfo() {
+    // GP5 reads 10 fields (adds 'words' and 'music' vs GP3/GP4's 8)
+    title = reader.readIntByteSizeString();
+    subtitle = reader.readIntByteSizeString();
+    interpret = reader.readIntByteSizeString();
+    album = reader.readIntByteSizeString();
+    words = reader.readIntByteSizeString();
+    music = reader.readIntByteSizeString();
+    copyright = reader.readIntByteSizeString();
+    tab_author = reader.readIntByteSizeString();
+    instructional = reader.readIntByteSizeString();
+    noticeCount_ = reader.readInt()[0];
+    for (int i = 0; i < noticeCount_ && i < 256; i++) {
+        notice_[i] = reader.readIntByteSizeString();
+    }
+}
+
+void Gp5Parser::readRSEMasterEffect() {
+    if (versionTuple[1] <= 0) return;
+    reader.readInt(); // volume
+    reader.readInt(); // unknown
+    readEqualizer(11);
+}
+
+void Gp5Parser::readEqualizer(int knobsCount) {
+    // Read knobsCount - 1 band values + 1 gain value (all signed bytes)
+    for (int x = 0; x < knobsCount; x++) {
+        reader.readSignedByte(); // band value or gain
+    }
 }
 
 // --- GP5 Measure Headers ---
@@ -1007,9 +1096,9 @@ void Gp5Parser::readMeasure(GpMeasure* measure) {
         }
     }
 
-    // Read linebreak and similemark for GP5.1+
-    if (versionTuple[1] > 0) {
-        reader.skip(1); // linebreak
+    // GP5: linebreak byte (always present, unless at EOF for the very last entry)
+    if (reader.getPointer() < reader.dataSize()) {
+        measure->lineBreak = static_cast<LineBreak>(reader.readByte()[0]);
     }
 }
 
@@ -1050,24 +1139,143 @@ void Gp5Parser::readBeat(int start, GpMeasure* measure, GpVoice* voice, int voic
         }
     }
 
-    // GP5 extras: read beat display info
-    if (versionTuple[1] > 0) {
-        reader.readByte(); // extra flags
-        if (reader.readByte()[0] == 8 || reader.readByte()[0] == 10) {
-            // rewind the two reads and skip properly
-            reader.setPointer(reader.getPointer() - 2);
-        } else {
-            reader.setPointer(reader.getPointer() - 2);
-        }
+    // GP5 extras: read beat display flags
+    int16_t flags2 = reader.readShort()[0];
+    if (flags2 & 0x0800) {
+        reader.readByte(); // breakSecondary
     }
 }
 
 void Gp5Parser::readNote(GpNote* note, GpBeat* beat) {
-    Gp4Parser::readNote(note, beat);
+    uint8_t flags = reader.readByte()[0];
+
+    note->effect.heavyAccentuatedNote = (flags & 0x02) != 0;
+    note->effect.ghostNote = (flags & 0x04) != 0;
+    note->effect.accentuatedNote = (flags & 0x40) != 0;
+
+    if (flags & 0x20) {
+        uint8_t noteType = reader.readByte()[0];
+        note->type = static_cast<NoteType>(noteType);
+    } else {
+        note->type = NoteType::normal;
+    }
+
+    if (flags & 0x10) {
+        int velocity = reader.readSignedByte()[0];
+        note->velocity = Velocities::minVelocity +
+            (Velocities::velocityIncrement * velocity) - Velocities::velocityIncrement;
+    }
+
+    if (flags & 0x20) {
+        int fret = reader.readSignedByte()[0];
+        if (note->type == NoteType::normal) {
+            note->value = fret;
+        }
+    }
+
+    if (flags & 0x80) {
+        note->effect.leftHandFinger = static_cast<Fingering>(reader.readSignedByte()[0]);
+        note->effect.rightHandFinger = static_cast<Fingering>(reader.readSignedByte()[0]);
+    }
+
+    if (flags & 0x01) {
+        // GP5: durationPercent comes AFTER fingering (not before velocity)
+        note->durationPercent = reader.readDouble()[0];
+    }
+
+    // GP5: extra flags2 byte before note effects
+    uint8_t flags2 = reader.readByte()[0];
+    note->swapAccidentals = (flags2 & 0x02) != 0;
+
+    if (flags & 0x08) {
+        readNoteEffects(note);
+    }
 }
 
 void Gp5Parser::readNoteEffects(GpNote* note) {
-    Gp4Parser::readNoteEffects(note);
+    uint8_t flags1 = reader.readByte()[0];
+    uint8_t flags2 = reader.readByte()[0];
+
+    note->effect.hammer = (flags1 & 0x02) != 0;
+    note->effect.letRing = (flags1 & 0x08) != 0;
+
+    if (flags1 & 0x01) {
+        note->effect.bend = std::make_unique<BendEffect>(readBend());
+    }
+    if (flags1 & 0x10) {
+        note->effect.grace = std::make_unique<GraceEffect>(readGrace());
+    }
+
+    if (flags2 & 0x01) {
+        note->effect.staccato = true;
+    }
+    if (flags2 & 0x02) {
+        note->effect.palmMute = true;
+    }
+    if (flags2 & 0x04) {
+        note->effect.tremoloPicking = std::make_unique<TremoloPickingEffect>();
+        int8_t val = reader.readSignedByte()[0];
+        switch (val) {
+            case 1: note->effect.tremoloPicking->duration.value = 8; break;
+            case 2: note->effect.tremoloPicking->duration.value = 16; break;
+            case 3: note->effect.tremoloPicking->duration.value = 32; break;
+        }
+    }
+    if (flags2 & 0x08) {
+        // GP5: unsigned byte interpreted as bitmask
+        uint8_t slideVal = reader.readByte()[0];
+        if (slideVal & 0x01) note->effect.slides.push_back(SlideType::shiftSlideTo);
+        if (slideVal & 0x02) note->effect.slides.push_back(SlideType::legatoSlideTo);
+        if (slideVal & 0x04) note->effect.slides.push_back(SlideType::outDownwards);
+        if (slideVal & 0x08) note->effect.slides.push_back(SlideType::outUpwards);
+        if (slideVal & 0x10) note->effect.slides.push_back(SlideType::intoFromBelow);
+        if (slideVal & 0x20) note->effect.slides.push_back(SlideType::intoFromAbove);
+    }
+    if (flags2 & 0x10) {
+        // GP5 harmonic: different from GP4 (case 2 = artificial, case 3 = tapped with fret)
+        int8_t harmonicType = reader.readSignedByte()[0];
+        switch (harmonicType) {
+            case 1: note->effect.harmonic = std::make_unique<NaturalHarmonic>(); break;
+            case 2: {
+                // GP5: ArtificialHarmonic with pitch class + octave (3 extra bytes)
+                uint8_t semitone = reader.readByte()[0];
+                int8_t accidental = reader.readSignedByte()[0];
+                uint8_t octave = reader.readByte()[0];
+                PitchClass pc(semitone, accidental);
+                note->effect.harmonic = std::make_unique<ArtificialHarmonic>(pc, static_cast<Octave>(octave));
+                break;
+            }
+            case 3: {
+                // GP5: TappedHarmonic with fret (1 extra byte)
+                uint8_t fret = reader.readByte()[0];
+                auto th = std::make_unique<TappedHarmonic>();
+                th->fret = fret;
+                note->effect.harmonic = std::move(th);
+                break;
+            }
+            case 4: note->effect.harmonic = std::make_unique<PinchHarmonic>(); break;
+            case 5: note->effect.harmonic = std::make_unique<SemiHarmonic>(); break;
+            case 15:
+            case 17:
+            case 22:
+                note->effect.harmonic = std::make_unique<ArtificialHarmonic>();
+                break;
+            default: note->effect.harmonic = std::make_unique<NaturalHarmonic>(); break;
+        }
+    }
+    if (flags2 & 0x20) {
+        note->effect.trill = std::make_unique<TrillEffect>();
+        note->effect.trill->fret = reader.readSignedByte()[0];
+        int8_t period = reader.readSignedByte()[0];
+        switch (period) {
+            case 1: note->effect.trill->duration.value = 4; break;
+            case 2: note->effect.trill->duration.value = 8; break;
+            case 3: note->effect.trill->duration.value = 16; break;
+        }
+    }
+    if (flags2 & 0x40) {
+        note->effect.vibrato = true;
+    }
 }
 
 BeatEffect Gp5Parser::readBeatEffects(GpNoteEffect* effect) {

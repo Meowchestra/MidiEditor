@@ -109,9 +109,9 @@ std::string GpBinaryReader::readByteSizeString(int size) {
 }
 
 std::string GpBinaryReader::readIntByteSizeString() {
-    // Read an int (ignored), then a string with byte-size prefix
-    readInt(); // skip the int
-    return readByteSizeString(readByte()[0]);
+    // Read length of string + 1 stored as int32, then byte-prefixed string
+    int d = readInt()[0] - 1;
+    return readByteSizeString(d);
 }
 
 std::string GpBinaryReader::readIntSizeString() {

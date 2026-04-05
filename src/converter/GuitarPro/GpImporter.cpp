@@ -1,6 +1,7 @@
 #include "GpImporter.h"
 #include "GpModels.h"
 #include "GpBinaryReader.h"
+#include "Gp12Parser.h"
 #include "Gp345Parser.h"
 #include "Gp678Parser.h"
 #include "GpUnzip.h"
@@ -15,7 +16,6 @@
 #include <QDir>
 #include <QDebug>
 
-#include <fstream>
 #include <memory>
 #include <algorithm>
 #include <cstring>
@@ -118,6 +118,19 @@ MidiFile* GpImporter::loadFile(QString path, bool* ok) {
                 }
                 gpFile->readSong();
             }
+        } else if (ext == "gtp") {
+            // GP1/GP2 legacy format — detect version from header
+            std::string header(data.begin(),
+                               data.begin() + std::min(data.size(), static_cast<size_t>(50)));
+
+            if (header.find("GUITARE") != std::string::npos) {
+                // French "GUITARE" → GP1 (v1.xx)
+                gpFile = std::make_unique<Gp1Parser>(data);
+            } else {
+                // English "GUITAR PRO v2" → GP2 (v2.xx)
+                gpFile = std::make_unique<Gp2Parser>(data);
+            }
+            gpFile->readSong();
         } else {
             qWarning() << "GpImporter: unknown file extension:" << ext;
             return nullptr;

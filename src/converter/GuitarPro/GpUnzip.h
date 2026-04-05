@@ -31,7 +31,7 @@ private:
     std::vector<ZipEntry> entries_;
 
     void parseEntries();
-    std::vector<uint8_t> inflate(const uint8_t* compressedData, uint32_t compressedSize, uint32_t uncompressedSize);
+    std::vector<uint8_t> inflateData(const uint8_t* compressedData, uint32_t compressedSize, uint32_t uncompressedSize);
 };
 
 #endif // GPUNZIP_H

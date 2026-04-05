@@ -76,6 +76,7 @@ protected:
     void readNoteEffects(GpNote* note) override;
     BeatEffect readBeatEffects(GpNoteEffect* effect) override;
     void readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) override;
+    void readNewChord(Chord& chord) override;
     virtual void readMixTableChangeDurations(MixTableChange* tc);
 };
 
@@ -93,6 +94,7 @@ protected:
 
     void readMeasureHeaders(int count) override;
     MeasureHeader* readMeasureHeader(int number, MeasureHeader* previous) override;
+    void readInfo() override;
     void readTracks(int count) override;
     void readTrack(GpTrack* track) override;
     void readMeasures() override;
@@ -106,6 +108,8 @@ protected:
 
     void readDirections();
     void readPageSetup();
+    void readRSEMasterEffect();
+    void readEqualizer(int knobsCount);
     void readTrackRSE(TrackRSE* rse);
     RSEInstrument readRSEInstrument();
     void readRSEInstrumentEffect(RSEInstrument* rse);

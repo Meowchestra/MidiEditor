@@ -117,47 +117,53 @@ void Gp6Parser::readSong() {
 }
 
 std::string Gp6Parser::decompressGPX(const std::vector<uint8_t>& data) {
-    // GPX files use a custom BCF compression
-    // The file starts with "BCFZ" header
+    // GPX files use BCFZ — a custom bit-level LZ77 compression
     if (data.size() < 8) throw std::runtime_error("GP6: file too small");
 
     // Check for BCFZ header
     if (data[0] == 'B' && data[1] == 'C' && data[2] == 'F' && data[3] == 'Z') {
-        // BCFZ compressed format
-        // After 4-byte header + 4-byte uncompressed size
-        uint32_t uncompressedSize;
-        std::memcpy(&uncompressedSize, &data[4], 4);
+        // BCFZ compressed format: 4-byte magic + 4-byte estimated size + LZ77 bitstream
+        GpBitStream bs(data);
+        bs.skipBytes(8); // Skip "BCFZ" + 4-byte size
 
-        std::vector<uint8_t> uncompressed(uncompressedSize);
-        z_stream stream;
-        std::memset(&stream, 0, sizeof(stream));
-        stream.next_in = const_cast<uint8_t*>(&data[8]);
-        stream.avail_in = static_cast<uint32_t>(data.size() - 8);
-        stream.next_out = uncompressed.data();
-        stream.avail_out = uncompressedSize;
+        std::vector<uint8_t> decompressed;
+        decompressed.reserve(data.size() * 4);
 
-        inflateInit2(&stream, -MAX_WBITS);
-        inflate(&stream, Z_FINISH);
-        inflateEnd(&stream);
-        uncompressed.resize(stream.total_out);
+        while (!bs.isFinished()) {
+            bool isCompressed = bs.getBit();
 
-        // The uncompressed data is a BCF container
-        // Parse it to extract the XML
-        GpBitStream bs(uncompressed);
+            if (isCompressed) {
+                int wordSize = bs.getBitsBE(4);
+                int offset = bs.getBitsLE(wordSize);
+                int length = bs.getBitsLE(wordSize);
 
-        // Read sector size and sector count
-        // The BCF consists of a file system — find the relevant file
-        // Simplified: scan for "<?xml" or "<GPIF" in the decompressed data
-        std::string content(uncompressed.begin(), uncompressed.end());
-        auto xmlPos = content.find("<?xml");
+                int sourcePosition = static_cast<int>(decompressed.size()) - offset;
+                if (sourcePosition < 0) break;
+
+                int toRead = std::min(length, offset);
+                for (int r = sourcePosition; r < sourcePosition + toRead; r++) {
+                    decompressed.push_back(decompressed[r]);
+                }
+            } else {
+                int byteLength = bs.getBitsLE(2);
+                for (int x = 0; x < byteLength; x++) {
+                    decompressed.push_back(bs.getByte());
+                }
+            }
+        }
+
+        // Search for XML content in decompressed BCF data
+        std::string content(decompressed.begin(), decompressed.end());
+        size_t xmlPos = std::string::npos;
+
+        // Look for XML start: "<?xml" or "<GPIF"
+        xmlPos = content.find("<?xml");
         if (xmlPos == std::string::npos) xmlPos = content.find("<GPIF");
         if (xmlPos == std::string::npos) {
-            // Try BCF sector reading
-            // Each sector is ~4096 bytes; the file allocation table tracks sectors
-            // For now, try to find XML content in the raw bytes
-            for (size_t i = 0; i < uncompressed.size() - 4; i++) {
-                if (uncompressed[i] == '<' && uncompressed[i+1] == 'G' &&
-                    uncompressed[i+2] == 'P' && uncompressed[i+3] == 'I') {
+            // Scan byte by byte for "<GPI"
+            for (size_t i = 0; i + 3 < decompressed.size(); i++) {
+                if (decompressed[i] == '<' && decompressed[i+1] == 'G' &&
+                    decompressed[i+2] == 'P' && decompressed[i+3] == 'I') {
                     xmlPos = i;
                     break;
                 }
@@ -325,16 +331,22 @@ void Gp6Parser::gp6NodeToGP5File(XmlNode* root) {
     gp5->versionTuple[0] = 5;
     gp5->versionTuple[1] = 10;
 
-    // Find main nodes
-    auto* nScore = root->getSubnodeByName("Score");
-    auto* nMasterTrack = root->getSubnodeByName("MasterTrack");
-    auto* nTracks = root->getSubnodeByName("Tracks", true);
-    auto* nMasterBars = root->getSubnodeByName("MasterBars");
-    auto* nBars = root->getSubnodeByName("Bars");
-    auto* nVoices = root->getSubnodeByName("Voices");
-    auto* nBeats = root->getSubnodeByName("Beats");
-    auto* nNotes = root->getSubnodeByName("Notes");
-    auto* nRhythms = root->getSubnodeByName("Rhythms");
+    // Find GPIF root element (the XML wrapper adds an unnamed root above it)
+    auto* gpifNode = root->getSubnodeByName("GPIF");
+    if (!gpifNode) gpifNode = root; // fallback if GPIF is the root itself
+
+    // Find main nodes (search from GPIF node, not the wrapper root)
+    // MUST use directOnly=true because names like "Bars", "Voices", "Beats", "Notes"
+    // also appear as children of MasterBar/Bar/Voice/Beat elements with different meaning
+    auto* nScore = gpifNode->getSubnodeByName("Score", true);
+    auto* nMasterTrack = gpifNode->getSubnodeByName("MasterTrack", true);
+    auto* nTracks = gpifNode->getSubnodeByName("Tracks", true);
+    auto* nMasterBars = gpifNode->getSubnodeByName("MasterBars", true);
+    auto* nBars = gpifNode->getSubnodeByName("Bars", true);
+    auto* nVoices = gpifNode->getSubnodeByName("Voices", true);
+    auto* nBeats = gpifNode->getSubnodeByName("Beats", true);
+    auto* nNotes = gpifNode->getSubnodeByName("Notes", true);
+    auto* nRhythms = gpifNode->getSubnodeByName("Rhythms", true);
 
     if (!nScore || !nMasterTrack || !nTracks || !nMasterBars) {
         throw std::runtime_error("GP6/7: missing required XML nodes");
