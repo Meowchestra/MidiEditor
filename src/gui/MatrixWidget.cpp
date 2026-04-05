@@ -123,21 +123,52 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
         return;
 
     int x = xPosOfMs(ms);
+    bool smoothScroll = _settings->value("rendering/smooth_playback_scroll", false).toBool();
+    bool isPlaying = MidiPlayer::isPlaying();
+    
+    // Capture dynamic offset when playback starts to prevent screen jumping
+    if (isPlaying && !_wasPlaying) {
+        _dynamicOffsetMs = ms - startTimeX;
+        
+        // Ensure the offset has safe boundaries so it doesn't get locked off-screen
+        int minOffset = (width() - lineNameWidth) * 1000 * 0.25 / (PIXEL_PER_S * scaleX); // 25% Anchor
+        int maxOffset = (width() - lineNameWidth) * 1000 * 0.75 / (PIXEL_PER_S * scaleX); // 75% Anchor
+        
+        if (_dynamicOffsetMs < minOffset) _dynamicOffsetMs = minOffset;
+        if (_dynamicOffsetMs > maxOffset) _dynamicOffsetMs = maxOffset;
+    }
+    _wasPlaying = isPlaying;
 
-    if ((!screen_locked || ignoreLocked) && (x < lineNameWidth || ms < startTimeX || ms > endTimeX || x > width() -
-                                             100)) {
-        // return if the last tick is already shown
-        if (file->maxTime() <= endTimeX && ms >= startTimeX) {
-            update();
+    if (!screen_locked || ignoreLocked) {
+        if (smoothScroll && isPlaying) {
+            // Smooth scroll mode: keep cursor fixed anchored perfectly to its starting click coordinate
+            int desiredStartTime = ms - _dynamicOffsetMs;
+            if (desiredStartTime < 0) desiredStartTime = 0;
+            
+            // Adjust bounds if we're near the end of the file
+            if (file->maxTime() <= endTimeX && desiredStartTime >= startTimeX) {
+                update();
+                return;
+            }
+            
+            emit scrollChanged(desiredStartTime, (file->maxTime() - endTimeX + startTimeX), startLineY,
+                               NUM_LINES - (endLineY - startLineY));
+            return;
+        } else if (x < lineNameWidth || ms < startTimeX || ms > endTimeX || x > width() - 100) {
+            // Standard bounding (page turn) mode
+            if (file->maxTime() <= endTimeX && ms >= startTimeX) {
+                update();
+                return;
+            }
+
+            // sets the new position and repaints
+            emit scrollChanged(ms, (file->maxTime() - endTimeX + startTimeX), startLineY,
+                               NUM_LINES - (endLineY - startLineY));
             return;
         }
-
-        // sets the new position and repaints
-        emit scrollChanged(ms, (file->maxTime() - endTimeX + startTimeX), startLineY,
-                           NUM_LINES - (endLineY - startLineY));
-    } else {
-        update();
     }
+    
+    update();
 }
 
 void MatrixWidget::scrollXChanged(int scrollPositionX) {

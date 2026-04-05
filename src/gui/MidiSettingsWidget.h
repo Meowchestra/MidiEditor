@@ -83,6 +83,12 @@ public slots:
     void manualModeToggled(bool enable);
 
     /**
+     * \brief Handles smooth playback scroll toggle
+     * \param enable True to enable continuous scrolling during playback
+     */
+    void smoothScrollToggled(bool enable);
+
+    /**
      * \brief Sets the default ticks per quarter note.
      * \param value The new TPQ value
      */
@@ -102,6 +108,9 @@ public slots:
 private:
     /** \brief Alternative player mode checkbox */
     QCheckBox *_alternativePlayerModeBox;
+
+    /** \brief Smooth playback scroll checkbox */
+    QCheckBox *_smoothPlaybackScrollBox;
 
     /** \brief Settings storage */
     QSettings *_settings;

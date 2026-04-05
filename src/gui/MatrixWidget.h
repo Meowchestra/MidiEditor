@@ -599,6 +599,10 @@ private:
 
     // === View State ===
 
+    /** \brief Internal tracking for smooth playback scroll */
+    bool _wasPlaying = false;
+    int _dynamicOffsetMs = 0;
+
     /** \brief Viewport boundaries in MIDI ticks */
     int startTick, endTick;
 

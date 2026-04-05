@@ -358,24 +358,31 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 5, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Metronome Loudness:"), this), 6, 0, 1, 2);
+    _smoothPlaybackScrollBox = new QCheckBox(tr("Continuous Smooth Playback Scrolling"), this);
+    _smoothPlaybackScrollBox->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
+    connect(_smoothPlaybackScrollBox, SIGNAL(toggled(bool)), this, SLOT(smoothScrollToggled(bool)));
+    layout->addWidget(_smoothPlaybackScrollBox, 6, 0, 1, 6);
+
+    layout->addWidget(separator(), 7, 0, 1, 6);
+
+    layout->addWidget(new QLabel(tr("Metronome Loudness:"), this), 8, 0, 1, 2);
     _metronomeLoudnessBox = new QSpinBox(this);
     _metronomeLoudnessBox->setMinimum(10);
     _metronomeLoudnessBox->setMaximum(100);
     _metronomeLoudnessBox->setValue(Metronome::loudness());
     connect(_metronomeLoudnessBox, SIGNAL(valueChanged(int)), this, SLOT(setMetronomeLoudness(int)));
-    layout->addWidget(_metronomeLoudnessBox, 6, 2, 1, 4);
+    layout->addWidget(_metronomeLoudnessBox, 8, 2, 1, 4);
 
-    layout->addWidget(separator(), 7, 0, 1, 6);
+    layout->addWidget(separator(), 9, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Start Command:"), this), 8, 0, 1, 2);
+    layout->addWidget(new QLabel(tr("Start Command:"), this), 10, 0, 1, 2);
     startCmd = new QLineEdit(this);
-    layout->addWidget(startCmd, 8, 2, 1, 4);
+    layout->addWidget(startCmd, 10, 2, 1, 4);
 
     _startCmdInfoBox = createInfoBox(tr("The start command can be used to start additional software components (e.g. MIDI synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
-    layout->addWidget(_startCmdInfoBox, 9, 0, 1, 6);
+    layout->addWidget(_startCmdInfoBox, 11, 0, 1, 6);
 
-    layout->addWidget(Terminal::terminal()->console(), 10, 0, 1, 6);
+    layout->addWidget(Terminal::terminal()->console(), 12, 0, 1, 6);
 
     startCmd->setText(_settings->value("start_cmd", "").toString());
     layout->setRowStretch(3, 1);
@@ -383,6 +390,10 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
 void AdditionalMidiSettingsWidget::manualModeToggled(bool enable) {
     MidiOutput::isAlternativePlayer = enable;
+}
+
+void AdditionalMidiSettingsWidget::smoothScrollToggled(bool enable) {
+    _settings->setValue("rendering/smooth_playback_scroll", enable);
 }
 
 void AdditionalMidiSettingsWidget::setDefaultTimePerQuarter(int value) {

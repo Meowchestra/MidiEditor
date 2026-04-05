@@ -1560,6 +1560,10 @@ void MainWindow::screenLockPressed(bool enable) {
     mw_matrixWidget->setScreenLocked(enable);
 }
 
+void MainWindow::toggleSmoothPlaybackScroll(bool enable) {
+    _settings->setValue("rendering/smooth_playback_scroll", enable);
+}
+
 void MainWindow::scaleSelection() {
     bool ok;
     double scale = QInputDialog::getDouble(this, tr("Scale Factor"), tr("Scale Factor:"), 1.0, 0, 2147483647, 17, &ok);
@@ -4408,6 +4412,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     playbackMB->addAction(lockAction);
     lockAction->setChecked(mw_matrixWidget->screenLocked());
     _actionMap["lock"] = lockAction;
+
+    QAction *smoothScrollAction = new QAction(tr("Continuous Smooth Playback Scrolling"), this);
+    smoothScrollAction->setCheckable(true);
+    smoothScrollAction->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
+    connect(smoothScrollAction, SIGNAL(toggled(bool)), this, SLOT(toggleSmoothPlaybackScroll(bool)));
+    playbackMB->addAction(smoothScrollAction);
+    _actionMap["smooth_playback_scroll"] = smoothScrollAction;
 
     QAction *metronomeAction = new QAction(tr("Metronome"), this);
     Appearance::setActionIcon(metronomeAction, ":/run_environment/graphics/tool/metronome.png");

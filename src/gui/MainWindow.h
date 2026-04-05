@@ -237,6 +237,12 @@ public slots:
     void pause();
 
     /**
+     * \brief Toggles continuous smooth playback scrolling.
+     * \param enable True to enable smooth scrolling
+     */
+    void toggleSmoothPlaybackScroll(bool enable);
+
+    /**
      * \brief Moves playback position forward.
      */
     void forward();
