@@ -34,6 +34,7 @@
 #include "KeybindsSettingsWidget.h"
 #include "InstrumentSettingsWidget.h"
 #include "ControlChangeSettingsWidget.h"
+#include "GameSupportSettingsWidget.h"
 
 SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *parent)
     : QDialog(parent) {
@@ -103,6 +104,7 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     addSetting(new KeybindsSettingsWidget(this, central));
     addSetting(new StatusBarSettingsWidget(central));
     addSetting(new PerformanceSettingsWidget(settings, central));
+    addSetting(new GameSupportSettingsWidget(settings, central));
 }
 
 void SettingsDialog::addSetting(SettingsWidget *settingWidget) {

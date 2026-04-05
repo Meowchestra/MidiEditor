@@ -552,6 +552,16 @@ public slots:
     void splitChannelsToTracks();
 
     /**
+     * \brief Fixes FFXIV channel assignments and program changes.
+     */
+    void fixXIVChannels();
+
+    /**
+     * \brief Updates visibility of FFXIV-specific UI elements based on settings.
+     */
+    void updateGameSupportUI();
+
+    /**
      * \brief Opens the Strummer dialog to stagger notes.
      */
     void strumNotes();
@@ -947,6 +957,14 @@ private:
     QAction *setSingleMode, *setLineMode, *setFreehandMode, *_allChannelsVisible, *_allChannelsInvisible,
     *_allTracksAudible, *_allTracksMute, *_allChannelsAudible, *_allChannelsMute, *_allTracksVisible,
     *_allTracksInvisible, *stdToolAction, *undoAction, *redoAction, *_pasteAction;
+
+    // === Game Support Actions ===
+
+    /** \brief FFXIV Fix Channels action for Tracks toolbar */
+    QAction *_fixXIVChannelsTracksAction;
+
+    /** \brief FFXIV Fix Channels action for Channels toolbar */
+    QAction *_fixXIVChannelsChannelsAction;
 
     /** \brief Misc editor widget */
     MiscWidget *_miscWidget;

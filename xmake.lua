@@ -157,6 +157,7 @@ target("MidiEditor") do
     add_files("src/gui/**.cpp")
     add_files("src/midi/*.cpp")
     add_files("src/protocol/**.cpp")
+    add_files("src/support/**.cpp")
     add_files("src/tool/**.cpp")
     add_files("src/midi/rtmidi/RtMidi.cpp")
 
@@ -166,6 +167,7 @@ target("MidiEditor") do
     add_files("src/gui/**.h")
     add_files("src/midi/*.h")
     add_files("src/protocol/**.h")
+    add_files("src/support/**.h")
     add_files("src/tool/**.h")
     add_files("src/midi/rtmidi/RtMidi.h")
     add_files("resources.qrc")

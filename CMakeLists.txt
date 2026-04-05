@@ -260,6 +260,7 @@ target_include_directories(MidiEditor PRIVATE
     src/midi
     src/MidiEvent
     src/protocol
+    src/support
     src/tool
 )
 message(STATUS "Added project include directories")
@@ -270,6 +271,7 @@ file(GLOB SOURCES_CONVERTER "src/converter/*.cpp" "src/converter/GuitarPro/*.cpp
 file(GLOB SOURCES_MIDIEVENT "src/MidiEvent/*.cpp")
 file(GLOB SOURCES_GUI "src/gui/*.cpp")
 file(GLOB SOURCES_PROTOCOL "src/protocol/*.cpp")
+file(GLOB SOURCES_SUPPORT "src/support/*.cpp")
 file(GLOB SOURCES_TOOL "src/tool/*.cpp")
 
 # For midi directory, be selective to avoid test files
@@ -283,6 +285,7 @@ set(SOURCES
     ${SOURCES_GUI}
     ${SOURCES_MIDI}
     ${SOURCES_PROTOCOL}
+    ${SOURCES_SUPPORT}
     ${SOURCES_TOOL}
 )
 
@@ -313,6 +316,7 @@ file(GLOB HEADERS_CONVERTER "src/converter/*.h" "src/converter/GuitarPro/*.h" "s
 file(GLOB HEADERS_MIDIEVENT "src/MidiEvent/*.h")
 file(GLOB HEADERS_GUI "src/gui/*.h")
 file(GLOB HEADERS_PROTOCOL "src/protocol/*.h")
+file(GLOB HEADERS_SUPPORT "src/support/*.h")
 file(GLOB HEADERS_TOOL "src/tool/*.h")
 
 # For midi directory, be selective to avoid test files
@@ -326,6 +330,7 @@ set(HEADERS
     ${HEADERS_GUI}
     ${HEADERS_MIDI}
     ${HEADERS_PROTOCOL}
+    ${HEADERS_SUPPORT}
     ${HEADERS_TOOL}
 )
 

@@ -56,6 +56,8 @@
 #include "LayoutSettingsWidget.h"
 #include "SplitChannelsDialog.h"
 #include "MatrixWidget.h"
+#include "GameSupportSettingsWidget.h"
+#include "../support/FFXIVChannelFixer.h"
 #include "OpenGLMatrixWidget.h"
 #include "OpenGLMiscWidget.h"
 #include "MiscWidget.h"
@@ -501,6 +503,17 @@ MainWindow::MainWindow(QString initFile)
             SLOT(allTracksInvisible()));
     tracksTB->addAction(_allTracksInvisible);
 
+    // Spacer to push the FFXIV button to the right
+    QWidget *tracksSpacer = new QWidget();
+    tracksSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    tracksTB->addWidget(tracksSpacer);
+
+    _fixXIVChannelsTracksAction = new QAction(tr("Fix XIV Channels"), this);
+    _fixXIVChannelsTracksAction->setToolTip(tr("Assign tracks to FFXIV channels based on their instrument names"));
+    connect(_fixXIVChannelsTracksAction, &QAction::triggered, this, &MainWindow::fixXIVChannels);
+    tracksTB->addAction(_fixXIVChannelsTracksAction);
+    _fixXIVChannelsTracksAction->setVisible(false);
+
     _trackWidget = new TrackListWidget(tracksWidget);
     connect(_trackWidget, SIGNAL(trackRenameClicked(int)), this, SLOT(renameTrack(int)), Qt::QueuedConnection);
     connect(_trackWidget, SIGNAL(trackRemoveClicked(int)), this, SLOT(removeTrack(int)), Qt::QueuedConnection);
@@ -538,6 +551,17 @@ MainWindow::MainWindow(QString initFile)
     Appearance::setActionIcon(_allChannelsInvisible, ":/run_environment/graphics/tool/all_invisible.png");
     connect(_allChannelsInvisible, SIGNAL(triggered()), this, SLOT(allChannelsInvisible()));
     channelsTB->addAction(_allChannelsInvisible);
+
+    // Spacer to push the FFXIV button to the right
+    QWidget *channelsSpacer = new QWidget();
+    channelsSpacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    channelsTB->addWidget(channelsSpacer);
+
+    _fixXIVChannelsChannelsAction = new QAction(tr("Fix XIV Channels"), this);
+    _fixXIVChannelsChannelsAction->setToolTip(tr("Assign tracks to FFXIV channels based on their instrument names"));
+    connect(_fixXIVChannelsChannelsAction, &QAction::triggered, this, &MainWindow::fixXIVChannels);
+    channelsTB->addAction(_fixXIVChannelsChannelsAction);
+    _fixXIVChannelsChannelsAction->setVisible(false);
 
     channelWidget = new ChannelListWidget(channelsWidget);
     connect(channelWidget, SIGNAL(channelStateChanged()), this, SLOT(updateChannelMenu()), Qt::QueuedConnection);
@@ -633,6 +657,9 @@ MainWindow::MainWindow(QString initFile)
 
     // Apply widget size constraints based on settings
     applyWidgetSizeConstraints();
+    
+    // Apply initial visibility bounds for FFXIV Support buttons
+    updateGameSupportUI();
 
     // Load initial file immediately - no need for artificial delay
     loadInitFile();
@@ -4602,6 +4629,7 @@ void MainWindow::checkForUpdates(bool silent) {
 void MainWindow::openConfig() {
     SettingsDialog *d = new SettingsDialog(tr("Settings"), _settings, this);
     connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
+    connect(d, &SettingsDialog::settingsChanged, this, &MainWindow::updateGameSupportUI);
     // Note: We don't connect settingsChanged() to updateRenderingMode() here because
     // we connect directly to PerformanceSettingsWidget for immediate updates
 
@@ -6102,3 +6130,54 @@ void MainWindow::updateStatusBar() {
 
     _statusLabel->setText(segments.join(" | "));
 }
+
+void MainWindow::updateGameSupportUI() {
+    bool ffxivEnabled = GameSupportSettingsWidget::isFFXIVEnabled(_settings);
+    if (_fixXIVChannelsTracksAction) {
+        _fixXIVChannelsTracksAction->setVisible(ffxivEnabled);
+    }
+    if (_fixXIVChannelsChannelsAction) {
+        _fixXIVChannelsChannelsAction->setVisible(ffxivEnabled);
+    }
+}
+
+void MainWindow::fixXIVChannels() {
+    if (!file) {
+        QMessageBox::warning(this, tr("Fix XIV Channels"), tr("No file loaded."));
+        return;
+    }
+
+    QJsonObject analysis = FFXIVChannelFixer::analyzeFile(file);
+    if (!analysis["valid"].toBool()) {
+        QMessageBox::warning(this, tr("Fix XIV Channels"),
+                             tr("No FFXIV instruments detected in this file.\n\n"
+                                "Make sure tracks are named after standard FFXIV instruments."));
+        return;
+    }
+
+    // Confirmation dialog before executing
+    QMessageBox confirmBox(this);
+    confirmBox.setWindowTitle(tr("Fix XIV Channels"));
+    confirmBox.setText(tr("This action resets all Program Changes and maps the Final Fantasy XIV channel setup."));
+    confirmBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    confirmBox.setDefaultButton(QMessageBox::No);
+    confirmBox.button(QMessageBox::Yes)->setText(tr("Yes, Continue"));
+    confirmBox.button(QMessageBox::No)->setText(tr("No, Abort"));
+    if (confirmBox.exec() != QMessageBox::Yes) {
+        return;
+    }
+
+    file->protocol()->startNewAction(tr("Fix XIV Channels"));
+    QJsonObject result = FFXIVChannelFixer::fixChannels(file);
+    file->protocol()->endAction();
+
+    if (result["success"].toBool()) {
+        updateAll();
+        QMessageBox::information(this, tr("Fix XIV Channels"),
+                                 result["summary"].toString());
+    } else {
+        QMessageBox::warning(this, tr("Fix XIV Channels"),
+                             result["error"].toString());
+    }
+}
+
