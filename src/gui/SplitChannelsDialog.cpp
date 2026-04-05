@@ -54,6 +54,7 @@ public:
 #include <QMessageBox>
 #include <QVariant>
 #include <QScrollArea>
+#include <QScrollBar>
 #include <QGridLayout>
 #include <QFrame>
 #include <algorithm>
@@ -125,7 +126,7 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     _presetCombo = new QComboBox(this);
     
     QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    QString lastPreset = settings.value("SplitChannelsDialog/lastPreset", DrumKitPresetManager::instance().presetNames().first()).toString();
+    QString lastPreset = settings.value("SplitChannelsDialog/lastPreset", QString("Bard Forge 1")).toString();
 
     QStringList presets = DrumKitPresetManager::instance().presetNames();
     presets.sort(Qt::CaseInsensitive);
@@ -142,7 +143,7 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     presetLayout->addWidget(_usePresetCheck);
     presetLayout->addStretch();
     presetLayout->addWidget(presetLabel);
-    _presetCombo->setMinimumWidth(250);
+    _presetCombo->setMinimumWidth(160);
     presetLayout->addWidget(_presetCombo);
     
     _editMapBtn = new QPushButton(tr("Edit Preset Map..."), this);
@@ -150,6 +151,14 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     presetLayout->addWidget(_editMapBtn);
     
     drumsLayout->addLayout(presetLayout);
+    
+    QHBoxLayout *presetRow2 = new QHBoxLayout();
+    presetRow2->addStretch();
+    _resetPresetBtn = new QPushButton(tr("Reset Default"), this);
+    _savePresetBtn = new QPushButton(tr("Save Preset"), this);
+    presetRow2->addWidget(_resetPresetBtn);
+    presetRow2->addWidget(_savePresetBtn);
+    drumsLayout->addLayout(presetRow2);
 
     _mappingContainer = new QWidget(this);
     QVBoxLayout *mapLayout = new QVBoxLayout(_mappingContainer);
@@ -157,18 +166,10 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
 
     _mappingScrollArea = new QScrollArea(this);
     _mappingScrollArea->setWidgetResizable(true);
-    _mappingScrollArea->setMinimumHeight(400);
+    _mappingScrollArea->setMinimumHeight(200);
     _mappingScrollArea->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     _mappingScrollArea->setVerticalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     mapLayout->addWidget(_mappingScrollArea);
-    
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    _resetPresetBtn = new QPushButton(tr("Reset Default"), this);
-    _savePresetBtn = new QPushButton(tr("Save Preset"), this);
-    btnLayout->addStretch();
-    btnLayout->addWidget(_resetPresetBtn);
-    btnLayout->addWidget(_savePresetBtn);
-    mapLayout->addLayout(btnLayout);
     
     drumsLayout->addWidget(_mappingContainer);
     _mappingContainer->hide();
@@ -184,6 +185,8 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
         _presetCombo->setEnabled(checked);
         _editMapBtn->setEnabled(checked);
         _mappingContainer->setEnabled(checked);
+        _resetPresetBtn->setEnabled(checked);
+        _savePresetBtn->setEnabled(checked);
         if (_keepDrumsCheck) {
             _keepDrumsCheck->setEnabled(!checked);
             if (checked) _keepDrumsCheck->setChecked(false);
@@ -368,9 +371,7 @@ void SplitChannelsDialog::populateMappingTable() {
         if (group.mappings.isEmpty()) continue;
         
         QGroupBox *groupFrame = new QGroupBox(tr("Track: ") + group.trackName, scrollWidget);
-        QFont f = groupFrame->font();
-        f.setBold(true);
-        groupFrame->setFont(f);
+        groupFrame->setStyleSheet("QGroupBox::title { font-weight: bold; }");
         
         QGridLayout *gridLayout = new QGridLayout(groupFrame);
         gridLayout->setSpacing(6);
@@ -421,6 +422,7 @@ void SplitChannelsDialog::populateMappingTable() {
             cardLayout->addLayout(topLayout);
             
             QHBoxLayout *bottomLayout = new QHBoxLayout;
+            bottomLayout->addStretch();
             QComboBox *groupCombo = new QComboBox(card);
             for (const auto &grp : _currentPreset.groups) {
                 groupCombo->addItem(grp.trackName);
@@ -432,7 +434,7 @@ void SplitChannelsDialog::populateMappingTable() {
             gridLayout->addWidget(card, row, col);
             
             col++;
-            if (col >= 2) {
+            if (col >= 3) {
                 col = 0;
                 row++;
             }
@@ -443,8 +445,10 @@ void SplitChannelsDialog::populateMappingTable() {
             
             connect(groupCombo, &QComboBox::currentTextChanged, this, [this, sNote](const QString &txt) {
                 if (!_updatingTable) {
+                    int scrollV = _mappingScrollArea->verticalScrollBar()->value();
                     onGroupChanged(sNote, txt);
                     populateMappingTable();
+                    _mappingScrollArea->verticalScrollBar()->setValue(scrollV);
                 }
             });
             connect(targetNoteSpin, QOverload<int>::of(&QSpinBox::valueChanged), this, [this, sNote](int val) {
@@ -479,6 +483,7 @@ void SplitChannelsDialog::populateMappingTable() {
                 tmr->start(500);
             });
         }
+        gridLayout->setColumnStretch(3, 1);
         scrollLayout->addWidget(groupFrame);
     }
     
