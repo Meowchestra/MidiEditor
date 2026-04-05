@@ -331,6 +331,10 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     : SettingsWidget(tr("Additional MIDI Settings"), parent) {
     _settings = settings;
 
+    // Load metronome volume (default 127)
+    int metronomeVelocity = _settings->value("metronome_velocity", 127).toInt();
+    Metronome::setLoudness(metronomeVelocity);
+
     QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
@@ -358,22 +362,19 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 5, 0, 1, 6);
 
-    _smoothPlaybackScrollBox = new QCheckBox(tr("Continuous Smooth Playback Scrolling"), this);
-    _smoothPlaybackScrollBox->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
-    connect(_smoothPlaybackScrollBox, SIGNAL(toggled(bool)), this, SLOT(smoothScrollToggled(bool)));
-    layout->addWidget(_smoothPlaybackScrollBox, 6, 0, 1, 6);
-
-    layout->addWidget(separator(), 7, 0, 1, 6);
-
-    layout->addWidget(new QLabel(tr("Metronome Loudness:"), this), 8, 0, 1, 2);
-    _metronomeLoudnessBox = new QSpinBox(this);
-    _metronomeLoudnessBox->setMinimum(10);
-    _metronomeLoudnessBox->setMaximum(100);
-    _metronomeLoudnessBox->setValue(Metronome::loudness());
-    connect(_metronomeLoudnessBox, SIGNAL(valueChanged(int)), this, SLOT(setMetronomeLoudness(int)));
-    layout->addWidget(_metronomeLoudnessBox, 8, 2, 1, 4);
-
-    layout->addWidget(separator(), 9, 0, 1, 6);
+    layout->addWidget(new QLabel(tr("Metronome Volume (Velocity):"), this), 6, 0, 1, 2, Qt::AlignVCenter);
+    
+    QHBoxLayout *metronomeLayout = new QHBoxLayout();
+    _metronomeLoudnessSlider = new QSlider(Qt::Horizontal, this);
+    _metronomeLoudnessSlider->setMinimum(0);
+    _metronomeLoudnessSlider->setMaximum(127);
+    _metronomeLoudnessSlider->setValue(Metronome::loudness());
+    connect(_metronomeLoudnessSlider, SIGNAL(valueChanged(int)), this, SLOT(setMetronomeVelocity(int)));
+    metronomeLayout->addWidget(_metronomeLoudnessSlider, 1);
+    _metronomeLoudnessLabel = new QLabel(QString::number(Metronome::loudness()), this);
+    _metronomeLoudnessLabel->setFixedWidth(25);
+    metronomeLayout->addWidget(_metronomeLoudnessLabel, 0);
+    layout->addLayout(metronomeLayout, 6, 2, 1, 4);
 
     layout->addWidget(new QLabel(tr("Start Command:"), this), 10, 0, 1, 2);
     startCmd = new QLineEdit(this);
@@ -392,16 +393,16 @@ void AdditionalMidiSettingsWidget::manualModeToggled(bool enable) {
     MidiOutput::isAlternativePlayer = enable;
 }
 
-void AdditionalMidiSettingsWidget::smoothScrollToggled(bool enable) {
-    _settings->setValue("rendering/smooth_playback_scroll", enable);
-}
-
 void AdditionalMidiSettingsWidget::setDefaultTimePerQuarter(int value) {
     MidiFile::defaultTimePerQuarter = value;
 }
 
-void AdditionalMidiSettingsWidget::setMetronomeLoudness(int value) {
+void AdditionalMidiSettingsWidget::setMetronomeVelocity(int value) {
     Metronome::setLoudness(value);
+    _settings->setValue("metronome_velocity", value);
+    if (_metronomeLoudnessLabel) {
+        _metronomeLoudnessLabel->setText(QString::number(value));
+    }
 }
 
 void AdditionalMidiSettingsWidget::refreshColors() {

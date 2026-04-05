@@ -46,11 +46,11 @@ FileLengthDialog::FileLengthDialog(MidiFile *f, QWidget *parent)
     layout->setColumnStretch(1, 1);
 
     _box->setFocus();
-    setWindowTitle(tr("File duration"));
+    setWindowTitle(tr("File Duration"));
 }
 
 void FileLengthDialog::accept() {
-    _file->protocol()->startNewAction(tr("Change file duration"));
+    _file->protocol()->startNewAction(tr("Changed File Duration"));
     _file->setMaxLengthMs(_box->value());
     _file->protocol()->endAction();
     hide();

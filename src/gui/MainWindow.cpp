@@ -57,6 +57,7 @@
 #include "SplitChannelsDialog.h"
 #include "MatrixWidget.h"
 #include "GameSupportSettingsWidget.h"
+#include "FFXIVFixerDialog.h"
 #include "../support/FFXIVChannelFixer.h"
 #include "OpenGLMatrixWidget.h"
 #include "OpenGLMiscWidget.h"
@@ -642,9 +643,9 @@ MainWindow::MainWindow(QString initFile)
     central->setLayout(centralLayout);
 
     if (_settings->value("colors_from_channel", false).toBool()) {
-        colorsByChannel();
+        noteColorsByChannel();
     } else {
-        colorsByTrack();
+        noteColorsByTrack();
     }
     copiedEventsChanged();
     setAcceptDrops(true);
@@ -1589,6 +1590,7 @@ void MainWindow::screenLockPressed(bool enable) {
 
 void MainWindow::toggleSmoothPlaybackScroll(bool enable) {
     _settings->setValue("rendering/smooth_playback_scroll", enable);
+    Appearance::setSmoothPlaybackScrolling(enable);
 }
 
 void MainWindow::scaleSelection() {
@@ -2818,7 +2820,7 @@ void MainWindow::splitChannelsToTracks() {
     }
 
     // Create tracks and move events
-    file->protocol()->startNewAction(tr("Split channels to tracks"));
+    file->protocol()->startNewAction(tr("Split Channels to Tracks"));
 
     int sourceTrackIdx = file->tracks()->indexOf(sourceTrack);
     QList<MidiTrack *> newTracks;
@@ -3078,7 +3080,7 @@ void MainWindow::markEdited() {
     setWindowModified(true);
 }
 
-void MainWindow::colorsByChannel() {
+void MainWindow::noteColorsByChannel() {
     mw_matrixWidget->setColorsByChannel();
     _colorsByChannel->setChecked(true);
     _colorsByTracks->setChecked(false);
@@ -3087,13 +3089,29 @@ void MainWindow::colorsByChannel() {
     _miscWidgetContainer->update();
 }
 
-void MainWindow::colorsByTrack() {
+void MainWindow::noteColorsByTrack() {
     mw_matrixWidget->setColorsByTracks();
     _colorsByChannel->setChecked(false);
     _colorsByTracks->setChecked(true);
     mw_matrixWidget->registerRelayout();
     _matrixWidgetContainer->update();
     _miscWidgetContainer->update();
+}
+
+void MainWindow::markerColorsByChannel() {
+    Appearance::setMarkerColorMode(Appearance::ColorByChannel);
+    _markerColorsByChannel->setChecked(true);
+    _markerColorsByTrack->setChecked(false);
+    mw_matrixWidget->registerRelayout();
+    _matrixWidgetContainer->update();
+}
+
+void MainWindow::markerColorsByTrack() {
+    Appearance::setMarkerColorMode(Appearance::ColorByTrack);
+    _markerColorsByTrack->setChecked(true);
+    _markerColorsByChannel->setChecked(false);
+    mw_matrixWidget->registerRelayout();
+    _matrixWidgetContainer->update();
 }
 
 void MainWindow::editChannel(int i, bool assign) {
@@ -4141,18 +4159,38 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     viewMB->addSeparator();
 
-    QMenu *colorMenu = new QMenu(tr("Colors..."), viewMB);
-    _colorsByChannel = new QAction(tr("From Channels"), this);
+    QMenu *colorMenu = new QMenu(tr("Note Colors..."), viewMB);
+    _colorsByChannel = new QAction(tr("By Channels"), this);
     _colorsByChannel->setCheckable(true);
-    connect(_colorsByChannel, SIGNAL(triggered()), this, SLOT(colorsByChannel()));
+    connect(_colorsByChannel, SIGNAL(triggered()), this, SLOT(noteColorsByChannel()));
     colorMenu->addAction(_colorsByChannel);
 
-    _colorsByTracks = new QAction(tr("From Tracks"), this);
+    _colorsByTracks = new QAction(tr("By Tracks"), this);
     _colorsByTracks->setCheckable(true);
-    connect(_colorsByTracks, SIGNAL(triggered()), this, SLOT(colorsByTrack()));
+    connect(_colorsByTracks, SIGNAL(triggered()), this, SLOT(noteColorsByTrack()));
     colorMenu->addAction(_colorsByTracks);
 
     viewMB->addMenu(colorMenu);
+
+    QMenu *markerColorMenu = new QMenu(tr("Marker Colors..."), viewMB);
+    _markerColorsByChannel = new QAction(tr("By Channels"), this);
+    _markerColorsByChannel->setCheckable(true);
+    connect(_markerColorsByChannel, SIGNAL(triggered()), this, SLOT(markerColorsByChannel()));
+    markerColorMenu->addAction(_markerColorsByChannel);
+
+    _markerColorsByTrack = new QAction(tr("By Tracks"), this);
+    _markerColorsByTrack->setCheckable(true);
+    connect(_markerColorsByTrack, SIGNAL(triggered()), this, SLOT(markerColorsByTrack()));
+    markerColorMenu->addAction(_markerColorsByTrack);
+
+    // Set initial state
+    if (Appearance::markerColorMode() == Appearance::ColorByTrack) {
+        _markerColorsByTrack->setChecked(true);
+    } else {
+        _markerColorsByChannel->setChecked(true);
+    }
+
+    viewMB->addMenu(markerColorMenu);
 
     viewMB->addSeparator();
 
@@ -4440,7 +4478,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     lockAction->setChecked(mw_matrixWidget->screenLocked());
     _actionMap["lock"] = lockAction;
 
-    QAction *smoothScrollAction = new QAction(tr("Continuous Smooth Playback Scrolling"), this);
+    QAction *smoothScrollAction = new QAction(tr("Smooth Playback Scrolling"), this);
     smoothScrollAction->setCheckable(true);
     smoothScrollAction->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
     connect(smoothScrollAction, SIGNAL(toggled(bool)), this, SLOT(toggleSmoothPlaybackScroll(bool)));
@@ -4657,6 +4695,14 @@ void MainWindow::openConfig() {
         StatusBarSettingsWidget *statusBarWidget = statusBarWidgets.first();
         connect(statusBarWidget, &StatusBarSettingsWidget::statusBarSettingsChanged,
                 this, &MainWindow::updateAll);
+    }
+
+    // Connect to GameSupportSettingsWidget for immediate updates
+    QList<GameSupportSettingsWidget*> gameWidgets = d->findChildren<GameSupportSettingsWidget*>();
+    if (!gameWidgets.isEmpty()) {
+        GameSupportSettingsWidget *gameWidget = gameWidgets.first();
+        connect(gameWidget, &GameSupportSettingsWidget::settingsChanged,
+                this, &MainWindow::updateGameSupportUI);
     }
 
     d->show();
@@ -6155,26 +6201,34 @@ void MainWindow::fixXIVChannels() {
         return;
     }
 
-    // Confirmation dialog before executing
-    QMessageBox confirmBox(this);
-    confirmBox.setWindowTitle(tr("Fix XIV Channels"));
-    confirmBox.setText(tr("This action resets all Program Changes and maps the Final Fantasy XIV channel setup."));
-    confirmBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    confirmBox.setDefaultButton(QMessageBox::No);
-    confirmBox.button(QMessageBox::Yes)->setText(tr("Yes, Continue"));
-    confirmBox.button(QMessageBox::No)->setText(tr("No, Abort"));
-    if (confirmBox.exec() != QMessageBox::Yes) {
+    FFXIVFixerDialog dialog(analysis, this);
+    if (dialog.exec() != QDialog::Accepted) {
         return;
     }
 
-    file->protocol()->startNewAction(tr("Fix XIV Channels"));
-    QJsonObject result = FFXIVChannelFixer::fixChannels(file);
+    int selectedTier = dialog.selectedTier();
+    if (selectedTier == 0) return;
+
+    file->protocol()->startNewAction(tr("Fix XIV Channels (%1)").arg(selectedTier == 3 ? tr("Preserve") : tr("Rebuild")));
+    QJsonObject result = FFXIVChannelFixer::fixChannels(file, selectedTier);
     file->protocol()->endAction();
 
     if (result["success"].toBool()) {
         updateAll();
-        QMessageBox::information(this, tr("Fix XIV Channels"),
-                                 result["summary"].toString());
+        
+        QString mode = result["tierDescription"].toString();
+        int trackCount = result["trackCount"].toInt();
+        
+        QString html = QStringLiteral(
+            "<h3 style='color:#2e7d32; margin-bottom:4px;'>&#x2705; Success</h3>"
+            "<p style='margin-top:0;'><b>Mode:</b> %1<br>"
+            "<b>Tracks processed:</b> %2</p>").arg(mode).arg(trackCount);
+            
+        QMessageBox msgBox(this);
+        msgBox.setWindowTitle(tr("Fix XIV Channels"));
+        msgBox.setTextFormat(Qt::RichText);
+        msgBox.setText(html);
+        msgBox.exec();
     } else {
         QMessageBox::warning(this, tr("Fix XIV Channels"),
                              result["error"].toString());

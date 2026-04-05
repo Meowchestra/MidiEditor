@@ -13,6 +13,7 @@
 #include "PerformanceSettingsWidget.h"
 #include "TrackListWidget.h"
 #include "ChannelListWidget.h"
+#include "ControlChangeSettingsWidget.h"
 
 // Prevent rapid successive theme changes
 static QDateTime lastThemeChange;
@@ -35,6 +36,12 @@ QMap<QAction *, QString> Appearance::registeredIconActions = QMap<QAction *, QSt
 int Appearance::_opacity = 100;
 Appearance::stripStyle Appearance::_strip = Appearance::onSharp;
 bool Appearance::_showRangeLines = false;
+bool Appearance::_showProgramChangeMarkers = false;
+bool Appearance::_showControlChangeMarkers = false;
+bool Appearance::_showTextEventMarkers = false;
+Appearance::MarkerColorMode Appearance::_markerColorMode = Appearance::ColorByTrack;
+bool Appearance::_smoothPlaybackScrolling = false;
+
 QString Appearance::_applicationStyle = "windowsvista";
 int Appearance::_toolbarIconSize = 20;
 bool Appearance::_ignoreSystemScaling = false;
@@ -54,6 +61,11 @@ void Appearance::init(QSettings *settings) {
     _opacity = settings->value("appearance_opacity", 100).toInt();
     _strip = static_cast<Appearance::stripStyle>(settings->value("strip_style", Appearance::onSharp).toInt());
     _showRangeLines = settings->value("show_range_lines", false).toBool();
+    _showProgramChangeMarkers = settings->value("show_program_change_markers", false).toBool();
+    _showControlChangeMarkers = settings->value("show_control_change_markers", false).toBool();
+    _showTextEventMarkers = settings->value("show_text_event_markers", false).toBool();
+    _markerColorMode = static_cast<Appearance::MarkerColorMode>(settings->value("marker_color_mode", Appearance::ColorByTrack).toInt());
+    _smoothPlaybackScrolling = settings->value("rendering/smooth_playback_scroll", false).toBool();
 
     // Set default style with fallback
     QString defaultStyle = "windowsvista";
@@ -223,6 +235,11 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("appearance_opacity", _opacity);
     settings->setValue("strip_style", _strip);
     settings->setValue("show_range_lines", _showRangeLines);
+    settings->setValue("show_program_change_markers", _showProgramChangeMarkers);
+    settings->setValue("show_control_change_markers", _showControlChangeMarkers);
+    settings->setValue("show_text_event_markers", _showTextEventMarkers);
+    settings->setValue("marker_color_mode", static_cast<int>(_markerColorMode));
+    settings->setValue("rendering/smooth_playback_scroll", _smoothPlaybackScrolling);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
     settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
@@ -630,6 +647,46 @@ bool Appearance::showRangeLines() {
 
 void Appearance::setShowRangeLines(bool enabled) {
     _showRangeLines = enabled;
+}
+
+bool Appearance::showProgramChangeMarkers() {
+    return _showProgramChangeMarkers;
+}
+
+void Appearance::setShowProgramChangeMarkers(bool enabled) {
+    _showProgramChangeMarkers = enabled;
+}
+
+bool Appearance::showControlChangeMarkers() {
+    return _showControlChangeMarkers;
+}
+
+void Appearance::setShowControlChangeMarkers(bool enabled) {
+    _showControlChangeMarkers = enabled;
+}
+
+bool Appearance::showTextEventMarkers() {
+    return _showTextEventMarkers;
+}
+
+void Appearance::setShowTextEventMarkers(bool enabled) {
+    _showTextEventMarkers = enabled;
+}
+
+Appearance::MarkerColorMode Appearance::markerColorMode() {
+    return _markerColorMode;
+}
+
+void Appearance::setMarkerColorMode(MarkerColorMode mode) {
+    _markerColorMode = mode;
+}
+
+bool Appearance::smoothPlaybackScrolling() {
+    return _smoothPlaybackScrolling;
+}
+
+void Appearance::setSmoothPlaybackScrolling(bool enabled) {
+    _smoothPlaybackScrolling = enabled;
 }
 
 QString Appearance::applicationStyle() {
@@ -1148,9 +1205,9 @@ QColor Appearance::programEventNormalColor() {
 
 QColor Appearance::noteSelectionColor() {
     if (shouldUseDarkMode()) {
-        // In dark mode, use a darker version of the track color with some transparency
-        // This allows the track color to show through while indicating selection
-        return QColor(60, 80, 120, 150); // Dark blue with transparency
+        // In dark mode, use a bright visible blue with high opacity
+        // This ensures selected notes are clearly visible against dark backgrounds
+        return QColor(100, 150, 255, 230); // Bright cornflower blue
     }
     return Qt::darkBlue; // Original selection color for light mode
 }
@@ -1404,6 +1461,12 @@ void Appearance::refreshColors() {
             QList<InstrumentSettingsWidget *> instrumentWidgets = widget->findChildren<InstrumentSettingsWidget *>();
             foreach(InstrumentSettingsWidget* instrumentWidget, instrumentWidgets) {
                 instrumentWidget->refreshColors();
+            }
+
+            // Refresh all ControlChangeSettingsWidget colors for theme changes
+            QList<ControlChangeSettingsWidget *> ccWidgets = widget->findChildren<ControlChangeSettingsWidget *>();
+            foreach(ControlChangeSettingsWidget* ccWidget, ccWidgets) {
+                ccWidget->refreshColors();
             }
 
             // Refresh all PerformanceSettingsWidget colors for theme changes

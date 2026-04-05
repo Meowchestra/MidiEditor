@@ -394,7 +394,7 @@ void MiscWidget::mousePressEvent(QMouseEvent *event) {
                     if (velocity > 0) {
                         int h = (height() * velocity) / 128;
                         if (!dragging && mouseInRect(event->x() - LEFT_BORDER_MATRIX_WIDGET, height() - h - 5, WIDTH, 10)) {
-                            matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed selection"));
+                            matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed Selection"));
                             ProtocolEntry *toCopy = _dummyTool->copy();
                             EventTool::selectEvent(event, true);
                             matrixWidget->update();
@@ -409,7 +409,7 @@ void MiscWidget::mousePressEvent(QMouseEvent *event) {
 
             // if nothing selected deselect all
             if (Selection::instance()->selectedEvents().size() > 0 && !clickHandlesSelected && !selectedNew) {
-                matrixWidget->midiFile()->protocol()->startNewAction(tr("Cleared selection"));
+                matrixWidget->midiFile()->protocol()->startNewAction(tr("Cleared Selection"));
                 ProtocolEntry *toCopy = _dummyTool->copy();
                 EventTool::clearSelection();
                 _dummyTool->protocol(toCopy, _dummyTool);
@@ -435,7 +435,7 @@ void MiscWidget::mousePressEvent(QMouseEvent *event) {
                     trackIndex = i;
 
                     if (accordingEvents.at(i)) {
-                        matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed selection"));
+                        matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed Selection"));
                         ProtocolEntry *toCopy = _dummyTool->copy();
                         EventTool::clearSelection();
                         EventTool::selectEvent(accordingEvents.at(i), true, true);
@@ -482,7 +482,7 @@ void MiscWidget::mouseReleaseEvent(QMouseEvent *event) {
                 int dX = dragY - mouseY;
 
                 if (dX < -3 || dX > 3) {
-                    matrixWidget->midiFile()->protocol()->startNewAction(tr("Edited velocity"));
+                    matrixWidget->midiFile()->protocol()->startNewAction(tr("Edited Velocity"));
 
                     int dV = 127 * dX / height();
                     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
@@ -803,7 +803,7 @@ void MiscWidget::mouseReleaseEvent(QMouseEvent *event) {
                 }
 
                 if (events.size() > 0) {
-                    matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed velocity"));
+                    matrixWidget->midiFile()->protocol()->startNewAction(tr("Changed Velocity"));
 
                     // process per event
                     foreach(MidiEvent* event, events) {

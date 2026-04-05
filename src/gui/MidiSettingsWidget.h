@@ -83,22 +83,16 @@ public slots:
     void manualModeToggled(bool enable);
 
     /**
-     * \brief Handles smooth playback scroll toggle
-     * \param enable True to enable continuous scrolling during playback
-     */
-    void smoothScrollToggled(bool enable);
-
-    /**
      * \brief Sets the default ticks per quarter note.
      * \param value The new TPQ value
      */
     void setDefaultTimePerQuarter(int value);
 
     /**
-     * \brief Sets the metronome loudness.
-     * \param value The new loudness value
+     * \brief Sets the metronome velocity.
+     * \param value The new velocity value (0-127)
      */
-    void setMetronomeLoudness(int value);
+    void setMetronomeVelocity(int value);
 
     /**
      * \brief Refreshes colors when theme changes.
@@ -109,8 +103,6 @@ private:
     /** \brief Alternative player mode checkbox */
     QCheckBox *_alternativePlayerModeBox;
 
-    /** \brief Smooth playback scroll checkbox */
-    QCheckBox *_smoothPlaybackScrollBox;
 
     /** \brief Settings storage */
     QSettings *_settings;
@@ -121,8 +113,9 @@ private:
     /** \brief Ticks per quarter spin box */
     QSpinBox *_tpqBox;
 
-    /** \brief Metronome loudness spin box */
-    QSpinBox *_metronomeLoudnessBox;
+    /** \brief Metronome loudness setting */
+    QSlider *_metronomeLoudnessSlider;
+    QLabel *_metronomeLoudnessLabel;
 
     /** \brief Info box widgets */
     QWidget *_tpqInfoBox;

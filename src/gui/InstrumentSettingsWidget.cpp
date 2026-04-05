@@ -39,23 +39,12 @@ InstrumentSettingsWidget::InstrumentSettingsWidget(QSettings *settings, QWidget 
     connect(browseBtn, SIGNAL(clicked()), this, SLOT(browseFile()));
     layout->addWidget(browseBtn, 1, 2);
 
-    // Action buttons
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    btnLayout->setContentsMargins(0, 0, 0, 0);
-    
-    QPushButton *clearBtn = new QPushButton(tr("Clear Configuration"), this);
-    clearBtn->setToolTip(tr("Reset to default (no instrument definitions)"));
-    connect(clearBtn, SIGNAL(clicked()), this, SLOT(clearSettings()));
-    btnLayout->addWidget(clearBtn);
-    
-    btnLayout->addStretch();
-    layout->addLayout(btnLayout, 2, 1, 1, 2);
-
     // Instrument selection
-    layout->addWidget(new QLabel(tr("Instrument:"), this), 3, 0);
+    layout->addWidget(new QLabel(tr("Instrument:"), this), 2, 0);
     _instrumentBox = new QComboBox(this);
     connect(_instrumentBox, SIGNAL(currentIndexChanged(int)), this, SLOT(instrumentChanged(int)));
-    layout->addWidget(_instrumentBox, 3, 1, 1, 2);
+    // Match width with the Definition File line edit
+    layout->addWidget(_instrumentBox, 2, 1);
     
     // Table for viewing/editing
     _tableWidget = new QTableWidget(128, 2, this);
@@ -65,9 +54,21 @@ InstrumentSettingsWidget::InstrumentSettingsWidget(QSettings *settings, QWidget 
     _tableWidget->horizontalHeader()->resizeSection(0, 60);
     _tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     connect(_tableWidget, SIGNAL(itemChanged(QTableWidgetItem*)), this, SLOT(onTableItemChanged(QTableWidgetItem*)));
-    layout->addWidget(_tableWidget, 4, 0, 1, 3);
+    layout->addWidget(_tableWidget, 3, 0, 1, 3);
 
-    layout->setRowStretch(4, 1);
+    // Action buttons at the bottom right
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->setContentsMargins(0, 0, 0, 0);
+    btnLayout->addStretch();
+    
+    QPushButton *clearBtn = new QPushButton(tr("Clear Configuration"), this);
+    clearBtn->setToolTip(tr("Reset to default (no instrument definitions)"));
+    connect(clearBtn, SIGNAL(clicked()), this, SLOT(clearSettings()));
+    btnLayout->addWidget(clearBtn);
+    
+    layout->addLayout(btnLayout, 4, 0, 1, 3);
+
+    layout->setRowStretch(3, 1);
 
     // Initialize from settings or current state
     QString file = _settings->value("InstrumentDefinitions/file", "").toString();

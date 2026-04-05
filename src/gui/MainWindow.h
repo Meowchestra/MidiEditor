@@ -572,14 +572,24 @@ public slots:
     void markEdited();
 
     /**
-     * \brief Sets coloring mode to color by MIDI channels.
+     * \brief Sets the note coloring mode to color by MIDI channels.
      */
-    void colorsByChannel();
+    void noteColorsByChannel();
 
     /**
-     * \brief Sets coloring mode to color by MIDI tracks.
+     * \brief Sets the note coloring mode to color by MIDI tracks.
      */
-    void colorsByTrack();
+    void noteColorsByTrack();
+
+    /**
+     * \brief Sets the marker coloring mode to color by MIDI channels.
+     */
+    void markerColorsByChannel();
+
+    /**
+     * \brief Sets the marker coloring mode to color by MIDI tracks.
+     */
+    void markerColorsByTrack();
 
     /**
      * \brief Edits a specific MIDI channel.
@@ -936,6 +946,7 @@ private:
 
     /** \brief Actions for color mode selection */
     QAction *_colorsByChannel, *_colorsByTracks;
+    QAction *_markerColorsByChannel, *_markerColorsByTrack;
 
     /** \brief Combo boxes for track and channel selection */
     QComboBox *_chooseEditTrack, *_chooseEditChannel;

@@ -16,6 +16,7 @@
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QHeaderView>
+#include <QApplication>
 
 ControlChangeSettingsWidget::ControlChangeSettingsWidget(QSettings *settings, QWidget *parent)
     : SettingsWidget(tr("Control Changes"), parent) {
@@ -27,18 +28,6 @@ ControlChangeSettingsWidget::ControlChangeSettingsWidget(QSettings *settings, QW
     _infoBox = createInfoBox(tr("Edit the names of Control Change (CC) messages."));
     layout->addWidget(_infoBox, 0, 0, 1, 2);
 
-    // Action buttons
-    QHBoxLayout *btnLayout = new QHBoxLayout();
-    btnLayout->setContentsMargins(0, 0, 0, 0);
-    
-    QPushButton *clearBtn = new QPushButton(tr("Clear Configuration"), this);
-    clearBtn->setToolTip(tr("Reset to default names"));
-    connect(clearBtn, SIGNAL(clicked()), this, SLOT(clearSettings()));
-    btnLayout->addWidget(clearBtn);
-    
-    btnLayout->addStretch();
-    layout->addLayout(btnLayout, 1, 0, 1, 2);
-
     // Table for viewing/editing
     _tableWidget = new QTableWidget(128, 2, this);
     _tableWidget->setHorizontalHeaderLabels(QStringList() << tr("Control") << tr("Name"));
@@ -47,9 +36,21 @@ ControlChangeSettingsWidget::ControlChangeSettingsWidget(QSettings *settings, QW
     _tableWidget->horizontalHeader()->resizeSection(0, 60);
     _tableWidget->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     connect(_tableWidget, SIGNAL(itemChanged(QTableWidgetItem*)), this, SLOT(onTableItemChanged(QTableWidgetItem*)));
-    layout->addWidget(_tableWidget, 2, 0, 1, 2);
+    layout->addWidget(_tableWidget, 1, 0, 1, 2);
 
-    layout->setRowStretch(2, 1);
+    // Action buttons
+    QHBoxLayout *btnLayout = new QHBoxLayout();
+    btnLayout->setContentsMargins(0, 0, 0, 0);
+    btnLayout->addStretch();
+    
+    QPushButton *clearBtn = new QPushButton(tr("Clear Configuration"), this);
+    clearBtn->setToolTip(tr("Reset to default names"));
+    connect(clearBtn, SIGNAL(clicked()), this, SLOT(clearSettings()));
+    btnLayout->addWidget(clearBtn);
+    
+    layout->addLayout(btnLayout, 2, 0, 1, 2);
+
+    layout->setRowStretch(1, 1);
 
     populateTable();
 }
@@ -129,6 +130,12 @@ void ControlChangeSettingsWidget::refreshColors() {
                     .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
             label->setStyleSheet(styleSheet);
         }
+    }
+    // Force table widget to pick up new palette colors
+    if (_tableWidget) {
+        _tableWidget->setPalette(QApplication::palette());
+        _tableWidget->viewport()->setPalette(QApplication::palette());
+        populateTable();
     }
     update();
 }

@@ -99,12 +99,21 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
     addSetting(new InstrumentSettingsWidget(settings, central));
     addSetting(new ControlChangeSettingsWidget(settings, central));
-    addSetting(new AppearanceSettingsWidget(central));
+    AppearanceSettingsWidget *appearanceSettings = new AppearanceSettingsWidget(central);
+    addSetting(appearanceSettings);
+    connect(appearanceSettings, SIGNAL(smoothScrollChanged(bool)), 
+            _mainWindow, SLOT(toggleSmoothPlaybackScroll(bool)));
+            
     addSetting(new LayoutSettingsWidget(central));
     addSetting(new KeybindsSettingsWidget(this, central));
     addSetting(new StatusBarSettingsWidget(central));
     addSetting(new PerformanceSettingsWidget(settings, central));
-    addSetting(new GameSupportSettingsWidget(settings, central));
+    GameSupportSettingsWidget *gameSupport = new GameSupportSettingsWidget(settings, central);
+    addSetting(gameSupport);
+    
+    // Connect immediate updates for game support directly to main window
+    connect(gameSupport, SIGNAL(immediateSettingsChanged(bool)), 
+            _mainWindow, SLOT(updateGameSupportUI()));
 }
 
 void SettingsDialog::addSetting(SettingsWidget *settingWidget) {

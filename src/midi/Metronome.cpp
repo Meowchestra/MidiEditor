@@ -13,7 +13,7 @@ Metronome::Metronome(QObject *parent) : QObject(parent) {
     _file = 0;
     num = 4;
     denom = 2;
-    loudness_cache = 100;
+    loudness_cache = 127;
 }
 
 Metronome::~Metronome() {
@@ -118,5 +118,5 @@ int Metronome::loudness() {
     if (_instance) {
         return _instance->loudness_cache;
     }
-    return 100;
+    return 127;
 }

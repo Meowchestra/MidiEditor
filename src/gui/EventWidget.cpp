@@ -222,7 +222,7 @@ void EventWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &inde
             for (int i = 0; i < 128; i++) {
                 QString name = MidiFile::controlChangeName(i);
                 QString text;
-                if (name == MidiFile::tr("undefined")) {
+                if (name.compare(MidiFile::tr("undefined"), Qt::CaseInsensitive) == 0 || name.compare("Undefined", Qt::CaseInsensitive) == 0) {
                     text = QString::number(i) + ": ";
                 } else {
                     text = QString::number(i) + ": " + name;
@@ -324,7 +324,7 @@ void EventWidgetDelegate::setModelData(QWidget *editor, QAbstractItemModel *mode
     EventWidget::EditorField field = static_cast<EventWidget::EditorField>(index.data(Qt::UserRole).toInt());
 
     // set values
-    eventWidget->file()->protocol()->startNewAction(tr("Edited ") + index.data(Qt::UserRole + 1).toString().toLower());
+    eventWidget->file()->protocol()->startNewAction(tr("Edited ") + index.data(Qt::UserRole + 1).toString());
     switch (field) {
         case EventWidget::MidiEventTick: {
             QSpinBox *spin = dynamic_cast<QSpinBox *>(editor);
@@ -598,6 +598,8 @@ EventWidget::EventWidget(QWidget *parent)
     setSelectionBehavior(QAbstractItemView::SelectRows);
 
     setItemDelegate(new EventWidgetDelegate(this));
+    
+    verticalHeader()->setDefaultSectionSize(22);
 }
 
 void EventWidget::setFile(MidiFile *file) {
@@ -664,14 +666,17 @@ void EventWidget::reload() {
         value->setData(0, fieldContent(pair.second));
         value->setData(Qt::UserRole, QVariant(pair.second));
         value->setData(Qt::UserRole + 1, QVariant(pair.first));
-        if (pair.second == MidiEventData) {
-            value->setData(Qt::UserRole + 2, value->data(0));
-            value->setData(0, dataToString(value->data(Qt::UserRole + 2).toByteArray()));
+        if (pair.second == MidiEventData || pair.second == TextText) {
+            if (pair.second == MidiEventData) {
+                value->setData(Qt::UserRole + 2, value->data(0));
+                value->setData(0, dataToString(value->data(Qt::UserRole + 2).toByteArray()));
+            }
+            setRowHeight(row, 80);
+        } else {
+            setRowHeight(row, 22);
         }
         setItem(row++, 1, value);
     }
-
-    resizeRowsToContents();
 }
 
 EventWidget::EventType EventWidget::computeType() {
@@ -1071,7 +1076,7 @@ QVariant EventWidget::fieldContent(EditorField field) {
                 return QVariant("");
             }
             QString name = MidiFile::controlChangeName(control);
-            if (name == MidiFile::tr("undefined")) {
+            if (name.compare(MidiFile::tr("undefined"), Qt::CaseInsensitive) == 0 || name.compare("Undefined", Qt::CaseInsensitive) == 0) {
                 return QVariant(QString::number(control) + ": ");
             }
             return QVariant(QString::number(control) + ": " + name);

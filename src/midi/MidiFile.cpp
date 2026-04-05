@@ -43,7 +43,7 @@ MidiFile::MidiFile() {
     midiTicks = 0;
     _cursorTick = 0;
     prot = new Protocol(this);
-    prot->addEmptyAction("New file");
+    prot->addEmptyAction("New File");
     _path = "";
     _pauseTick = -1;
     for (int i = 0; i < 19; i++) {
@@ -95,7 +95,7 @@ MidiFile::MidiFile(QString path, bool *ok, QStringList *log) {
     midiTicks = 0;
     _cursorTick = 0;
     prot = new Protocol(this);
-    prot->addEmptyAction(tr("File opened"));
+    prot->addEmptyAction(tr("File Opened"));
     _path = path;
     _tracks = new QList<MidiTrack *>();
     QFile *f = new QFile(path);

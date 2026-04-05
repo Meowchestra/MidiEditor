@@ -25,6 +25,7 @@
 #include <QHash>
 #include <QList>
 #include <functional>
+#include <QCoreApplication>
 
 class MidiFile;
 class MidiTrack;
@@ -49,6 +50,7 @@ class MidiTrack;
  *  5. All events are migrated to the correct channel.
  */
 class FFXIVChannelFixer {
+    Q_DECLARE_TR_FUNCTIONS(FFXIVChannelFixer)
 public:
     /**
      * \brief Resolve a track name (with aliases, spaces, suffixes) to
@@ -103,10 +105,12 @@ public:
     /**
      * \brief Fix all channel assignments and program_change events.
      * \param file       The loaded MidiFile
+     * \param forcedTier 0=Auto (Detect), 2=Rebuild (Full Reassignment), 3=Preserve (Minimal Changes)
      * \param progress   Optional callback for progress updates
-     * \return JSON result with success, channelMap, summary
+     * \return JSON result with success, tier, channelMap, summary
      */
     static QJsonObject fixChannels(MidiFile *file,
+                                   int forcedTier = 0,
                                    ProgressCallback progress = nullptr);
 
 private:

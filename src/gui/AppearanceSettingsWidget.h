@@ -125,6 +125,12 @@ signals:
      */
     void appearanceChanged();
 
+    /**
+     * \brief Emitted when smooth playback scrolling setting is toggled
+     * \param enabled True if smooth scrolling is enabled
+     */
+    void smoothScrollChanged(bool enabled);
+
 public slots:
     /**
      * \brief Handles channel color changes.
@@ -167,6 +173,20 @@ public slots:
      * \param enabled True to enable range lines
      */
     void rangeLinesChanged(bool enabled);
+
+    /**
+     * \brief Handles marker setting changes.
+     * \param enabled True to enable marker lines
+     */
+    void programChangeMarkersChanged(bool enabled);
+    void controlChangeMarkersChanged(bool enabled);
+    void textEventMarkersChanged(bool enabled);
+
+    /**
+     * \brief Handles playback scrolling setting changes.
+     * \param enabled True to enable smooth playback scrolling
+     */
+    void smoothPlaybackScrollingChanged(bool enabled);
 
     /**
      * \brief Handles application style changes.

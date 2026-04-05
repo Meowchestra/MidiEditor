@@ -23,12 +23,42 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
+#include <QCompleter>
+#include <QStyledItemDelegate>
+#include <QPainter>
+#include <QStyleOptionViewItem>
+#include <QStyle>
 
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
+
+class InstrumentChooserDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+        QStyleOptionViewItem opt = option;
+        initStyleOption(&opt, index);
+
+        // Draw background
+        opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
+
+        QString text = index.data(Qt::DisplayRole).toString();
+        QString gmText = index.data(Qt::UserRole).toString();
+
+        QRect textRect = opt.rect.adjusted(3, 0, -35, 0);
+        QRect gmRect = opt.rect.adjusted(0, 0, -5, 0);
+
+        painter->save();
+        painter->setFont(opt.font);
+        painter->drawText(textRect, Qt::AlignLeft | Qt::AlignVCenter, text);
+        painter->setPen(opt.palette.color(QPalette::Text).lighter());
+        painter->drawText(gmRect, Qt::AlignRight | Qt::AlignVCenter, gmText);
+        painter->restore();
+    }
+};
 
 InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
     : QDialog(parent) {
@@ -40,8 +70,10 @@ InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
 
     QLabel *text = new QLabel(tr("Instrument: "), this);
     _box = new QComboBox(this);
+    _box->setEditable(false);
+    _box->setItemDelegate(new InstrumentChooserDelegate(_box));
     for (int i = 0; i < 128; i++) {
-        _box->addItem(MidiFile::instrumentName(i));
+        _box->addItem(MidiFile::instrumentName(i), QString("[%1]").arg(i, 3, 10, QChar('0')));
     }
     _box->setCurrentIndex(_file->channel(_channel)->progAtTick(0));
 

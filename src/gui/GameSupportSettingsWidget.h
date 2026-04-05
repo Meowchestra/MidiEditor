@@ -73,6 +73,20 @@ public:
      */
     static bool isFFXIVEnabled(QSettings *settings);
 
+signals:
+    /**
+     * \brief Emitted when any settings in this widget are changed
+     */
+    void settingsChanged();
+
+    /**
+     * \brief Emitted immediately when a setting is toggled, before accept() is called
+     */
+    void immediateSettingsChanged(bool ffxivEnabled);
+
+private slots:
+    void onFFXIVBoxToggled(bool checked);
+
 private:
     /** \brief Settings storage */
     QSettings *_settings;

@@ -3,7 +3,10 @@
 #define ROW_HEIGHT 45
 
 #include <QGridLayout>
+#include <QHBoxLayout>
+#include <QVBoxLayout>
 #include <QListWidget>
+#include <QListWidgetItem>
 #include <QLabel>
 #include <QColorDialog>
 #include <QPushButton>
@@ -11,6 +14,9 @@
 #include <QSlider>
 #include <QComboBox>
 #include <QCheckBox>
+#include <QGroupBox>
+#include <QSettings>
+#include <QAbstractItemView>
 
 #include "Appearance.h"
 
@@ -69,47 +75,87 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     }
     trackList->setFixedHeight(ROW_HEIGHT * 5);
     trackList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
+    // Row 4: Opacity and Reset
+    QHBoxLayout *topRow = new QHBoxLayout();
+    topRow->setContentsMargins(0, 10, 0, 5);
+    QLabel *opacityLabel = new QLabel(tr("Event Opacity"));
+    topRow->addWidget(opacityLabel, 0, Qt::AlignVCenter);
+    QSlider *opacitySlider = new QSlider(Qt::Horizontal, this);
+    opacitySlider->setRange(0, 100);
+    opacitySlider->setValue(Appearance::opacity());
+    connect(opacitySlider, SIGNAL(valueChanged(int)), this, SLOT(opacityChanged(int)));
+    topRow->addWidget(opacitySlider, 1);
+    topRow->addSpacing(20);
+    
     QPushButton *resetButton = new QPushButton(tr("Reset Colors"), this);
     connect(resetButton, SIGNAL(clicked()), this, SLOT(resetColors()));
-    layout->addWidget(resetButton, 4, 1, 1, 1);
+    topRow->addWidget(resetButton, 0, Qt::AlignRight);
+    layout->addLayout(topRow, 4, 0, 1, 2);
 
+    // Row 5: Two columns
+    QGridLayout *bottomGrid = new QGridLayout();
+    bottomGrid->setContentsMargins(0, 10, 0, 0);
+    layout->addLayout(bottomGrid, 5, 0, 1, 2);
 
-    layout->addWidget(new QLabel(tr("Event Opacity")), 6, 0, 1, 1);
-    QSlider *opacity = new QSlider(Qt::Horizontal, this);
-    opacity->setMaximum(0);
-    opacity->setMaximum(100);
-    opacity->setValue(Appearance::opacity());
-    connect(opacity, SIGNAL(valueChanged(int)), this, SLOT(opacityChanged(int)));
-    layout->addWidget(opacity, 6, 1, 1, 1);
-
-    layout->addWidget(new QLabel(tr("Strip Style")), 7, 0, 1, 1);
-    QComboBox *strip = new QComboBox(this);
-    strip->addItems({
-        tr("Highlight by Octaves"),
-        tr("Highlight by Scale"),
-        tr("Highlight by Alternating")
-    });
-    strip->setCurrentIndex(Appearance::strip());
-    connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
-    layout->addWidget(strip, 7, 1, 1, 1);
-
-    // UI Styling options
-    layout->addWidget(new QLabel(tr("Application Style")), 8, 0, 1, 1);
+    // Left Column: Visual Styles
+    QGroupBox *styleGroup = new QGroupBox(tr("Visual Styles"), this);
+    QGridLayout *styleLayout = new QGridLayout(styleGroup);
+    
+    styleLayout->addWidget(new QLabel(tr("Application Style")), 0, 0);
     QComboBox *styleCombo = new QComboBox(this);
     QStringList availableStyles = Appearance::availableStyles();
     styleCombo->addItems(availableStyles);
-    int currentIndex = availableStyles.indexOf(Appearance::applicationStyle());
-    if (currentIndex >= 0) {
-        styleCombo->setCurrentIndex(currentIndex);
-    }
+    styleCombo->setCurrentText(Appearance::applicationStyle());
     connect(styleCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(styleChanged(QString)));
-    layout->addWidget(styleCombo, 8, 1, 1, 1);
+    styleLayout->addWidget(styleCombo, 0, 1);
 
-    layout->addWidget(new QLabel(tr("Show C3/C6 Range Lines")), 9, 0, 1, 1);
+    styleLayout->addWidget(new QLabel(tr("Strip Style")), 1, 0);
+    QComboBox *strip = new QComboBox(this);
+    strip->addItems({tr("Highlight by Octaves"), tr("Highlight by Scale"), tr("Highlight by Alternating")});
+    strip->setCurrentIndex(Appearance::strip());
+    connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
+    styleLayout->addWidget(strip, 1, 1);
+
+    styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 2, 0);
+    QCheckBox *smoothScroll = new QCheckBox(this);
+    smoothScroll->setChecked(Appearance::smoothPlaybackScrolling());
+    connect(smoothScroll, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
+    styleLayout->addWidget(smoothScroll, 2, 1);
+    
+    bottomGrid->addWidget(styleGroup, 0, 0);
+
+    // Right Column: Matrix & Marker Settings
+    QGroupBox *markerGroup = new QGroupBox(tr("Matrix / Markers"), this);
+    QGridLayout *markerLayout = new QGridLayout(markerGroup);
+    
+    markerLayout->addWidget(new QLabel(tr("Show C3/C6 Range Lines")), 0, 0);
     QCheckBox *rangeLines = new QCheckBox(this);
     rangeLines->setChecked(Appearance::showRangeLines());
     connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
-    layout->addWidget(rangeLines, 9, 1, 1, 1);
+    markerLayout->addWidget(rangeLines, 0, 1);
+
+    markerLayout->addWidget(new QLabel(tr("Show Program Changes")), 1, 0);
+    QCheckBox *pcMarkers = new QCheckBox(this);
+    pcMarkers->setChecked(Appearance::showProgramChangeMarkers());
+    connect(pcMarkers, SIGNAL(toggled(bool)), this, SLOT(programChangeMarkersChanged(bool)));
+    markerLayout->addWidget(pcMarkers, 1, 1);
+
+    markerLayout->addWidget(new QLabel(tr("Show Control Changes")), 2, 0);
+    QCheckBox *ccMarkers = new QCheckBox(this);
+    ccMarkers->setChecked(Appearance::showControlChangeMarkers());
+    connect(ccMarkers, SIGNAL(toggled(bool)), this, SLOT(controlChangeMarkersChanged(bool)));
+    markerLayout->addWidget(ccMarkers, 2, 1);
+
+    markerLayout->addWidget(new QLabel(tr("Show Text Events")), 3, 0);
+    QCheckBox *txtMarkers = new QCheckBox(this);
+    txtMarkers->setChecked(Appearance::showTextEventMarkers());
+    connect(txtMarkers, SIGNAL(toggled(bool)), this, SLOT(textEventMarkersChanged(bool)));
+    markerLayout->addWidget(txtMarkers, 3, 1);
+    bottomGrid->addWidget(markerGroup, 0, 1);
+
+    
+    // Push everything structurally up
+    layout->setRowStretch(6, 1);
 }
 
 void AppearanceSettingsWidget::channelColorChanged(int channel, QColor c) {
@@ -170,6 +216,31 @@ void AppearanceSettingsWidget::rangeLinesChanged(bool enabled) {
     update();
 }
 
+void AppearanceSettingsWidget::programChangeMarkersChanged(bool enabled) {
+    Appearance::setShowProgramChangeMarkers(enabled);
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::controlChangeMarkersChanged(bool enabled) {
+    Appearance::setShowControlChangeMarkers(enabled);
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::textEventMarkersChanged(bool enabled) {
+    Appearance::setShowTextEventMarkers(enabled);
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::smoothPlaybackScrollingChanged(bool enabled) {
+    Appearance::setSmoothPlaybackScrolling(enabled);
+    emit smoothScrollChanged(enabled);
+    emit appearanceChanged();
+    update();
+}
+
 void AppearanceSettingsWidget::styleChanged(const QString &style) {
     Appearance::setApplicationStyle(style);
 
@@ -178,7 +249,6 @@ void AppearanceSettingsWidget::styleChanged(const QString &style) {
     refreshColors(); // Also refresh this widget's colors immediately
     update();
 }
-
 
 NamedColorWidgetItem::NamedColorWidgetItem(int number, QString name, QColor color, QWidget *parent) : QWidget(parent) {
     this->_number = number;

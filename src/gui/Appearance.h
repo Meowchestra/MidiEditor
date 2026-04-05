@@ -132,6 +132,8 @@ public:
         onEven = 2,    ///< Strips on even-numbered keys
     };
 
+    enum MarkerColorMode { ColorByTrack, ColorByChannel };
+
     /**
      * \brief Gets the current strip style.
      * \return Current stripStyle setting
@@ -155,6 +157,21 @@ public:
      * \param enabled True to show range lines, false to hide them
      */
     static void setShowRangeLines(bool enabled);
+
+    static bool showProgramChangeMarkers();
+    static void setShowProgramChangeMarkers(bool enabled);
+
+    static bool showControlChangeMarkers();
+    static void setShowControlChangeMarkers(bool enabled);
+
+    static bool showTextEventMarkers();
+    static void setShowTextEventMarkers(bool enabled);
+
+    static MarkerColorMode markerColorMode();
+    static void setMarkerColorMode(MarkerColorMode mode);
+
+    static bool smoothPlaybackScrolling();
+    static void setSmoothPlaybackScrolling(bool enabled);
 
     // === UI Styling Options ===
 
@@ -686,6 +703,12 @@ private:
 
     /** \brief Whether to show range lines */
     static bool _showRangeLines;
+
+    static bool _showProgramChangeMarkers;
+    static bool _showControlChangeMarkers;
+    static bool _showTextEventMarkers;
+    static MarkerColorMode _markerColorMode;
+    static bool _smoothPlaybackScrolling;
 
     /** \brief Current application style name */
     static QString _applicationStyle;

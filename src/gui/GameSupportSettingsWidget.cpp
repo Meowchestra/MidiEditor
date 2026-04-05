@@ -38,23 +38,29 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
     _ffxivGroup = new QGroupBox(tr("Final Fantasy XIV"), this);
     QGridLayout *ffxivLayout = new QGridLayout(_ffxivGroup);
 
-    _ffxivEnabledBox = new QCheckBox(tr("Enable FFXIV Bard Performance Support"), _ffxivGroup);
+    _ffxivEnabledBox = new QCheckBox(tr("Enable Channel Fixer"), _ffxivGroup);
     _ffxivEnabledBox->setChecked(_settings->value("game_support/ffxiv_enabled", false).toBool());
     _ffxivEnabledBox->setToolTip(tr("Adds FFXIV-specific tools to the Tracks and Channels panels."));
+    connect(_ffxivEnabledBox, SIGNAL(toggled(bool)), this, SLOT(onFFXIVBoxToggled(bool)));
     ffxivLayout->addWidget(_ffxivEnabledBox, 0, 0, 1, 2);
 
     QLabel *ffxivDesc = new QLabel(
         tr("When enabled, a <b>Fix XIV Channels</b> button appears in the "
            "Tracks and Channels widgets. This automatically assigns each track "
            "to the correct MIDI channel and sets program-change events based on "
-           "the track's instrument name so FFXIV soundfonts play back correctly.\n\n"
-           "Supported instruments: Harp, Piano, Lute, Fiddle, Flute, Oboe, "
-           "Clarinet, Fife, Panpipes, Timpani, Bongo, Bass Drum, Snare Drum, "
-           "Cymbal, Trumpet, Trombone, Tuba, Horn, Saxophone, Violin, Viola, "
-           "Cello, Double Bass, and all Electric Guitar variants.\n\n"
-           "Track names also resolve with common aliases."),
+           "the track's instrument name so FFXIV soundfonts play back correctly.<br><br>"
+           "Supported instruments (including common aliases): Harp, Piano, Lute, "
+           "Fiddle, Flute, Oboe, Clarinet, Fife, Panpipes, Timpani, Bongo, "
+           "BassDrum, SnareDrum, Cymbal, Trumpet, Trombone, Tuba, Horn, "
+           "Saxophone, Violin, Viola, Cello, DoubleBass, "
+           "ElectricGuitarOverdriven, ElectricGuitarClean, "
+           "ElectricGuitarMuted, ElectricGuitarPowerChords, "
+           "& ElectricGuitarSpecial."),
         _ffxivGroup);
+
+    ffxivDesc->setTextFormat(Qt::RichText);
     ffxivDesc->setWordWrap(true);
+
     ffxivDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     ffxivLayout->addWidget(ffxivDesc, 1, 0, 1, 2);
 
@@ -62,8 +68,20 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
     mainLayout->addStretch();
 }
 
+void GameSupportSettingsWidget::onFFXIVBoxToggled(bool checked) {
+    // Write directly to settings so MainWindow can read it via isFFXIVEnabled
+    // This allows immediate UI updates without waiting for "OK" to be clicked
+    _settings->setValue("game_support/ffxiv_enabled", checked);
+    emit immediateSettingsChanged(checked);
+}
+
 bool GameSupportSettingsWidget::accept() {
-    _settings->setValue("game_support/ffxiv_enabled", _ffxivEnabledBox->isChecked());
+    bool oldValue = _settings->value("game_support/ffxiv_enabled", false).toBool();
+    bool newValue = _ffxivEnabledBox->isChecked();
+    if (oldValue != newValue) {
+        _settings->setValue("game_support/ffxiv_enabled", newValue);
+        emit settingsChanged();
+    }
     return true;
 }
 

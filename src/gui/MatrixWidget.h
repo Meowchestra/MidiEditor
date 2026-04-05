@@ -521,6 +521,18 @@ private:
     void paintChannel(QPainter *painter, int channel);
 
     /**
+     * \brief Paints timeline event markers for a specific MIDI channel.
+     * \param painter The QPainter to draw with
+     * \param channel The MIDI channel to paint (0-15)
+     */
+    void paintTimelineMarkers(QPainter *painter);
+
+    /**
+     * \brief Finds a timeline marker near a clicked time (ms).
+     */
+    MidiEvent *findTimelineMarkerNear(int ms);
+
+    /**
      * \brief Paints a single piano key in the piano area.
      * \param painter The QPainter to draw with
      * \param number MIDI note number (0-127)
@@ -639,6 +651,10 @@ private:
 
     /** \brief Timeline display area */
     QRectF TimeLineArea;
+
+    /** \brief Marker active dragging state */
+    MidiEvent *_draggedMarker = nullptr;
+    int _draggedMarkerOriginalTime = -1;
 
     // === Rendering Cache ===
 

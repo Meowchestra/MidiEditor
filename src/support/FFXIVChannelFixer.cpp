@@ -171,7 +171,7 @@ QStringList FFXIVChannelFixer::allInstrumentNames() {
 }
 
 // ---------------------------------------------------------------------------
-// analyzeFile — read-only scan
+// analyzeFile — read-only scan for Tier detection
 // ---------------------------------------------------------------------------
 
 QJsonObject FFXIVChannelFixer::analyzeFile(MidiFile *file) {
@@ -205,21 +205,44 @@ QJsonObject FFXIVChannelFixer::analyzeFile(MidiFile *file) {
         }
     }
 
-    result["valid"]            = (ffxivTrackCount > 0);
-    result["trackCount"]       = trackCount;
-    result["ffxivTrackCount"]  = ffxivTrackCount;
-    result["hasGuitar"]        = hasGuitar;
-    result["guitarVariants"]   = QJsonArray::fromStringList(guitarVariants);
-    result["percussionTracks"] = QJsonArray::fromStringList(percussionTracks);
-    result["melodicTracks"]    = QJsonArray::fromStringList(melodicTracks);
+    // Count existing program changes for Tier detection
+    int totalProgramChanges = 0;
+    bool hasGuitarPCs = false;
+    for (int ch = 0; ch < 16; ch++) {
+        MidiChannel *channel = file->channel(ch);
+        if (!channel) continue;
+        auto *eventMap = channel->eventMap();
+        for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+            auto *pc = dynamic_cast<ProgChangeEvent *>(it.value());
+            if (!pc) continue;
+            totalProgramChanges++;
+            int p = pc->program();
+            if (p >= 27 && p <= 31) hasGuitarPCs = true;
+        }
+    }
+
+    // Auto-detect tier
+    int autoTier = (ffxivTrackCount > 0) ? 2 : 1;
+    if (autoTier == 2 && hasGuitar && hasGuitarPCs)
+        autoTier = 3;
+
+    result["valid"]               = (ffxivTrackCount > 0);
+    result["trackCount"]          = trackCount;
+    result["ffxivTrackCount"]    = ffxivTrackCount;
+    result["hasGuitar"]           = hasGuitar;
+    result["totalProgramChanges"] = totalProgramChanges;
+    result["autoDetectedTier"]    = autoTier;
+    result["guitarVariants"]      = QJsonArray::fromStringList(guitarVariants);
+    result["percussionTracks"]    = QJsonArray::fromStringList(percussionTracks);
+    result["melodicTracks"]       = QJsonArray::fromStringList(melodicTracks);
     return result;
 }
 
 // ---------------------------------------------------------------------------
-// fixChannels — full channel and program-change rebuild
+// fixChannels — tiered reassignment and preservation
 // ---------------------------------------------------------------------------
 
-QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback progress) {
+QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, ProgressCallback progress) {
     auto report = [&](int pct, const QString &msg) {
         if (progress) progress(pct, msg);
     };
@@ -248,9 +271,9 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
     };
 
     // -----------------------------------------------------------------
-    // 1. Resolve every track name to its canonical FFXIV instrument
+    // 1. Resolve Instrument Names and Analyze Guitar Progs
     // -----------------------------------------------------------------
-    report(5, QStringLiteral("Resolving track names..."));
+    report(5, QStringLiteral("Analyzing tracks..."));
 
     QVector<QString> canonicalNames(trackCount);
     int ffxivTrackCount = 0;
@@ -270,86 +293,152 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
 
     if (ffxivTrackCount == 0) {
         result["success"] = false;
-        result["error"]   = QStringLiteral(
-            "No FFXIV instrument names detected. "
-            "Track names must match FFXIV instruments. ");
+        result["error"]   = QStringLiteral("No FFXIV instrument names detected. Track names must match FFXIV instruments.");
+        result["tier"]    = 1;
         return result;
     }
 
-    // -----------------------------------------------------------------
-    // 2. Build channel assignment map
-    //    - Preconfigured guitars -> keep channels, don't move
-    //    - Guitar duplicate variants share the first occurrence's channel
-    //    - Everything else → track index (clamped 0-15)
-    // -----------------------------------------------------------------
-    report(15, QStringLiteral("Building channel map..."));
-
-    QVector<int> channelFor(trackCount, -1);
-    QSet<int>    usedChannels;
-    QSet<int>    protectedChannels;
-    QHash<QString, int> guitarChannelMap;
-
-    auto hasValidGuitarPCs = [&](MidiTrack *track) -> bool {
+    // Scan guitar program changes on all channels
+    QHash<int, int> guitarChToProgram;
+    if (hasGuitar) {
         for (int ch = 0; ch < 16; ch++) {
             MidiChannel *channel = file->channel(ch);
             if (!channel) continue;
             auto *eventMap = channel->eventMap();
             for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
                 if (auto *pc = dynamic_cast<ProgChangeEvent *>(it.value())) {
-                    if (pc->track() == track) {
-                        int p = pc->program();
-                        if (p >= 27 && p <= 31) return true;
+                    int p = pc->program();
+                    if (p >= 27 && p <= 31) {
+                        if (!guitarChToProgram.contains(ch))
+                            guitarChToProgram[ch] = p;
                     }
                 }
             }
         }
-        return false;
-    };
+    }
 
-    for (int t = 0; t < trackCount; t++) {
-        const QString &name = canonicalNames[t];
-        MidiTrack *track = file->track(t);
-        bool isPreconfigGuitar = (name == QStringLiteral("ProgramElectricGuitar") ||
-                                 (isGuitar(name) && hasValidGuitarPCs(track)));
+    // -----------------------------------------------------------------
+    // 2. TIER DETECTION: Rebuild (2) vs Preserve (3)
+    // -----------------------------------------------------------------
+    report(15, QStringLiteral("Detecting mode..."));
 
-        if (name.isEmpty()) {
-            // Not an FFXIV track — keep at track index
-            channelFor[t] = qMin(t, 15);
-        } else if (isPreconfigGuitar) {
-            channelFor[t] = -2; // Preconfigured, do not move events or strip PCs
-            for (int ch = 0; ch < 16; ch++) {
-                MidiChannel *channel = file->channel(ch);
-                if (!channel) continue;
-                auto *eventMap = channel->eventMap();
-                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
-                    if (it.value()->track() == track) {
-                        protectedChannels.insert(ch);
+    bool isPreserveMode = false;
+    // Default detection: if guitar PCs exist, it's likely configured (Tier 3)
+    if (hasGuitar && !guitarChToProgram.isEmpty()) isPreserveMode = true;
+
+    // Manual override if forced
+    if (forcedTier == 2) isPreserveMode = false;
+    else if (forcedTier == 3) isPreserveMode = true;
+
+    int activeTier = isPreserveMode ? 3 : 2;
+
+    // -----------------------------------------------------------------
+    // 3. Build channel assignment map
+    // -----------------------------------------------------------------
+    report(20, QStringLiteral("Building channel map..."));
+
+    QVector<int> channelFor(trackCount, -1);
+    QSet<int> usedChannels;
+    QHash<QString, int> guitarChannelMap;
+    QSet<int> dupGuitarTracks;
+
+    if (isPreserveMode) {
+        // TIER 3: Notes are ground truth for channel mapping
+        if (hasGuitar) {
+            for (int t = 0; t < trackCount; t++) {
+                if (!isGuitar(canonicalNames[t])) continue;
+
+                // Duplicate variant: reuse first occurrence's channel
+                if (guitarChannelMap.contains(canonicalNames[t])) {
+                    channelFor[t] = guitarChannelMap[canonicalNames[t]];
+                    usedChannels.insert(channelFor[t]);
+                    dupGuitarTracks.insert(t);
+                    continue;
+                }
+
+                MidiTrack *track = file->track(t);
+                QHash<int, int> chCount;
+                for (int ch = 0; ch < 16; ch++) {
+                    MidiChannel *channel = file->channel(ch);
+                    if (!channel) continue;
+                    auto *eventMap = channel->eventMap();
+                    for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                        if (it.value()->track() == track && dynamic_cast<NoteOnEvent*>(it.value()))
+                            chCount[ch]++;
+                    }
+                }
+                int bestCh = t, bestCount = 0;
+                for (auto it = chCount.begin(); it != chCount.end(); ++it) {
+                    if (it.value() > bestCount) { bestCount = it.value(); bestCh = it.key(); }
+                }
+                channelFor[t] = bestCh;
+                guitarChannelMap[canonicalNames[t]] = bestCh;
+                usedChannels.insert(bestCh);
+            }
+
+            // Fill missing variants from existing PCs
+            for (auto it = guitarChToProgram.begin(); it != guitarChToProgram.end(); ++it) {
+                int ch = it.key();
+                int prog = it.value();
+                for (const QString &v : allGuitarVariants) {
+                    if (programForInstrument(v) == prog && !guitarChannelMap.contains(v)) {
+                        guitarChannelMap[v] = ch;
                         usedChannels.insert(ch);
                         break;
                     }
                 }
             }
-        } else if (isGuitar(name) && guitarChannelMap.contains(name)) {
-            // Duplicate guitar variant: reuse first occurrence's channel
-            channelFor[t] = guitarChannelMap[name];
-        } else {
-            int ch = t;
-            if (ch > 15) ch = 15;
-            channelFor[t] = ch;
-            if (isGuitar(name))
-                guitarChannelMap[name] = ch;
         }
-        if (channelFor[t] >= 0) {
+
+        // Channel for non-guitar tracks: also used note distribution
+        for (int t = 0; t < trackCount; t++) {
+            if (isGuitar(canonicalNames[t])) continue;
+            if (isPercussion(canonicalNames[t])) {
+                channelFor[t] = 9;
+                usedChannels.insert(9);
+                continue;
+            }
+            MidiTrack *track = file->track(t);
+            QHash<int, int> chCount;
+            for (int ch = 0; ch < 16; ch++) {
+                MidiChannel *channel = file->channel(ch);
+                if (!channel) continue;
+                auto *eventMap = channel->eventMap();
+                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                    if (it.value()->track() == track && dynamic_cast<NoteOnEvent*>(it.value()))
+                        chCount[ch]++;
+                }
+            }
+            int bestCh = t, bestCount = 0;
+            for (auto it = chCount.begin(); it != chCount.end(); ++it) {
+                if (it.value() > bestCount) { bestCount = it.value(); bestCh = it.key(); }
+            }
+            channelFor[t] = bestCh;
+            usedChannels.insert(bestCh);
+        }
+    } else {
+        // TIER 2: Fresh reassignment by track index
+        for (int t = 0; t < trackCount; t++) {
+            if (isPercussion(canonicalNames[t])) {
+                channelFor[t] = 9;
+            } else if (hasGuitar && isGuitar(canonicalNames[t]) && guitarChannelMap.contains(canonicalNames[t])) {
+                channelFor[t] = guitarChannelMap[canonicalNames[t]];
+            } else {
+                int ch = t;
+                if (ch > 15) ch = 15;
+                channelFor[t] = ch;
+                if (hasGuitar && isGuitar(canonicalNames[t]))
+                    guitarChannelMap[canonicalNames[t]] = ch;
+            }
             usedChannels.insert(channelFor[t]);
         }
     }
 
-    // Reserve free channels for guitar variants not present as tracks
+    // Reserve free channels for missing guitar variants
     if (hasGuitar) {
         auto nextFreeChannel = [&]() -> int {
             for (int ch = 0; ch <= 15; ch++) {
-                if (!usedChannels.contains(ch))
-                    return ch;
+                if (!usedChannels.contains(ch)) return ch;
             }
             return -1;
         };
@@ -364,7 +453,6 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
         }
     }
 
-    // Collect all guitar channels
     QSet<int> allGuitarChs;
     if (hasGuitar) {
         for (auto it = guitarChannelMap.begin(); it != guitarChannelMap.end(); ++it)
@@ -372,18 +460,20 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
     }
 
     // -----------------------------------------------------------------
-    // 3. Remove all existing program-change events
+    // 4. CLEANUP: Remove Program Changes
     // -----------------------------------------------------------------
-    report(30, QStringLiteral("Removing old program changes..."));
+    report(35, QStringLiteral("Removing old program changes..."));
 
     int removedPcCount = 0;
     for (int ch = 0; ch < 16; ch++) {
-        if (protectedChannels.contains(ch)) continue; // Preserve PCs for preconfigured channels
+        // Tier 3: only remove PCs on guitar channels (preserve non-guitar)
+        if (isPreserveMode && !allGuitarChs.contains(ch)) continue;
+        
         MidiChannel *channel = file->channel(ch);
         if (!channel) continue;
-        QMultiMap<int, MidiEvent *> *map = channel->eventMap();
         QList<MidiEvent *> toRemove;
-        for (auto it = map->begin(); it != map->end(); ++it) {
+        auto *eventMap = channel->eventMap();
+        for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
             if (dynamic_cast<ProgChangeEvent *>(it.value()))
                 toRemove.append(it.value());
         }
@@ -393,133 +483,155 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
     }
 
     // -----------------------------------------------------------------
-    // 4. Migrate events to correct channels
+    // 5. MIGRATE: Move events to channels
     // -----------------------------------------------------------------
     report(50, QStringLiteral("Migrating events..."));
 
-    for (int t = 0; t < trackCount; t++) {
-        int targetCh = channelFor[t];
-        if (targetCh < 0) continue; // Skip preconfigured tracks (-2)
-        MidiTrack *track = file->track(t);
+    if (!isPreserveMode) {
+        // Tier 2: full migration
+        for (int t = 0; t < trackCount; t++) {
+            int targetCh = channelFor[t];
+            MidiTrack *track = file->track(t);
 
-        struct EventInfo { MidiEvent *ev; int currentCh; };
-        QList<EventInfo> trackEvents;
+            struct EventInfo { MidiEvent *ev; int currentCh; };
+            QList<EventInfo> trackEvents;
 
-        for (int ch = 0; ch < 16; ch++) {
-            MidiChannel *channel = file->channel(ch);
-            if (!channel) continue;
-            QMultiMap<int, MidiEvent *> *map = channel->eventMap();
-            for (auto it = map->begin(); it != map->end(); ++it) {
-                MidiEvent *ev = it.value();
-                if (ev->track() != track) continue;
-                if (dynamic_cast<ProgChangeEvent *>(ev)) continue;
-                if (dynamic_cast<OffEvent *>(ev)) continue;
-                trackEvents.append({ev, ch});
+            for (int ch = 0; ch < 16; ch++) {
+                if (ch == targetCh) continue;
+                MidiChannel *channel = file->channel(ch);
+                if (!channel) continue;
+                QMultiMap<int, MidiEvent *> *eventMap = channel->eventMap();
+                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                    MidiEvent *ev = it.value();
+                    if (ev->track() != track) continue;
+                    if (dynamic_cast<ProgChangeEvent *>(ev)) continue;
+                    if (dynamic_cast<OffEvent *>(ev)) continue;
+                    trackEvents.append({ev, ch});
+                }
             }
-        }
 
-        for (const auto &info : trackEvents) {
-            if (info.currentCh == targetCh) continue;
-            info.ev->moveToChannel(targetCh);
+            for (const auto &info : trackEvents) {
+                info.ev->moveToChannel(targetCh);
+            }
+            track->assignChannel(targetCh);
         }
+    } else {
+        // Tier 3: migrate only duplicate guitar tracks
+        for (int t : dupGuitarTracks) {
+            int targetCh = channelFor[t];
+            MidiTrack *track = file->track(t);
 
-        track->assignChannel(targetCh);
+            struct EventInfo { MidiEvent *ev; int currentCh; };
+            QList<EventInfo> trackEvents;
+
+            for (int ch = 0; ch < 16; ch++) {
+                if (ch == targetCh) continue;
+                MidiChannel *channel = file->channel(ch);
+                if (!channel) continue;
+                QMultiMap<int, MidiEvent *> *eventMap = channel->eventMap();
+                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                    MidiEvent *ev = it.value();
+                    if (ev->track() != track) continue;
+                    if (dynamic_cast<ProgChangeEvent *>(ev)) continue;
+                    if (dynamic_cast<OffEvent *>(ev)) continue;
+                    trackEvents.append({ev, ch});
+                }
+            }
+
+            for (const auto &info : trackEvents) {
+                info.ev->moveToChannel(targetCh);
+            }
+            track->assignChannel(targetCh);
+        }
+        
+        // Ensure other tracks reflect their assignments in the track object too
+        for (int t = 0; t < trackCount; t++) {
+            if (!dupGuitarTracks.contains(t))
+                file->track(t)->assignChannel(channelFor[t]);
+        }
     }
 
     // -----------------------------------------------------------------
-    // 5. Insert program-change at tick 0 for every FFXIV channel
+    // 6. PROGRAM: Insert PCs at Tick 0
     // -----------------------------------------------------------------
-    report(70, QStringLiteral("Inserting program changes..."));
+    report(75, QStringLiteral("Inserting program changes..."));
 
     struct ChannelProgram { int channel; int program; };
     QList<ChannelProgram> channelPrograms;
 
-    // Non-guitar tracks
-    for (int t = 0; t < trackCount; t++) {
-        if (channelFor[t] < 0) continue; // Skip preconfigured tracks
-        if (isGuitar(canonicalNames[t])) continue;
-        int prog = programForInstrument(canonicalNames[t]);
-        if (prog >= 0)
-            channelPrograms.append({channelFor[t], prog});
+    // Non-guitar tracks: only in Tier 2
+    if (!isPreserveMode) {
+        for (int t = 0; t < trackCount; t++) {
+            if (isGuitar(canonicalNames[t])) continue;
+            int prog = programForInstrument(canonicalNames[t]);
+            if (prog >= 0) channelPrograms.append({channelFor[t], prog});
+        }
     }
 
-    // All guitar channels (from the full variant map)
     if (hasGuitar) {
         for (auto it = guitarChannelMap.begin(); it != guitarChannelMap.end(); ++it) {
             int prog = programForInstrument(it.key());
-            if (prog >= 0)
-                channelPrograms.append({it.value(), prog});
+            if (prog >= 0) channelPrograms.append({it.value(), prog});
         }
     }
 
-    // Deduplicate: only one PC per channel
-    QSet<int> insertedChannels;
-    for (int t = 0; t < trackCount; t++) {
-        MidiTrack *track = file->track(t);
-        for (const auto &cp : channelPrograms) {
-            if (insertedChannels.contains(cp.channel))
-                continue;
-            auto *pc = new ProgChangeEvent(cp.channel, cp.program, track);
-            file->channel(cp.channel)->insertEvent(pc, 0);
-            insertedChannels.insert(cp.channel);
-        }
-        if (insertedChannels.size() == channelPrograms.size())
-            break; // All PCs inserted
+    // Insert on one track (Rule: program changes are global to the channel)
+    for (const auto &cp : channelPrograms) {
+        auto *pc = new ProgChangeEvent(cp.channel, cp.program, file->track(0));
+        file->channel(cp.channel)->insertEvent(pc, 0);
     }
 
     // -----------------------------------------------------------------
-    // 6. Insert dynamic program-changes for multi-track guitar sequences
+    // 7. SWITCH: Process guitar variant switches mid-sequence
     // -----------------------------------------------------------------
-    report(85, QStringLiteral("Processing guitar switches..."));
+    report(90, QStringLiteral("Processing guitar switches..."));
 
     int switchCount = 0;
     if (hasGuitar) {
-        struct GuitarNote { int tick; MidiTrack *track; int channel; int program; };
-        QList<GuitarNote> gNotes;
+        QHash<int, QString> chToVariant;
+        for (auto it = guitarChannelMap.begin(); it != guitarChannelMap.end(); ++it)
+            chToVariant[it.value()] = it.key();
 
         for (int t = 0; t < trackCount; t++) {
             if (!isGuitar(canonicalNames[t])) continue;
-            if (channelFor[t] < 0) continue; // Skip preconfigured tracks (-2)
-            
-            int prog = programForInstrument(canonicalNames[t]);
-            if (prog < 0) continue;
-            
             MidiTrack *track = file->track(t);
-            int trackCh = channelFor[t];
-            MidiChannel *channel = file->channel(trackCh);
-            if (!channel) continue;
-            
-            auto *eventMap = channel->eventMap();
-            for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
-                if (it.value()->track() == track && dynamic_cast<NoteOnEvent*>(it.value()) != nullptr) {
-                    gNotes.append({it.key(), track, trackCh, prog});
+
+            struct NoteInfo { int tick; int channel; };
+            QList<NoteInfo> notes;
+
+            for (int ch : allGuitarChs) {
+                MidiChannel *channel = file->channel(ch);
+                if (!channel) continue;
+                auto *eventMap = channel->eventMap();
+                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                    if (it.value()->track() == track && dynamic_cast<NoteOnEvent*>(it.value()))
+                        notes.append({it.key(), ch});
                 }
             }
-        }
 
-        // Sort all notes globally through time
-        std::sort(gNotes.begin(), gNotes.end(), [](const GuitarNote &a, const GuitarNote &b) {
-            return a.tick < b.tick;
-        });
+            std::sort(notes.begin(), notes.end(), [](const NoteInfo &a, const NoteInfo &b) {
+                return a.tick < b.tick;
+            });
 
-        int lastProg = -1;
-        for (const auto &n : gNotes) {
-            if (n.program != lastProg) {
-                // Loop 5 already places initialization PCs at tick 0 for all variants.
-                // We only need to inject mid-track switches chronologically for the sequencer.
-                if (n.tick > 0 || lastProg != -1) {
-                    auto *pc = new ProgChangeEvent(n.channel, n.program, n.track);
-                    file->channel(n.channel)->insertEvent(pc, n.tick);
-                    switchCount++;
+            int lastCh = -1;
+            for (const auto &n : notes) {
+                if (n.channel != lastCh) {
+                    if (lastCh != -1 && n.tick > 0) {
+                        int prog = programForInstrument(chToVariant[n.channel]);
+                        if (prog >= 0) {
+                            auto *pc = new ProgChangeEvent(n.channel, prog, track);
+                            file->channel(n.channel)->insertEvent(pc, n.tick);
+                            switchCount++;
+                        }
+                    }
+                    lastCh = n.channel;
                 }
-                lastProg = n.program;
             }
         }
     }
 
     // -----------------------------------------------------------------
-    // 7. Normalise all NoteOn velocities to 100
-    //    FFXIV performance ignores velocity but 100 is a safe default.
+    // 8. VELOCITY: Normalize velocities (Main repo default is 100)
     // -----------------------------------------------------------------
     report(95, QStringLiteral("Normalizing velocity..."));
 
@@ -527,66 +639,58 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, ProgressCallback prog
     for (int ch = 0; ch < 16; ch++) {
         MidiChannel *channel = file->channel(ch);
         if (!channel) continue;
-        QMultiMap<int, MidiEvent *> *map = channel->eventMap();
-        for (auto it = map->begin(); it != map->end(); ++it) {
-            NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(it.value());
-            if (noteOn && noteOn->velocity() > 0 && noteOn->velocity() != 100) {
-                noteOn->setVelocity(100);
-                velocityChangedCount++;
+        auto *eventMap = channel->eventMap();
+        for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+            if (auto *noteOn = dynamic_cast<NoteOnEvent *>(it.value())) {
+                if (noteOn->velocity() > 0 && noteOn->velocity() != 100) {
+                    noteOn->setVelocity(100);
+                    velocityChangedCount++;
+                }
             }
         }
     }
 
-    // -----------------------------------------------------------------
-    // 8. Build result report
-    // -----------------------------------------------------------------
     report(100, QStringLiteral("Done!"));
 
+    result["success"] = true;
+    result["mode"] = (activeTier == 2) ? tr("Rebuild") : tr("Preserve");
+    
+    QString summaryText = tr("FFXIV Channel Fixer complete.\n\n"
+                             "Mode: %1\n"
+                             "Tracks processed: %2 (%3 FFXIV tracks matched)\n\n"
+                             "Details:\n"
+                             "- Reassigned channels: %4\n"
+                             "- Fixed program changes: %5\n"
+                             "- Velocity normalized: %6\n")
+                             .arg((activeTier == 2) ? tr("Rebuild (Full Reassignment)") : tr("Preserve (Minimal Changes)"))
+                             .arg(trackCount)
+                             .arg(ffxivTrackCount)
+                             .arg((activeTier == 2) ? tr("%1 channels").arg(ffxivTrackCount) : tr("Configuration preserved"))
+                             .arg(removedPcCount + switchCount)
+                             .arg(velocityChangedCount);
+    
+    result["summary"] = summaryText;
+
+    result["trackCount"] = trackCount;
+    result["ffxivTrackCount"] = ffxivTrackCount;
+    result["removedProgramChanges"] = removedPcCount;
+    result["guitarSwitchProgramChanges"] = switchCount;
+    result["velocityNormalized"] = velocityChangedCount;
+    
     QJsonArray channelMapArr;
     for (int t = 0; t < trackCount; t++) {
         QJsonObject entry;
         entry["track"]   = t;
         entry["name"]    = file->track(t)->name();
         entry["channel"] = channelFor[t];
-        entry["program"] = programForInstrument(canonicalNames[t]);
-        if (!canonicalNames[t].isEmpty())
+        if (!canonicalNames[t].isEmpty()) {
             entry["instrument"] = canonicalNames[t];
+            entry["program"]    = programForInstrument(canonicalNames[t]);
+        }
         channelMapArr.append(entry);
     }
+    result["channelMap"] = channelMapArr;
 
-    if (hasGuitar) {
-        QJsonArray extraGuitarArr;
-        for (const QString &variant : allGuitarVariants) {
-            if (!guitarVariantsPresent.contains(variant)
-                && guitarChannelMap.contains(variant)) {
-                QJsonObject entry;
-                entry["variant"]  = variant;
-                entry["channel"]  = guitarChannelMap[variant];
-                entry["program"]  = programForInstrument(variant);
-                entry["reserved"] = true;
-                extraGuitarArr.append(entry);
-            }
-        }
-        if (!extraGuitarArr.isEmpty())
-            result["reservedGuitarChannels"] = extraGuitarArr;
-    }
-
-    result["success"]                   = true;
-    result["channelMap"]                = channelMapArr;
-    result["guitarSwitchProgramChanges"]= switchCount;
-    result["removedProgramChanges"]     = removedPcCount;
-    result["velocityNormalized"]        = velocityChangedCount;
-    result["trackCount"]                = trackCount;
-    result["ffxivTrackCount"]           = ffxivTrackCount;
-    
-    QString summary = QStringLiteral("Successfully processed %1 FFXIV tracks (out of %2 total).\n"
-                         "Removed %3 existing program change events.\n"
-                         "%4")
-                         .arg(ffxivTrackCount)
-                         .arg(trackCount)
-                         .arg(removedPcCount)
-                         .arg(switchCount > 0 ? QStringLiteral("Added %1 guitar variant program changes.").arg(switchCount) : QStringLiteral(""));
-    result["summary"] = summary;
-    
     return result;
 }
+
