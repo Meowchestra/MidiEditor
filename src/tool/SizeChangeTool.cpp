@@ -75,7 +75,7 @@ void SizeChangeTool::draw(QPainter *painter) {
                     show = ev->offEvent() && ev->offEvent()->shown();
                 }
             }
-            if (show) {
+            if (show && event->line() <= 127) {
                 if (pointInRect(mouseX, mouseY, event->x() + event->width() - 2, event->y(), event->x() + event->width() + 2, event->y() + event->height())) {
                     if (_openglContainer) _openglContainer->setCursor(Qt::SplitHCursor); else matrixWidget->setCursor(Qt::SplitHCursor);
                 }
@@ -107,13 +107,9 @@ void SizeChangeTool::draw(QPainter *painter) {
 
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
         bool show = event->shown();
-        if (!show) {
-            OnEvent *ev = dynamic_cast<OnEvent *>(event);
-            if (ev) {
-                show = ev->offEvent() && ev->offEvent()->shown();
-            }
+        if (!show || event->line() > 127) {
+            continue; // Meta events don't show ghost notes
         }
-        if (show) {
             int dragX, dragWidth;
             OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
             if (onEvent && onEvent->offEvent()) {
@@ -139,7 +135,6 @@ void SizeChangeTool::draw(QPainter *painter) {
             painter->drawRoundedRect(ghostRect, 1, 1);
         }
     }
-}
 
 bool SizeChangeTool::press(bool leftClick) {
     if (Selection::instance()->selectedEvents().isEmpty()) {
@@ -152,6 +147,8 @@ bool SizeChangeTool::press(bool leftClick) {
     // First check if the user clicked directly on any selected note's edge
     bool foundEdge = false;
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        if (event->line() > 127) continue; // Meta events are not resizable
+        
         bool onLeftEdge = pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height());
         if (onLeftEdge) { 
             dragsOnEvent = true; 
@@ -196,6 +193,8 @@ bool SizeChangeTool::release() {
     if (Selection::instance()->selectedEvents().count() > 0) {
         currentProtocol()->startNewAction(QObject::tr("Change Event Duration"), image());
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+            if (event->line() > 127) continue; // Meta events are not resizable
+            
             OnEvent *on = dynamic_cast<OnEvent *>(event);
             OffEvent *off = dynamic_cast<OffEvent *>(event);
             if (on) {
@@ -247,6 +246,8 @@ bool SizeChangeTool::move(int mouseX, int mouseY) {
     }
 
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        if (event->line() > 127) continue; // Meta events are not resizable
+        
         if (pointInRect(mouseX, mouseY, event->x() - 2, event->y(), event->x() + 2, event->y() + event->height())) {
             // Set cursor on OpenGL container if available, otherwise on matrix widget
             if (_openglContainer) {

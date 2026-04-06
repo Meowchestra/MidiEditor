@@ -477,8 +477,10 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, Progr
             if (dynamic_cast<ProgChangeEvent *>(it.value()))
                 toRemove.append(it.value());
         }
-        for (MidiEvent *ev : toRemove)
-            channel->removeEvent(ev);
+        for (MidiEvent *ev : toRemove) {
+            channel->removeEvent(ev, false);
+            delete ev;
+        }
         removedPcCount += toRemove.size();
     }
 
@@ -511,7 +513,7 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, Progr
             }
 
             for (const auto &info : trackEvents) {
-                info.ev->moveToChannel(targetCh);
+                info.ev->moveToChannel(targetCh, false);
             }
             track->assignChannel(targetCh);
         }
@@ -539,7 +541,7 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, Progr
             }
 
             for (const auto &info : trackEvents) {
-                info.ev->moveToChannel(targetCh);
+                info.ev->moveToChannel(targetCh, false);
             }
             track->assignChannel(targetCh);
         }

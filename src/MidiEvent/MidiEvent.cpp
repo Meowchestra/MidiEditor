@@ -543,7 +543,7 @@ int MidiEvent::temporaryRecordID() {
     return _tempID;
 }
 
-void MidiEvent::moveToChannel(int ch) {
+void MidiEvent::moveToChannel(int ch, bool toProtocol) {
     int oldChannel = channel();
 
     if (oldChannel > 15) {
@@ -554,13 +554,18 @@ void MidiEvent::moveToChannel(int ch) {
         return;
     }
 
-    midiFile->channel(oldChannel)->removeEvent(this);
+    midiFile->channel(oldChannel)->removeEvent(this, toProtocol);
 
-    ProtocolEntry *toCopy = copy();
+    ProtocolEntry *toCopy = nullptr;
+    if (toProtocol) {
+        toCopy = copy();
+    }
 
     numChannel = ch;
 
-    protocol(toCopy, this);
+    if (toProtocol) {
+        protocol(toCopy, this);
+    }
 
-    midiFile->channel(ch)->insertEvent(this, midiTime());
+    midiFile->channel(ch)->insertEvent(this, midiTime(), toProtocol);
 }

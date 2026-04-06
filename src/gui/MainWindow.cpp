@@ -1591,6 +1591,14 @@ void MainWindow::screenLockPressed(bool enable) {
 void MainWindow::toggleSmoothPlaybackScroll(bool enable) {
     _settings->setValue("rendering/smooth_playback_scroll", enable);
     Appearance::setSmoothPlaybackScrolling(enable);
+
+    // Sync the Playback menu's action checkmark with this setting
+    QAction *menuAction = _actionMap.value("smooth_playback_scroll", nullptr);
+    if (menuAction && menuAction->isChecked() != enable) {
+        menuAction->blockSignals(true);
+        menuAction->setChecked(enable);
+        menuAction->blockSignals(false);
+    }
 }
 
 void MainWindow::scaleSelection() {

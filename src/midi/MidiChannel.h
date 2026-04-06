@@ -126,9 +126,10 @@ public:
     /**
      * \brief Removes an event from the channel's event map.
      * \param event The MIDI event to remove
+     * \param toProtocol Whether to record this change in the protocol
      * \return True if the event was found and removed
      */
-    bool removeEvent(MidiEvent *event);
+    bool removeEvent(MidiEvent *event, bool toProtocol = true);
 
     /**
      * \brief Gets the program number active at the specified tick.

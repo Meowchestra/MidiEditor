@@ -1204,12 +1204,8 @@ QColor Appearance::programEventNormalColor() {
 }
 
 QColor Appearance::noteSelectionColor() {
-    if (shouldUseDarkMode()) {
-        // In dark mode, use a bright visible blue with high opacity
-        // This ensures selected notes are clearly visible against dark backgrounds
-        return QColor(100, 150, 255, 230); // Bright cornflower blue
-    }
-    return Qt::darkBlue; // Original selection color for light mode
+    // Use the same selection color in both light and dark mode
+    return Qt::darkBlue;
 }
 
 QPixmap Appearance::adjustIconForDarkMode(const QPixmap &original, const QString &iconName) {

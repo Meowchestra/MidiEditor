@@ -82,6 +82,8 @@ bool StandardTool::press(bool leftClick) {
                     diffToMousePos = ev->x() - mouseX;
                     if (QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) {
                         currentAction = MOVE_ACTION; // Force move even on edge if any movement modifier is held
+                    } else if (ev->line() > 127) {
+                        currentAction = MOVE_ACTION; // Meta events are not resizable
                     } else {
                         currentAction = SIZE_CHANGE_ACTION; // Resize from left edge (default)
                     }
@@ -93,6 +95,8 @@ bool StandardTool::press(bool leftClick) {
                     diffToMousePos = ev->x() + ev->width() - mouseX;
                     if (QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) {
                         currentAction = MOVE_ACTION; // Force move even on edge if any movement modifier is held
+                    } else if (ev->line() > 127) {
+                        currentAction = MOVE_ACTION; // Meta events are not resizable
                     } else {
                         currentAction = SIZE_CHANGE_ACTION; // Resize from right edge (default)
                     }
@@ -201,9 +205,11 @@ bool StandardTool::press(bool leftClick) {
 
 bool StandardTool::move(int mouseX, int mouseY) {
     EventTool::move(mouseX, mouseY);
+
     foreach(MidiEvent* ev, *(matrixWidget->activeEvents())) {
         // left/right side always shows resize cursor unless a movement modifier is held (bypass)
-        if (!(QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) &&
+        if (ev->line() <= 127 && 
+            !(QApplication::keyboardModifiers() & (Qt::ControlModifier | Qt::ShiftModifier | Qt::AltModifier)) &&
             (pointInRect(mouseX, mouseY, ev->x() - 2, ev->y(), ev->x() + 2,
                         ev->y() + ev->height())
             || pointInRect(mouseX, mouseY, ev->x() + ev->width() - 2, ev->y(),

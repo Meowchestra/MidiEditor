@@ -1,6 +1,6 @@
 #include "AppearanceSettingsWidget.h"
 
-#define ROW_HEIGHT 45
+#define ROW_HEIGHT 40
 
 #include <QGridLayout>
 #include <QHBoxLayout>
@@ -16,6 +16,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QSettings>
+#include <QApplication>
 #include <QAbstractItemView>
 
 #include "Appearance.h"
@@ -25,12 +26,18 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     QGridLayout *layout = new QGridLayout(this);
     setLayout(layout);
 
-    // Set minimum size to prevent overlapping elements
-    setMinimumSize(400, 650);
+    // Set minimum size and spacing to prevent overlapping elements
+    setMinimumSize(450, 640);
+    layout->setSpacing(4);
+    layout->setContentsMargins(12, 8, 12, 4);
 
     _channelItems = new QList<NamedColorWidgetItem *>();
     _trackItems = new QList<NamedColorWidgetItem *>();
-    layout->addWidget(new QLabel(tr("Channel Colors")), 0, 0, 1, 2);
+    
+    QLabel *channelLabel = new QLabel(tr("Channel Colors"));
+    channelLabel->setStyleSheet("margin-bottom: 2px;");
+    layout->addWidget(channelLabel, 0, 0, 1, 2);
+    channelLabel->setMinimumHeight(20);
     QListWidget *channelList = new QListWidget(this);
     channelList->setSelectionMode(QAbstractItemView::NoSelection);
     channelList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
@@ -56,7 +63,10 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     channelList->setFixedHeight(ROW_HEIGHT * 5);
     channelList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
 
-    layout->addWidget(new QLabel(tr("Track Colors")), 2, 0, 1, 2);
+    QLabel *trackColorsLabel = new QLabel(tr("Track Colors"));
+    trackColorsLabel->setStyleSheet("margin-top: 2px; margin-bottom: 2px;");
+    trackColorsLabel->setMinimumHeight(20);
+    layout->addWidget(trackColorsLabel, 2, 0, 1, 2);
     QListWidget *trackList = new QListWidget(this);
     trackList->setSelectionMode(QAbstractItemView::NoSelection);
     trackList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
@@ -75,9 +85,11 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     }
     trackList->setFixedHeight(ROW_HEIGHT * 5);
     trackList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
-    // Row 4: Opacity and Reset
-    QHBoxLayout *topRow = new QHBoxLayout();
-    topRow->setContentsMargins(0, 10, 0, 5);
+    // Row 4: Opacity and Reset — wrapped in a widget with minimum height
+    QWidget *topRowWidget = new QWidget(this);
+    topRowWidget->setMinimumHeight(24);
+    QHBoxLayout *topRow = new QHBoxLayout(topRowWidget);
+    topRow->setContentsMargins(0, 0, 0, 0);
     QLabel *opacityLabel = new QLabel(tr("Event Opacity"));
     topRow->addWidget(opacityLabel, 0, Qt::AlignVCenter);
     QSlider *opacitySlider = new QSlider(Qt::Horizontal, this);
@@ -90,16 +102,21 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     QPushButton *resetButton = new QPushButton(tr("Reset Colors"), this);
     connect(resetButton, SIGNAL(clicked()), this, SLOT(resetColors()));
     topRow->addWidget(resetButton, 0, Qt::AlignRight);
-    layout->addLayout(topRow, 4, 0, 1, 2);
+    
+    // Add row constraint to prevent collapse
+    layout->setRowMinimumHeight(4, 32);
+    layout->addWidget(topRowWidget, 4, 0, 1, 2);
 
     // Row 5: Two columns
     QGridLayout *bottomGrid = new QGridLayout();
-    bottomGrid->setContentsMargins(0, 10, 0, 0);
+    bottomGrid->setContentsMargins(0, 2, 0, 0);
     layout->addLayout(bottomGrid, 5, 0, 1, 2);
 
     // Left Column: Visual Styles
     QGroupBox *styleGroup = new QGroupBox(tr("Visual Styles"), this);
     QGridLayout *styleLayout = new QGridLayout(styleGroup);
+    styleLayout->setSpacing(4);
+    styleLayout->setContentsMargins(8, 8, 8, 4);
     
     styleLayout->addWidget(new QLabel(tr("Application Style")), 0, 0);
     QComboBox *styleCombo = new QComboBox(this);
@@ -127,6 +144,8 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     // Right Column: Matrix & Marker Settings
     QGroupBox *markerGroup = new QGroupBox(tr("Matrix / Markers"), this);
     QGridLayout *markerLayout = new QGridLayout(markerGroup);
+    markerLayout->setSpacing(4);
+    markerLayout->setContentsMargins(8, 8, 8, 4);
     
     markerLayout->addWidget(new QLabel(tr("Show C3/C6 Range Lines")), 0, 0);
     QCheckBox *rangeLines = new QCheckBox(this);

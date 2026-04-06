@@ -162,7 +162,7 @@ NoteOnEvent *MidiChannel::insertNote(int note, int startTick, int endTick, int v
     return onEvent;
 }
 
-bool MidiChannel::removeEvent(MidiEvent *event) {
+bool MidiChannel::removeEvent(MidiEvent *event, bool toProtocol) {
     // if its once TimeSig / TempoChange at 0, dont delete event
     if (number() == 18 || number() == 17) {
         if ((event->midiTime() == 0) && (_events->count(0) == 1)) {
@@ -175,13 +175,18 @@ bool MidiChannel::removeEvent(MidiEvent *event) {
         event->track()->setNameEvent(0);
     }
 
-    ProtocolEntry *toCopy = copy();
+    ProtocolEntry *toCopy = nullptr;
+    if (toProtocol) {
+        toCopy = copy();
+    }
     _events->remove(event->midiTime(), event);
     OnEvent *on = dynamic_cast<OnEvent *>(event);
     if (on && on->offEvent()) {
         _events->remove(on->offEvent()->midiTime(), on->offEvent());
     }
-    protocol(toCopy, this);
+    if (toProtocol) {
+        protocol(toCopy, this);
+    }
 
     //if(MidiEvent::eventWidget()->events().contains(event)){
     //	MidiEvent::eventWidget()->removeEvent(event);

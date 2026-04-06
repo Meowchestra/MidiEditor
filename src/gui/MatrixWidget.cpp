@@ -114,6 +114,9 @@ MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
 
     // Cache appearance colors to avoid expensive theme checks on every paint event
     updateCachedAppearanceColors();
+    
+    // Set initial timeline height
+    timeHeight = _hasVisibleMarkers ? 66 : 50;
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -348,9 +351,13 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                     c = _cachedProgramEventNormalColor;
                 }
             }
+            int nextLineY = yPosOfLine(i + 1);
             pixpainter->fillRect(lineNameWidth, startLine, width(),
-                                 startLine + lineHeight(), c);
+                                 nextLineY - startLine, c);
         }
+
+        // Fixed ruler height
+        int rulerHeight = 50;
 
         // paint measures and timeline background
         pixpainter->fillRect(0, 0, width(), timeHeight, _cachedSystemWindowColor);
@@ -361,10 +368,29 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 
         pixpainter->setPen(_cachedDarkGrayColor);
         pixpainter->setBrush(_cachedPianoWhiteKeyColor);
-        pixpainter->drawRect(lineNameWidth, 2, width() - lineNameWidth - 1, timeHeight - 2);
+        
+        // Box for measures/time text: Top, Left, and Right lines only (no bottom border for a cleaner look)
+        pixpainter->drawLine(lineNameWidth, 2, width() - 1, 2);
+        pixpainter->drawLine(lineNameWidth, 2, lineNameWidth, rulerHeight);
+        pixpainter->drawLine(width() - 1, 2, width() - 1, rulerHeight);
+        
+        // Background for the ruler
+        pixpainter->fillRect(lineNameWidth + 1, 3, width() - lineNameWidth - 2, rulerHeight - 4, _cachedPianoWhiteKeyColor);
+        
         pixpainter->setPen(_cachedForegroundColor);
 
-        pixpainter->fillRect(0, timeHeight - 3, width(), 3, _cachedSystemWindowColor);
+        if (_markerRowHeight > 0) {
+            // Background for markers - match the ruler background
+            pixpainter->fillRect(lineNameWidth, rulerHeight, width() - lineNameWidth, _markerRowHeight, _cachedPianoWhiteKeyColor);
+            
+            // Minimal top separator from ruler
+            pixpainter->setPen(_cachedBorderColor);
+            pixpainter->drawLine(lineNameWidth, rulerHeight, width(), rulerHeight);
+        }
+
+        // Clean transition to matrix area - no ugly thick borders
+        pixpainter->setPen(_cachedBorderColor);
+        pixpainter->drawLine(0, timeHeight - 1, width(), timeHeight - 1);
 
         // paint time text in ms
         int numbers = (width() - lineNameWidth) / 80;
@@ -414,9 +440,9 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 text += QString(".%1").arg(ms / 10, 2, 10, QChar('0'));
                 int textlength = QFontMetrics(pixpainter->font()).horizontalAdvance(text);
                 if (startNumber > 0) {
-                    pixpainter->drawText(pos - textlength / 2, timeHeight / 2 - 6, text);
+                    pixpainter->drawText(pos - textlength / 2, 19, text);
                 }
-                pixpainter->drawLine(pos, timeHeight / 2 - 1, pos, timeHeight);
+                pixpainter->drawLine(pos, 24, pos, 50);
                 startNumber += realstep;
             }
         }
@@ -450,10 +476,13 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             int xto = xPosOfMs(msOfTick(tick));
             pixpainter->setBrush(_cachedMeasureBarColor);
             pixpainter->setPen(Qt::NoPen);
-            pixpainter->drawRoundedRect(xfrom + 2, timeHeight / 2 + 4, xto - xfrom - 4, timeHeight / 2 - 10, 5, 5);
+            pixpainter->drawRoundedRect(xfrom + 2, 29, xto - xfrom - 4, 15, 5, 5);
             if (tick > startTick) {
                 pixpainter->setPen(_cachedMeasureLineColor);
-                pixpainter->drawLine(xfrom, timeHeight / 2, xfrom, height());
+                // Extend measure lines from Y=25 through the marker gutter to height()
+                // This ensures they align with the ruler and grid
+                pixpainter->drawLine(xfrom, 25, xfrom, height());
+
                 QString text = tr("Measure ") + QString::number(measure - 1);
 
                 QFont font = pixpainter->font();
@@ -467,7 +496,10 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 // Align text to pixel boundaries for sharper rendering
                 int pos = (xfrom + xto) / 2;
                 int textX = static_cast<int>(std::round(pos - textlength / 2.0));
-                int textY = timeHeight - 9;
+                
+                // Base textY off a constant distance from the top constraint
+                // so measure numbers don't shift when timeline height increases for markers
+                int textY = 41;
 
                 pixpainter->setPen(_cachedMeasureTextColor);
                 pixpainter->drawText(textX, textY, text);
@@ -481,7 +513,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                         double metronomeDiv = 4 / std::pow(2.0, _div);
                         ticksPerDiv = metronomeDiv * file->ticksPerQuarter();
                     } else if (_div <= -100) {
-                        // Extended subdivision system:
+                        // Extended subdivision system: 
                         // -100 to -199: Triplets (÷3)
                         // -200 to -299: Quintuplets (÷5)
                         // -300 to -399: Sextuplets (÷6)
@@ -534,9 +566,11 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
             }
         }
 
-        // line between time texts and matrixarea
+        // line between headers and matrixarea
         pixpainter->setPen(_cachedBorderColor);
         pixpainter->drawLine(0, timeHeight, width(), timeHeight);
+        
+        // Divider between headers and play area (lineNameWidth divider)
         pixpainter->drawLine(lineNameWidth, timeHeight, lineNameWidth, height());
 
         pixpainter->setPen(_cachedForegroundColor);
@@ -552,15 +586,15 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 
         pixpainter->setClipping(false);
 
-        pixpainter->setClipping(true);
-        pixpainter->setClipRect(lineNameWidth, 0, width() - lineNameWidth, height());
-        paintTimelineMarkers(pixpainter);
-        pixpainter->setClipping(false);
-
         delete pixpainter;
     }
 
     painter->drawPixmap(0, 0, *pixmap);
+
+    painter->setClipping(true);
+    painter->setClipRect(lineNameWidth, 0, width() - lineNameWidth, height());
+    paintTimelineMarkers(painter);
+    painter->setClipping(false);
 
     painter->setRenderHint(QPainter::Antialiasing);
     // draw the piano / linenames
@@ -639,16 +673,18 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         Tool::currentTool()->draw(painter);
         painter->setClipping(false);
     }
-
-    if (enabled && mouseInRect(TimeLineArea)) {
-        painter->setPen(_cachedPlaybackCursorColor);
-        painter->drawLine(mouseX, 0, mouseX, height());
-        painter->setPen(_cachedForegroundColor);
-    }
-
+    
     if (MidiPlayer::isPlaying()) {
         painter->setPen(_cachedPlaybackCursorColor);
         int x = xPosOfMs(MidiPlayer::timeMs());
+        if (x >= lineNameWidth) {
+            painter->drawLine(x, 0, x, height());
+        }
+        painter->setPen(_cachedForegroundColor);
+    } else if (mouseInRect(TimeLineArea) && _lastHoverMs >= startTimeX && _lastHoverMs <= endTimeX) {
+        // Red hover line (restricted to TimeLineArea as requested)
+        painter->setPen(_cachedPlaybackCursorColor);
+        int x = xPosOfMs(_lastHoverMs);
         if (x >= lineNameWidth) {
             painter->drawLine(x, 0, x, height());
         }
@@ -1068,10 +1104,16 @@ void MatrixWidget::calcSizes() {
     int time = file->maxTime();
     int timeInWidget = ((width() - lineNameWidth) * 1000) / (PIXEL_PER_S * scaleX);
 
+    // Timeline Ruler is always 50px
+    int rulerHeight = 50;
+    _markerRowHeight = _hasVisibleMarkers ? 16 : 0;
+    timeHeight = rulerHeight + _markerRowHeight;
+
+    TimeLineArea = QRectF(lineNameWidth, 0, width() - lineNameWidth, rulerHeight);
+    MarkerArea = QRectF(lineNameWidth, rulerHeight, width() - lineNameWidth, _markerRowHeight);
+    PianoArea = QRectF(0, timeHeight, lineNameWidth, height() - timeHeight);
     ToolArea = QRectF(lineNameWidth, timeHeight, width() - lineNameWidth,
                       height() - timeHeight);
-    PianoArea = QRectF(0, timeHeight, lineNameWidth, height() - timeHeight);
-    TimeLineArea = QRectF(lineNameWidth, 0, width() - lineNameWidth, timeHeight);
 
     // Call scroll methods with suppression to prevent cascading repaints
     _suppressScrollRepaints = true;
@@ -1097,29 +1139,73 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
 
+    int mouseX = qRound(event->position().x());
+    int mouseY = qRound(event->position().y());
+    int currentMs = msOfXPos(mouseX);
+    int currentPianoKey = -1;
+    if (mouseInRect(PianoArea)) {
+        currentPianoKey = (int) ((double) (mouseY - timeHeight) / lineHeight()) + startLineY;
+    }
+    
+    bool inMarkerArea = mouseInRect(MarkerArea);
+    MidiEvent *hoveredMarker = (inMarkerArea && !_draggedMarker) ? findTimelineMarkerNear(mouseX, mouseY) : nullptr;
+
+    bool needsUpdate = false;
+
     if (!MidiPlayer::isPlaying() && Tool::currentTool()) {
         if (_draggedMarker && (event->buttons() & Qt::LeftButton)) {
-            int newMs = msOfXPos(qRound(event->position().x()));
-            int tick = file->tick(newMs);
-            if (tick >= 0 && tick != _draggedMarker->midiTime()) {
-                // Pass false to avoid flooding the protocol with events during live drag
-                _draggedMarker->setMidiTime(tick, false);
-                if (enabled) update();
-                emit objectListChanged();
-            }
-        } else {
-            Tool::currentTool()->move(qRound(event->position().x()), qRound(event->position().y()));
-        }
-    }
+            _isDraggingMarker = true;
+            
+            // Apply the drag tick offset to prevent snapping on pickup
+            int mouseTick = file->tick(currentMs);
+            int newTick = mouseTick + _draggedMarkerTickOffset;
+            if (newTick < 0) newTick = 0;
 
-    if (!MidiPlayer::isPlaying()) {
-        if (mouseInRect(TimeLineArea)) {
-            if (findTimelineMarkerNear(msOfXPos(qRound(event->position().x())))) {
-                setCursor(Qt::SplitHCursor);
-            } else {
+
+            if (newTick != _draggedMarker->midiTime()) {
+                // Update event position in the MIDI map real-time so drawing and hit-testing stay in sync
+                MidiChannel *channel = file->channel(_draggedMarker->channel());
+                if (channel) {
+                    channel->removeEvent(_draggedMarker, false);
+                    _draggedMarker->setMidiTime(newTick, false);
+                    channel->insertEvent(_draggedMarker, newTick, false);
+                    _draggedMarkerMs = currentMs;
+                }
+                needsUpdate = true;
+            }
+            setCursor(Qt::ClosedHandCursor);
+        } else {
+            // Check if tool movement requires an update (e.g. drawing notes or selection box)
+            if (Tool::currentTool()->move(mouseX, mouseY) || (event->buttons() != Qt::NoButton)) {
+                needsUpdate = true;
+            }
+            
+            // Cursor updates
+            if (inMarkerArea) {
+                if (hoveredMarker) {
+                    setCursor(Qt::OpenHandCursor);
+                } else {
+                    setCursor(Qt::ArrowCursor);
+                }
+            } else if (mouseInRect(TimeLineArea)) {
                 setCursor(Qt::ArrowCursor);
             }
         }
+    }
+
+    // Optimization: Only update if hover state changed, unless we already flagged for update
+    if (!needsUpdate) {
+        if (currentMs != _lastHoverMs || hoveredMarker != _lastHoverMarker || 
+            currentPianoKey != _lastHoverPianoKey || inMarkerArea != _isGutterHovered) {
+            needsUpdate = true;
+        }
+    }
+
+    if (needsUpdate) {
+        _lastHoverMs = currentMs;
+        _lastHoverMarker = hoveredMarker;
+        _lastHoverPianoKey = currentPianoKey;
+        _isGutterHovered = inMarkerArea;
         update();
     }
 }
@@ -1176,17 +1262,16 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
 
     PaintWidget::mousePressEvent(event);
 
-    if (enabled && mouseInRect(TimeLineArea) && event->button() == Qt::LeftButton && Tool::currentTool()) {
-        int clickMs = msOfXPos(qRound(event->position().x()));
-        _draggedMarker = findTimelineMarkerNear(clickMs);
+    if (enabled && mouseInRect(MarkerArea) && event->button() == Qt::LeftButton && Tool::currentTool()) {
+        int clickX = qRound(event->position().x());
+        int clickY = qRound(event->position().y());
+        _draggedMarker = findTimelineMarkerNear(clickX, clickY);
         if (_draggedMarker) {
             _draggedMarkerOriginalTime = _draggedMarker->midiTime();
-            Selection::instance()->clearSelection();
-            Selection::instance()->selectedEvents().append(_draggedMarker);
-            Selection::instance()->setSelection(Selection::instance()->selectedEvents());
-            if (MidiEvent::eventWidget()) {
-                MidiEvent::eventWidget()->reportSelectionChangedByTool();
-            }
+            // Calculate offset to ensure marker follows cursor exactly without jumping on pickup
+            _draggedMarkerTickOffset = _draggedMarker->midiTime() - file->tick(msOfXPos(clickX));
+            _draggedMarkerMs = msOfXPos(clickX);
+
             if (file && file->protocol()) {
                 file->protocol()->startNewAction(tr("Move Marker"));
             }
@@ -1290,9 +1375,21 @@ void MatrixWidget::updateCachedAppearanceColors() {
     // This should be called whenever the theme changes (light/dark mode, etc.)
     _cachedBackgroundColor = Appearance::backgroundColor();
     _cachedForegroundColor = Appearance::foregroundColor();
-    _cachedBorderColor = Appearance::borderColor();
+    _cachedShouldUseDarkMode = Appearance::shouldUseDarkMode();
     _cachedShowRangeLines = Appearance::showRangeLines();
     _cachedStripStyle = Appearance::strip();
+    
+    // Check marker visibility
+    _hasVisibleMarkers = Appearance::showTextEventMarkers() || 
+                         Appearance::showProgramChangeMarkers() || 
+                         Appearance::showControlChangeMarkers();
+    
+    int newTimeHeight = _hasVisibleMarkers ? 66 : 50;
+    if (newTimeHeight != timeHeight) {
+        timeHeight = newTimeHeight;
+        // Recalculate areas immediately to prevent overlap/layout glitches
+        calcSizes();
+    }
     _cachedStripHighlightColor = Appearance::stripHighlightColor();
     _cachedStripNormalColor = Appearance::stripNormalColor();
     _cachedRangeLineColor = Appearance::rangeLineColor();
@@ -1309,6 +1406,7 @@ void MatrixWidget::updateCachedAppearanceColors() {
     _cachedPlaybackCursorColor = Appearance::playbackCursorColor();
     _cachedCursorTriangleColor = Appearance::cursorTriangleColor();
     _cachedRecordingIndicatorColor = Appearance::recordingIndicatorColor();
+    _cachedBorderColor = Appearance::borderColor();
 
     // Cache piano key colors
     _cachedPianoBlackKeyColor = Appearance::pianoBlackKeyColor();
@@ -1674,7 +1772,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
         btn->setAutoRaise(true); // Native flat style & hover highlight
         btn->setEnabled(enabled);
         btn->setStyleSheet("QToolButton { padding: 0px; margin: 0px; }");
-        
+
         QVBoxLayout* vLayout = new QVBoxLayout(btn);
         vLayout->setContentsMargins(2, 4, 2, 2);
         vLayout->setSpacing(0);
@@ -2008,10 +2106,12 @@ NoteOnEvent* MatrixWidget::findNextNoteInTrack(NoteOnEvent* note, const std::set
 
 void MatrixWidget::setColorsByChannel() {
     _colorsByChannels = true;
+    update();
 }
 
 void MatrixWidget::setColorsByTracks() {
     _colorsByChannels = false;
+    update();
 }
 
 bool MatrixWidget::colorsByChannel() {
@@ -2041,125 +2141,122 @@ int MatrixWidget::div() {
 }
 
 void MatrixWidget::paintTimelineMarkers(QPainter *painter) {
-    if (!file) return;
-    
-    // Group events by tick to avoid overlapping dashed lines
-    // key: tick, value: list of events at that tick
-    QMap<int, QList<MidiEvent*>> timelineEvents;
+    if (!file || !_hasVisibleMarkers) return;
 
-    for (int c = 0; c <= 16; ++c) { // 0-15 standard channels, 16 general events
-        MidiChannel *channel = file->channel(c);
-        if (!channel) continue;
+    painter->setPen(_cachedBorderColor);
+    painter->drawLine(lineNameWidth, timeHeight - 1, width(), timeHeight - 1);
 
-        QMultiMap<int, MidiEvent*> *events = channel->eventMap();
-        QMultiMap<int, MidiEvent*>::iterator it = events->lowerBound(startTick);
+    // Collect all active markers
+    QList<MidiEvent*> markers;
+    for (int ch = 0; ch < 19; ch++) {
+        if (!ChannelVisibilityManager::instance().isChannelVisible(ch)) continue;
+        
+        QMultiMap<int, MidiEvent*> *events = file->channelEvents(ch);
+        if (!events) continue;
+        
+        auto it = events->lowerBound(startTick);
         while (it != events->end() && it.key() <= endTick) {
             MidiEvent *ev = it.value();
-            if (ev->track() && !ev->track()->hidden()) {
-                bool isMarker = false;
-                if (Appearance::showControlChangeMarkers() && dynamic_cast<ControlChangeEvent*>(ev)) isMarker = true;
-                else if (Appearance::showProgramChangeMarkers() && dynamic_cast<ProgChangeEvent*>(ev)) isMarker = true;
-                else if (Appearance::showTextEventMarkers() && dynamic_cast<TextEvent*>(ev)) isMarker = true;
-
-                if (isMarker) {
-                    timelineEvents[ev->midiTime()].append(ev);
-                }
+            bool isMarker = false;
+            
+            if (dynamic_cast<ProgChangeEvent*>(ev)) isMarker = Appearance::showProgramChangeMarkers();
+            else if (dynamic_cast<ControlChangeEvent*>(ev)) isMarker = Appearance::showControlChangeMarkers();
+            else if (dynamic_cast<TextEvent*>(ev)) isMarker = Appearance::showTextEventMarkers();
+            
+            if (isMarker && ev->track() && !ev->track()->hidden()) {
+                markers.append(ev);
             }
             it++;
         }
     }
 
-    if (timelineEvents.isEmpty()) return;
-
-    QFont font = Appearance::improveFont(painter->font());
-    font.setPixelSize(10);
-    font.setBold(true);
+    // Draw dashed lines AND labels
+    QFont font("Arial", 8, QFont::Bold);
     painter->setFont(font);
 
-    QMap<int, QList<MidiEvent*>>::iterator it = timelineEvents.begin();
-    while (it != timelineEvents.end()) {
-        int tick = it.key();
-        QList<MidiEvent*> events = it.value();
+    // Filtered markers list (to handle layering during drag)
+    foreach(MidiEvent *ev, markers) {
+        int x = xPosOfMs(msOfTick(ev->midiTime()));
+        if (x < lineNameWidth) continue;
+
+        // Determine if this marker is being interacted with
+        bool isHovered = (ev == _lastHoverMarker && mouseInRect(MarkerArea));
+        bool isDragged = (ev == _draggedMarker);
+        bool isActive = isHovered || isDragged;
+
+        // Visual properties
+        QColor markerColor = _colorsByChannels ? *Appearance::channelColor(ev->channel()) : *ev->track()->color();
+        QString text = "";
+        if (dynamic_cast<ProgChangeEvent*>(ev)) text = "PC";
+        else if (dynamic_cast<ControlChangeEvent*>(ev)) text = "CC";
+        else if (dynamic_cast<TextEvent*>(ev)) text = "Txt";
+
+        // Layout
+        int yMarker = timeHeight - _markerRowHeight + 8;
+        int drawX = x;
+
+        // Use marker color for the drag guide
+        QPen markerDashPen(markerColor, 1, Qt::DashLine);
+        painter->setPen(markerDashPen);
         
-        int x = xPosOfMs(msOfTick(tick));
-        int yMarker = timeHeight - 10; // Draw near the bottom of the timeline area
+        int eventY = yPosOfLine(ev->line()) + (lineHeight() / 2);
+        int stopY = qBound(timeHeight, eventY, height());
+        // Guide line should be drawn BEHIND the marker icon
+        painter->drawLine(drawX, timeHeight, drawX, stopY);
 
-        // Use the first event's color source for the marker
-        MidiEvent *firstEv = events.first();
-        QColor markerColor;
-        if (Appearance::markerColorMode() == Appearance::ColorByTrack) {
-            markerColor = *firstEv->track()->color();
-        } else {
-            markerColor = *Appearance::channelColor(firstEv->channel());
-        }
-
-        QPen oldPen = painter->pen();
-        
-        // Use marker color for the dashed line
-        QPen dashPen = QPen(markerColor, 1, Qt::DashLine);
-        painter->setPen(dashPen);
-        painter->drawLine(x, timeHeight, x, height());
-
-        // Draw marker labels (stacked if multiple at same tick)
-        int labelY = yMarker;
-        foreach(MidiEvent *ev, events) {
-            QString text = "";
-            if (dynamic_cast<ControlChangeEvent*>(ev)) text = "CC";
-            else if (dynamic_cast<ProgChangeEvent*>(ev)) text = "PC";
-            else if (dynamic_cast<TextEvent*>(ev)) text = "Txt";
-            
-            if (text.isEmpty()) {
-                continue;
-            }
-
-            QColor labelColor;
-            if (Appearance::markerColorMode() == Appearance::ColorByTrack) {
-                labelColor = *ev->track()->color();
-            } else {
-                labelColor = *Appearance::channelColor(ev->channel());
-            }
-
-            int luminance = (labelColor.red() * 299 + labelColor.green() * 587 + labelColor.blue() * 114) / 1000;
-            QColor textColor = (luminance > 128) ? Qt::black : Qt::white;
-
-            painter->setPen(Qt::NoPen);
-            painter->setBrush(labelColor);
-            painter->drawRect(x, labelY - 6, 22, 12);
-            painter->setPen(textColor);
-            painter->drawText(x + 2, labelY + 4, text);
+        painter->setBrush(isActive ? markerColor.lighter(130) : markerColor);
+        if (isDragged) {
+            QColor dragColor = markerColor.lighter(130);
+            dragColor.setAlpha(180);
+            painter->setBrush(dragColor);
         }
         
-        painter->setPen(oldPen);
-        it++;
+        painter->setPen(isActive ? Qt::white : Qt::black);
+        painter->drawRect(drawX, yMarker - 6, 24, 12);
+        
+        int luminance = (markerColor.red() * 299 + markerColor.green() * 587 + markerColor.blue() * 114) / 1000;
+        QColor textColor = (luminance > 128 && !isActive) ? Qt::black : Qt::white;
+        painter->setPen(textColor);
+        painter->drawText(drawX + 2, yMarker + 4, text);
     }
 }
 
+MidiEvent *MatrixWidget::findTimelineMarkerNear(int x, int y) {
+    if (!file || !mouseInRect(MarkerArea)) return nullptr;
 
-MidiEvent *MatrixWidget::findTimelineMarkerNear(int ms) {
-    if (!file) return nullptr;
-    int thresholdMs = timeMsOfWidth(7); // 7 pixels tolerance
-
+    int threshold = 34;
     MidiEvent *bestMatch = nullptr;
-    int bestDist = thresholdMs;
+    int closestDist = threshold;
 
-    for (int ch = 0; ch < 16; ch++) {
+    for (int ch = 0; ch < 19; ch++) {
         if (!ChannelVisibilityManager::instance().isChannelVisible(ch)) continue;
-        QMultiMap<int, MidiEvent *> *map = file->channelEvents(ch);
-        if (!map) continue;
-
-        QMultiMap<int, MidiEvent *>::iterator it = map->lowerBound(file->tick(ms - thresholdMs));
-        QMultiMap<int, MidiEvent *>::iterator end = map->upperBound(file->tick(ms + thresholdMs));
         
-        while (it != map->end() && it != end) {
+        QMultiMap<int, MidiEvent*> *events = file->channelEvents(ch);
+        if (!events) continue;
+        
+        int mouseTick = file->tick(msOfXPos(x));
+        int tickThreshold = file->tick(msOfXPos(x + threshold)) - mouseTick;
+        
+        auto it = events->lowerBound(mouseTick - tickThreshold);
+        while (it != events->end() && it.key() <= mouseTick + tickThreshold) {
             MidiEvent *ev = it.value();
-            bool isTargetMarker = false;
-            if (Appearance::showControlChangeMarkers() && dynamic_cast<ControlChangeEvent*>(ev)) isTargetMarker = true;
-            else if (Appearance::showProgramChangeMarkers() && dynamic_cast<ProgChangeEvent*>(ev)) isTargetMarker = true;
-            else if (Appearance::showTextEventMarkers() && dynamic_cast<TextEvent*>(ev)) isTargetMarker = true;
-            if (isTargetMarker && !ev->track()->hidden()) {
-                int dist = std::abs(msOfTick(ev->midiTime()) - ms);
-                if (dist < bestDist) {
-                    bestDist = dist;
+            bool isMarker = (dynamic_cast<ProgChangeEvent*>(ev) && Appearance::showProgramChangeMarkers()) ||
+                            (dynamic_cast<ControlChangeEvent*>(ev) && Appearance::showControlChangeMarkers()) ||
+                            (dynamic_cast<TextEvent*>(ev) && Appearance::showTextEventMarkers());
+            
+            if (isMarker && ev->track() && !ev->track()->hidden()) {
+                int evX = xPosOfMs(msOfTick(ev->midiTime()));
+                
+                // Prioritize clicks actually inside the marker's visual label box [evX, evX + 24]
+                int dist;
+                if (x >= evX && x <= evX + 24) {
+                    dist = 0; // Perfect hit
+                } else {
+                    dist = threshold + qAbs(evX - x); // Outside - less likely to match than an direct box hit
+                }
+
+                if (dist < closestDist) {
+                    closestDist = dist;
                     bestMatch = ev;
                 }
             }

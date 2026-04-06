@@ -175,6 +175,14 @@ public:
      */
     int xPosOfMs(int ms);
 
+    // === Marker Support ===
+
+    /**
+     * \brief Checks if any marker types are currently visible.
+     * \return True if markers are enabled in appearance settings
+     */
+    bool hasVisibleMarkers() const { return _hasVisibleMarkers; }
+
     // === Event Testing ===
 
     /**
@@ -528,9 +536,11 @@ private:
     void paintTimelineMarkers(QPainter *painter);
 
     /**
-     * \brief Finds a timeline marker near a clicked time (ms).
+     * \brief Finds a timeline marker near a clicked point.
+     * \param x The x coordinate of the click
+     * \param y The y coordinate of the click
      */
-    MidiEvent *findTimelineMarkerNear(int ms);
+    MidiEvent *findTimelineMarkerNear(int x, int y);
 
     /**
      * \brief Paints a single piano key in the piano area.
@@ -557,7 +567,7 @@ private:
     /** \brief Current time division for grid display */
     int _div;
 
-    // === Cached Rendering Settings ===
+    // === Cached Rendering/Appearance Settings ===
 
     /** \brief Cached setting for antialiasing rendering */
     bool _antialiasing;
@@ -568,46 +578,50 @@ private:
     /** \brief Flag to prevent cascading repaints during scroll operations */
     bool _suppressScrollRepaints;
 
-    /** \brief Cached background color to avoid expensive theme checks */
-    QColor _cachedBackgroundColor;
-
-    // === Cached Appearance Colors ===
-
-    /** \brief Cached appearance colors to avoid expensive theme checks during paint */
+    /** \brief Cached setting for range line visibility */
     bool _cachedShowRangeLines;
-    Appearance::stripStyle _cachedStripStyle;
-    QColor _cachedRangeLineColor;
-    QColor _cachedStripHighlightColor;
-    QColor _cachedStripNormalColor;
-    QColor _cachedProgramEventHighlightColor;
-    QColor _cachedProgramEventNormalColor;
-    QColor _cachedSystemWindowColor;
-    QColor _cachedDarkGrayColor;
-    QColor _cachedPianoWhiteKeyColor;
-    QColor _cachedForegroundColor;
 
-    // Piano key colors (most expensive in partial paint)
+    /** \brief Cached theme state to avoid expensive shouldUseDarkMode() calls */
+    bool _cachedShouldUseDarkMode;
+
+    /** \brief Cached strip style for grid/note rendering */
+    int _cachedStripStyle;
+
+    /** \brief Cached marker visibility state */
+    bool _hasVisibleMarkers;
+
+    // Primary appearance colors
+    QColor _cachedBackgroundColor;
+    QColor _cachedForegroundColor;
+    QColor _cachedGrayColor;
+    QColor _cachedDarkGrayColor;
+    QColor _cachedBorderColor;
+    QColor _cachedSelectionBorderColor;
+    QColor _cachedErrorColor;
+
+    // Timeline and grid colors
+    QColor _cachedMeasureBarColor;
+    QColor _cachedMeasureLineColor;
+    QColor _cachedMeasureTextColor;
+    QColor _cachedTimelineGridColor;
+    QColor _cachedCursorTriangleColor;
+    QColor _cachedRecordingIndicatorColor;
+    QColor _cachedPlaybackCursorColor;
+
+    // Additional theme colors
+    QColor _cachedPianoWhiteKeyColor;
     QColor _cachedPianoBlackKeyColor;
     QColor _cachedPianoBlackKeyHoverColor;
     QColor _cachedPianoBlackKeySelectedColor;
     QColor _cachedPianoWhiteKeyHoverColor;
     QColor _cachedPianoWhiteKeySelectedColor;
     QColor _cachedPianoKeyLineHighlightColor;
-    QColor _cachedPlaybackCursorColor;
-    QColor _cachedBorderColor;
-    QColor _cachedRecordingIndicatorColor;
-    QColor _cachedCursorTriangleColor;
-
-    // Additional appearance colors used in paint events
-    QColor _cachedErrorColor;
-    QColor _cachedMeasureBarColor;
-    QColor _cachedMeasureLineColor;
-    QColor _cachedMeasureTextColor;
-    QColor _cachedTimelineGridColor;
-    QColor _cachedGrayColor;
-
-    // Cached theme state to avoid expensive shouldUseDarkMode() calls
-    bool _cachedShouldUseDarkMode;
+    QColor _cachedStripHighlightColor;
+    QColor _cachedStripNormalColor;
+    QColor _cachedRangeLineColor;
+    QColor _cachedProgramEventHighlightColor;
+    QColor _cachedProgramEventNormalColor;
+    QColor _cachedSystemWindowColor;
 
     // === View State ===
 
@@ -627,6 +641,7 @@ private:
     /** \brief Height of the timeline area in pixels */
     int timeHeight;
 
+
     /** \brief Time of first event in current event list */
     int msOfFirstEventInList;
 
@@ -636,10 +651,27 @@ private:
     /** \brief Screen lock state to prevent auto-scrolling */
     bool screen_locked;
 
+    /** \brief Difference between the marker's time and the click time during drag operations */
+    int _draggedMarkerTickOffset;
+
     // === Data References ===
 
     /** \brief Currently loaded MIDI file */
     MidiFile *file;
+
+    // === Display Areas ===
+
+    /** \brief Marker active dragging state */
+    MidiEvent *_draggedMarker = nullptr;
+    int _draggedMarkerOriginalTime = -1;
+    bool _isDraggingMarker = false;
+    int _draggedMarkerMs = 0;
+
+    // Hover state tracking for optimization
+    int _lastHoverMs = -1;
+    MidiEvent *_lastHoverMarker = nullptr;
+    int _lastHoverPianoKey = -1;
+    bool _isGutterHovered = false;
 
     // === Display Areas ===
 
@@ -651,10 +683,12 @@ private:
 
     /** \brief Timeline display area */
     QRectF TimeLineArea;
+    
+    /** \brief Marker display area */
+    QRectF MarkerArea;
 
-    /** \brief Marker active dragging state */
-    MidiEvent *_draggedMarker = nullptr;
-    int _draggedMarkerOriginalTime = -1;
+    /** \brief Height of the marker row in pixels */
+    int _markerRowHeight;
 
     // === Rendering Cache ===
 

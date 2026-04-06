@@ -91,7 +91,7 @@ public:
      * \brief Moves this event and its off event to a different channel.
      * \param channel The target MIDI channel (0-15)
      */
-    void moveToChannel(int channel);
+    void moveToChannel(int channel, bool toProtocol = true);
 
 protected:
     /** \brief Pointer to the corresponding off event */

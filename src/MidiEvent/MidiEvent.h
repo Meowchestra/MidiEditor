@@ -149,7 +149,7 @@ public:
 
     int temporaryRecordID();
 
-    virtual void moveToChannel(int channel);
+    virtual void moveToChannel(int channel, bool toProtocol = true);
 
 protected:
     int numChannel, timePos;
