@@ -5,6 +5,50 @@ A more complete list of all noteworthly changes can be found on the releases pag
 https://github.com/Meowchestra/MidiEditor/releases
 
 
+## [4.4.0] - 2026-04-07
+
+<details>
+<summary>Summary</summary>
+
+* Implemented built-in FluidSynth synthesizer with support for multiple reverb engines, soundfonts (sf2, sf3, & dls), and exporting midi workspace to wav audio.
+* Implemented SoundFont downloader with support for the latest developed soundfonts. The default list of included soundfonts are organized under General, Games, & Legacy categories, alongside a hyperlink to find more fonts from musical-artifacts.com.
+* Implemented note duration presets for the New Note Tool in the tools menu, with remappable keybinds. Activating a preset will immediately switch to the New Note Tool and show a visual preview of the fixed note duration for placement.
+  - ``alt`` + `` ` `` - drag mode, ``alt`` + ``1-7`` - standard notes, ``alt`` + ``shift`` + ``1-8`` - tuplets
+* Implemented Split Channels to Tracks Tool. Supports splitting type 0 midis (1 track, multiple channels) into different tracks & splitting drumkits (channel 9 percussion) into track groups mapped to specific target notes. Fully customizable mapping matrix with 3 default community presets available and previewable target note audio.
+* Implemented mml & guitarpro format converters to be able to load additional music formats into midi.
+* Implemented Context Menu for Standard Tool & Select Events (Single / Box) Tool. Context Menu can be accessed with ``Middle Click`` or ``Ctrl`` + ``Right Click``
+  - Easy access to Copy, Paste, & Delete operations. Paste occurs at mouse position so you don't have to move the measure cursor before pasting.
+  - Includes commonly used operations:
+    * Quantize Selection, Move Events to Channel, Move Events to Track, Transpose (Selection, Octave Up, Octave Down), & Scale Events.
+  - New options for note duration adjustment:
+    * Stretch to Fill Neighbors, Extend Start to Previous End, Extend End to Next Start
+  - New options for note position adjustment:
+	* Snap Start to Previous End, Snap End to Next Start
+* Implemented timeline marker display bar with options to show program change (PC) markers, control change (CC) markers, and text event (txt) markers. If enabled, a new row will show below the measure, allowing you to visualize where events appear in the midi & drag reposition with ease without needing to scroll to the bottom of the piano roll.
+* Implemented customizable Status Bar with options to Show Track / Channel Info, Show Note Info (Name / Count), Show Selection Range, & Show Chord Name, alongside multiple chord detection strategies.
+* Implemented option for alternative continuous smooth playback scrolling.
+* Implemented color presets for track / channel colors.
+* Implemented Game Support settings section with initial tool support for Final Fantasy XIV.
+  - ``Fix XIV Channels`` will enable a new UI option in the Tracks / Channels widget that will try & fix note channels / program change events based on track title instrument matching and velocity normalizing.
+* Updated Magnet with new option to snap to notes. Both ``Snap to Grid`` & ``Snap to Notes`` can be independently enabled or disabled for behavior preferences.
+* Updated Glue Tool so only a single tool / icon exists in the tools menu & customizable toolbar. Dual functionality still exists with separate ``ctrl`` + ``g`` & ``ctrl`` + ``shift`` + ``g`` remappable keybinds, but now you can also hold shift while clicking on the toolbar icon for the all-channels behavior.
+* Updated StandardTool to allow resizing notes by dragging from the start or end edges without needing to hold ctrl & replaced held ctrl behavior with freeform movement which prevents resizing if dragging from the edge (unifying behavior of held modifier keys (shift / alt / ctrl) controlling all movement locking).
+* Improved note resizing behavior to show a previewable ghost duration while dragging an edge & updated Resize Events Tool to be less problematic. Left click controls Note OnTick position & right click controls Note OffTick position.
+* Improved Transpose Tool to prevent operation if notes would collapse in on itself above maximum height (note 127) or minimum height (note 0).
+* Improved Select Events (Single) Tool so multiple notes can be individually selected & unselected while holding shift or ctrl when clicking a note.
+* Improved github workflows & installer setup. Qt plugin binaries are now neatly organized in a plugins subdirectory and no longer include unnecessary Qt modules (QtXml, QtMultimedia / ffmpeg libs), reducing total application size. The uninstaller additionally attempts further cleanup of files post-uninstall to work around Windows sometimes file locking MaintenanceTool, preventing it from deleting itself / app directory during uninstall routines.
+* Overhauled metronome to use native midi note events metronome click (33) and metronome bell (34). Allowing for metronome to be more in sync with midi playback and optionally styled by soundfonts.
+* Appearance changes now reflect immediately instead of when settings closes (strip style, c3-6 range lines, opacity, track / channel color).
+* Fixed channel 16 (displayed channel 15) not being available in the misc widget.
+* Fixed terminator null bytes showing [] characters in track name & causing copy truncation for some midi files. Null characters are now properly removed.
+* Numerous UI improvements across the board for missing icons in protocol history, clipped track/channel text height, clipped color previews, updated settings window, file picker filter names, relocated / reordered menu options, option renames (quantify -> quantize, quantization fraction -> quantize resolution, raster -> grid division), standardizing title case/sentence case, and much more...
+* Updated dependencies to Qt 6.11, QtIFW 4.11, & newer rtmidi submodule.
+
+_FluidSynth is built from upstream source compiled with the latest multi-reverb engine branch changes._ 
+_libsndfile, libogg, libvorbis, libflac, & libopus dependencies are also source compiled for latest improvements._
+
+</details>
+
 ## [4.3.1] - 2026-01-17
 
 <details>

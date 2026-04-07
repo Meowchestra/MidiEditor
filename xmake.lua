@@ -1,5 +1,5 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "4.3.1"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "4.4.0"
 add_requires("zlib")
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 set_allowedplats("windows", "linux", "macosx")
