@@ -625,9 +625,11 @@ private:
 
     // === View State ===
 
-    /** \brief Internal tracking for smooth playback scroll */
+    // Previous playback state for transitions
+    // (Used to detect playback start and trigger anchor/glide logic)
     bool _wasPlaying = false;
     int _dynamicOffsetMs = 0;
+    int _lastRenderedMs = 0;
 
     /** \brief Viewport boundaries in MIDI ticks */
     int startTick, endTick;

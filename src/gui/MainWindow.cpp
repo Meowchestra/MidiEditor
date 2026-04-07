@@ -6217,20 +6217,68 @@ void MainWindow::fixXIVChannels() {
     int selectedTier = dialog.selectedTier();
     if (selectedTier == 0) return;
 
+    FFXIVChannelFixer::FixOptions options;
+    options.cleanupControlChanges = dialog.cleanupControlChanges();
+    options.cleanupKeyPressure = dialog.cleanupKeyPressure();
+    options.cleanupChannelPressure = dialog.cleanupChannelPressure();
+    options.cleanupPitchBend = dialog.cleanupPitchBend();
+    options.normalizeVelocity = dialog.normalizeVelocity();
+
     file->protocol()->startNewAction(tr("Fix XIV Channels (%1)").arg(selectedTier == 3 ? tr("Preserve") : tr("Rebuild")));
-    QJsonObject result = FFXIVChannelFixer::fixChannels(file, selectedTier);
+    QJsonObject result = FFXIVChannelFixer::fixChannels(file, selectedTier, options);
     file->protocol()->endAction();
 
     if (result["success"].toBool()) {
         updateAll();
         
-        QString mode = result["tierDescription"].toString();
+        QString mode = result["mode"].toString();
         int trackCount = result["trackCount"].toInt();
+        int ffxivTrackCount = result["ffxivTrackCount"].toInt();
+        int removedPCs = result["removedProgramChanges"].toInt();
+        int insertedPCs = result["insertedProgramChanges"].toInt();
+        int velocityNorm = result["velocityNormalized"].toInt();
+        int removedCC = result["removedControlChanges"].toInt();
+        int removedKP = result["removedKeyPressure"].toInt();
+        int removedCP = result["removedChannelPressure"].toInt();
+        int removedPB = result["removedPitchBend"].toInt();
+        int totalCleaned = removedCC + removedKP + removedCP + removedPB;
+        int multipleTick0 = result["programGuitarMultipleTick0Count"].toInt();
+        int preservedSwitches = result["preservedGuitarSwitchTrackCount"].toInt();
         
         QString html = QStringLiteral(
             "<h3 style='color:#2e7d32; margin-bottom:4px;'>&#x2705; Success</h3>"
             "<p style='margin-top:0;'><b>Mode:</b> %1<br>"
-            "<b>Tracks processed:</b> %2</p>").arg(mode).arg(trackCount);
+            "<b>Tracks processed:</b> %2 (%3 FFXIV tracks matched)</p>"
+            "<table style='font-size:12px;'>"
+            "<tr><td>Program changes:</td><td>%4 removed, %5 inserted</td></tr>"
+            "<tr><td>Velocity normalized:</td><td>%6 notes</td></tr>"
+            "<tr><td>Events cleaned:</td><td>%7 total</td></tr>"
+        ).arg(mode).arg(trackCount).arg(ffxivTrackCount)
+         .arg(removedPCs).arg(insertedPCs).arg(velocityNorm).arg(totalCleaned);
+
+        if (totalCleaned > 0) {
+            html += QStringLiteral(
+                "<tr><td></td><td style='color:gray; font-size:11px;'>"
+                "CC: %1, Key Pressure: %2, Channel Pressure: %3, Pitch Bend: %4"
+                "</td></tr>"
+            ).arg(removedCC).arg(removedKP).arg(removedCP).arg(removedPB);
+        }
+        html += "</table>";
+
+        if (multipleTick0 > 0) {
+            html += QStringLiteral(
+                "<p style='color:#e65100; font-size:12px; margin-top:10px;'>"
+                "<b>[!] Warning:</b> Found multiple Program Changes at tick 0 on %1 Guitar track(s). "
+                "These were preserved.</p>"
+            ).arg(multipleTick0);
+        }
+        
+        if (preservedSwitches > 0) {
+            html += QStringLiteral(
+                "<p style='color:#0277bd; font-size:12px; margin-top:5px;'>"
+                "<b>[i] Note:</b> Preserved existing Program Change switches on %1 Guitar track(s).</p>"
+            ).arg(preservedSwitches);
+        }
             
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(tr("Fix XIV Channels"));

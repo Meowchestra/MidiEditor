@@ -49,8 +49,8 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     settings.beginGroup("status_bar");
     _strategyCombo->setCurrentIndex(settings.value("strategy", 0).toInt());
     _toleranceSpin->setValue(settings.value("tolerance", 10).toInt());
-    // Default to false to match MainWindow's default
-    _showStatusBar->setChecked(settings.value("visible", false).toBool());
+    // Default to true to match MainWindow's default
+    _showStatusBar->setChecked(settings.value("visible", true).toBool());
     _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
     _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
     _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());

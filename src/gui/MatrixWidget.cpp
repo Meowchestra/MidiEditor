@@ -135,28 +135,49 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
     bool smoothScroll = Appearance::smoothPlaybackScrolling();
     bool isPlaying = MidiPlayer::isPlaying();
     
-    // Capture dynamic offset when playback starts to prevent screen jumping
     if (isPlaying && !_wasPlaying) {
-        _dynamicOffsetMs = ms - startTimeX;
-        
-        // Allow offset to be 0 or negative (cursor at very start)
-        if (_dynamicOffsetMs < 0) _dynamicOffsetMs = 0;
+        // Capture initial offset to potentially start a glide
+        int initialOffset = ms - startTimeX;
     }
     _wasPlaying = isPlaying;
+    _lastRenderedMs = ms; // Sync point for paintEvent
 
     if (!screen_locked || ignoreLocked) {
         if (smoothScroll && isPlaying) {
-            // Smooth scroll mode: keep cursor fixed anchored perfectly to its starting click coordinate
-            int desiredStartTime = ms - _dynamicOffsetMs;
-            if (desiredStartTime < 0) desiredStartTime = 0;
+            int viewportDurationMs = ((width() - lineNameWidth) * 1000) / (PIXEL_PER_S * scaleX);
+            int targetAnchorMs = viewportDurationMs * 0.20;
+            int targetStartTime = ms - targetAnchorMs;
+            if (targetStartTime < 0) targetStartTime = 0;
             
-            // Adjust bounds if we're near the end of the file
-            if (file->maxTime() <= endTimeX && desiredStartTime >= startTimeX) {
+            // Current screen offset of the cursor (in ms)
+            int currentOffset = ms - startTimeX;
+
+            if (currentOffset <= targetAnchorMs) {
+                // RED LINE SWEEP: Viewport stays stationary until line catches the 20% anchor.
                 update();
                 return;
             }
+
+            // CAMERA CATCH-UP (Elastic): Smoothly pan toward the anchor.
+            double panSpeedFactor = 0.08;
+            if (abs(targetStartTime - startTimeX) > 1000) panSpeedFactor = 0.04; // Slower for big jumps
+
+            int newStartTime = (startTimeX * (1.0 - panSpeedFactor)) + (targetStartTime * panSpeedFactor);
             
-            emit scrollChanged(desiredStartTime, (file->maxTime() - endTimeX + startTimeX), startLineY,
+            // Critical Clamp: Prevent negative timestamps which cause the "snap-to-zero" bug.
+            if (newStartTime < 0) newStartTime = 0;
+            if (newStartTime > file->maxTime()) newStartTime = file->maxTime() - viewportDurationMs;
+            if (newStartTime < 0) newStartTime = 0; // Final safety
+            
+            if (abs(newStartTime - startTimeX) < 1) newStartTime = targetStartTime;
+
+            // Adjust bounds if we're near the end of the file
+            if (file->maxTime() <= endTimeX && newStartTime >= startTimeX) {
+                update();
+                return;
+            }
+
+            emit scrollChanged(newStartTime, (file->maxTime() - endTimeX + startTimeX), startLineY,
                                NUM_LINES - (endLineY - startLineY));
             return;
         } else if (x < lineNameWidth || ms < startTimeX || ms > endTimeX || x > width() - 100) {
@@ -183,16 +204,13 @@ void MatrixWidget::scrollXChanged(int scrollPositionX) {
     startTimeX = scrollPositionX;
     endTimeX = startTimeX + ((width() - lineNameWidth) * 1000) / (PIXEL_PER_S * scaleX);
 
-    // more space than needed: scale x
-    if (endTimeX - startTimeX > file->maxTime()) {
-        endTimeX = file->maxTime();
-        startTimeX = 0;
-    } else if (startTimeX < 0) {
+    if (startTimeX < 0) {
         endTimeX -= startTimeX;
         startTimeX = 0;
     } else if (endTimeX > file->maxTime()) {
         startTimeX += file->maxTime() - endTimeX;
         endTimeX = file->maxTime();
+        if (startTimeX < 0) startTimeX = 0;
     }
 
     // Only repaint if not suppressed (to prevent cascading repaints)
@@ -676,7 +694,14 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
     
     if (MidiPlayer::isPlaying()) {
         painter->setPen(_cachedPlaybackCursorColor);
-        int x = xPosOfMs(MidiPlayer::timeMs());
+        int x;
+        if (Appearance::smoothPlaybackScrolling()) {
+            // Under Spring-Camera, the viewport itself is smooth.
+            // We use _lastRenderedMs to sync exactly with the camera's clock.
+            x = xPosOfMs(_lastRenderedMs);
+        } else {
+            x = xPosOfMs(MidiPlayer::timeMs());
+        }
         if (x >= lineNameWidth) {
             painter->drawLine(x, 0, x, height());
         }
@@ -2171,7 +2196,10 @@ void MatrixWidget::paintTimelineMarkers(QPainter *painter) {
     }
 
     // Draw dashed lines AND labels
-    QFont font("Arial", 8, QFont::Bold);
+    painter->save();
+    QFont font = Appearance::improveFont(painter->font());
+    font.setPixelSize(10);
+    font.setBold(true);
     painter->setFont(font);
 
     // Filtered markers list (to handle layering during drag)
@@ -2219,6 +2247,7 @@ void MatrixWidget::paintTimelineMarkers(QPainter *painter) {
         painter->setPen(textColor);
         painter->drawText(drawX + 2, yMarker + 4, text);
     }
+    painter->restore();
 }
 
 MidiEvent *MatrixWidget::findTimelineMarkerNear(int x, int y) {
@@ -2255,7 +2284,7 @@ MidiEvent *MatrixWidget::findTimelineMarkerNear(int x, int y) {
                     dist = threshold + qAbs(evX - x); // Outside - less likely to match than an direct box hit
                 }
 
-                if (dist < closestDist) {
+                if (dist <= closestDist) {
                     closestDist = dist;
                     bestMatch = ev;
                 }

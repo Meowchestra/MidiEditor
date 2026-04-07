@@ -6,6 +6,7 @@
 
 class QPushButton;
 class QRadioButton;
+class QCheckBox;
 class QLabel;
 
 /**
@@ -17,11 +18,21 @@ class FFXIVFixerDialog : public QDialog {
 public:
     explicit FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent = nullptr);
     int selectedTier() const;
+    bool cleanupControlChanges() const;
+    bool cleanupKeyPressure() const;
+    bool cleanupChannelPressure() const;
+    bool cleanupPitchBend() const;
+    bool normalizeVelocity() const;
 
 private:
     QJsonObject _analysis;
     QRadioButton *_rebuildRadio;
     QRadioButton *_preserveRadio;
+    QCheckBox *_cleanupCCCheck;
+    QCheckBox *_cleanupKeyPressureCheck;
+    QCheckBox *_cleanupChannelPressureCheck;
+    QCheckBox *_cleanupPitchBendCheck;
+    QCheckBox *_normalizeVelocityCheck;
 };
 
 #endif // FFXIVFIXERDIALOG_H

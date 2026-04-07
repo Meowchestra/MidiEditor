@@ -115,8 +115,9 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     // Left Column: Visual Styles
     QGroupBox *styleGroup = new QGroupBox(tr("Visual Styles"), this);
     QGridLayout *styleLayout = new QGridLayout(styleGroup);
-    styleLayout->setSpacing(4);
-    styleLayout->setContentsMargins(8, 8, 8, 4);
+    styleLayout->setSpacing(6);
+    styleLayout->setVerticalSpacing(10);
+    styleLayout->setContentsMargins(8, 12, 8, 12);
     
     styleLayout->addWidget(new QLabel(tr("Application Style")), 0, 0);
     QComboBox *styleCombo = new QComboBox(this);
@@ -126,26 +127,35 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     connect(styleCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(styleChanged(QString)));
     styleLayout->addWidget(styleCombo, 0, 1);
 
-    styleLayout->addWidget(new QLabel(tr("Strip Style")), 1, 0);
+    styleLayout->addWidget(new QLabel(tr("Color Preset")), 1, 0);
+    QComboBox *presetCombo = new QComboBox(this);
+    presetCombo->addItems({tr("Default"), tr("Pastel"), tr("Vibrant"), tr("Accessible"),
+                           tr("FL Studio Classic"), tr("Ableton Live Muted"), tr("Logic Pro Distinct")});
+    presetCombo->setCurrentIndex(static_cast<int>(Appearance::colorPreset()));
+    connect(presetCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(colorPresetChanged(int)));
+    styleLayout->addWidget(presetCombo, 1, 1);
+
+    styleLayout->addWidget(new QLabel(tr("Strip Style")), 2, 0);
     QComboBox *strip = new QComboBox(this);
     strip->addItems({tr("Highlight by Octaves"), tr("Highlight by Scale"), tr("Highlight by Alternating")});
     strip->setCurrentIndex(Appearance::strip());
     connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
-    styleLayout->addWidget(strip, 1, 1);
+    styleLayout->addWidget(strip, 2, 1);
 
-    styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 2, 0);
+    styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 3, 0);
     QCheckBox *smoothScroll = new QCheckBox(this);
     smoothScroll->setChecked(Appearance::smoothPlaybackScrolling());
     connect(smoothScroll, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
-    styleLayout->addWidget(smoothScroll, 2, 1);
+    styleLayout->addWidget(smoothScroll, 3, 1);
     
     bottomGrid->addWidget(styleGroup, 0, 0);
 
     // Right Column: Matrix & Marker Settings
     QGroupBox *markerGroup = new QGroupBox(tr("Matrix / Markers"), this);
     QGridLayout *markerLayout = new QGridLayout(markerGroup);
-    markerLayout->setSpacing(4);
-    markerLayout->setContentsMargins(8, 8, 8, 4);
+    markerLayout->setSpacing(6);
+    markerLayout->setVerticalSpacing(10);
+    markerLayout->setContentsMargins(8, 12, 8, 12);
     
     markerLayout->addWidget(new QLabel(tr("Show C3/C6 Range Lines")), 0, 0);
     QCheckBox *rangeLines = new QCheckBox(this);
@@ -153,19 +163,19 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
     markerLayout->addWidget(rangeLines, 0, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Show Program Changes")), 1, 0);
+    markerLayout->addWidget(new QLabel(tr("Markers: Program Changes")), 1, 0);
     QCheckBox *pcMarkers = new QCheckBox(this);
     pcMarkers->setChecked(Appearance::showProgramChangeMarkers());
     connect(pcMarkers, SIGNAL(toggled(bool)), this, SLOT(programChangeMarkersChanged(bool)));
     markerLayout->addWidget(pcMarkers, 1, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Show Control Changes")), 2, 0);
+    markerLayout->addWidget(new QLabel(tr("Markers: Control Changes")), 2, 0);
     QCheckBox *ccMarkers = new QCheckBox(this);
     ccMarkers->setChecked(Appearance::showControlChangeMarkers());
     connect(ccMarkers, SIGNAL(toggled(bool)), this, SLOT(controlChangeMarkersChanged(bool)));
     markerLayout->addWidget(ccMarkers, 2, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Show Text Events")), 3, 0);
+    markerLayout->addWidget(new QLabel(tr("Markers: Text Events")), 3, 0);
     QCheckBox *txtMarkers = new QCheckBox(this);
     txtMarkers->setChecked(Appearance::showTextEventMarkers());
     connect(txtMarkers, SIGNAL(toggled(bool)), this, SLOT(textEventMarkersChanged(bool)));
@@ -208,6 +218,11 @@ void AppearanceSettingsWidget::refreshColors() {
         }
     }
     update();
+}
+
+void AppearanceSettingsWidget::colorPresetChanged(int index) {
+    Appearance::setColorPreset(static_cast<Appearance::ColorPreset>(index));
+    resetColors();
 }
 
 

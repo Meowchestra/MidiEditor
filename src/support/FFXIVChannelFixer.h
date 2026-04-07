@@ -102,15 +102,26 @@ public:
     /// Progress callback: (percent 0-100, phase description)
     using ProgressCallback = std::function<void(int, const QString &)>;
 
+    /// Options for the fix operation
+    struct FixOptions {
+        bool cleanupControlChanges = true;
+        bool cleanupKeyPressure = true;
+        bool cleanupChannelPressure = true;
+        bool cleanupPitchBend = true;
+        bool normalizeVelocity = true;
+    };
+
     /**
      * \brief Fix all channel assignments and program_change events.
      * \param file       The loaded MidiFile
      * \param forcedTier 0=Auto (Detect), 2=Rebuild (Full Reassignment), 3=Preserve (Minimal Changes)
+     * \param options    Cleanup and normalization options
      * \param progress   Optional callback for progress updates
      * \return JSON result with success, tier, channelMap, summary
      */
     static QJsonObject fixChannels(MidiFile *file,
                                    int forcedTier = 0,
+                                   FixOptions options = FixOptions(),
                                    ProgressCallback progress = nullptr);
 
 private:

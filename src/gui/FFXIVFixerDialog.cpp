@@ -5,6 +5,7 @@
 #include <QLabel>
 #include <QPushButton>
 #include <QRadioButton>
+#include <QCheckBox>
 #include <QGroupBox>
 #include <QJsonArray>
 #include <QDialogButtonBox>
@@ -12,7 +13,7 @@
 FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
     : QDialog(parent), _analysis(analysis) {
     setWindowTitle(tr("Fix XIV Channels"));
-    setMinimumWidth(450);
+    setMinimumWidth(480);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
 
@@ -68,8 +69,8 @@ FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
     _rebuildRadio = new QRadioButton(tr("Rebuild: Reassign channels and program changes from scratch"), modeGroup);
     _preserveRadio = new QRadioButton(tr("Preserve: Keep existing channels, fix program changes only"), modeGroup);
 
-    QString rebuildDesc = tr("Groups identical instruments into shared channels. Best for MIDI files imported from scratch.");
-    QString preserveDesc = tr("Preserves your hand-assigned channel layout. Required if you've done custom layering.");
+    QString rebuildDesc = tr("Groups identical instruments into shared channels.");
+    QString preserveDesc = tr("Preserves your hand-assigned channel layout.");
 
     QLabel *rDesc = new QLabel(rebuildDesc, modeGroup);
     rDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 20px; margin-bottom: 5px;");
@@ -86,16 +87,44 @@ FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
 
     mainLayout->addWidget(modeGroup);
 
-    // Set Default based on analysis Auto-Tier
-    int autoTier = analysis["autoDetectedTier"].toInt();
-    if (autoTier == 3) {
-        _preserveRadio->setChecked(true);
-        QLabel *recLabel = new QLabel(tr("<b>Recommendation: Preserve</b><br>Electric guitar program changes were already found across multiple channels."), modeGroup);
-        recLabel->setTextFormat(Qt::RichText);
-        modeLayout->addWidget(recLabel);
-    } else {
-        _rebuildRadio->setChecked(true);
-    }
+    // Default to Rebuild mode
+    _rebuildRadio->setChecked(true);
+
+    // Options Section
+    QGroupBox *optionsGroup = new QGroupBox(tr("Options"), this);
+    QVBoxLayout *optionsLayout = new QVBoxLayout(optionsGroup);
+
+    _normalizeVelocityCheck = new QCheckBox(tr("Normalize Velocity"), optionsGroup);
+    _normalizeVelocityCheck->setChecked(true);
+    _normalizeVelocityCheck->setToolTip(tr("Sets all note velocities to 100 for consistent volume."));
+    optionsLayout->addWidget(_normalizeVelocityCheck);
+
+    QLabel *cleanupLabel = new QLabel(tr("Cleanup unsupported events:"), optionsGroup);
+    cleanupLabel->setTextFormat(Qt::RichText);
+    optionsLayout->addWidget(cleanupLabel);
+
+    QLabel *cleanupDesc = new QLabel(tr("FFXIV only uses Note & Program Change events."), optionsGroup);
+    cleanupDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 4px; margin-bottom: 4px;");
+    cleanupDesc->setWordWrap(true);
+    optionsLayout->addWidget(cleanupDesc);
+
+    _cleanupCCCheck = new QCheckBox(tr("Remove Control Change Events"), optionsGroup);
+    _cleanupCCCheck->setChecked(true);
+    optionsLayout->addWidget(_cleanupCCCheck);
+
+    _cleanupKeyPressureCheck = new QCheckBox(tr("Remove Key Pressure Events"), optionsGroup);
+    _cleanupKeyPressureCheck->setChecked(true);
+    optionsLayout->addWidget(_cleanupKeyPressureCheck);
+
+    _cleanupChannelPressureCheck = new QCheckBox(tr("Remove Channel Pressure Events"), optionsGroup);
+    _cleanupChannelPressureCheck->setChecked(true);
+    optionsLayout->addWidget(_cleanupChannelPressureCheck);
+
+    _cleanupPitchBendCheck = new QCheckBox(tr("Remove Pitch Bend Events"), optionsGroup);
+    _cleanupPitchBendCheck->setChecked(true);
+    optionsLayout->addWidget(_cleanupPitchBendCheck);
+
+    mainLayout->addWidget(optionsGroup);
 
     // Buttons
     QDialogButtonBox *btnBox = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
@@ -108,4 +137,24 @@ int FFXIVFixerDialog::selectedTier() const {
     if (_preserveRadio->isChecked()) return 3;
     if (_rebuildRadio->isChecked()) return 2;
     return 0;
+}
+
+bool FFXIVFixerDialog::cleanupControlChanges() const {
+    return _cleanupCCCheck->isChecked();
+}
+
+bool FFXIVFixerDialog::cleanupKeyPressure() const {
+    return _cleanupKeyPressureCheck->isChecked();
+}
+
+bool FFXIVFixerDialog::cleanupChannelPressure() const {
+    return _cleanupChannelPressureCheck->isChecked();
+}
+
+bool FFXIVFixerDialog::cleanupPitchBend() const {
+    return _cleanupPitchBendCheck->isChecked();
+}
+
+bool FFXIVFixerDialog::normalizeVelocity() const {
+    return _normalizeVelocityCheck->isChecked();
 }

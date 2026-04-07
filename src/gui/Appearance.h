@@ -134,6 +134,19 @@ public:
 
     enum MarkerColorMode { ColorByTrack, ColorByChannel };
 
+    enum ColorPreset {
+        PresetDefault,
+        PresetPastel,
+        PresetVibrant,
+        PresetAccessible,
+        PresetFLStudio,
+        PresetAbleton,
+        PresetLogic
+    };
+
+    static ColorPreset colorPreset();
+    static void setColorPreset(ColorPreset preset);
+
     /**
      * \brief Gets the current strip style.
      * \return Current stripStyle setting
@@ -708,6 +721,7 @@ private:
     static bool _showControlChangeMarkers;
     static bool _showTextEventMarkers;
     static MarkerColorMode _markerColorMode;
+    static ColorPreset _colorPreset;
     static bool _smoothPlaybackScrolling;
 
     /** \brief Current application style name */

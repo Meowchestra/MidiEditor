@@ -163,6 +163,12 @@ public slots:
     void opacityChanged(int opacity);
 
     /**
+     * \brief Handles color preset changes.
+     * \param index The new preset index
+     */
+    void colorPresetChanged(int index);
+
+    /**
      * \brief Handles strip style changes.
      * \param strip The new strip style
      */

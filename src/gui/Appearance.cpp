@@ -40,6 +40,7 @@ bool Appearance::_showProgramChangeMarkers = false;
 bool Appearance::_showControlChangeMarkers = false;
 bool Appearance::_showTextEventMarkers = false;
 Appearance::MarkerColorMode Appearance::_markerColorMode = Appearance::ColorByTrack;
+Appearance::ColorPreset Appearance::_colorPreset = Appearance::PresetDefault;
 bool Appearance::_smoothPlaybackScrolling = false;
 
 QString Appearance::_applicationStyle = "windowsvista";
@@ -65,6 +66,7 @@ void Appearance::init(QSettings *settings) {
     _showControlChangeMarkers = settings->value("show_control_change_markers", false).toBool();
     _showTextEventMarkers = settings->value("show_text_event_markers", false).toBool();
     _markerColorMode = static_cast<Appearance::MarkerColorMode>(settings->value("marker_color_mode", Appearance::ColorByTrack).toInt());
+    _colorPreset = static_cast<Appearance::ColorPreset>(settings->value("color_preset", Appearance::PresetDefault).toInt());
     _smoothPlaybackScrolling = settings->value("rendering/smooth_playback_scroll", false).toBool();
 
     // Set default style with fallback
@@ -239,6 +241,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("show_control_change_markers", _showControlChangeMarkers);
     settings->setValue("show_text_event_markers", _showTextEventMarkers);
     settings->setValue("marker_color_mode", static_cast<int>(_markerColorMode));
+    settings->setValue("color_preset", static_cast<int>(_colorPreset));
     settings->setValue("rendering/smooth_playback_scroll", _smoothPlaybackScrolling);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
@@ -265,6 +268,132 @@ void Appearance::writeSettings(QSettings *settings) {
 }
 
 QColor *Appearance::defaultColor(int n) {
+    if (_colorPreset == PresetPastel) {
+        switch (n) {
+            case 0: return new QColor(255, 179, 186, 255);
+            case 1: return new QColor(255, 223, 186, 255);
+            case 2: return new QColor(255, 255, 186, 255);
+            case 3: return new QColor(186, 255, 201, 255);
+            case 4: return new QColor(186, 225, 255, 255);
+            case 5: return new QColor(210, 186, 255, 255);
+            case 6: return new QColor(255, 186, 225, 255);
+            case 7: return new QColor(186, 255, 255, 255);
+            case 8: return new QColor(220, 235, 186, 255);
+            case 9: return new QColor(180, 180, 180, 255);
+            case 10: return new QColor(255, 204, 229, 255);
+            case 11: return new QColor(204, 229, 255, 255);
+            case 12: return new QColor(204, 255, 204, 255);
+            case 13: return new QColor(255, 229, 204, 255);
+            case 14: return new QColor(229, 204, 255, 255);
+            case 15: return new QColor(220, 240, 240, 255);
+            default: return new QColor(200, 200, 200, 255);
+        }
+    } else if (_colorPreset == PresetVibrant) {
+        switch (n) {
+            case 0: return new QColor(255, 0, 0, 255);
+            case 1: return new QColor(255, 128, 0, 255);
+            case 2: return new QColor(255, 255, 0, 255);
+            case 3: return new QColor(0, 255, 0, 255);
+            case 4: return new QColor(0, 255, 255, 255);
+            case 5: return new QColor(0, 0, 255, 255);
+            case 6: return new QColor(255, 0, 255, 255);
+            case 7: return new QColor(128, 0, 255, 255);
+            case 8: return new QColor(0, 255, 128, 255);
+            case 9: return new QColor(128, 128, 128, 255);
+            case 10: return new QColor(255, 0, 128, 255);
+            case 11: return new QColor(0, 128, 255, 255);
+            case 12: return new QColor(128, 255, 0, 255);
+            case 13: return new QColor(255, 200, 0, 255);
+            case 14: return new QColor(128, 0, 128, 255);
+            case 15: return new QColor(0, 128, 128, 255);
+            default: return new QColor(100, 100, 100, 255);
+        }
+    } else if (_colorPreset == PresetAccessible) {
+        // High contrast / Colorblind safe scheme (Okabe-Ito / categorical)
+        switch (n) {
+            case 0: return new QColor(213, 94, 0, 255);    // Vermilion
+            case 1: return new QColor(230, 159, 0, 255);   // Orange
+            case 2: return new QColor(240, 228, 66, 255);  // Yellow
+            case 3: return new QColor(0, 158, 115, 255);   // Bluish Green
+            case 4: return new QColor(86, 180, 233, 255);  // Sky Blue
+            case 5: return new QColor(0, 114, 178, 255);   // Blue
+            case 6: return new QColor(204, 121, 167, 255); // Reddish Purple
+            case 7: return new QColor(176, 224, 230, 255); // Powder Blue
+            case 8: return new QColor(0, 0, 0, 255);       // Black
+            case 9: return new QColor(128, 128, 128, 255); // Gray
+            case 10: return new QColor(255, 165, 0, 255);  // Vivid Orange
+            case 11: return new QColor(144, 238, 144, 255);// Light Green
+            case 12: return new QColor(255, 69, 0, 255);   // Red Orange
+            case 13: return new QColor(186, 85, 211, 255); // Orchid
+            case 14: return new QColor(46, 139, 87, 255);  // Sea Green
+            case 15: return new QColor(160, 82, 45, 255);  // Sienna
+            default: return new QColor(100, 100, 100, 255);
+        }
+    } else if (_colorPreset == PresetFLStudio) {
+        // FL Studio inspired (Fruity/punchy colors)
+        switch (n) {
+            case 0: return new QColor(135, 222, 104, 255); // Apple Green
+            case 1: return new QColor(255, 148, 77, 255);  // Mango
+            case 2: return new QColor(255, 102, 102, 255); // Strawberry
+            case 3: return new QColor(102, 204, 255, 255); // Frost
+            case 4: return new QColor(204, 153, 255, 255); // Grape
+            case 5: return new QColor(255, 236, 102, 255); // Banana
+            case 6: return new QColor(102, 255, 178, 255); // Mint
+            case 7: return new QColor(255, 102, 178, 255); // Raspberry
+            case 8: return new QColor(224, 224, 224, 255); // Silver
+            case 9: return new QColor(153, 153, 153, 255); // Iron
+            case 10: return new QColor(255, 178, 102, 255);// Tangerine
+            case 11: return new QColor(153, 204, 255, 255);// Sky
+            case 12: return new QColor(204, 255, 153, 255);// Lime
+            case 13: return new QColor(255, 153, 204, 255);// Bubblegum
+            case 14: return new QColor(153, 255, 204, 255);// Seafoam
+            case 15: return new QColor(204, 153, 102, 255);// Bronze
+            default: return new QColor(150, 150, 150, 255);
+        }
+    } else if (_colorPreset == PresetAbleton) {
+        // Ableton Live inspired (Muted, utilitarian, flat)
+        switch (n) {
+            case 0: return new QColor(219, 112, 147, 255); // Palevioletred
+            case 1: return new QColor(143, 188, 143, 255); // Darkseagreen
+            case 2: return new QColor(244, 164, 96, 255);  // Sandybrown
+            case 3: return new QColor(100, 149, 237, 255); // Cornflower
+            case 4: return new QColor(205, 92, 92, 255);   // Indianred
+            case 5: return new QColor(218, 165, 32, 255);  // Goldenrod
+            case 6: return new QColor(95, 158, 160, 255);  // Cadetblue
+            case 7: return new QColor(138, 43, 226, 255);  // Blueviolet
+            case 8: return new QColor(112, 128, 144, 255); // Slate
+            case 9: return new QColor(188, 143, 143, 255); // Rosybrown
+            case 10: return new QColor(240, 128, 128, 255);// Lightcoral
+            case 11: return new QColor(32, 178, 170, 255); // Lightseagreen
+            case 12: return new QColor(222, 184, 135, 255);// Burlywood
+            case 13: return new QColor(176, 196, 222, 255);// Lightsteelblue
+            case 14: return new QColor(255, 182, 193, 255);// Lightpink
+            case 15: return new QColor(107, 142, 35, 255); // Olive
+            default: return new QColor(128, 128, 128, 255);
+        }
+    } else if (_colorPreset == PresetLogic) {
+        // Logic Pro inspired (Clean, distinct distinct Apple hues)
+        switch (n) {
+            case 0: return new QColor(93, 172, 228, 255);  // Aqua Blue
+            case 1: return new QColor(114, 204, 102, 255); // Clean Green
+            case 2: return new QColor(230, 199, 58, 255);  // Gold
+            case 3: return new QColor(213, 99, 93, 255);   // Crimson
+            case 4: return new QColor(160, 116, 196, 255); // Purple
+            case 5: return new QColor(234, 147, 88, 255);  // Orange
+            case 6: return new QColor(87, 196, 186, 255);  // Teal
+            case 7: return new QColor(228, 128, 170, 255); // Pink
+            case 8: return new QColor(200, 200, 205, 255); // Gray
+            case 9: return new QColor(140, 148, 158, 255); // Steel
+            case 10: return new QColor(58, 125, 222, 255); // Royal Blue
+            case 11: return new QColor(175, 218, 102, 255);// Yellow-Green
+            case 12: return new QColor(250, 115, 150, 255);// Hot Pink
+            case 13: return new QColor(128, 100, 162, 255);// Deep Purple
+            case 14: return new QColor(96, 180, 150, 255); // Sea Green
+            case 15: return new QColor(200, 160, 100, 255);// Sand
+            default: return new QColor(160, 160, 160, 255);
+        }
+    }
+
     bool useDarkMode = shouldUseDarkMode();
 
     QColor *color;
@@ -679,6 +808,14 @@ Appearance::MarkerColorMode Appearance::markerColorMode() {
 
 void Appearance::setMarkerColorMode(MarkerColorMode mode) {
     _markerColorMode = mode;
+}
+
+Appearance::ColorPreset Appearance::colorPreset() {
+    return _colorPreset;
+}
+
+void Appearance::setColorPreset(Appearance::ColorPreset preset) {
+    _colorPreset = preset;
 }
 
 bool Appearance::smoothPlaybackScrolling() {

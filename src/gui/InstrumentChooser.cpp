@@ -42,6 +42,10 @@ public:
         QStyleOptionViewItem opt = option;
         initStyleOption(&opt, index);
 
+        // Clear the text before letting the native style draw it, so that we
+        // don't get double overlapping text in themes like Windows 11 dark mode
+        opt.text = "";
+
         // Draw background
         opt.widget->style()->drawControl(QStyle::CE_ItemViewItem, &opt, painter, opt.widget);
 
