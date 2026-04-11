@@ -716,15 +716,19 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         painter->setPen(_cachedForegroundColor);
     }
 
+    // Timeline area is the top 50px. Use this to bind the cursor instead of timeHeight
+    // which may include the marker row (e.g. 66px) causing the cursor to stretch down.
+    int rulerHeight = 50;
+
     // paint the cursorTick of file
     if (midiFile()->cursorTick() >= startTick && midiFile()->cursorTick() <= endTick) {
         painter->setPen(Qt::darkGray); // Original color for both modes
         int x = xPosOfMs(msOfTick(midiFile()->cursorTick()));
         painter->drawLine(x, 0, x, height());
         QPointF points[3] = {
-            QPointF(x - 8, timeHeight / 2 + 2),
-            QPointF(x + 8, timeHeight / 2 + 2),
-            QPointF(x, timeHeight - 2),
+            QPointF(x - 8, rulerHeight / 2 + 2),
+            QPointF(x + 8, rulerHeight / 2 + 2),
+            QPointF(x, rulerHeight - 2),
         };
 
         painter->setBrush(QBrush(_cachedCursorTriangleColor, Qt::SolidPattern));
@@ -738,9 +742,9 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
         int x = xPosOfMs(msOfTick(midiFile()->pauseTick()));
 
         QPointF points[3] = {
-            QPointF(x - 8, timeHeight / 2 + 2),
-            QPointF(x + 8, timeHeight / 2 + 2),
-            QPointF(x, timeHeight - 2),
+            QPointF(x - 8, rulerHeight / 2 + 2),
+            QPointF(x + 8, rulerHeight / 2 + 2),
+            QPointF(x, rulerHeight - 2),
         };
 
         painter->setBrush(QBrush(Appearance::grayColor(), Qt::SolidPattern));
