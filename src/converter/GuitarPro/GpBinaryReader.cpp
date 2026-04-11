@@ -11,7 +11,8 @@ void GpBinaryReader::setData(const std::vector<uint8_t>& data) {
 }
 
 void GpBinaryReader::checkBounds(int count) const {
-    if (pointer_ + count > static_cast<int>(data_.size())) {
+    if (count < 0 || pointer_ < 0 ||
+        static_cast<size_t>(pointer_) + static_cast<size_t>(count) > data_.size()) {
         throw std::runtime_error("GpBinaryReader: read past end of data at offset " +
                                  std::to_string(pointer_) + ", requested " +
                                  std::to_string(count) + " bytes");
@@ -111,15 +112,19 @@ std::string GpBinaryReader::readByteSizeString(int size) {
 std::string GpBinaryReader::readIntByteSizeString() {
     // Read length of string + 1 stored as int32, then byte-prefixed string
     int d = readInt()[0] - 1;
+    if (d < 0) return std::string();
     return readByteSizeString(d);
 }
 
 std::string GpBinaryReader::readIntSizeString() {
     // Read a string preceded by an int indicating its length
     int length = readInt()[0];
+    if (length < 0) return std::string();
     return readString(length);
 }
 
 void GpBinaryReader::skip(int count) {
+    if (count < 0) return;
+    checkBounds(count);
     pointer_ += count;
 }

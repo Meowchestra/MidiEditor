@@ -105,6 +105,7 @@ protected:
     BeatEffect readBeatEffects(GpNoteEffect* effect) override;
     void readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) override;
     void readMixTableChangeDurations(MixTableChange* tc) override;
+    GraceEffect readGrace() override;
 
     void readDirections();
     void readPageSetup();

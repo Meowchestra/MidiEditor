@@ -492,7 +492,7 @@ void Gp3Parser::readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) {
 
 Duration Gp3Parser::readDuration(uint8_t flags) {
     Duration dur;
-    dur.value = 1 << (reader.readSignedByte()[0] + 2);
+    dur.value = 1 << std::clamp(reader.readSignedByte()[0] + 2, 0, 7);
     dur.isDotted = (flags & 0x01) != 0;
     if (flags & 0x20) {
         int tuplet = reader.readInt()[0];
@@ -936,9 +936,7 @@ MeasureHeader* Gp5Parser::readMeasureHeader(int number, MeasureHeader* previous)
     if (flags & 0x08) {
         header->repeatClose = reader.readSignedByte()[0];
     }
-    if (flags & 0x10) {
-        header->repeatAlternatives.push_back(readRepeatAlternativeGp5());
-    }
+    // GP5: marker comes BEFORE repeat alternative (unlike GP3/GP4)
     if (flags & 0x20) {
         header->marker = std::make_unique<Marker>(readMarker(header.get()));
     }
@@ -961,6 +959,10 @@ MeasureHeader* Gp5Parser::readMeasureHeader(int number, MeasureHeader* previous)
     } else if (previous) {
         for (int i = 0; i < 4; i++)
             header->timeSignature.beams[i] = previous->timeSignature.beams[i];
+    }
+    // GP5: repeat alternative comes AFTER beams (not before marker)
+    if (flags & 0x10) {
+        header->repeatAlternatives.push_back(readRepeatAlternativeGp5());
     }
     if (!(flags & 0x10)) reader.skip(1);
     header->tripletFeel = static_cast<TripletFeel>(reader.readByte()[0]);
@@ -1282,6 +1284,22 @@ BeatEffect Gp5Parser::readBeatEffects(GpNoteEffect* effect) {
     return Gp4Parser::readBeatEffects(effect);
 }
 
+GraceEffect Gp5Parser::readGrace() {
+    // GP5: grace note has 5 bytes (GP3/4 has 4 bytes)
+    // fret, dynamic, transition, duration, flags
+    GraceEffect grace;
+    grace.fret = reader.readByte()[0];
+    grace.velocity = Velocities::minVelocity +
+        (Velocities::velocityIncrement * reader.readByte()[0]) - Velocities::velocityIncrement;
+    int8_t transition = reader.readSignedByte()[0];
+    grace.transition = static_cast<GraceEffectTransition>(transition);
+    grace.duration = reader.readByte()[0];
+    uint8_t flags = reader.readByte()[0]; // GP5 extra: dead (bit 0), onBeat (bit 1)
+    grace.isDead = (flags & 0x01) != 0;
+    grace.isOnBeat = (flags & 0x02) != 0;
+    return grace;
+}
+
 void Gp5Parser::readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) {
     auto tc = std::make_unique<MixTableChange>();
     int instrument = reader.readSignedByte()[0];
@@ -1317,14 +1335,16 @@ void Gp5Parser::readMixTableChange(GpMeasure* measure, BeatEffect& beatEffect) {
     int8_t allTracksFlags = reader.readSignedByte()[0];
     if (tc->volume) tc->volume->allTracks = (allTracksFlags & 0x01) != 0;
     if (tc->balance) tc->balance->allTracks = (allTracksFlags & 0x02) != 0;
-    // There may be more flags but they are rarely significant
+    reader.skip(1); // GP5: extra byte after allTracks flags
 
-    // GP5 wah/RSE extras
+    // GP5 wah/RSE extras (v5.1+ always reads 2 strings)
     if (versionTuple[1] > 0) {
-        reader.readIntByteSizeString(); // wah effect name or RSE
-    }
-    if (tc->rse && versionTuple[1] > 0) {
-        readRSEInstrumentEffect(tc->rse.get());
+        std::string wahOrRse1 = reader.readIntByteSizeString();
+        std::string rse2 = reader.readIntByteSizeString();
+        if (tc->rse) {
+            tc->rse->effect = wahOrRse1;
+            tc->rse->effectCategory = rse2;
+        }
     }
 
     beatEffect.mixTableChange = std::move(tc);

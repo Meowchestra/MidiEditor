@@ -57,7 +57,7 @@ MidiFile* GpImporter::loadFile(QString path, bool* ok) {
             // Use the transferred GP5 file if available
             if (gpFile->self) {
                 GpFile* transferred = gpFile->self;
-                gpFile.release(); // Release ownership of the GP6 wrapper
+                gpFile->self = nullptr;
                 gpFile.reset(transferred);
             }
         } else if (ext == "gp" || ext == "gp7" || ext == "gp8") {
@@ -94,7 +94,7 @@ MidiFile* GpImporter::loadFile(QString path, bool* ok) {
 
                 if (gpFile->self) {
                     GpFile* transferred = gpFile->self;
-                    gpFile.release();
+                    gpFile->self = nullptr;
                     gpFile.reset(transferred);
                 }
             } else {

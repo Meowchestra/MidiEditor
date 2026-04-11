@@ -134,7 +134,9 @@ struct Duration {
         }
         if (isDotted) result = static_cast<int>(result * 1.5f);
         if (isDoubleDotted) result = static_cast<int>(result * 1.75f);
-        result = static_cast<int>(result * tuplet.times / static_cast<float>(tuplet.enters));
+        result = (tuplet.enters > 0)
+            ? static_cast<int>(result * tuplet.times / static_cast<float>(tuplet.enters))
+            : result;
         return result;
     }
 };

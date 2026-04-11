@@ -10,6 +10,7 @@
 // TuxGuitar's readStringByteSizeOfByte: byte N, byte len, (N-1) bytes buffer
 static std::string gpReadStringBSoB(GpBinaryReader& reader) {
     int size = reader.readByte(1)[0] - 1;
+    if (size < 0) return std::string();
     return reader.readByteSizeString(size);
 }
 

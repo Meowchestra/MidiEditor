@@ -66,19 +66,17 @@ uint8_t GpBitStream::getByte() {
 }
 
 int GpBitStream::getBitsLE(int amount) {
-    static const int powers[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
     int result = 0;
     for (int i = 0; i < amount; i++) {
-        result |= getBit() ? powers[i] : 0;
+        if (getBit()) result |= (1 << i);
     }
     return result;
 }
 
 int GpBitStream::getBitsBE(int amount) {
-    static const int powers[] = {1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024};
     int result = 0;
     for (int i = 0; i < amount; i++) {
-        result |= getBit() ? powers[amount - i - 1] : 0;
+        if (getBit()) result |= (1 << (amount - i - 1));
     }
     return result;
 }

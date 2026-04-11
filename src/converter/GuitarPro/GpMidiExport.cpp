@@ -203,6 +203,7 @@ std::vector<uint8_t> GpMidiTrack::createBytes() const {
             trackData.push_back(0xf7);
         } else {
             auto raw = message->createBytes();
+            if (raw.empty()) continue;
             uint8_t temp = raw[0];
             if (statusByteSet && !message->is_meta && raw[0] < 0xf0 && raw[0] == runningStatusByte) {
                 // Running status: skip the status byte

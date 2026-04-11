@@ -93,11 +93,15 @@ bool GpUnzip::hasEntry(const std::string& entryPath) const {
 std::vector<uint8_t> GpUnzip::extract(const std::string& entryPath) {
     for (const auto& entry : entries_) {
         if (entry.filename == entryPath) {
+            size_t end = static_cast<size_t>(entry.dataOffset) + entry.compressedSize;
+            if (end > data_.size() || end < static_cast<size_t>(entry.dataOffset)) {
+                throw std::runtime_error("GpUnzip: entry data extends past file end");
+            }
             if (entry.compressionMethod == 0) {
                 // Stored (no compression)
                 return std::vector<uint8_t>(
                     data_.begin() + entry.dataOffset,
-                    data_.begin() + entry.dataOffset + entry.compressedSize);
+                    data_.begin() + end);
             } else if (entry.compressionMethod == 8) {
                 // Deflated
                 return inflateData(&data_[entry.dataOffset],
@@ -114,6 +118,10 @@ std::vector<uint8_t> GpUnzip::extract(const std::string& entryPath) {
 std::vector<uint8_t> GpUnzip::inflateData(const uint8_t* compressedData,
                                        uint32_t compressedSize,
                                        uint32_t uncompressedSize) {
+    constexpr uint32_t maxAlloc = 256 * 1024 * 1024;
+    if (uncompressedSize > maxAlloc) {
+        throw std::runtime_error("GpUnzip: uncompressed size exceeds 256MB limit");
+    }
     std::vector<uint8_t> output(uncompressedSize);
 
     z_stream stream;

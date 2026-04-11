@@ -796,7 +796,9 @@ int NativeFormat::flipDuration(const Duration& dur) {
 
     int enters = dur.tuplet.enters;
     int times = dur.tuplet.times;
-    result = static_cast<int>(result * times / static_cast<float>(enters));
+    if (enters > 0) {
+        result = static_cast<int>(result * times / static_cast<float>(enters));
+    }
     return result;
 }
 
@@ -809,8 +811,9 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
 {
     std::vector<NativeNote> notes;
     int index = 0;
-    int lastNoteIdx[10] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
-    bool lastWasTie[10] = {};
+    static constexpr int MAX_STRINGS = 10;
+    int lastNoteIdx[MAX_STRINGS] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1};
+    bool lastWasTie[MAX_STRINGS] = {};
 
     // Grace note state
     bool rememberGrace = false;
@@ -827,7 +830,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
         // Handle SimileMark (measure repeat)
         switch (m->simileMark) {
             case SimileMark::simple: {
-                if (!notesInMeasures_.empty()) {
+                if (measureIndex > 0 && !notesInMeasures_.empty()) {
                     int amountNotes = notesInMeasures_.back();
                     int endPoint = static_cast<int>(notes.size());
                     for (int x = endPoint - amountNotes; x < endPoint; x++) {
@@ -844,7 +847,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
             }
             case SimileMark::firstOfDouble:
             case SimileMark::secondOfDouble: {
-                if (notesInMeasures_.size() >= 2) {
+                if (notesInMeasures_.size() >= 2 && measureIndex >= 2) {
                     int secondAmount = notesInMeasures_[notesInMeasures_.size() - 1];
                     int firstAmount = notesInMeasures_[notesInMeasures_.size() - 2];
                     int endPoint = static_cast<int>(notes.size()) - secondAmount;
@@ -981,7 +984,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
 
                     if (n->type == NoteType::tie) {
                         dontAddNote = true;
-                        int strIdx = std::max(0, note.str - 1);
+                        int strIdx = std::max(0, std::min(note.str - 1, MAX_STRINGS - 1));
                         int lastIdx = lastNoteIdx[strIdx];
 
                         if (lastIdx >= 0) {
@@ -999,7 +1002,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
                             }
                         }
                     } else {
-                        lastWasTie[std::max(0, note.str - 1)] = false;
+                        lastWasTie[std::max(0, std::min(note.str - 1, MAX_STRINGS - 1))] = false;
                     }
 
                     // Triplet Feel
@@ -1070,7 +1073,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
                         note.resizeValue *= static_cast<float>(len) / origDuration;
                         int currentNoteIndex = note.index + len;
 
-                        int strIdx2 = std::max(0, note.str - 1);
+                        int strIdx2 = std::max(0, std::min(note.str - 1, MAX_STRINGS - 1));
                         notes.push_back(note);
                         lastNoteIdx[strIdx2] = static_cast<int>(notes.size()) - 1;
                         notesInMeasure++;
@@ -1188,7 +1191,7 @@ std::vector<NativeNote> NativeFormat::retrieveNotes(const GpTrack& track,
                     }
 
                     if (!dontAddNote) {
-                        int strIdx3 = std::max(0, note.str - 1);
+                        int strIdx3 = std::max(0, std::min(note.str - 1, MAX_STRINGS - 1));
                         notes.push_back(note);
                         lastNoteIdx[strIdx3] = static_cast<int>(notes.size()) - 1;
                         notesInMeasure++;
