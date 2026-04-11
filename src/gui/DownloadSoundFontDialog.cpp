@@ -137,7 +137,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
 
         // --- Games Section ---
         {
-            tr("Final Fantasy XIV - Standard"),
+            tr("Final Fantasy XIV (Standard)"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf2"),
@@ -146,7 +146,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV - Standard"),
+            tr("Final Fantasy XIV (Standard)"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf3"),
@@ -155,7 +155,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV - Standard (SampleRange)"),
+            tr("Final Fantasy XIV (Standard / SampleRange)"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard-SampleRange.sf2"),
@@ -164,7 +164,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV - Standard (SampleRange)"),
+            tr("Final Fantasy XIV (Standard / SampleRange)"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard-SampleRange.sf3"),
@@ -173,7 +173,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV - Expanded"),
+            tr("Final Fantasy XIV (Expanded)"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf2"),
@@ -182,7 +182,7 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV - Expanded"),
+            tr("Final Fantasy XIV (Expanded)"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf3"),
@@ -388,6 +388,9 @@ void DownloadSoundFontDialog::populateTable() {
         sizeItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         QTableWidgetItem *formatItem = new QTableWidgetItem(item.format);
         formatItem->setTextAlignment(Qt::AlignCenter);
+        if (item.format.contains("SF3", Qt::CaseInsensitive)) {
+            formatItem->setToolTip(tr("Compressed Format"));
+        }
         
         // Check if already downloaded
         QString destPath = QDir(currentDir).filePath(item.filename);
@@ -399,19 +402,30 @@ void DownloadSoundFontDialog::populateTable() {
         }
         
         if (!item.sourceUrl.isEmpty()) {
-            QPushButton *infoBtn = new QPushButton(QString(QChar(0x24D8)), this);
+            QPushButton *infoBtn = new QPushButton(QStringLiteral("i"), this);
             infoBtn->setToolTip(tr("Source Page: ") + item.sourceUrl);
             infoBtn->setFlat(true);
             infoBtn->setCursor(Qt::PointingHandCursor);
+            infoBtn->setFixedSize(18, 18);
             QFont font = infoBtn->font();
-            font.setPointSize(11);
+            font.setPointSize(9);
+            font.setBold(true);
+            font.setFamily(QStringLiteral("Arial")); // ensure clean sans font
             infoBtn->setFont(font);
-            infoBtn->setStyleSheet("QPushButton { border: none; background: transparent; padding: 0px 5px; color: gray; } "
-                                   "QPushButton:hover { color: palette(link); }");
+            infoBtn->setStyleSheet(
+                "QPushButton { border: 1px solid gray; border-radius: 9px; background: transparent; color: gray; padding: 0px; margin: 0px; } "
+                "QPushButton:hover { border-color: palette(link); color: palette(link); }");
             connect(infoBtn, &QPushButton::clicked, this, [item]() {
                 QDesktopServices::openUrl(QUrl(item.sourceUrl));
             });
-            _table->setCellWidget(i, 0, infoBtn);
+
+            // Wrap in a container widget with centered layout for perfect cell centering
+            QWidget *container = new QWidget(this);
+            QHBoxLayout *containerLayout = new QHBoxLayout(container);
+            containerLayout->setContentsMargins(0, 0, 0, 0);
+            containerLayout->setAlignment(Qt::AlignCenter);
+            containerLayout->addWidget(infoBtn);
+            _table->setCellWidget(i, 0, container);
         } else {
             QTableWidgetItem *emptyItem = new QTableWidgetItem("");
             emptyItem->setFlags(emptyItem->flags() & ~Qt::ItemIsEnabled);

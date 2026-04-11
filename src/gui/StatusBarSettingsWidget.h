@@ -27,6 +27,8 @@ private:
     QSpinBox *_toleranceSpin;
     QCheckBox *_showStatusBar;
     QComboBox *_alignmentCombo;
+    QSpinBox *_offsetSpin;
+    QComboBox *_separatorStyleCombo;
     QCheckBox *_showTrackChannel;
     QCheckBox *_showNoteName;
     QCheckBox *_showNoteRange;

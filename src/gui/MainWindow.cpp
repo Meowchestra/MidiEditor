@@ -6057,13 +6057,27 @@ void MainWindow::updateStatusBar() {
     int strategy = _settings->value("strategy", 0).toInt();
     int tolerance = _settings->value("tolerance", 10).toInt();
     int alignment = _settings->value("alignment", 0).toInt();
+    int offset = _settings->value("offset", 0).toInt();
+    int separatorStyle = _settings->value("separator_style", 0).toInt();
     bool showTrackChannel = _settings->value("show_track_channel", true).toBool();
     bool showNoteName = _settings->value("show_note_name", true).toBool();
     bool showNoteRange = _settings->value("show_note_range", true).toBool();
     bool showChordName = _settings->value("show_chord_name", true).toBool();
     _settings->endGroup();
 
-    _statusLabel->setAlignment((alignment == 1) ? (Qt::AlignRight | Qt::AlignVCenter) : (Qt::AlignLeft | Qt::AlignVCenter));
+    // Determine segment separator based on user preference
+    // 0 = spaced (wide gap), 1 = pipe-separated
+    QString segmentSeparator = (separatorStyle == 1) ? QStringLiteral("   |   ") : QStringLiteral("       ");
+
+    if (alignment == 1) {
+        _statusLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        // If aligned right, push left via right margin
+        _statusLabel->setContentsMargins(0, 0, offset, 0);
+    } else {
+        _statusLabel->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+        // If aligned left, push right via left margin
+        _statusLabel->setContentsMargins(offset, 0, 0, 0);
+    }
 
     // Determine if multiple tracks or channels are present
     bool multipleTracks = false;
@@ -6096,7 +6110,7 @@ void MainWindow::updateStatusBar() {
 
     QStringList segments;
 
-    // Segment 1: Track and Channel information
+    // Segment 1: Track / Channel
     if (showTrackChannel) {
         QString trackStr;
         if (multipleTracks) {
@@ -6124,68 +6138,50 @@ void MainWindow::updateStatusBar() {
         segments.append(QString("%1 | %2").arg(trackStr).arg(channelStr));
     }
 
-    // Segment 2: Detail (Note Name/Count, Range, Chord)
-    QString detail;
+    // Segment 2: Note Info (name or count)
     int count = selectedEvents.size();
     
     if (count == 1) {
         if (showNoteName) {
             NoteOnEvent* noteEvent = dynamic_cast<NoteOnEvent*>(selectedEvents.first());
             if (noteEvent) {
-                detail = tr("Note: %1").arg(ChordDetector::getNoteName(noteEvent->note(), true));
+                segments.append(tr("Note: %1").arg(ChordDetector::getNoteName(noteEvent->note(), true)));
             } else {
-                detail = tr("1 event selected");
+                segments.append(tr("1 event selected"));
             }
         }
     } else {
-        QString countStr = noteValues.isEmpty() ? tr("%1 events selected").arg(count) : tr("%1 notes selected").arg(count);
-        
         if (showNoteName) {
-            detail = countStr;
+            QString countStr = noteValues.isEmpty() ? tr("%1 events selected").arg(count) : tr("%1 notes selected").arg(count);
+            segments.append(countStr);
+        }
+    }
+
+    // Segment 3: Selection Range
+    if (showNoteRange && !noteValues.isEmpty() && count > 1) {
+        segments.append(tr("Range: %1 – %2").arg(ChordDetector::getNoteName(minNote, true)).arg(ChordDetector::getNoteName(maxNote, true)));
+    }
+
+    // Segment 4: Chord Name
+    if (showChordName && !noteValues.isEmpty() && count > 1) {
+        bool detect = false;
+        if (strategy == 0) { // Strict
+            detect = (minTick == maxTick && minTick != -1) && noteValues.size() >= 2;
+        } else if (strategy == 1) { // Flexible
+            detect = noteValues.size() >= 2;
+        } else if (strategy == 2) { // Humanized
+            detect = (maxTick - minTick <= tolerance) && noteValues.size() >= 2;
         }
 
-        if (!noteValues.isEmpty()) {
-            QStringList detailParts;
-            
-            // Note range
-            if (showNoteRange) {
-                detailParts.append(tr("(%1 - %2)").arg(ChordDetector::getNoteName(minNote, true)).arg(ChordDetector::getNoteName(maxNote, true)));
-            }
-            
-            // Chord name
-            if (showChordName) {
-                bool detect = false;
-                if (strategy == 0) { // Strict
-                    detect = (minTick == maxTick && minTick != -1) && noteValues.size() >= 2;
-                } else if (strategy == 1) { // Flexible
-                    detect = noteValues.size() >= 2;
-                } else if (strategy == 2) { // Humanized
-                    detect = (maxTick - minTick <= tolerance) && noteValues.size() >= 2;
-                }
-
-                if (detect) {
-                    QString chordName = ChordDetector::detectChord(noteValues);
-                    if (!chordName.isEmpty() && chordName != "INVALID") {
-                        detailParts.append(tr("Chord: %1").arg(chordName));
-                    }
-                }
-            }
-
-            if (!detailParts.isEmpty()) {
-                if (detail.isEmpty()) {
-                    detail = detailParts.join(" | ");
-                } else {
-                    detail += " | " + detailParts.join(" | ");
-                }
+        if (detect) {
+            QString chordName = ChordDetector::detectChord(noteValues);
+            if (!chordName.isEmpty() && chordName != "INVALID") {
+                segments.append(tr("Chord: %1").arg(chordName));
             }
         }
     }
- 
-    if (!detail.isEmpty()) {
-        segments.append(detail);
-    }
 
-    _statusLabel->setText(segments.join(" | "));
+    _statusLabel->setText(segments.join(segmentSeparator));
 }
 
 void MainWindow::updateGameSupportUI() {
