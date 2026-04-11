@@ -35,7 +35,7 @@ int PitchBendEvent::line() {
 }
 
 QString PitchBendEvent::toMessage() {
-    return "cc " + QString::number(channel()) + " " + QString::number(_value);
+    return "pitchbend " + QString::number(channel()) + " " + QString::number(_value);
 }
 
 QByteArray PitchBendEvent::save() {

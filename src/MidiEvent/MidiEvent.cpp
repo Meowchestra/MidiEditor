@@ -48,6 +48,7 @@ MidiEvent::MidiEvent(int channel, MidiTrack *track)
     numChannel = channel;
     timePos = 0;
     midiFile = 0;
+    _tempID = -1;
 }
 
 MidiEvent::MidiEvent(MidiEvent &other)
@@ -57,6 +58,7 @@ MidiEvent::MidiEvent(MidiEvent &other)
     numChannel = other.numChannel;
     timePos = other.timePos;
     midiFile = other.midiFile;
+    _tempID = other._tempID;
 }
 
 MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEvent, MidiTrack *track, quint8 startByte, quint8 secondByte) {
@@ -218,6 +220,10 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                     // SysEx
                     QByteArray array;
                     while (tempByte != 0xF7) {
+                        if (content->atEnd()) {
+                            *ok = false;
+                            return nullptr;
+                        }
                         (*content) >> tempByte;
                         if (tempByte != 0xF7) {
                             array.append((char) tempByte);
@@ -244,8 +250,8 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                             //}
                             quint32 value;
                             (*content) >> value;
-                            // 1te Stelle abziehen,
-                            value -= 50331648;
+                            // Mask off the length byte (MSB) to get the 3-byte tempo value
+                            value &= 0x00FFFFFF;
                             return new TempoChangeEvent(17, (int) value, track);
                         }
                         case 0x58: {
@@ -326,12 +332,13 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                     textData.append((char) tempByte);
                                 }
 
-                                // Remove any terminator null bytes which cause truncation and "[]" characters in Windows UI
+                                // Remove terminator null bytes which cause text truncation
+                                // and render as "[]" boxes in Windows UI
                                 int nullIdx = textData.indexOf('\0');
                                 if (nullIdx != -1) {
                                     textData.truncate(nullIdx);
                                 }
-                                
+
                                 // QString::fromUtf8() safely handles malformed UTF-8 by replacing
                                 // invalid sequences with Unicode replacement characters (U+FFFD)
                                 textEvent->setText(QString::fromUtf8(textData).remove(QChar(0)).trimmed());
@@ -381,6 +388,14 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
     // data.
     // To do this, pass prefFirstByte and secondByte (the current firstByte)
     // and use it recursive.
+    // Guard against infinite recursion: only recurse if we have a valid
+    // previous status byte and this isn't already a recursive call
+    // (startByte == 0 means this is a fresh call, not recursive)
+    if (startByte != 0 || prevStartByte == 0) {
+        // Already in a recursive call or no valid running status — give up
+        *ok = false;
+        return nullptr;
+    }
     _startByte = prevStartByte;
     return loadMidiEvent(content, ok, endEvent, track, _startByte, tempByte);
 }

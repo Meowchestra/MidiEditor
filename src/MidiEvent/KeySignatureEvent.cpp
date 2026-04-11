@@ -41,11 +41,11 @@ QString KeySignatureEvent::toMessage() {
 QByteArray KeySignatureEvent::save() {
     QByteArray array = QByteArray();
     array.append(char(0xFF));
-    array.append(0x59 | channel());
-    array.append(0x02);
-    array.append(tonality());
+    array.append(char(0x59));
+    array.append(char(0x02));
+    array.append(char(tonality()));
     if (_minor) {
-        array.append(0x01);
+        array.append(char(0x01));
     } else {
         array.append(char(0x00));
     }
