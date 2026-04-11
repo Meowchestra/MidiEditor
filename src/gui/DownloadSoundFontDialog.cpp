@@ -42,6 +42,116 @@
 #include <QDateTime>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QStyledItemDelegate>
+#include <QPainter>
+#include <QMouseEvent>
+#include <QAbstractItemView>
+
+/**
+ * @brief Delegate to draw a high-quality 'i' info icon that reacts to selection state.
+ */
+class InfoIconDelegate : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
+        // First draw the default cell content (the Name text)
+        QStyledItemDelegate::paint(painter, option, index);
+
+        // Only draw if there is a URL stored
+        QString url = index.data(Qt::UserRole).toString();
+        if (url.isEmpty()) return;
+
+        painter->save();
+        painter->setRenderHint(QPainter::Antialiasing);
+
+        QRect iconRect = getIconRect(option.rect);
+        
+        // Determine the text color for the current state (active selection vs inactive vs normal)
+        QColor color;
+        bool isSelected = option.state & QStyle::State_Selected;
+        bool isActive = option.state & QStyle::State_Active;
+        
+        // Find if the mouse is currently over this specific icon
+        QWidget *view = qobject_cast<QWidget *>(painter->device());
+        QPoint mousePos = view ? view->mapFromGlobal(QCursor::pos()) : QPoint(-1, -1);
+        bool isHovered = iconRect.contains(mousePos);
+
+        if (isHovered) {
+            color = option.palette.color(QPalette::Link);
+        } else if (isSelected) {
+            if (isActive) {
+                // Focused selection (Blue background) -> White text
+                color = option.palette.color(QPalette::HighlightedText);
+            } else {
+                // Inactive selection (Gray background) -> Black/Standard text
+                color = option.palette.color(QPalette::Text);
+            }
+        } else {
+            // Normal state -> Gray icon
+            color = QColor(Qt::gray);
+        }
+
+        // Dim if disabled
+        if (!(option.state & QStyle::State_Enabled)) {
+            color.setAlpha(128);
+        }
+
+        // Draw the circle border
+        painter->setPen(QPen(color, 1.2));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawEllipse(QRectF(iconRect).adjusted(0.5, 0.5, -0.5, -0.5));
+
+        // Draw the 'i'
+        QFont font = painter->font();
+        font.setPointSize(9);
+        font.setBold(true);
+        font.setFamily(QStringLiteral("Arial"));
+        painter->setFont(font);
+        painter->drawText(iconRect, Qt::AlignCenter, QStringLiteral("i"));
+
+        painter->restore();
+    }
+
+    bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override {
+        Q_UNUSED(model);
+        QString url = index.data(Qt::UserRole).toString();
+        if (url.isEmpty()) return false;
+
+        QRect iconRect = getIconRect(option.rect);
+
+        if (event->type() == QEvent::MouseMove) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+            QAbstractItemView *view = qobject_cast<QAbstractItemView *>(parent());
+            if (view && view->viewport()) {
+                if (iconRect.contains(mouseEvent->pos())) {
+                    view->viewport()->setCursor(Qt::PointingHandCursor);
+                } else {
+                    view->viewport()->setCursor(Qt::ArrowCursor);
+                }
+            }
+        } else if (event->type() == QEvent::MouseButtonRelease) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+            if (mouseEvent->button() == Qt::LeftButton && iconRect.contains(mouseEvent->pos())) {
+                QDesktopServices::openUrl(QUrl(url));
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+private:
+    QRect getIconRect(const QRect &cellRect) const {
+        int size = 18;
+        int padding = 5;
+        // Right align within the column
+        int x = cellRect.right() - size - padding;
+        int y = cellRect.top() + (cellRect.height() - size) / 2;
+        return QRect(x, y, size, size);
+    }
+};
+
 
 DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
     : QDialog(parent),
@@ -323,16 +433,17 @@ void DownloadSoundFontDialog::setupUI() {
     connect(_categoryTabBar, &QTabBar::currentChanged, this, &DownloadSoundFontDialog::populateTable);
 
     _table = new QTableWidget(this);
-    _table->setColumnCount(4);
-    _table->setHorizontalHeaderLabels({QString(), tr("Name"), tr("Size"), tr("Format")});
+    _table->setColumnCount(3);
+    _table->setHorizontalHeaderLabels({tr("Name"), tr("Size"), tr("Format")});
     _table->verticalHeader()->setVisible(false);
-    _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
+    _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
+    _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
     _table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
-    _table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     _table->setSelectionBehavior(QAbstractItemView::SelectRows);
     _table->setSelectionMode(QAbstractItemView::SingleSelection);
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    _table->setItemDelegateForColumn(0, new InfoIconDelegate(_table));
+    _table->viewport()->setMouseTracking(true); // Enable mouse tracking for hover effects
     mainLayout->addWidget(_table);
 
     QHBoxLayout *btnLayout = new QHBoxLayout();
@@ -401,43 +512,18 @@ void DownloadSoundFontDialog::populateTable() {
             formatItem->setFlags(formatItem->flags() & ~Qt::ItemIsEnabled);
         }
         
+        // Store the original index in the name item's user data for retrieval in download slot
+        nameItem->setData(Qt::UserRole + 1, originalIndex);
+        
+        // Store the source URL in the name item for the delegate to draw the info icon
         if (!item.sourceUrl.isEmpty()) {
-            QPushButton *infoBtn = new QPushButton(QStringLiteral("i"), this);
-            infoBtn->setToolTip(tr("Source Page: ") + item.sourceUrl);
-            infoBtn->setFlat(true);
-            infoBtn->setCursor(Qt::PointingHandCursor);
-            infoBtn->setFixedSize(18, 18);
-            QFont font = infoBtn->font();
-            font.setPointSize(9);
-            font.setBold(true);
-            font.setFamily(QStringLiteral("Arial")); // ensure clean sans font
-            infoBtn->setFont(font);
-            infoBtn->setStyleSheet(
-                "QPushButton { border: 1px solid gray; border-radius: 9px; background: transparent; color: gray; padding: 0px; margin: 0px; } "
-                "QPushButton:hover { border-color: palette(link); color: palette(link); }");
-            connect(infoBtn, &QPushButton::clicked, this, [item]() {
-                QDesktopServices::openUrl(QUrl(item.sourceUrl));
-            });
-
-            // Wrap in a container widget with centered layout for perfect cell centering
-            QWidget *container = new QWidget(this);
-            QHBoxLayout *containerLayout = new QHBoxLayout(container);
-            containerLayout->setContentsMargins(0, 0, 0, 0);
-            containerLayout->setAlignment(Qt::AlignCenter);
-            containerLayout->addWidget(infoBtn);
-            _table->setCellWidget(i, 0, container);
-        } else {
-            QTableWidgetItem *emptyItem = new QTableWidgetItem("");
-            emptyItem->setFlags(emptyItem->flags() & ~Qt::ItemIsEnabled);
-            _table->setItem(i, 0, emptyItem);
+            nameItem->setData(Qt::UserRole, item.sourceUrl);
+            nameItem->setToolTip(tr("Source Page: ") + item.sourceUrl);
         }
         
-        _table->setItem(i, 1, nameItem);
-        _table->setItem(i, 2, sizeItem);
-        _table->setItem(i, 3, formatItem);
-        
-        // Store the original index in the name item's user data for retrieval in download slot
-        nameItem->setData(Qt::UserRole, originalIndex);
+        _table->setItem(i, 0, nameItem);
+        _table->setItem(i, 1, sizeItem);
+        _table->setItem(i, 2, formatItem);
     }
 }
 
@@ -456,9 +542,9 @@ void DownloadSoundFontDialog::onDownloadButtonClicked() {
     if (row < 0) return;
     
     // Retrieve original index from user data
-    QTableWidgetItem *nameItem = _table->item(row, 1);
+    QTableWidgetItem *nameItem = _table->item(row, 0);
     if (!nameItem) return;
-    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+    int originalIndex = nameItem->data(Qt::UserRole + 1).toInt();
     if (originalIndex < 0 || originalIndex >= _items.size()) return;
 
     const auto &item = _items[originalIndex];

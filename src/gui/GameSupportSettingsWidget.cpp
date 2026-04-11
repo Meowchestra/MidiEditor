@@ -73,7 +73,7 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
 
     QLabel *instrNamesDesc = new QLabel(
         tr("Sets custom instrument names in the <b>Instruments</b> settings "
-           "to match FFXIV instrument names (e.g. Harp, Lute, Electric Guitar: Clean). "
+           "to match the channel instrument names used by FFXIV. "
            "You can further customize individual names after enabling this option."),
         _ffxivGroup);
     instrNamesDesc->setTextFormat(Qt::RichText);
