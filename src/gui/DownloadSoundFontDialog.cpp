@@ -59,7 +59,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://github.com/mrbumpy409/GeneralUser-GS/raw/refs/heads/main/GeneralUser-GS.sf2"),
             QStringLiteral("GeneralUser GS.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://schristiancollins.com/generaluser.php")
         },
         {
             tr("MS Basic 2 (MuseScore 4)"),
@@ -67,15 +68,17 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/v2.0.0/MS_Basic-v2.0.0.sf2"),
             QStringLiteral("MS Basic 2.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts")
         },
         {
-            tr("MS Basic 2 (Compressed)"),
+            tr("MS Basic 2 (MuseScore 4)"),
             tr("38 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/v2.0.0/MS_Basic-v2.0.0.sf3"),
             QStringLiteral("MS Basic 2.sf3"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts")
         },
         {
             tr("Arachno SoundFont"),
@@ -83,15 +86,17 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Arachno.SoundFont.-.Version.1.0.sf2"),
             QStringLiteral("Arachno SoundFont.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://www.arachnosoft.com/main/soundfont.php")
         },
         {
-            tr("SGM Pro"),
-            tr("124 MB"),
+            tr("SGM Pro 12"),
+            tr("125 MB"),
             tr("SF2"),
-            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Shan.SGM-Pro.11.sf2"),
-            QStringLiteral("SGM Pro.sf2"),
-            SoundFontCategory::General
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Shan.SGM.Pro.12.SF2"),
+            QStringLiteral("SGM Pro 12.sf2"),
+            SoundFontCategory::General,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/tag/Other")
         },
         {
             tr("SGM"),
@@ -99,7 +104,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/855/SGM-v2.01-NicePianosGuitarsBass-V1.2.sf2"),
             QStringLiteral("SGM.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://musical-artifacts.com/artifacts/855")
         },
         {
             tr("FluidR3 GM+GS"),
@@ -107,15 +113,17 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/1229/FluidR3_GM_GS.sf2"),
             QStringLiteral("FluidR3.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://musical-artifacts.com/artifacts/1229")
         },
         {
             tr("Microsoft GS Wavetable Synth"),
-            tr("3.07 MB"),
+            tr("3.06 MB"),
             tr("SF2"),
-            QStringLiteral("https://musical-artifacts.com/artifacts/5190/microsoft_gm_3.sf2"),
+            QStringLiteral("https://musical-artifacts.com/artifacts/5190/microsoft_gm_4.sf2"),
             QStringLiteral("Microsoft GS Wavetable Synth.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://musical-artifacts.com/artifacts/5190")
         },
         {
             tr("B. Meowsic"),
@@ -123,41 +131,64 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/2617/Meowsic_Cat_Soundfont.sf2"),
             QStringLiteral("Meowsic.sf2"),
-            SoundFontCategory::General
+            SoundFontCategory::General,
+            QStringLiteral("https://musical-artifacts.com/artifacts/2617")
         },
 
         // --- Games Section ---
         {
-            tr("Final Fantasy XIV (Standard)"),
+            tr("Final Fantasy XIV - Standard"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf2"),
-            QStringLiteral("FFXIV (Standard).sf2"),
-            SoundFontCategory::Games
+            QStringLiteral("FFXIV Standard.sf2"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV (Standard/Compressed)"),
+            tr("Final Fantasy XIV - Standard"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard.sf3"),
-            QStringLiteral("FFXIV (Standard).sf3"),
-            SoundFontCategory::Games
+            QStringLiteral("FFXIV Standard.sf3"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV (Expanded)"),
+            tr("Final Fantasy XIV - Standard (SampleRange)"),
+            tr("14.2 MB"),
+            tr("SF2"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard-SampleRange.sf2"),
+            QStringLiteral("FFXIV Standard (SampleRange).sf2"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
+        },
+        {
+            tr("Final Fantasy XIV - Standard (SampleRange)"),
+            tr("3 MB"),
+            tr("SF3"),
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Standard-SampleRange.sf3"),
+            QStringLiteral("FFXIV Standard (SampleRange).sf3"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
+        },
+        {
+            tr("Final Fantasy XIV - Expanded"),
             tr("14.2 MB"),
             tr("SF2"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf2"),
-            QStringLiteral("FFXIV (Expanded).sf2"),
-            SoundFontCategory::Games
+            QStringLiteral("FFXIV Expanded.sf2"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
-            tr("Final Fantasy XIV (Expanded/Compressed)"),
+            tr("Final Fantasy XIV - Expanded"),
             tr("3 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases/download/v7.3.0/FFXIV-Expanded.sf3"),
-            QStringLiteral("FFXIV (Expanded).sf3"),
-            SoundFontCategory::Games
+            QStringLiteral("FFXIV Expanded.sf3"),
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/FFXIV-SoundFont/releases")
         },
         {
             tr("Mabinogi (3MLE)"),
@@ -165,7 +196,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("DLS"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/musicalnexus3-level2.dls"),
             QStringLiteral("Mabinogi (3MLE).dls"),
-            SoundFontCategory::Games
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/tag/Other")
         },
         {
             tr("Mabinogi (MabiMML)"),
@@ -173,7 +205,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF3"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/mabi_instruments_high_quality.sf3"),
             QStringLiteral("Mabinogi (MabiMML).sf3"),
-            SoundFontCategory::Games
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/tag/Other")
         },
         {
             tr("MapleStory 2 (3MLE)"),
@@ -181,7 +214,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("DLS"),
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/maplebeats-2.dls"),
             QStringLiteral("MapleStory 2 (3MLE).dls"),
-            SoundFontCategory::Games
+            SoundFontCategory::Games,
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/tag/Other")
         },
         {
             tr("Old School RuneScape (OSRS)"),
@@ -189,7 +223,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/6871/Old_School_RuneScape.sf2"),
             QStringLiteral("Old School RuneScape.sf2"),
-            SoundFontCategory::Games
+            SoundFontCategory::Games,
+            QStringLiteral("https://musical-artifacts.com/artifacts/6871")
         },
 
         // --- Legacy Section ---
@@ -199,15 +234,17 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://musical-artifacts.com/artifacts/3001/MS_Basic.sf2"),
             QStringLiteral("MS Basic.sf2"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musical-artifacts.com/artifacts/3001")
         },
         {
-            tr("MS Basic (Compressed)"),
+            tr("MS Basic (MuseScore 3)"),
             tr("48.9 MB"),
             tr("SF3"),
             QStringLiteral("https://github.com/musescore/MuseScore/raw/refs/heads/master/share/sound/MS%20Basic.sf3"),
             QStringLiteral("MS Basic.sf3"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musescore.org/en/handbook/3/soundfonts-and-sfz-files#All_sounds")
         },
         {
             tr("MuseScore General (MuseScore 3)"),
@@ -215,15 +252,17 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf2"),
             QStringLiteral("MuseScore General.sf2"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musescore.org/en/handbook/3/soundfonts-and-sfz-files#All_sounds")
         },
         {
-            tr("MuseScore General (Compressed)"),
+            tr("MuseScore General (MuseScore 3)"),
             tr("35.9 MB"),
             tr("SF3"),
             QStringLiteral("https://ftp.osuosl.org/pub/musescore/soundfont/MuseScore_General/MuseScore_General.sf3"),
             QStringLiteral("MuseScore General.sf3"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musescore.org/en/handbook/3/soundfonts-and-sfz-files#All_sounds")
         },
         {
             tr("FluidR3Mono GM (MuseScore 2)"),
@@ -231,7 +270,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF3"),
             QStringLiteral("https://github.com/musescore/MuseScore/raw/refs/heads/master/share/sound/FluidR3Mono_GM.sf3"),
             QStringLiteral("FluidR3Mono GM.sf3"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musescore.org/en/handbook/3/soundfonts-and-sfz-files#All_sounds")
         },
         {
             tr("TimGM6mb (MuseScore 1)"),
@@ -239,7 +279,8 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             tr("SF2"),
             QStringLiteral("https://sourceforge.net/p/mscore/code/HEAD/tree/trunk/mscore/share/sound/TimGM6mb.sf2?format=raw"),
             QStringLiteral("TimGM6mb.sf2"),
-            SoundFontCategory::Legacy
+            SoundFontCategory::Legacy,
+            QStringLiteral("https://musescore.org/en/handbook/3/soundfonts-and-sfz-files#All_sounds")
         }
     };
 
@@ -282,11 +323,13 @@ void DownloadSoundFontDialog::setupUI() {
     connect(_categoryTabBar, &QTabBar::currentChanged, this, &DownloadSoundFontDialog::populateTable);
 
     _table = new QTableWidget(this);
-    _table->setColumnCount(3);
-    _table->setHorizontalHeaderLabels({tr("Name"), tr("Size"), tr("Format")});
-    _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::Stretch);
-    _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    _table->setColumnCount(4);
+    _table->setHorizontalHeaderLabels({QString(), tr("Name"), tr("Size"), tr("Format")});
+    _table->verticalHeader()->setVisible(false);
+    _table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    _table->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     _table->horizontalHeader()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
+    _table->horizontalHeader()->setSectionResizeMode(3, QHeaderView::ResizeToContents);
     _table->setSelectionBehavior(QAbstractItemView::SelectRows);
     _table->setSelectionMode(QAbstractItemView::SingleSelection);
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -355,9 +398,29 @@ void DownloadSoundFontDialog::populateTable() {
             formatItem->setFlags(formatItem->flags() & ~Qt::ItemIsEnabled);
         }
         
-        _table->setItem(i, 0, nameItem);
-        _table->setItem(i, 1, sizeItem);
-        _table->setItem(i, 2, formatItem);
+        if (!item.sourceUrl.isEmpty()) {
+            QPushButton *infoBtn = new QPushButton(QStringLiteral("ⓘ"), this);
+            infoBtn->setToolTip(tr("Source Page: ") + item.sourceUrl);
+            infoBtn->setFlat(true);
+            infoBtn->setCursor(Qt::PointingHandCursor);
+            QFont font = infoBtn->font();
+            font.setPointSize(11);
+            infoBtn->setFont(font);
+            infoBtn->setStyleSheet("QPushButton { border: none; background: transparent; padding: 0px 5px; color: gray; } "
+                                   "QPushButton:hover { color: palette(link); }");
+            connect(infoBtn, &QPushButton::clicked, this, [item]() {
+                QDesktopServices::openUrl(QUrl(item.sourceUrl));
+            });
+            _table->setCellWidget(i, 0, infoBtn);
+        } else {
+            QTableWidgetItem *emptyItem = new QTableWidgetItem("");
+            emptyItem->setFlags(emptyItem->flags() & ~Qt::ItemIsEnabled);
+            _table->setItem(i, 0, emptyItem);
+        }
+        
+        _table->setItem(i, 1, nameItem);
+        _table->setItem(i, 2, sizeItem);
+        _table->setItem(i, 3, formatItem);
         
         // Store the original index in the name item's user data for retrieval in download slot
         nameItem->setData(Qt::UserRole, originalIndex);
@@ -379,7 +442,7 @@ void DownloadSoundFontDialog::onDownloadButtonClicked() {
     if (row < 0) return;
     
     // Retrieve original index from user data
-    QTableWidgetItem *nameItem = _table->item(row, 0);
+    QTableWidgetItem *nameItem = _table->item(row, 1);
     if (!nameItem) return;
     int originalIndex = nameItem->data(Qt::UserRole).toInt();
     if (originalIndex < 0 || originalIndex >= _items.size()) return;
@@ -466,7 +529,7 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
             int row = _table->currentRow();
             QString targetFilename;
             if (row >= 0) {
-                QTableWidgetItem *nameItem = _table->item(row, 0);
+                QTableWidgetItem *nameItem = _table->item(row, 1);
                 if (nameItem) {
                     int originalIndex = nameItem->data(Qt::UserRole).toInt();
                     if (originalIndex >= 0 && originalIndex < _items.size()) {
@@ -486,7 +549,7 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
             // For non-ZIP files, ensure they are named correctly as per "pretty" filename
             int row = _table->currentRow();
             if (row >= 0) {
-                QTableWidgetItem *nameItem = _table->item(row, 0);
+                QTableWidgetItem *nameItem = _table->item(row, 1);
                 if (nameItem) {
                     int originalIndex = nameItem->data(Qt::UserRole).toInt();
                     if (originalIndex >= 0 && originalIndex < _items.size()) {

@@ -46,6 +46,7 @@ struct SoundFontDownloadItem {
     QString url;
     QString filename;
     SoundFontCategory category;
+    QString sourceUrl;
 };
 
 /**
