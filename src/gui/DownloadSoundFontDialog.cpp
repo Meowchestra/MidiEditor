@@ -399,7 +399,7 @@ void DownloadSoundFontDialog::populateTable() {
         }
         
         if (!item.sourceUrl.isEmpty()) {
-            QPushButton *infoBtn = new QPushButton(QStringLiteral("ⓘ"), this);
+            QPushButton *infoBtn = new QPushButton(QString(QChar(0x24D8)), this);
             infoBtn->setToolTip(tr("Source Page: ") + item.sourceUrl);
             infoBtn->setFlat(true);
             infoBtn->setCursor(Qt::PointingHandCursor);

@@ -71,7 +71,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     trackList->setSelectionMode(QAbstractItemView::NoSelection);
     trackList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
     layout->addWidget(trackList, 3, 0, 1, 2);
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 17; i++) {
         QColor *trackColor = Appearance::trackColor(i);
         QColor safeColor = trackColor ? *trackColor : QColor(100, 100, 100);
         NamedColorWidgetItem *trackItem = new NamedColorWidgetItem(i, tr("Track %1").arg(i),
