@@ -137,24 +137,18 @@ bool SelectTool::release() {
         }
         foreach(MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
-                if (stool_type == SELECTION_TYPE_SINGLE) {
-                    bool modifierHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier) ||
-                                        QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
-                    if (modifierHeld) {
-                        // Toggle: deselect if already selected, select if not
-                        QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
-                        if (selected.contains(event)) {
-                            deselectEvent(event);
-                        } else {
-                            selectEvent(event, false, true, false);
-                        }
+                bool modifierHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier) ||
+                                    QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
+                if (modifierHeld) {
+                    // Toggle: deselect if already selected, select if not
+                    QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
+                    if (selected.contains(event)) {
+                        deselectEvent(event);
                     } else {
-                        selectEvent(event, false, false, false);
+                        selectEvent(event, false, true, false);
                     }
                 } else {
-                    // BOX selection: Ctrl adds without toggling
-                    bool ctrlHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier);
-                    selectEvent(event, false, ctrlHeld, false);
+                    selectEvent(event, false, false, false);
                 }
             }
         }
