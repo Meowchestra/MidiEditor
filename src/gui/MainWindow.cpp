@@ -6056,11 +6056,14 @@ void MainWindow::updateStatusBar() {
     _settings->beginGroup("status_bar");
     int strategy = _settings->value("strategy", 0).toInt();
     int tolerance = _settings->value("tolerance", 10).toInt();
+    int alignment = _settings->value("alignment", 0).toInt();
     bool showTrackChannel = _settings->value("show_track_channel", true).toBool();
     bool showNoteName = _settings->value("show_note_name", true).toBool();
     bool showNoteRange = _settings->value("show_note_range", true).toBool();
     bool showChordName = _settings->value("show_chord_name", true).toBool();
     _settings->endGroup();
+
+    _statusLabel->setAlignment((alignment == 1) ? (Qt::AlignRight | Qt::AlignVCenter) : (Qt::AlignLeft | Qt::AlignVCenter));
 
     // Determine if multiple tracks or channels are present
     bool multipleTracks = false;

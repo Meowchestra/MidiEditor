@@ -26,6 +26,7 @@ private:
     QComboBox *_strategyCombo;
     QSpinBox *_toleranceSpin;
     QCheckBox *_showStatusBar;
+    QComboBox *_alignmentCombo;
     QCheckBox *_showTrackChannel;
     QCheckBox *_showNoteName;
     QCheckBox *_showNoteRange;
