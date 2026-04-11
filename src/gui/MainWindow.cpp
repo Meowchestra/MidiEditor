@@ -6152,8 +6152,15 @@ void MainWindow::updateStatusBar() {
         }
     } else {
         if (showNoteName) {
-            QString countStr = noteValues.isEmpty() ? tr("%1 events selected").arg(count) : tr("%1 notes selected").arg(count);
-            segments.append(countStr);
+            int noteCount = noteValues.size();
+            int otherCount = count - noteCount;
+            if (noteCount > 0 && otherCount > 0) {
+                segments.append(tr("%1 notes, %2 events selected").arg(noteCount).arg(otherCount));
+            } else if (noteCount > 0) {
+                segments.append(tr("%1 notes selected").arg(noteCount));
+            } else {
+                segments.append(tr("%1 events selected").arg(otherCount));
+            }
         }
     }
 

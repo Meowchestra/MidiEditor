@@ -73,8 +73,9 @@ public:
         bool isActive = option.state & QStyle::State_Active;
         
         // Find if the mouse is currently over this specific icon
-        QWidget *view = qobject_cast<QWidget *>(painter->device());
-        QPoint mousePos = view ? view->mapFromGlobal(QCursor::pos()) : QPoint(-1, -1);
+        const QAbstractItemView *view = qobject_cast<const QAbstractItemView *>(parent());
+        const QWidget *viewport = view ? view->viewport() : option.widget;
+        QPoint mousePos = (viewport && viewport->underMouse()) ? viewport->mapFromGlobal(QCursor::pos()) : QPoint(-1, -1);
         bool isHovered = iconRect.contains(mousePos);
 
         if (isHovered) {
@@ -629,9 +630,9 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
             int row = _table->currentRow();
             QString targetFilename;
             if (row >= 0) {
-                QTableWidgetItem *nameItem = _table->item(row, 1);
+                QTableWidgetItem *nameItem = _table->item(row, 0);
                 if (nameItem) {
-                    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+                    int originalIndex = nameItem->data(Qt::UserRole + 1).toInt();
                     if (originalIndex >= 0 && originalIndex < _items.size()) {
                         targetFilename = _items[originalIndex].filename;
                     }
@@ -649,9 +650,9 @@ void DownloadSoundFontDialog::soundFontDownloadFinished() {
             // For non-ZIP files, ensure they are named correctly as per "pretty" filename
             int row = _table->currentRow();
             if (row >= 0) {
-                QTableWidgetItem *nameItem = _table->item(row, 1);
+                QTableWidgetItem *nameItem = _table->item(row, 0);
                 if (nameItem) {
-                    int originalIndex = nameItem->data(Qt::UserRole).toInt();
+                    int originalIndex = nameItem->data(Qt::UserRole + 1).toInt();
                     if (originalIndex >= 0 && originalIndex < _items.size()) {
                         QString targetName = _items[originalIndex].filename;
                         QString targetPath = QDir(getSoundFontsDirectory()).filePath(targetName);
