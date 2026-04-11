@@ -46,6 +46,8 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QAbstractItemView>
+#include <QToolTip>
+#include <QHelpEvent>
 
 /**
  * @brief Delegate to draw a high-quality 'i' info icon that reacts to selection state.
@@ -53,6 +55,68 @@
 class InfoIconDelegate : public QStyledItemDelegate {
 public:
     using QStyledItemDelegate::QStyledItemDelegate;
+
+    bool eventFilter(QObject *obj, QEvent *event) override {
+        if (event->type() == QEvent::MouseMove) {
+            QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+            QAbstractItemView *view = qobject_cast<QAbstractItemView *>(parent());
+            if (view && view->viewport() == obj) {
+                QModelIndex index = view->indexAt(mouseEvent->pos());
+                bool hoverIcon = false;
+                if (index.isValid() && index.column() == 0) {
+                    QString url = index.data(Qt::UserRole).toString();
+                    if (!url.isEmpty()) {
+                        QRect cellRect = view->visualRect(index);
+                        QRect iconRect = getIconRect(cellRect);
+                        if (iconRect.contains(mouseEvent->pos())) {
+                            hoverIcon = true;
+                        }
+                    }
+                }
+
+                if (hoverIcon) {
+                    view->viewport()->setCursor(Qt::PointingHandCursor);
+                } else {
+                    view->viewport()->setCursor(Qt::ArrowCursor);
+                }
+
+                if (hoverIcon != m_lastHoverState || index != m_lastHoveredIndex) {
+                    if (m_lastHoveredIndex.isValid()) {
+                        view->viewport()->update(view->visualRect(m_lastHoveredIndex));
+                    }
+                    if (index.isValid()) {
+                        view->viewport()->update(view->visualRect(index));
+                    }
+                    m_lastHoverState = hoverIcon;
+                    m_lastHoveredIndex = index;
+                }
+            }
+        } else if (event->type() == QEvent::Leave) {
+            QAbstractItemView *view = qobject_cast<QAbstractItemView *>(parent());
+            if (view && view->viewport() == obj) {
+                view->viewport()->setCursor(Qt::ArrowCursor);
+                if (m_lastHoveredIndex.isValid()) {
+                    view->viewport()->update(view->visualRect(m_lastHoveredIndex));
+                    m_lastHoveredIndex = QModelIndex();
+                }
+                m_lastHoverState = false;
+            }
+        }
+        return QStyledItemDelegate::eventFilter(obj, event);
+    }
+
+    bool helpEvent(QHelpEvent *event, QAbstractItemView *view, const QStyleOptionViewItem &option, const QModelIndex &index) override {
+        QString url = index.data(Qt::UserRole).toString();
+        if (url.isEmpty()) return QStyledItemDelegate::helpEvent(event, view, option, index);
+
+        QRect iconRect = getIconRect(option.rect);
+        if (iconRect.contains(event->pos())) {
+            QToolTip::showText(event->globalPos(), tr("Source Page: ") + url, view);
+            return true;
+        } else {
+            return QStyledItemDelegate::helpEvent(event, view, option, index);
+        }
+    }
 
     void paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const override {
         // First draw the default cell content (the Name text)
@@ -116,22 +180,11 @@ public:
 
     bool editorEvent(QEvent *event, QAbstractItemModel *model, const QStyleOptionViewItem &option, const QModelIndex &index) override {
         Q_UNUSED(model);
-        QString url = index.data(Qt::UserRole).toString();
-        if (url.isEmpty()) return false;
+        if (event->type() == QEvent::MouseButtonRelease) {
+            QString url = index.data(Qt::UserRole).toString();
+            if (url.isEmpty()) return false;
 
-        QRect iconRect = getIconRect(option.rect);
-
-        if (event->type() == QEvent::MouseMove) {
-            QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
-            QAbstractItemView *view = qobject_cast<QAbstractItemView *>(parent());
-            if (view && view->viewport()) {
-                if (iconRect.contains(mouseEvent->pos())) {
-                    view->viewport()->setCursor(Qt::PointingHandCursor);
-                } else {
-                    view->viewport()->setCursor(Qt::ArrowCursor);
-                }
-            }
-        } else if (event->type() == QEvent::MouseButtonRelease) {
+            QRect iconRect = getIconRect(option.rect);
             QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
             if (mouseEvent->button() == Qt::LeftButton && iconRect.contains(mouseEvent->pos())) {
                 QDesktopServices::openUrl(QUrl(url));
@@ -143,6 +196,9 @@ public:
     }
 
 private:
+    QModelIndex m_lastHoveredIndex;
+    bool m_lastHoverState = false;
+
     QRect getIconRect(const QRect &cellRect) const {
         int size = 18;
         int padding = 5;
@@ -443,7 +499,9 @@ void DownloadSoundFontDialog::setupUI() {
     _table->setSelectionBehavior(QAbstractItemView::SelectRows);
     _table->setSelectionMode(QAbstractItemView::SingleSelection);
     _table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    _table->setItemDelegateForColumn(0, new InfoIconDelegate(_table));
+    InfoIconDelegate *delegate = new InfoIconDelegate(_table);
+    _table->setItemDelegateForColumn(0, delegate);
+    _table->viewport()->installEventFilter(delegate);
     _table->viewport()->setMouseTracking(true); // Enable mouse tracking for hover effects
     mainLayout->addWidget(_table);
 
@@ -519,7 +577,6 @@ void DownloadSoundFontDialog::populateTable() {
         // Store the source URL in the name item for the delegate to draw the info icon
         if (!item.sourceUrl.isEmpty()) {
             nameItem->setData(Qt::UserRole, item.sourceUrl);
-            nameItem->setToolTip(tr("Source Page: ") + item.sourceUrl);
         }
         
         _table->setItem(i, 0, nameItem);
