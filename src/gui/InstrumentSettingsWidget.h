@@ -24,9 +24,9 @@ public slots:
     void instrumentChanged(int index);
     void refreshColors();
     void onTableItemChanged(QTableWidgetItem *item);
+    void populateTable();
 
 private:
-    void populateTable();
 
     QSettings *_settings;
     QLineEdit *_fileEdit;

@@ -97,7 +97,8 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     // add content
     addSetting(new MidiSettingsWidget(_mainWindow, central));
     addSetting(new AdditionalMidiSettingsWidget(settings, central));
-    addSetting(new InstrumentSettingsWidget(settings, central));
+    InstrumentSettingsWidget *instrumentSettings = new InstrumentSettingsWidget(settings, central);
+    addSetting(instrumentSettings);
     addSetting(new ControlChangeSettingsWidget(settings, central));
     AppearanceSettingsWidget *appearanceSettings = new AppearanceSettingsWidget(central);
     addSetting(appearanceSettings);
@@ -114,6 +115,9 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
     // Connect immediate updates for game support directly to main window
     connect(gameSupport, SIGNAL(immediateSettingsChanged(bool)), 
             _mainWindow, SLOT(updateGameSupportUI()));
+    // Refresh instrument names table immediately when FFXIV names are toggled
+    connect(gameSupport, SIGNAL(instrumentNamesChanged()),
+            instrumentSettings, SLOT(populateTable()));
 }
 
 void SettingsDialog::addSetting(SettingsWidget *settingWidget) {

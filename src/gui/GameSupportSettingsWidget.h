@@ -84,10 +84,18 @@ signals:
      */
     void immediateSettingsChanged(bool ffxivEnabled);
 
+    /**
+     * \brief Emitted when FFXIV instrument names are toggled, so other widgets can refresh
+     */
+    void instrumentNamesChanged();
+
 private slots:
     void onFFXIVBoxToggled(bool checked);
+    void onFFXIVInstrumentNamesToggled(bool checked);
 
 private:
+    void applyFFXIVInstrumentNames(bool enable);
+
     /** \brief Settings storage */
     QSettings *_settings;
 
@@ -96,6 +104,9 @@ private:
 
     /** \brief FFXIV enable checkbox */
     QCheckBox *_ffxivEnabledBox;
+
+    /** \brief FFXIV instrument names checkbox */
+    QCheckBox *_ffxivInstrumentNamesBox;
 };
 
 #endif // GAMESUPPORTSETTINGSWIDGET_H_
