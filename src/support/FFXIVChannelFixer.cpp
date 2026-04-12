@@ -56,15 +56,18 @@ const QHash<QString, QString> &FFXIVChannelFixer::aliasMap() {
         return map;
 
     auto reg = [&](const QString &canonical, const QStringList &aliases) {
-        map[canonical.toLower()] = canonical;
-        for (const QString &a : aliases)
-            map[a.toLower()] = canonical;
+        QString cleanCanonical = QString(canonical).toLower().remove(' ').remove(':').remove('-').remove('_');
+        map[cleanCanonical] = canonical;
+        for (const QString &a : aliases) {
+            QString cleanA = QString(a).toLower().remove(' ').remove(':').remove('-').remove('_');
+            map[cleanA] = canonical;
+        }
     };
 
     // --- Chordophones (Strummed) ---
     reg(QStringLiteral("Harp"), {"harps", "orchestralharp", "orchestralharps"});
     reg(QStringLiteral("Piano"), {"pianos", "acousticgrandpiano", "acousticgrandpianos"});
-    reg(QStringLiteral("Lute"), {"lutes"});
+    reg(QStringLiteral("Lute"), {"lutes", "Guitar", "Guitars"});
     reg(QStringLiteral("Fiddle"), {"fiddles", "pizzicato", "pizzicatostrings"});
 
     // --- Woodwinds ---
@@ -94,6 +97,13 @@ const QHash<QString, QString> &FFXIVChannelFixer::aliasMap() {
     reg(QStringLiteral("Cello"), {"cellos", "violoncello", "violoncellos"});
     reg(QStringLiteral("DoubleBass"), {"contrabass", "bass"});
 
+    // --- Electric Guitar ---
+    reg(QStringLiteral("ElectricGuitarOverdriven"), {"Program:ElectricGuitar", "ProgramElectricGuitar", "GuitarOverdriven", "OverdrivenGuitar", "Overdriven", "ElectricGuitar:Overdriven"});
+    reg(QStringLiteral("ElectricGuitarClean"), {"GuitarClean", "CleanGuitar", "Clean", "ElectricGuitar:Clean"});
+    reg(QStringLiteral("ElectricGuitarMuted"), {"GuitarMuted", "MutedGuitar", "Muted", "ElectricGuitar:Muted"});
+    reg(QStringLiteral("ElectricGuitarPowerChords"), {"ElectricGuitarPowerChord", "GuitarPowerChords", "GuitarPowerChord", "PowerChordsGuitar", "PowerChordGuitar", "PowerChords", "PowerChord", "ElectricGuitar:PowerChords", "ElectricGuitar:PowerChord"});
+    reg(QStringLiteral("ElectricGuitarSpecial"), {"GuitarSpecial", "SpecialGuitar", "Special", "ElectricGuitar:Special"});
+
     return map;
 }
 
@@ -103,16 +113,6 @@ const QHash<QString, QString> &FFXIVChannelFixer::aliasMap() {
 
 QString FFXIVChannelFixer::resolveInstrument(const QString &trackName) {
     QString cleanName = stripSuffix(trackName).toLower().remove(' ').remove(':').remove('-').remove('_');
-
-    if (cleanName.contains(QStringLiteral("guitar")) || cleanName.contains(QStringLiteral("powerchord"))) {
-        if (cleanName.contains(QStringLiteral("clean"))) return QStringLiteral("ElectricGuitarClean");
-        if (cleanName.contains(QStringLiteral("muted")) || cleanName.contains(QStringLiteral("mute"))) return QStringLiteral("ElectricGuitarMuted");
-        if (cleanName.contains(QStringLiteral("overdriven")) || cleanName.contains(QStringLiteral("overdrive"))) return QStringLiteral("ElectricGuitarOverdriven");
-        if (cleanName.contains(QStringLiteral("powerchord")) || cleanName.contains(QStringLiteral("power"))) return QStringLiteral("ElectricGuitarPowerChords");
-        if (cleanName.contains(QStringLiteral("special"))) return QStringLiteral("ElectricGuitarSpecial");
-        if (cleanName.contains(QStringLiteral("program"))) return QStringLiteral("ProgramElectricGuitar");
-        return QStringLiteral("Lute"); // Generic guitar maps to Lute
-    }
 
     const auto &map = aliasMap();
     auto it = map.find(cleanName);
@@ -151,8 +151,8 @@ bool FFXIVChannelFixer::isPercussion(const QString &canonicalName) {
 }
 
 bool FFXIVChannelFixer::isGuitar(const QString &canonicalName) {
-    // return true for specific variants or the generic Program:ElectricGuitar so we reserve free channels for them
-    return canonicalName.startsWith(QStringLiteral("ElectricGuitar")) || canonicalName == QStringLiteral("ProgramElectricGuitar");
+    // return true for specific variants so we reserve free channels for them
+    return canonicalName.startsWith(QStringLiteral("ElectricGuitar"));
 }
 
 QStringList FFXIVChannelFixer::allInstrumentNames() {
@@ -211,9 +211,8 @@ QJsonObject FFXIVChannelFixer::analyzeFile(MidiFile *file) {
 
     result["valid"]               = (ffxivTrackCount > 0);
     result["trackCount"]          = trackCount;
-    result["ffxivTrackCount"]    = ffxivTrackCount;
+    result["ffxivTrackCount"]     = ffxivTrackCount;
     result["hasGuitar"]           = hasGuitar;
-    result["guitarVariants"]      = QJsonArray::fromStringList(guitarVariants);
     result["guitarVariants"]      = QJsonArray::fromStringList(guitarVariants);
     result["percussionTracks"]    = QJsonArray::fromStringList(percussionTracks);
     result["melodicTracks"]       = QJsonArray::fromStringList(melodicTracks);
@@ -458,8 +457,6 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
         MidiChannel *channel = file->channel(ch);
         if (!channel) continue;
         
-        bool isGuitarCh = allGuitarChs.contains(ch);
-        
         QList<MidiEvent *> toRemove;
         auto *eventMap = channel->eventMap();
         for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
@@ -468,7 +465,14 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
                 int p = pc->program();
                 bool shouldRemove = true;
                 
-                if (isGuitarCh) {
+                // Determine if this PC belongs to a guitar track
+                bool isGuitarTrackEvent = false;
+                if (pc->track()) {
+                    QString canonName = resolveInstrument(pc->track()->name());
+                    isGuitarTrackEvent = isGuitar(canonName);
+                }
+                
+                if (isGuitarTrackEvent) {
                     // Preserve valid FFXIV guitar switches (27-31) throughout the track
                     if (p >= 27 && p <= 31) {
                         shouldRemove = false;
@@ -495,7 +499,6 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
         }
         for (MidiEvent *ev : toRemove) {
             channel->removeEvent(ev, false);
-            delete ev;
         }
     }
 
@@ -539,25 +542,52 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
                 }
             }
 
+            std::sort(trackEvents.begin(), trackEvents.end(), [](const EventInfo &a, const EventInfo &b) {
+                if (a.tick != b.tick) return a.tick < b.tick;
+                // PC events before notes at the same tick
+                bool aIsPc = dynamic_cast<ProgChangeEvent*>(a.ev) != nullptr;
+                bool bIsPc = dynamic_cast<ProgChangeEvent*>(b.ev) != nullptr;
+                if (aIsPc != bIsPc) return aIsPc;
+                return false;
+            });
+
+            QHash<int, int> currentProgByCh;
+            QHash<MidiEvent*, int> assignedChannelForNoteOn;
+
             for (const auto &info : trackEvents) {
                 int targetChForThisEvent = primaryTargetCh;
 
                 // For guitars, find the target channel for the note's specific variant
                 if (isGuitarTrack) {
-                    int originalProg = -1;
-                    if (guitarChToProgram.contains(info.originalCh)) {
-                        originalProg = guitarChToProgram[info.originalCh];
-                    } else if (auto *pc = dynamic_cast<ProgChangeEvent*>(info.ev)) {
-                        originalProg = pc->program();
+                    if (auto *pc = dynamic_cast<ProgChangeEvent*>(info.ev)) {
+                        int p = pc->program();
+                        if (p >= 27 && p <= 31) {
+                            currentProgByCh[info.originalCh] = p;
+                        }
                     }
 
-                    if (originalProg >= 27 && originalProg <= 31) {
+                    int activeProg = currentProgByCh.value(info.originalCh, -1);
+                    if (activeProg == -1 && guitarChToProgram.contains(info.originalCh)) {
+                        activeProg = guitarChToProgram[info.originalCh];
+                    }
+
+                    if (activeProg >= 27 && activeProg <= 31) {
                         for (const QString &v : allGuitarVariants) {
-                            if (programForInstrument(v) == originalProg && guitarChannelMap.contains(v)) {
+                            if (programForInstrument(v) == activeProg && guitarChannelMap.contains(v)) {
                                 targetChForThisEvent = guitarChannelMap[v];
                                 break;
                             }
                         }
+                    }
+                }
+
+                // Maintain NoteOn / OffEvent matching
+                if (auto *noteOn = dynamic_cast<NoteOnEvent*>(info.ev)) {
+                    Q_UNUSED(noteOn);
+                    assignedChannelForNoteOn[info.ev] = targetChForThisEvent;
+                } else if (auto *offEv = dynamic_cast<OffEvent*>(info.ev)) {
+                    if (offEv->onEvent() && assignedChannelForNoteOn.contains(offEv->onEvent())) {
+                        targetChForThisEvent = assignedChannelForNoteOn[offEv->onEvent()];
                     }
                 }
 
@@ -651,16 +681,13 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
                 }
             }
 
-            if (pcAt0Count > 1 && variant == QStringLiteral("ProgramElectricGuitar")) {
+            if (pcAt0Count > 1) {
                 programGuitarMultipleTick0Count++;
             }
 
             if (pcAt0Count == 0) {
                 // No PC at start: insert a default
                 int prog = programForInstrument(variant);
-                if (prog == -1 && variant == QStringLiteral("ProgramElectricGuitar")) {
-                    prog = 29; // Default to Overdriven for Program:ElectricGuitar
-                }
                 if (prog >= 0) {
                     MidiTrack *owner = channelToOwnerTrack.value(ch, file->track(0));
                     auto *pc = new ProgChangeEvent(ch, prog, owner);
@@ -690,20 +717,24 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
 
             // Check if the track already has valid FFXIV guitar switches (27-31) after tick 0
             bool hasExistingSwitches = false;
-            MidiChannel *targetChannel = file->channel(ch);
-            if (targetChannel) {
-                auto *eventMap = targetChannel->eventMap();
-                for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
-                    if (it.key() > 0 && it.value()->track() == track) {
-                        if (auto *pc = dynamic_cast<ProgChangeEvent *>(it.value())) {
-                            int p = pc->program();
-                            if (p >= 27 && p <= 31) {
-                                hasExistingSwitches = true;
-                                break;
+
+            for (int scanCh : allGuitarChs) {
+                MidiChannel *targetChannel = file->channel(scanCh);
+                if (targetChannel) {
+                    auto *eventMap = targetChannel->eventMap();
+                    for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                        if (it.key() > 0 && it.value()->track() == track) {
+                            if (auto *pc = dynamic_cast<ProgChangeEvent *>(it.value())) {
+                                int p = pc->program();
+                                if (p >= 27 && p <= 31) {
+                                    hasExistingSwitches = true;
+                                    break;
+                                }
                             }
                         }
                     }
                 }
+                if (hasExistingSwitches) break;
             }
 
             if (hasExistingSwitches) {
@@ -712,7 +743,7 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
 
             // Skip automatic switch generation if internal switches already exist
             // OR if it's a Program:ElectricGuitar track (manually managed)
-            if (hasExistingSwitches || canonicalNames[t] == QStringLiteral("ProgramElectricGuitar")) {
+            if (hasExistingSwitches || track->name().toLower().contains(QStringLiteral("program"))) {
                 continue;
             }
 
