@@ -131,56 +131,82 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
     if (!file)
         return;
 
+    _lastRenderedMs = ms;
+    bool isPlaying = MidiPlayer::isPlaying();
+    bool wasPlayingOld = _wasPlaying;
+    bool wasLockedOld = _wasLocked;
+    _wasPlaying = isPlaying;
+    _wasLocked = screen_locked;
+
     int x = xPosOfMs(ms);
     bool smoothScroll = Appearance::smoothPlaybackScrolling();
-    bool isPlaying = MidiPlayer::isPlaying();
-    
-    if (isPlaying && !_wasPlaying) {
-        // Capture initial offset to potentially start a glide
-        int initialOffset = ms - startTimeX;
-    }
-    _wasPlaying = isPlaying;
-    _lastRenderedMs = ms; // Sync point for paintEvent
 
     if (!screen_locked || ignoreLocked) {
-        if (smoothScroll && isPlaying) {
+        if (smoothScroll && (isPlaying || ignoreLocked)) {
             int viewportDurationMs = ((width() - lineNameWidth) * 1000) / (PIXEL_PER_S * scaleX);
-            int targetAnchorMs = viewportDurationMs * 0.20;
-            int targetStartTime = ms - targetAnchorMs;
+            int targetAnchorMs = viewportDurationMs * 0.20; // 20% from the left
+            double targetStartTime = (double)ms - targetAnchorMs;
             if (targetStartTime < 0) targetStartTime = 0;
             
+            // --- INITIAL JUMP / UNLOCK SNAP ---
+            // Trigger jump if:
+            // 1. Playback just started (and cursor is off-screen)
+            // 2. We just unlocked the view during playback (and cursor is off-screen)
+            bool jumpCondition = (isPlaying && !wasPlayingOld) || (isPlaying && !screen_locked && wasLockedOld);
+            
+            if (jumpCondition && (ms < startTimeX || ms > endTimeX)) {
+               startTimeX = ms;
+               endTimeX = startTimeX + viewportDurationMs;
+               registerRelayout();
+            }
+
             // Current screen offset of the cursor (in ms)
             int currentOffset = ms - startTimeX;
 
-            if (currentOffset <= targetAnchorMs) {
-                // RED LINE SWEEP: Viewport stays stationary until line catches the 20% anchor.
+            // --- STATIONARY ZONE (0% -> 20%) ---
+            // If the cursor is behind the anchor, keep the viewport stationary.
+            // This allows the cursor to physically travel across the screen until it hits 20%.
+            if (currentOffset >= 0 && currentOffset <= targetAnchorMs && targetStartTime <= startTimeX) {
+                // Ensure endTimeX is updated even in stationary zone (to handle resizes/jumps)
+                endTimeX = startTimeX + viewportDurationMs;
                 update();
                 return;
             }
 
-            // CAMERA CATCH-UP (Elastic): Smoothly pan toward the anchor.
-            double panSpeedFactor = 0.08;
-            if (abs(targetStartTime - startTimeX) > 1000) panSpeedFactor = 0.04; // Slower for big jumps
-
-            int newStartTime = (startTimeX * (1.0 - panSpeedFactor)) + (targetStartTime * panSpeedFactor);
+            // --- ELASTIC CATCH-UP & TRACKING LOGIC ---
+            double distanceToTarget = targetStartTime - startTimeX;
+            double calculatedNewStart;
             
-            // Critical Clamp: Prevent negative timestamps which cause the "snap-to-zero" bug.
-            if (newStartTime < 0) newStartTime = 0;
-            if (newStartTime > file->maxTime()) newStartTime = file->maxTime() - viewportDurationMs;
-            if (newStartTime < 0) newStartTime = 0; // Final safety
-            
-            if (abs(newStartTime - startTimeX) < 1) newStartTime = targetStartTime;
-
-            // Adjust bounds if we're near the end of the file
-            if (file->maxTime() <= endTimeX && newStartTime >= startTimeX) {
-                update();
-                return;
+            if (std::abs(distanceToTarget) < 50.0) {
+                calculatedNewStart = targetStartTime;
+            } else {
+                double panSpeedFactor = 0.04; 
+                calculatedNewStart = startTimeX + (distanceToTarget * panSpeedFactor);
             }
 
-            emit scrollChanged(newStartTime, (file->maxTime() - endTimeX + startTimeX), startLineY,
-                               NUM_LINES - (endLineY - startLineY));
+            int finalStartTime = (int)std::round(calculatedNewStart);
+
+            // BOUNDS CLAMPING
+            if (finalStartTime < 0) finalStartTime = 0;
+            int maxStart = file->maxTime() - viewportDurationMs;
+            if (finalStartTime > maxStart) finalStartTime = maxStart;
+            if (finalStartTime < 0) finalStartTime = 0;
+
+            // Apply new position ONLY if it actually changed
+            if (finalStartTime != startTimeX) {
+                startTimeX = finalStartTime;
+                endTimeX = startTimeX + viewportDurationMs;
+                registerRelayout();
+                update();
+                emit scrollChanged(startTimeX, (file->maxTime() - viewportDurationMs), startLineY,
+                                   NUM_LINES - (endLineY - startLineY));
+            } else {
+                endTimeX = startTimeX + viewportDurationMs;
+                update();
+            }
             return;
-        } else if (x < lineNameWidth || ms < startTimeX || ms > endTimeX || x > width() - 100) {
+            
+        } else if (!smoothScroll && (x < lineNameWidth || ms < startTimeX || ms > endTimeX || x > width() - 100)) {
             // Standard bounding (page turn) mode
             if (file->maxTime() <= endTimeX && ms >= startTimeX) {
                 update();
@@ -198,7 +224,7 @@ void MatrixWidget::timeMsChanged(int ms, bool ignoreLocked) {
 }
 
 void MatrixWidget::scrollXChanged(int scrollPositionX) {
-    if (!file)
+    if (!file || (scrollPositionX == startTimeX && !_suppressScrollRepaints))
         return;
 
     startTimeX = scrollPositionX;

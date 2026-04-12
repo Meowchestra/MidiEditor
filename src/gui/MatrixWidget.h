@@ -652,6 +652,7 @@ private:
 
     /** \brief Screen lock state to prevent auto-scrolling */
     bool screen_locked;
+    bool _wasLocked = false;
 
     /** \brief Difference between the marker's time and the click time during drag operations */
     int _draggedMarkerTickOffset;

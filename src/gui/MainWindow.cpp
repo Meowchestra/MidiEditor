@@ -785,9 +785,7 @@ void MainWindow::scrollPositionsChanged(int startMs, int maxMs, int startLine,
                                         int maxLine) {
     hori->setMinimum(0);
     hori->setMaximum(maxMs);
-    // Force startMs to 0 if it's very close to 0 to eliminate dead space
-    int clampedStartMs = (startMs < 10) ? 0 : startMs;
-    hori->setValue(clampedStartMs);
+    hori->setValue(startMs);
     vert->setMaximum(maxLine);
     vert->setValue(startLine);
 }
@@ -871,11 +869,9 @@ void MainWindow::matrixSizeChanged(int maxScrollTime, int maxScrollLine,
     hori->setMinimum(0);
     hori->setMaximum(maxScrollTime);
     
-    // Set scroll bar values - ensure horizontal starts at 0 for new files
+    // Set scroll bar values
     vert->setValue(qMax(0, qMin(vY, maxScrollLine)));
-    // For horizontal: clamp small values to 0 to eliminate dead space
-    int clampedVX = (vX < 10) ? 0 : vX;
-    hori->setValue(qMax(0, qMin(clampedVX, maxScrollTime)));
+    hori->setValue(qMax(0, qMin(vX, maxScrollTime)));
 
     // Update the matrix widget
     _matrixWidgetContainer->update();
