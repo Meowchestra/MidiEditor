@@ -6252,39 +6252,47 @@ void MainWindow::fixXIVChannels() {
         int preservedSwitches = result["preservedGuitarSwitchTrackCount"].toInt();
         
         QString html = QStringLiteral(
-            "<h3 style='color:#2e7d32; margin-bottom:4px;'>&#x2705; Success</h3>"
-            "<p style='margin-top:0;'><b>Mode:</b> %1<br>"
-            "<b>Tracks processed:</b> %2 (%3 FFXIV tracks matched)</p>"
-            "<table style='font-size:12px;'>"
-            "<tr><td>Program changes:</td><td>%4 removed, %5 inserted</td></tr>"
-            "<tr><td>Velocity normalized:</td><td>%6 notes</td></tr>"
-            "<tr><td>Events cleaned:</td><td>%7 total</td></tr>"
-        ).arg(mode).arg(trackCount).arg(ffxivTrackCount)
-         .arg(removedPCs).arg(insertedPCs).arg(velocityNorm).arg(totalCleaned);
+            "<div style='min-width:320px;'>"
+            "<h3 style='color:#2e7d32; margin-bottom:12px;'>&#x2705; Success</h3>"
+            "<table style='font-size:12px; width:100%;' cellspacing='0' cellpadding='2'>"
+            "<tr><td style='padding-right:20px;'>Mode:</td><td style='text-align:right;'><b>%1</b></td></tr>"
+            "<tr><td style='padding-right:20px;'>Tracks processed:</td><td style='text-align:right;'><b>%2</b> (%3 matched)</td></tr>"
+            "<tr><td colspan='2'><hr style='border:0; border-top:1px solid #ddd; margin:4px 0;'></td></tr>"
+            "<tr><td style='padding-right:20px;'>Program changes:</td><td style='text-align:right;'><b>%4</b> removed, <b>%5</b> inserted</td></tr>"
+        ).arg(mode).arg(trackCount).arg(ffxivTrackCount).arg(removedPCs).arg(insertedPCs);
+
+        if (velocityNorm > 0) {
+            html += QStringLiteral(
+                "<tr><td style='padding-right:20px;'>Velocity normalized:</td><td style='text-align:right;'><b>%1</b> notes</td></tr>"
+            ).arg(velocityNorm);
+        }
 
         if (totalCleaned > 0) {
             html += QStringLiteral(
-                "<tr><td></td><td style='color:gray; font-size:11px;'>"
-                "CC: %1, Key Pressure: %2, Channel Pressure: %3, Pitch Bend: %4"
+                "<tr><td style='padding-right:20px;'>Events cleaned:</td><td style='text-align:right;'><b>%1</b> total</td></tr>"
+                "<tr><td></td><td style='text-align:right; color:gray; font-size:11px;'>"
+                "CC: %2, KP: %3, CP: %4, PB: %5"
                 "</td></tr>"
-            ).arg(removedCC).arg(removedKP).arg(removedCP).arg(removedPB);
+            ).arg(totalCleaned).arg(removedCC).arg(removedKP).arg(removedCP).arg(removedPB);
         }
         html += "</table>";
 
         if (multipleTick0 > 0) {
             html += QStringLiteral(
-                "<p style='color:#e65100; font-size:12px; margin-top:10px;'>"
-                "<b>[!] Warning:</b> Found multiple Program Changes at tick 0 on %1 Guitar track(s). "
+                "<p style='color:#e65100; font-size:12px; margin-top:12px;'>"
+                "<b>&#x26A0; Warning:</b> Found multiple Program Changes at tick 0 on %1 Guitar track(s). "
                 "These were preserved.</p>"
             ).arg(multipleTick0);
         }
         
         if (preservedSwitches > 0) {
             html += QStringLiteral(
-                "<p style='color:#0277bd; font-size:12px; margin-top:5px;'>"
-                "<b>[i] Note:</b> Preserved existing Program Change switches on %1 Guitar track(s).</p>"
+                "<p style='color:#0277bd; font-size:12px; margin-top:6px;'>"
+                "<b>&#x2139; Note:</b> Preserved manual Program Change switches on %1 Guitar track(s).</p>"
             ).arg(preservedSwitches);
         }
+        
+        html += "</div>";
             
         QMessageBox msgBox(this);
         msgBox.setWindowTitle(tr("Fix XIV Channels"));
