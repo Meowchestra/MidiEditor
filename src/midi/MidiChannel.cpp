@@ -54,6 +54,10 @@ MidiChannel::MidiChannel(MidiChannel &other) {
     _num = other._num;
 }
 
+MidiChannel::~MidiChannel() {
+    delete _events;
+}
+
 ProtocolEntry *MidiChannel::copy() {
     return new MidiChannel(*this);
 }
@@ -67,8 +71,31 @@ void MidiChannel::reloadState(ProtocolEntry *entry) {
     _visible = other->_visible;
     _mute = other->_mute;
     _solo = other->_solo;
-    _events = other->_events;
     _num = other->_num;
+
+    // Correctly restore the event map by copying contents rather than
+    // swapping pointers. This ensures that the channel maintains ownership
+    // of its own map object and doesn't depend on the protocol entry's lifecycle.
+    _events->clear();
+    *_events = *(other->_events);
+
+    // Sync Pass: Ensure events' internal properties (channel and tick) stay perfectly
+    // consistent with the channel they're restored to. This prevents the graphics
+    // engine from accessing corrupted/inconsistent state during Undo.
+    for (auto it = _events->begin(); it != _events->end(); ++it) {
+        MidiEvent *ev = it.value();
+        if (!ev) continue;
+
+        // Force internal tick to match map key
+        if (ev->midiTime() != it.key()) {
+            ev->setMidiTime(it.key(), false);
+        }
+
+        // Force internal channel to match this channel number
+        if (_num >= 0 && _num < 19 && ev->channel() != _num) {
+            ev->setChannel(_num, false);
+        }
+    }
 }
 
 MidiFile *MidiChannel::file() {

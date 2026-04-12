@@ -48,8 +48,6 @@ ChannelListItem::ChannelListItem(int ch, ChannelListWidget *parent)
     QString text = tr("Channel ") + QString::number(channel);
     if (channel == 16) {
         text = tr("General Events");
-    } else if (channel == 9) {
-        text = tr("Percussion");
     }
     QLabel *text1 = new QLabel(text, this);
     text1->setFixedHeight(18);
@@ -162,7 +160,7 @@ void ChannelListItem::onBeforeUpdate() {
     if (channel == 16) {
         text = tr("Events affecting all channels");
     } else if (channel == 9) {
-        text = tr("Drums and percussion events");
+        text = tr("Percussion");
     }
     instrumentLabel->setText(text);
 

@@ -29,7 +29,9 @@ private:
     QComboBox *_alignmentCombo;
     QSpinBox *_offsetSpin;
     QComboBox *_separatorStyleCombo;
+    QSpinBox *_separatorSpacingSpin;
     QCheckBox *_showTrackChannel;
+    QComboBox *_trackChannelModeCombo;
     QCheckBox *_showNoteName;
     QCheckBox *_showNoteRange;
     QCheckBox *_showChordName;

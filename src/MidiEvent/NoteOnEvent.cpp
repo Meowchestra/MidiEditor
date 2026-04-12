@@ -43,8 +43,11 @@ int NoteOnEvent::velocity() {
     return _velocity;
 }
 
-void NoteOnEvent::setVelocity(int v) {
-    ProtocolEntry *toCopy = copy();
+void NoteOnEvent::setVelocity(int v, bool toProtocol) {
+    ProtocolEntry *toCopy = nullptr;
+    if (toProtocol) {
+        toCopy = copy();
+    }
     if (v < 0) {
         v = 0;
     }
@@ -52,7 +55,11 @@ void NoteOnEvent::setVelocity(int v) {
         v = 127;
     }
     _velocity = v;
-    protocol(toCopy, this);
+    if (toProtocol) {
+        protocol(toCopy, this);
+    } else {
+        delete toCopy;
+    }
 }
 
 int NoteOnEvent::line() {

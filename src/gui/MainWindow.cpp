@@ -586,10 +586,21 @@ MainWindow::MainWindow(QString initFile)
     lowerTabWidget->addTab(_eventWidget, tr("Event"));
     MidiEvent::setEventWidget(_eventWidget);
 
-    // Initialize status bar with a permanent label
+    // Initialize status bar with a small refined look
     _statusBar = new QStatusBar(this);
+    _statusBar->setFixedHeight(18);
+    _statusBar->setContentsMargins(0, 0, 0, 0);
+    _statusBar->setSizeGripEnabled(true);
+    _statusBar->setStyleSheet(
+        QString("QStatusBar { border: none; background: transparent; color: palette(windowText); }"
+                "QStatusBar::item { border: none; }")
+    );
     setStatusBar(_statusBar);
+
     _statusLabel = new QLabel("", _statusBar);
+    _statusLabel->setContentsMargins(4, 0, 4, 0);
+    _statusLabel->setStyleSheet("font-size: 11px;");
+    _statusLabel->setAlignment(Qt::AlignVCenter | Qt::AlignLeft);
     _statusBar->addPermanentWidget(_statusLabel, 1);
 
     // Connect selection changes to status bar updates
@@ -600,25 +611,21 @@ MainWindow::MainWindow(QString initFile)
     chooserWidget = new QWidget(rightSplitter);
     chooserWidget->setMinimumWidth(350);
     rightSplitter->addWidget(chooserWidget);
-    QGridLayout *chooserLayout = new QGridLayout(chooserWidget);
+    QVBoxLayout *chooserLayout = new QVBoxLayout(chooserWidget);
     QLabel *trackchannelLabel = new QLabel(tr("Add new events to..."));
-    chooserLayout->addWidget(trackchannelLabel, 0, 0, 1, 2);
-    QLabel *channelLabel = new QLabel(tr("Channel: "), chooserWidget);
-    chooserLayout->addWidget(channelLabel, 2, 0, 1, 1);
+    chooserLayout->addWidget(trackchannelLabel);
+
+    _chooseEditTrack = new QComboBox(chooserWidget);
+    connect(_chooseEditTrack, SIGNAL(activated(int)), this, SLOT(editTrack(int)));
+    chooserLayout->addWidget(_chooseEditTrack);
+
     _chooseEditChannel = new QComboBox(chooserWidget);
     for (int i = 0; i < 16; i++) {
         if (i == 9) _chooseEditChannel->addItem(tr("Percussion Channel"));
-        else _chooseEditChannel->addItem(tr("Channel ") + QString::number(i)); // TODO: Display channel instrument | UDP: But **file** is *nullptr*
+        else _chooseEditChannel->addItem(tr("Channel %1: %2").arg(i).arg(MidiFile::instrumentName(0)));
     }
     connect(_chooseEditChannel, SIGNAL(activated(int)), this, SLOT(editChannel(int)));
-
-    chooserLayout->addWidget(_chooseEditChannel, 2, 1, 1, 1);
-    QLabel *trackLabel = new QLabel(tr("Track: "), chooserWidget);
-    chooserLayout->addWidget(trackLabel, 1, 0, 1, 1);
-    _chooseEditTrack = new QComboBox(chooserWidget);
-    chooserLayout->addWidget(_chooseEditTrack, 1, 1, 1, 1);
-    connect(_chooseEditTrack, SIGNAL(activated(int)), this, SLOT(editTrack(int)));
-    chooserLayout->setColumnStretch(1, 1);
+    chooserLayout->addWidget(_chooseEditChannel);
     // connect Scrollbars and Widgets
     // Connect to the actual displayed widget (OpenGL or software)
     connect(vert, SIGNAL(valueChanged(int)), matrixContainer, SLOT(scrollYChanged(int)));
@@ -1999,7 +2006,9 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _deleteChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            action->setText(QString::number(channel) + " " + MidiFile::instrumentName(file->channel(channel)->progAtTick(0)));
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            if (channel == 9) instName = tr("Percussion");
+            action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
     }
 
@@ -2007,7 +2016,9 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _moveSelectedEventsToChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            action->setText(QString::number(channel) + " " + MidiFile::instrumentName(file->channel(channel)->progAtTick(0)));
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            if (channel == 9) instName = tr("Percussion");
+            action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
     }
 
@@ -2015,7 +2026,9 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _pasteToChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file && channel >= 0) {
-            action->setText(QString::number(channel) + " " + MidiFile::instrumentName(file->channel(channel)->progAtTick(0)));
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            if (channel == 9) instName = tr("Percussion");
+            action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
     }
 
@@ -2023,7 +2036,23 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _selectAllFromChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            action->setText(QString::number(channel) + " " + MidiFile::instrumentName(file->channel(channel)->progAtTick(0)));
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            if (channel == 9) instName = tr("Percussion");
+            action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
+        }
+    }
+
+    // update _chooseEditChannel combo box
+    if (_chooseEditChannel) {
+        for (int ch = 0; ch < 16; ++ch) {
+            if (file) {
+                QString instName = MidiFile::instrumentName(file->channel(ch)->progAtTick(0));
+                if (ch == 9) instName = tr("Percussion");
+                _chooseEditChannel->setItemText(ch, tr("Channel %1: %2").arg(ch).arg(instName));
+            } else {
+                if (ch == 9) _chooseEditChannel->setItemText(ch, tr("Channel 9: Percussion"));
+                else _chooseEditChannel->setItemText(ch, tr("Channel %1: %2").arg(ch).arg(MidiFile::instrumentName(0)));
+            }
         }
     }
 
@@ -2042,7 +2071,7 @@ void MainWindow::updateTrackMenu() {
 
     for (int i = 0; i < file->numTracks(); i++) {
         QVariant variant(i);
-        QAction *moveToTrackAction = new QAction(QString::number(i) + " " + file->tracks()->at(i)->name(), this);
+        QAction *moveToTrackAction = new QAction(tr("Track %1: %2").arg(i).arg(file->tracks()->at(i)->name()), this);
         moveToTrackAction->setData(variant);
 
         QString formattedKeySequence = QString("Shift+%1").arg(i);
@@ -2050,20 +2079,20 @@ void MainWindow::updateTrackMenu() {
 
         _moveSelectedEventsToTrackMenu->addAction(moveToTrackAction);
 
-        QAction *delTrackAction = new QAction(QString::number(i) + " " + file->tracks()->at(i)->name(), this);
+        QAction *delTrackAction = new QAction(tr("Track %1: %2").arg(i).arg(file->tracks()->at(i)->name()), this);
         delTrackAction->setData(variant);
         _deleteTrackMenu->addAction(delTrackAction);
     }
 
     for (int i = 0; i < file->numTracks(); i++) {
         QVariant variant(i);
-        QAction *select = new QAction(QString::number(i) + " " + file->tracks()->at(i)->name(), this);
+        QAction *select = new QAction(tr("Track %1: %2").arg(i).arg(file->tracks()->at(i)->name()), this);
         select->setData(variant);
         _selectAllFromTrackMenu->addAction(select);
     }
 
     for (int i = 0; i < file->numTracks(); i++) {
-        _chooseEditTrack->addItem(tr("Track ") + QString::number(i) + ": " + file->tracks()->at(i)->name());
+        _chooseEditTrack->addItem(tr("Track %1: %2").arg(i).arg(file->tracks()->at(i)->name()));
     }
     if (NewNoteTool::editTrack() >= file->numTracks()) {
         NewNoteTool::setEditTrack(0);
@@ -2083,7 +2112,7 @@ void MainWindow::updateTrackMenu() {
         } else if (i == -1) {
             text = tr("Keep Track");
         } else {
-            text = tr("Track ") + QString::number(i) + ": " + file->tracks()->at(i)->name();
+            text = tr("Track %1: %2").arg(i).arg(file->tracks()->at(i)->name());
         }
         QAction *pasteToTrackAction = new QAction(text, this);
         pasteToTrackAction->setData(variant);
@@ -3393,17 +3422,6 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     editMB->addAction(selectAllAction);
     _actionMap["select_all"] = selectAllAction;
 
-    _selectAllFromChannelMenu = new QMenu(tr("Select All Events from Channel..."), editMB);
-    editMB->addMenu(_selectAllFromChannelMenu);
-    connect(_selectAllFromChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(selectAllFromChannel(QAction*)));
-
-    for (int i = 0; i < 16; i++) {
-        QVariant variant(i);
-        QAction *delChannelAction = new QAction(QString::number(i), this);
-        delChannelAction->setData(variant);
-        _selectAllFromChannelMenu->addAction(delChannelAction);
-    }
-
     _selectAllFromTrackMenu = new QMenu(tr("Select All Events from Track..."), editMB);
     editMB->addMenu(_selectAllFromTrackMenu);
     connect(_selectAllFromTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(selectAllFromTrack(QAction*)));
@@ -3413,6 +3431,17 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         QAction *delChannelAction = new QAction(QString::number(i), this);
         delChannelAction->setData(variant);
         _selectAllFromTrackMenu->addAction(delChannelAction);
+    }
+
+    _selectAllFromChannelMenu = new QMenu(tr("Select All Events from Channel..."), editMB);
+    editMB->addMenu(_selectAllFromChannelMenu);
+    connect(_selectAllFromChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(selectAllFromChannel(QAction*)));
+
+    for (int i = 0; i < 16; i++) {
+        QVariant variant(i);
+        QAction *delChannelAction = new QAction(QString::number(i), this);
+        delChannelAction->setData(variant);
+        _selectAllFromChannelMenu->addAction(delChannelAction);
     }
 
     editMB->addSeparator();
@@ -3467,11 +3496,12 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _pasteToTrackMenu = new QMenu(tr("Paste to Track..."));
     _pasteToChannelMenu = new QMenu(tr("Paste to Channel..."));
     _pasteOptionsMenu = new QMenu(tr("Paste Options..."));
+    _pasteOptionsMenu->addMenu(_pasteToTrackMenu);
     _pasteOptionsMenu->addMenu(_pasteToChannelMenu);
     QActionGroup *pasteChannelGroup = new QActionGroup(this);
     pasteChannelGroup->setExclusive(true);
-    connect(_pasteToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(pasteToChannel(QAction*)));
     connect(_pasteToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(pasteToTrack(QAction*)));
+    connect(_pasteToChannelMenu, SIGNAL(triggered(QAction*)), this, SLOT(pasteToChannel(QAction*)));
 
     for (int i = -2; i < 16; i++) {
         QVariant variant(i);
@@ -3489,11 +3519,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         pasteChannelGroup->addAction(pasteToChannelAction);
         pasteToChannelAction->setChecked(i < 0);
     }
-    _pasteOptionsMenu->addMenu(_pasteToTrackMenu);
     editMB->addAction(_pasteAction);
     editMB->addMenu(_pasteOptionsMenu);
 
     editMB->addSeparator();
+
+    _moveSelectedEventsToTrackMenu = new QMenu(tr("Move Events to Track..."), editMB);
+    editMB->addMenu(_moveSelectedEventsToTrackMenu);
+    connect(_moveSelectedEventsToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToTrack(QAction*)));
 
     _moveSelectedEventsToChannelMenu = new QMenu(tr("Move Events to Channel..."), editMB);
     editMB->addMenu(_moveSelectedEventsToChannelMenu);
@@ -3506,9 +3539,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         _moveSelectedEventsToChannelMenu->addAction(moveToChannelAction);
     }
 
-    _moveSelectedEventsToTrackMenu = new QMenu(tr("Move Events to Track..."), editMB);
-    editMB->addMenu(_moveSelectedEventsToTrackMenu);
-    connect(_moveSelectedEventsToTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(moveSelectedEventsToTrack(QAction*)));
+    _deleteTrackMenu = new QMenu(tr("Remove Events from Track..."), editMB);
+    editMB->addMenu(_deleteTrackMenu);
+    connect(_deleteTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteTrack(QAction*)));
 
     _deleteChannelMenu = new QMenu(tr("Remove Events from Channel..."), editMB);
     editMB->addMenu(_deleteChannelMenu);
@@ -3520,10 +3553,6 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         delChannelAction->setData(variant);
         _deleteChannelMenu->addAction(delChannelAction);
     }
-
-    _deleteTrackMenu = new QMenu(tr("Remove Events from Track..."), editMB);
-    editMB->addMenu(_deleteTrackMenu);
-    connect(_deleteTrackMenu, SIGNAL(triggered(QAction*)), this, SLOT(deleteTrack(QAction*)));
 
     editMB->addSeparator();
 
@@ -4160,36 +4189,36 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     viewMB->addSeparator();
 
-    viewMB->addAction(_allChannelsVisible);
     viewMB->addAction(_allTracksVisible);
-    viewMB->addAction(_allChannelsInvisible);
+    viewMB->addAction(_allChannelsVisible);
     viewMB->addAction(_allTracksInvisible);
+    viewMB->addAction(_allChannelsInvisible);
 
     viewMB->addSeparator();
 
-    QMenu *colorMenu = new QMenu(tr("Note Colors..."), viewMB);
-    _colorsByChannel = new QAction(tr("By Channels"), this);
-    _colorsByChannel->setCheckable(true);
-    connect(_colorsByChannel, SIGNAL(triggered()), this, SLOT(noteColorsByChannel()));
-    colorMenu->addAction(_colorsByChannel);
-
+    QMenu *colorMenu = new QMenu(tr("Color Notes..."), viewMB);
     _colorsByTracks = new QAction(tr("By Tracks"), this);
     _colorsByTracks->setCheckable(true);
     connect(_colorsByTracks, SIGNAL(triggered()), this, SLOT(noteColorsByTrack()));
     colorMenu->addAction(_colorsByTracks);
 
+    _colorsByChannel = new QAction(tr("By Channels"), this);
+    _colorsByChannel->setCheckable(true);
+    connect(_colorsByChannel, SIGNAL(triggered()), this, SLOT(noteColorsByChannel()));
+    colorMenu->addAction(_colorsByChannel);
+
     viewMB->addMenu(colorMenu);
 
-    QMenu *markerColorMenu = new QMenu(tr("Marker Colors..."), viewMB);
-    _markerColorsByChannel = new QAction(tr("By Channels"), this);
-    _markerColorsByChannel->setCheckable(true);
-    connect(_markerColorsByChannel, SIGNAL(triggered()), this, SLOT(markerColorsByChannel()));
-    markerColorMenu->addAction(_markerColorsByChannel);
-
+    QMenu *markerColorMenu = new QMenu(tr("Color Markers..."), viewMB);
     _markerColorsByTrack = new QAction(tr("By Tracks"), this);
     _markerColorsByTrack->setCheckable(true);
     connect(_markerColorsByTrack, SIGNAL(triggered()), this, SLOT(markerColorsByTrack()));
     markerColorMenu->addAction(_markerColorsByTrack);
+
+    _markerColorsByChannel = new QAction(tr("By Channels"), this);
+    _markerColorsByChannel->setCheckable(true);
+    connect(_markerColorsByChannel, SIGNAL(triggered()), this, SLOT(markerColorsByChannel()));
+    markerColorMenu->addAction(_markerColorsByChannel);
 
     // Set initial state
     if (Appearance::markerColorMode() == Appearance::ColorByTrack) {
@@ -4471,10 +4500,10 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     playbackMB->addSeparator();
 
-    playbackMB->addAction(_allChannelsAudible);
     playbackMB->addAction(_allTracksAudible);
-    playbackMB->addAction(_allChannelsMute);
+    playbackMB->addAction(_allChannelsAudible);
     playbackMB->addAction(_allTracksMute);
+    playbackMB->addAction(_allChannelsMute);
 
     playbackMB->addSeparator();
 
@@ -5733,10 +5762,12 @@ void MainWindow::updateAll() {
     // expensive QSettings I/O operations during paint events
     mw_matrixWidget->updateRenderingSettings();
 
-    // Update all widgets
+    // Update all widgets and labels
     channelWidget->update();
     _trackWidget->update();
     _miscWidgetContainer->update();
+    updateChannelMenu();
+    updateTrackMenu();
     
     // Update status bar visibility from settings
     if (_statusBar) {
@@ -6059,15 +6090,28 @@ void MainWindow::updateStatusBar() {
     int alignment = _settings->value("alignment", 0).toInt();
     int offset = _settings->value("offset", 0).toInt();
     int separatorStyle = _settings->value("separator_style", 0).toInt();
+    int separatorSpacing = _settings->value("separator_spacing", 7).toInt();
     bool showTrackChannel = _settings->value("show_track_channel", true).toBool();
+    int trackChannelMode = _settings->value("track_channel_mode", 0).toInt();
     bool showNoteName = _settings->value("show_note_name", true).toBool();
     bool showNoteRange = _settings->value("show_note_range", true).toBool();
     bool showChordName = _settings->value("show_chord_name", true).toBool();
     _settings->endGroup();
 
     // Determine segment separator based on user preference
-    // 0 = spaced (wide gap), 1 = pipe-separated
-    QString segmentSeparator = (separatorStyle == 1) ? QStringLiteral("   |   ") : QStringLiteral("       ");
+    // Pipe: pad spaces evenly around the pipe character (min 3 = " | ")
+    // Spaced: all spaces (min 3 = "   ")
+    QString segmentSeparator;
+    if (separatorStyle == 1) {
+        // Pipe mode: total width = separatorSpacing, pipe takes 1 char, rest is spaces
+        int padTotal = separatorSpacing - 1; // space for pipe itself
+        if (padTotal < 2) padTotal = 2; // at least 1 space each side
+        int padLeft = padTotal / 2;
+        int padRight = padTotal - padLeft;
+        segmentSeparator = QString(padLeft, ' ') + "|" + QString(padRight, ' ');
+    } else {
+        segmentSeparator = QString(separatorSpacing, ' ');
+    }
 
     if (alignment == 1) {
         _statusLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
@@ -6118,22 +6162,29 @@ void MainWindow::updateStatusBar() {
         } else if (firstTrack) {
             QString trackName = firstTrack->name();
             int trackNum = firstTrack->number();
-            if (!trackName.isEmpty()) {
-                trackStr = tr("Track: %1 (%2)").arg(trackNum).arg(trackName);
+            if (!trackName.isEmpty() && (trackChannelMode == 0 || trackChannelMode == 1)) {
+                trackStr = tr("Track %1: %2").arg(trackNum).arg(trackName);
             } else {
-                trackStr = tr("Track: %1").arg(trackNum);
+                trackStr = tr("Track %1").arg(trackNum);
             }
         } else {
-            trackStr = tr("Track: N/A");
+            trackStr = tr("Track N/A");
         }
 
         QString channelStr;
         if (multipleChannels) {
             channelStr = tr("Multiple Channels");
         } else {
-            channelStr = (firstChannel >= 0 && firstChannel < 16)
-                ? tr("Channel: %1").arg(firstChannel)
-                : tr("Channel: N/A");
+            if (firstChannel >= 0 && firstChannel < 16 && file) {
+                if (trackChannelMode == 0 || trackChannelMode == 2) {
+                    QString instName = MidiFile::instrumentName(file->channel(firstChannel)->progAtTick(0));
+                    channelStr = tr("Channel %1: %2").arg(firstChannel).arg(instName);
+                } else {
+                    channelStr = tr("Channel %1").arg(firstChannel);
+                }
+            } else {
+                channelStr = tr("Channel N/A");
+            }
         }
         segments.append(QString("%1 | %2").arg(trackStr).arg(channelStr));
     }
@@ -6252,14 +6303,48 @@ void MainWindow::fixXIVChannels() {
         int preservedSwitches = result["preservedGuitarSwitchTrackCount"].toInt();
         
         QString html = QStringLiteral(
-            "<div style='min-width:320px;'>"
+            "<div style='min-width:320px; max-width:420px;'>"
             "<h3 style='color:#2e7d32; margin-bottom:12px;'>&#x2705; Success</h3>"
             "<table style='font-size:12px; width:100%;' cellspacing='0' cellpadding='2'>"
             "<tr><td style='padding-right:20px;'>Mode:</td><td style='text-align:right;'><b>%1</b></td></tr>"
             "<tr><td style='padding-right:20px;'>Tracks processed:</td><td style='text-align:right;'><b>%2</b> (%3 matched)</td></tr>"
+        ).arg(mode).arg(trackCount).arg(ffxivTrackCount);
+
+        QJsonArray melodic = analysis["melodicTracks"].toArray();
+        QJsonArray guitars = analysis["guitarVariants"].toArray();
+        QJsonArray perc = analysis["percussionTracks"].toArray();
+
+        // Build compact comma-separated track lists
+        auto joinArray = [](const QJsonArray &arr) -> QString {
+            QStringList items;
+            for (int i = 0; i < arr.size(); ++i)
+                items << arr[i].toString();
+            return items.join(", ");
+        };
+
+        if (!melodic.isEmpty()) {
+            html += QStringLiteral(
+                "<tr><td style='padding-right:20px; color:gray; font-size:11px;'>Melodic:</td>"
+                "<td style='text-align:right; color:gray; font-size:11px;'>%1</td></tr>"
+            ).arg(joinArray(melodic));
+        }
+        if (!guitars.isEmpty()) {
+            html += QStringLiteral(
+                "<tr><td style='padding-right:20px; color:gray; font-size:11px;'>Guitars:</td>"
+                "<td style='text-align:right; color:gray; font-size:11px;'>%1</td></tr>"
+            ).arg(joinArray(guitars));
+        }
+        if (!perc.isEmpty()) {
+            html += QStringLiteral(
+                "<tr><td style='padding-right:20px; color:gray; font-size:11px;'>Percussion:</td>"
+                "<td style='text-align:right; color:gray; font-size:11px;'>%1</td></tr>"
+            ).arg(joinArray(perc));
+        }
+
+        html += QStringLiteral(
             "<tr><td colspan='2'><hr style='border:0; border-top:1px solid #ddd; margin:4px 0;'></td></tr>"
-            "<tr><td style='padding-right:20px;'>Program changes:</td><td style='text-align:right;'><b>%4</b> removed, <b>%5</b> inserted</td></tr>"
-        ).arg(mode).arg(trackCount).arg(ffxivTrackCount).arg(removedPCs).arg(insertedPCs);
+            "<tr><td style='padding-right:20px;'>Program changes:</td><td style='text-align:right;'><b>%1</b> removed, <b>%2</b> inserted</td></tr>"
+        ).arg(removedPCs).arg(insertedPCs);
 
         if (velocityNorm > 0) {
             html += QStringLiteral(
@@ -6279,16 +6364,16 @@ void MainWindow::fixXIVChannels() {
 
         if (multipleTick0 > 0) {
             html += QStringLiteral(
-                "<p style='color:#e65100; font-size:12px; margin-top:12px;'>"
-                "<b>&#x26A0; Warning:</b> Found multiple Program Changes at tick 0 on %1 Guitar track(s). "
+                "<p style='color:#e65100; font-size:12px; margin-top:12px; word-wrap:break-word;'>"
+                "<b>&#9888; Warning:</b> Found multiple Program Changes at tick 0 on %1 Guitar track(s). "
                 "These were preserved.</p>"
             ).arg(multipleTick0);
         }
         
         if (preservedSwitches > 0) {
             html += QStringLiteral(
-                "<p style='color:#0277bd; font-size:12px; margin-top:6px;'>"
-                "<b>&#x2139; Note:</b> Preserved manual Program Change switches on %1 Guitar track(s).</p>"
+                "<p style='color:#0277bd; font-size:12px; margin-top:6px; word-wrap:break-word;'>"
+                "<b>&#9432; Note:</b> Preserved manual Program Changes on %1 Guitar track(s).</p>"
             ).arg(preservedSwitches);
         }
         

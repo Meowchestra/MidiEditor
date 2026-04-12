@@ -87,7 +87,7 @@ public:
      * \brief Sets the note velocity.
      * \param v The new velocity value (0-127)
      */
-    void setVelocity(int v);
+    void setVelocity(int v, bool toProtocol = true);
 
     /**
      * \brief Creates a copy of this event for the protocol system.

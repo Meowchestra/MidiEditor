@@ -35,13 +35,13 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     _trackItems = new QList<NamedColorWidgetItem *>();
     
     QLabel *channelLabel = new QLabel(tr("Channel Colors"));
-    channelLabel->setStyleSheet("margin-bottom: 2px;");
-    layout->addWidget(channelLabel, 0, 0, 1, 2);
+    channelLabel->setStyleSheet("margin-top: 2px; margin-bottom: 2px;");
+    layout->addWidget(channelLabel, 2, 0, 1, 2);
     channelLabel->setMinimumHeight(20);
     QListWidget *channelList = new QListWidget(this);
     channelList->setSelectionMode(QAbstractItemView::NoSelection);
     channelList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
-    layout->addWidget(channelList, 1, 0, 1, 2);
+    layout->addWidget(channelList, 3, 0, 1, 2);
     for (int i = 0; i < 17; i++) {
         QString name = tr("Channel %1").arg(i);
         if (i == 9) {
@@ -64,13 +64,13 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     channelList->setMinimumHeight(ROW_HEIGHT * 5); // Prevent shrinking below this size
 
     QLabel *trackColorsLabel = new QLabel(tr("Track Colors"));
-    trackColorsLabel->setStyleSheet("margin-top: 2px; margin-bottom: 2px;");
+    trackColorsLabel->setStyleSheet("margin-bottom: 2px;");
     trackColorsLabel->setMinimumHeight(20);
-    layout->addWidget(trackColorsLabel, 2, 0, 1, 2);
+    layout->addWidget(trackColorsLabel, 0, 0, 1, 2);
     QListWidget *trackList = new QListWidget(this);
     trackList->setSelectionMode(QAbstractItemView::NoSelection);
     trackList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
-    layout->addWidget(trackList, 3, 0, 1, 2);
+    layout->addWidget(trackList, 1, 0, 1, 2);
     for (int i = 0; i < 17; i++) {
         QColor *trackColor = Appearance::trackColor(i);
         QColor safeColor = trackColor ? *trackColor : QColor(100, 100, 100);

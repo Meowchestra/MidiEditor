@@ -72,6 +72,11 @@ public:
      */
     MidiChannel(MidiChannel &other);
 
+    /**
+     * \brief Destroys the MidiChannel and cleans up resources.
+     */
+    virtual ~MidiChannel();
+
     // === Basic Properties ===
 
     /**

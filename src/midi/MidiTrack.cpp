@@ -41,6 +41,7 @@ MidiTrack::MidiTrack(MidiTrack &other)
     _file = other._file;
     _hidden = other._hidden;
     _muted = other._muted;
+    _assignedChannel = other._assignedChannel;
 }
 
 MidiTrack::~MidiTrack() {
@@ -111,6 +112,7 @@ void MidiTrack::reloadState(ProtocolEntry *entry) {
     _file = other->_file;
     _hidden = other->_hidden;
     _muted = other->_muted;
+    _assignedChannel = other->_assignedChannel;
 }
 
 void MidiTrack::setHidden(bool hidden) {
@@ -150,7 +152,9 @@ MidiTrack *MidiTrack::copyToFile(MidiFile *file) {
 }
 
 void MidiTrack::assignChannel(int ch) {
+    ProtocolEntry *toCopy = copy();
     _assignedChannel = ch;
+    protocol(toCopy, this);
 }
 
 int MidiTrack::assignedChannel() {

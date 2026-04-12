@@ -1863,21 +1863,22 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 
     contextMenu.addSeparator();
 
-    // Move to Channel (Above Track)
-    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move Events to Channel..."));
-    moveToChannelMenu->setEnabled(hasSelection);
-    for (int i = 0; i < 16; i++) {
-        QString instrument = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
-        QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instrument));
-        action->setData(i);
-    }
-
     // Move to Track
     QMenu* moveToTrackMenu = contextMenu.addMenu(tr("Move Events to Track..."));
     moveToTrackMenu->setEnabled(hasSelection);
     for (int i = 0; i < file->numTracks(); i++) {
         QString trackName = file->tracks()->at(i)->name();
         QAction* action = moveToTrackMenu->addAction(tr("Track %1: %2").arg(i).arg(trackName));
+        action->setData(i);
+    }
+
+    // Move to Channel
+    QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move Events to Channel..."));
+    moveToChannelMenu->setEnabled(hasSelection);
+    for (int i = 0; i < 16; i++) {
+        QString instrument = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
+        if (i == 9) instrument = tr("Percussion");
+        QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instrument));
         action->setData(i);
     }
 

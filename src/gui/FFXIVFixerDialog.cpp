@@ -13,16 +13,18 @@
 FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
     : QDialog(parent), _analysis(analysis) {
     setWindowTitle(tr("Fix XIV Channels"));
-    setMinimumWidth(480);
+    setFixedWidth(480);
 
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
+    mainLayout->setContentsMargins(12, 12, 12, 12);
+    mainLayout->setSpacing(8);
 
     // Summary Section
     int trackCount = analysis["trackCount"].toInt();
     int ffxivTrackCount = analysis["ffxivTrackCount"].toInt();
 
     QString summaryHtml = QStringLiteral(
-        "<h3>Analysis Complete</h3>"
+        "<p style='font-size:14px; font-weight:bold; margin:0 0 8px 0;'>Track Analysis</p>"
         "<p>Detected <b>%1</b> tracks matching standard FFXIV instruments out of <b>%2</b> total tracks.</p>"
     ).arg(ffxivTrackCount).arg(trackCount);
 
@@ -65,12 +67,14 @@ FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
     // Mode Selection
     QGroupBox *modeGroup = new QGroupBox(tr("Processing Mode"), this);
     QVBoxLayout *modeLayout = new QVBoxLayout(modeGroup);
+    modeLayout->setSpacing(2);
+    modeLayout->setContentsMargins(9, 9, 9, 6);
 
-    _rebuildRadio = new QRadioButton(tr("Rebuild: Reassign channels and program changes from scratch"), modeGroup);
-    _preserveRadio = new QRadioButton(tr("Preserve: Keep existing channels, fix program changes only"), modeGroup);
+    _rebuildRadio = new QRadioButton(tr("Rebuild (Full Reassignment)"), modeGroup);
+    _preserveRadio = new QRadioButton(tr("Preserve (Minimal Changes)"), modeGroup);
 
-    QString rebuildDesc = tr("Groups identical instruments into shared channels.");
-    QString preserveDesc = tr("Preserves your hand-assigned channel layout.");
+    QString rebuildDesc = tr("Reassign channels and program changes from scratch. Groups identical instruments into shared channels.");
+    QString preserveDesc = tr("Keep existing channels, fix program changes only. Preserves your hand-assigned channel layout.");
 
     QLabel *rDesc = new QLabel(rebuildDesc, modeGroup);
     rDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 20px; margin-bottom: 5px;");
@@ -93,34 +97,36 @@ FFXIVFixerDialog::FFXIVFixerDialog(const QJsonObject &analysis, QWidget *parent)
     // Options Section
     QGroupBox *optionsGroup = new QGroupBox(tr("Options"), this);
     QVBoxLayout *optionsLayout = new QVBoxLayout(optionsGroup);
+    optionsLayout->setSpacing(2);
+    optionsLayout->setContentsMargins(9, 9, 9, 6);
 
     _normalizeVelocityCheck = new QCheckBox(tr("Normalize Velocity"), optionsGroup);
     _normalizeVelocityCheck->setChecked(true);
-    _normalizeVelocityCheck->setToolTip(tr("Sets all note velocities to 100 for consistent volume."));
+    _normalizeVelocityCheck->setToolTip(tr("Set all note velocity to 100 for consistent volume."));
     optionsLayout->addWidget(_normalizeVelocityCheck);
 
-    QLabel *cleanupLabel = new QLabel(tr("Cleanup unsupported events:"), optionsGroup);
+    QLabel *cleanupLabel = new QLabel(tr("Cleanup Unsupported Events"), optionsGroup);
     cleanupLabel->setTextFormat(Qt::RichText);
     optionsLayout->addWidget(cleanupLabel);
 
-    QLabel *cleanupDesc = new QLabel(tr("FFXIV only uses Note & Program Change events."), optionsGroup);
+    QLabel *cleanupDesc = new QLabel(tr("FFXIV only supports Note & Program Change events."), optionsGroup);
     cleanupDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 4px; margin-bottom: 4px;");
     cleanupDesc->setWordWrap(true);
     optionsLayout->addWidget(cleanupDesc);
 
-    _cleanupCCCheck = new QCheckBox(tr("Remove Control Change Events"), optionsGroup);
+    _cleanupCCCheck = new QCheckBox(tr("Remove Events: Control Changes"), optionsGroup);
     _cleanupCCCheck->setChecked(true);
     optionsLayout->addWidget(_cleanupCCCheck);
 
-    _cleanupKeyPressureCheck = new QCheckBox(tr("Remove Key Pressure Events"), optionsGroup);
+    _cleanupKeyPressureCheck = new QCheckBox(tr("Remove Events: Key Pressure"), optionsGroup);
     _cleanupKeyPressureCheck->setChecked(true);
     optionsLayout->addWidget(_cleanupKeyPressureCheck);
 
-    _cleanupChannelPressureCheck = new QCheckBox(tr("Remove Channel Pressure Events"), optionsGroup);
+    _cleanupChannelPressureCheck = new QCheckBox(tr("Remove Events: Channel Pressure"), optionsGroup);
     _cleanupChannelPressureCheck->setChecked(true);
     optionsLayout->addWidget(_cleanupChannelPressureCheck);
 
-    _cleanupPitchBendCheck = new QCheckBox(tr("Remove Pitch Bend Events"), optionsGroup);
+    _cleanupPitchBendCheck = new QCheckBox(tr("Remove Events: Pitch Bends"), optionsGroup);
     _cleanupPitchBendCheck->setChecked(true);
     optionsLayout->addWidget(_cleanupPitchBendCheck);
 

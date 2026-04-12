@@ -85,7 +85,7 @@ QWidget *EventWidgetDelegate::createEditor(QWidget *parent, const QStyleOptionVi
             return new QSpinBox(parent);
         }
         case EventWidget::MidiEventChannel: {
-            return new QSpinBox(parent);
+            return new QComboBox(parent);
         }
         case EventWidget::MidiEventValue: {
             return new QSpinBox(parent);
@@ -184,12 +184,22 @@ void EventWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &inde
             break;
         }
         case EventWidget::MidiEventChannel: {
-            QSpinBox *spin = dynamic_cast<QSpinBox *>(editor);
-            spin->setMaximum(0);
-            spin->setMaximum(15);
-            if (index.data().canConvert<int>()) {
-                spin->setValue(index.data().toInt());
+            QComboBox *box = dynamic_cast<QComboBox *>(editor);
+            int current = 0;
+            for (int i = 0; i < 16; i++) {
+                QString instName;
+                if (i == 9) {
+                    instName = tr("Percussion");
+                } else {
+                    instName = MidiFile::instrumentName(eventWidget->file()->channel(i)->progAtTick(0));
+                }
+                QString text = tr("Channel %1: %2").arg(i).arg(instName);
+                box->addItem(text);
+                if (!text.compare(index.data().toString())) {
+                    current = i;
+                }
             }
+            box->setCurrentIndex(current);
             break;
         }
         case EventWidget::MidiEventValue: {
@@ -406,9 +416,9 @@ void EventWidgetDelegate::setModelData(QWidget *editor, QAbstractItemModel *mode
             break;
         }
         case EventWidget::MidiEventChannel: {
-            QSpinBox *spin = dynamic_cast<QSpinBox *>(editor);
+            QComboBox *box = dynamic_cast<QComboBox *>(editor);
             foreach(MidiEvent* ev, eventWidget->events()) {
-                ev->moveToChannel(spin->value());
+                ev->moveToChannel(box->currentIndex());
             }
             break;
         }
@@ -814,23 +824,27 @@ QList<QPair<QString, EventWidget::EditorField> > EventWidget::getFields() {
     switch (_currentType) {
         case ChannelPressureEventType: {
             fields.append(QPair<QString, EditorField>(tr("Value"), MidiEventValue));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
         case ControlChangeEventType: {
             fields.append(QPair<QString, EditorField>(tr("Control"), ControlChangeControl));
             fields.append(QPair<QString, EditorField>(tr("Value"), MidiEventValue));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
         case KeyPressureEventType: {
             fields.append(QPair<QString, EditorField>(tr("Note"), MidiEventNote));
             fields.append(QPair<QString, EditorField>(tr("Value"), MidiEventValue));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
         case KeySignatureEventType: {
             fields.append(QPair<QString, EditorField>(tr("Key"), KeySignatureKey));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
         case NoteEventType: {
@@ -838,45 +852,52 @@ QList<QPair<QString, EventWidget::EditorField> > EventWidget::getFields() {
             fields.append(QPair<QString, EditorField>(tr("Duration"), NoteEventDuration));
             fields.append(QPair<QString, EditorField>(tr("Note"), MidiEventNote));
             fields.append(QPair<QString, EditorField>(tr("Velocity"), NoteEventVelocity));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
 
         case PitchBendEventType: {
             fields.append(QPair<QString, EditorField>(tr("Value"), MidiEventValue));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
         case ProgramChangeEventType: {
             fields.append(QPair<QString, EditorField>(tr("Program"), ProgramChangeProgram));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             fields.append(QPair<QString, EditorField>(tr("Channel"), MidiEventChannel));
             break;
         }
         case SystemExclusiveEventType: {
             fields.append(QPair<QString, EditorField>(tr("Data"), MidiEventData));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
         case TempoChangeEventType: {
             fields.append(QPair<QString, EditorField>(tr("Tempo"), MidiEventValue));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
         case TextEventType: {
             fields.append(QPair<QString, EditorField>(tr("Type"), TextType));
             fields.append(QPair<QString, EditorField>(tr("Text"), TextText));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
         case TimeSignatureEventType: {
             fields.append(QPair<QString, EditorField>(tr("Numerator"), TimeSignatureNum));
             fields.append(QPair<QString, EditorField>(tr("Denominator"), TimeSignatureDenom));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
         case UnknownEventType: {
             fields.append(QPair<QString, EditorField>(tr("Type"), UnknownType));
             fields.append(QPair<QString, EditorField>(tr("Data"), MidiEventData));
+            fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
             break;
         }
     }
-    fields.append(QPair<QString, EditorField>(tr("Track"), MidiEventTrack));
     return fields;
 }
 
@@ -998,7 +1019,13 @@ QVariant EventWidget::fieldContent(EditorField field) {
             if (channel < 0) {
                 return QVariant("");
             }
-            return QVariant(channel);
+            QString instName;
+            if (channel == 9) {
+                instName = tr("Percussion");
+            } else {
+                instName = MidiFile::instrumentName(_file->channel(channel)->progAtTick(0));
+            }
+            return QVariant(tr("Channel %1: %2").arg(channel).arg(instName));
         }
 
         case MidiEventValue: {

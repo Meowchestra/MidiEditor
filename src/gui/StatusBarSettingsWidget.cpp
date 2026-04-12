@@ -22,10 +22,17 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     _offsetSpin = new QSpinBox(this);
     _offsetSpin->setRange(0, 1000);
     _offsetSpin->setSuffix(tr(" px"));
+    _offsetSpin->setFixedWidth(85);
 
     _separatorStyleCombo = new QComboBox(this);
     _separatorStyleCombo->addItem(tr("Spaced"), 0);
     _separatorStyleCombo->addItem(tr("Pipe  |"), 1);
+
+    _separatorSpacingSpin = new QSpinBox(this);
+    _separatorSpacingSpin->setRange(3, 99);
+    _separatorSpacingSpin->setSingleStep(2);
+    _separatorSpacingSpin->setSuffix(tr(" sp"));
+    _separatorSpacingSpin->setFixedWidth(85);
 
     QHBoxLayout *alignLayout = new QHBoxLayout();
     alignLayout->setContentsMargins(0, 0, 0, 0);
@@ -34,6 +41,7 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     alignLayout->addWidget(_offsetSpin);
     alignLayout->addWidget(new QLabel(tr("Separator:")));
     alignLayout->addWidget(_separatorStyleCombo);
+    alignLayout->addWidget(_separatorSpacingSpin);
     alignLayout->addStretch();
 
     layout->addRow(_showStatusBar, alignLayout);
@@ -41,7 +49,14 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     layout->addRow(separator());
 
     _showTrackChannel = new QCheckBox(tr("Show Track / Channel Info"), this);
-    layout->addRow(_showTrackChannel);
+    
+    _trackChannelModeCombo = new QComboBox(this);
+    _trackChannelModeCombo->addItem(tr("Track Name + Channel Instrument"), 0);
+    _trackChannelModeCombo->addItem(tr("Track Name Only"), 1);
+    _trackChannelModeCombo->addItem(tr("Channel Instrument Only"), 2);
+    _trackChannelModeCombo->addItem(tr("Numbers Only"), 3);
+
+    layout->addRow(_showTrackChannel, _trackChannelModeCombo);
 
     _showNoteName = new QCheckBox(tr("Show Note Info (Name / Count)"), this);
     layout->addRow(_showNoteName);
@@ -76,7 +91,9 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     _alignmentCombo->setCurrentIndex(settings.value("alignment", 0).toInt());
     _offsetSpin->setValue(settings.value("offset", 0).toInt());
     _separatorStyleCombo->setCurrentIndex(settings.value("separator_style", 0).toInt());
+    _separatorSpacingSpin->setValue(settings.value("separator_spacing", 7).toInt());
     _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
+    _trackChannelModeCombo->setCurrentIndex(settings.value("track_channel_mode", 0).toInt());
     _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
     _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());
     _showChordName->setChecked(settings.value("show_chord_name", true).toBool());
@@ -89,7 +106,9 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     connect(_alignmentCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(notifyChanged()));
     connect(_offsetSpin, SIGNAL(valueChanged(int)), this, SLOT(notifyChanged()));
     connect(_separatorStyleCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(notifyChanged()));
+    connect(_separatorSpacingSpin, SIGNAL(valueChanged(int)), this, SLOT(notifyChanged()));
     connect(_showTrackChannel, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
+    connect(_trackChannelModeCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(notifyChanged()));
     connect(_showNoteName, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
     connect(_showNoteRange, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
     connect(_showChordName, SIGNAL(toggled(bool)), this, SLOT(notifyChanged()));
@@ -107,7 +126,9 @@ void StatusBarSettingsWidget::notifyChanged() {
     settings.setValue("alignment", _alignmentCombo->currentIndex());
     settings.setValue("offset", _offsetSpin->value());
     settings.setValue("separator_style", _separatorStyleCombo->currentIndex());
+    settings.setValue("separator_spacing", _separatorSpacingSpin->value());
     settings.setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings.setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
     settings.setValue("show_note_name", _showNoteName->isChecked());
     settings.setValue("show_note_range", _showNoteRange->isChecked());
     settings.setValue("show_chord_name", _showChordName->isChecked());
@@ -131,7 +152,9 @@ bool StatusBarSettingsWidget::accept() {
     settings.setValue("alignment", _alignmentCombo->currentIndex());
     settings.setValue("offset", _offsetSpin->value());
     settings.setValue("separator_style", _separatorStyleCombo->currentIndex());
+    settings.setValue("separator_spacing", _separatorSpacingSpin->value());
     settings.setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings.setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
     settings.setValue("show_note_name", _showNoteName->isChecked());
     settings.setValue("show_note_range", _showNoteRange->isChecked());
     settings.setValue("show_chord_name", _showChordName->isChecked());
