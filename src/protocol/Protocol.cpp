@@ -86,6 +86,7 @@ void Protocol::redo(bool emitChanged) {
 
 void Protocol::startNewAction(QString description, QImage *img) {
     // When there is a new Action started the redoStack has to be cleared
+    qDeleteAll(*_redoSteps);
     _redoSteps->clear();
 
     // Any old Action is ended

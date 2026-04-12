@@ -29,6 +29,7 @@ ProtocolStep::ProtocolStep(QString description, QImage *img) {
 }
 
 ProtocolStep::~ProtocolStep() {
+    qDeleteAll(*_itemStack);
     delete _itemStack;
 }
 
@@ -44,6 +45,7 @@ ProtocolStep *ProtocolStep::releaseStep() {
     while (!_itemStack->isEmpty()) {
         ProtocolItem *item = _itemStack->pop();
         step->addItem(item->release());
+        delete item;
     }
     return step;
 }

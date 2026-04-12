@@ -498,7 +498,7 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
             }
         }
         for (MidiEvent *ev : toRemove) {
-            channel->removeEvent(ev, false);
+            channel->removeEvent(ev);
         }
     }
 
@@ -593,7 +593,7 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
 
                 // Move the event to its determined target channel
                 if (info.originalCh != targetChForThisEvent) {
-                    info.ev->moveToChannel(targetChForThisEvent, false);
+                    info.ev->moveToChannel(targetChForThisEvent);
                     // Ensure the target channel has an owner track (for guitars)
                     if (!channelToOwnerTrack.contains(targetChForThisEvent)) {
                         channelToOwnerTrack[targetChForThisEvent] = track;
