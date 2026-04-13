@@ -5,6 +5,36 @@ A more complete list of all noteworthly changes can be found on the releases pag
 https://github.com/Meowchestra/MidiEditor/releases
 
 
+## [4.4.1] - 2026-04-12
+
+<details>
+<summary>Summary</summary>
+
+* Implemented Game Support Option - Use FFXIV Instrument Names.
+  - Sets custom instrument names in the Instruments settings (overriding channel instrument names) to match with instrument names used by FFXIV.
+* Implemented Status Bar customization options for align direction, offset, separator type, and spacing size.
+* Status Bar "Show Track / Channel Info" section now displays the instrument name alongside the channel number, matching track number including track name. Info section Track Name / Channel Instrument display is fully customizable if you do not wish to show the full details.
+* Status Bar no longer merges note & event types together as note count if both were in a selection.
+* SoundFonts downloader now includes source info buttons hyperlinking to soundfont source / download mirror so you can read more about that specific soundfont.
+* Updated SoundFonts - SGM Pro 12, Microsoft GS Wavetable Synth, Final Fantasy XIV (Standard / Sample Range).
+* Expanded Chord Detector to cover a wider range of chord types & chord root note.
+* Fixed Standard Tool & Select Events (Box) tool not unselecting events if a modifier key is held. Holding Ctrl or Shift while making a box selection will now properly toggle selection state based on if the event is already selected or not, matching the newer behavior of Select Events (Single) tool.
+* Constrained Cursor to Measure Timeline to prevent it from stretching into marker row if shown.
+* Extended Color Support to 17 tracks. 
+_Appearance color customization only had 16 tracks shown while there were 17 actual channels (16 note channels + 1 general event/meta channel). Track 0 is commonly used as a system/meta track for things like Tempo & Time/Key Signature events (which is why its color matches General Events channel). This change now allows for the full complete color preset list in both Tracks & Channels before repeating._
+* Numerous fixes and improvements to Smooth Playback Scrolling rendering performance, locked screen toggle jumping, elastic catch-up and forward timeline page turning.
+* Numerous fixes and improvements to FFXIV Channel Fixer.
+* Guard against infinite recursion during event loading fallback & small protocol memory leak improvement.
+* Small fix to GuitarPro importer.
+* More UI cleanup.
+  - Reordered Track operations before Channel in Edit / View / Playback, Appearance settings, context menu, & event widget property order to follow Track -> Channel display order used by Tracks/Channel widget, Status Bar display, & Add new events to... section.
+  - Removed redundant text in Add new events section.
+  - Various cleanup everywhere to use "Track #: Name" / "Channel #: Instrument" instead of abbreviated numbers or missing info.
+  - Renamed Percussion to Channel 9 and description "Drums and percussion events" to just Percussion to match with other Channel # / Instrument labeling.
+  - Event widget channel selection is now a dropdown instead of a number box to match track selection.
+
+</details>
+
 ## [4.4.0] - 2026-04-07
 
 <details>

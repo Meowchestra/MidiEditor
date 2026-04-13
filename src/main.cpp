@@ -197,7 +197,7 @@ int main(int argc, char *argv[]) {
         qDebug() << "Skipping OpenGL initialization - using software rendering";
     }
 
-    a.setApplicationVersion("4.4.0");
+    a.setApplicationVersion("4.4.1");
     a.setApplicationName("MeowMidiEditor");
     a.setQuitOnLastWindowClosed(true);
 
