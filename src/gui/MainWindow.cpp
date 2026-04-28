@@ -673,7 +673,9 @@ MainWindow::MainWindow(QString initFile)
     loadInitFile();
 
     // Check for updates silently on startup
-    QTimer::singleShot(2000, this, [this](){ checkForUpdates(true); });
+    if (_settings->value("updater/check_on_startup", true).toBool()) {
+        QTimer::singleShot(2000, this, [this](){ checkForUpdates(true); });
+    }
 
     // Initialize status bar visibility from settings (default off)
     bool showStatusBar = _settings->value("status_bar/visible", true).toBool();

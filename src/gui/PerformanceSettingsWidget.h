@@ -232,6 +232,14 @@ private:
 
     /** \brief Checkbox for unlocking widget minimum sizes */
     QCheckBox *_unlockWidgetSizes;
+
+    // === Updater Controls ===
+
+    /** \brief Group box for updater settings */
+    QGroupBox *_updaterGroup;
+
+    /** \brief Checkbox for checking updates on startup */
+    QCheckBox *_checkUpdatesOnStartup;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H_

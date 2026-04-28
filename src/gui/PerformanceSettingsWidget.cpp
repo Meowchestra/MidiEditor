@@ -41,13 +41,28 @@ void PerformanceSettingsWidget::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
     setLayout(mainLayout);
 
+    // Updater Group
+    _updaterGroup = new QGroupBox(tr("Updates"), this);
+    QGridLayout *updaterLayout = new QGridLayout(_updaterGroup);
+
+    _checkUpdatesOnStartup = new QCheckBox(tr("Check for Updates at Startup"), this);
+    _checkUpdatesOnStartup->setToolTip(tr("Automatically check for new versions when the application starts."));
+    updaterLayout->addWidget(_checkUpdatesOnStartup, 0, 0, 1, 2);
+
+    QLabel *updaterDesc = new QLabel(tr("If unchecked, disables network requests to GitHub API on startup."), this);
+    updaterDesc->setWordWrap(true);
+    updaterDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
+    updaterLayout->addWidget(updaterDesc, 1, 0, 1, 2);
+
+    mainLayout->addWidget(_updaterGroup);
+
     // High DPI Scaling Group
     QGroupBox *scalingGroup = new QGroupBox(tr("High DPI Scaling"), this);
     QGridLayout *scalingLayout = new QGridLayout(scalingGroup);
 
     _ignoreSystemUIScaling = new QCheckBox(tr("Ignore System UI Scaling"), this);
     _ignoreSystemUIScaling->setChecked(Appearance::ignoreSystemScaling());
-    _ignoreSystemUIScaling->setToolTip(tr("Disable high DPI scaling for UI elements"));
+    _ignoreSystemUIScaling->setToolTip(tr("Disable high DPI scaling for UI elements."));
     connect(_ignoreSystemUIScaling, &QCheckBox::toggled, this, &PerformanceSettingsWidget::ignoreScalingChanged);
     scalingLayout->addWidget(_ignoreSystemUIScaling, 0, 0, 1, 2);
 
@@ -123,7 +138,7 @@ void PerformanceSettingsWidget::setupUI() {
     accelLayout->addWidget(_enableHardwareAcceleration, 0, 0, 1, 2);
 
     // Description right below the hardware acceleration checkbox
-    QLabel *accelDesc = new QLabel(tr("GPU acceleration uses direct OpenGL widgets for maximum performance.\nChanges apply on restart."), this);
+    QLabel *accelDesc = new QLabel(tr("GPU acceleration uses direct OpenGL widgets for enhanced performance.\nChanges apply on restart."), this);
     accelDesc->setWordWrap(true);
     accelDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     accelLayout->addWidget(accelDesc, 1, 0, 1, 2);
@@ -176,6 +191,9 @@ void PerformanceSettingsWidget::loadSettings() {
     // Set loading flag to prevent change events during initialization
     _isLoading = true;
 
+    // Load updater settings
+    _checkUpdatesOnStartup->setChecked(_settings->value("updater/check_on_startup", true).toBool());
+
     // Load rendering quality settings (default to high quality)
     _enableAntialiasing->setChecked(_settings->value("rendering/antialiasing", true).toBool());
     _enableSmoothPixmapTransform->setChecked(_settings->value("rendering/smooth_pixmap_transform", true).toBool());
@@ -209,6 +227,9 @@ void PerformanceSettingsWidget::loadSettings() {
 }
 
 bool PerformanceSettingsWidget::accept() {
+    // Save updater settings
+    _settings->setValue("updater/check_on_startup", _checkUpdatesOnStartup->isChecked());
+
     // Save rendering quality settings
     _settings->setValue("rendering/antialiasing", _enableAntialiasing->isChecked());
     _settings->setValue("rendering/smooth_pixmap_transform", _enableSmoothPixmapTransform->isChecked());
@@ -376,6 +397,9 @@ void PerformanceSettingsWidget::widgetSizeUnlockChanged(bool enabled) {
 }
 
 void PerformanceSettingsWidget::resetToDefaults() {
+    // Updater defaults
+    _checkUpdatesOnStartup->setChecked(true);
+
     // Rendering quality defaults
     _enableAntialiasing->setChecked(true);
     _enableSmoothPixmapTransform->setChecked(true);
