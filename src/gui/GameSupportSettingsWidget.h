@@ -26,6 +26,7 @@
 class QSettings;
 class QCheckBox;
 class QGroupBox;
+class QComboBox;
 
 /**
  * \class GameSupportSettingsWidget
@@ -92,6 +93,8 @@ signals:
 private slots:
     void onFFXIVBoxToggled(bool checked);
     void onFFXIVInstrumentNamesToggled(bool checked);
+    void onFFXIVCondenseInstrumentsToggled(bool checked);
+    void onFFXIVSortMethodChanged(int index);
 
 private:
     void applyFFXIVInstrumentNames(bool enable);
@@ -107,6 +110,10 @@ private:
 
     /** \brief FFXIV instrument names checkbox */
     QCheckBox *_ffxivInstrumentNamesBox;
+
+    /** \brief FFXIV condense instrument selection checkbox */
+    QCheckBox *_ffxivCondenseInstrumentsBox;
+    QComboBox *_ffxivSortMethodBox;
 };
 
 #endif // GAMESUPPORTSETTINGSWIDGET_H_

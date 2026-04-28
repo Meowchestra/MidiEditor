@@ -161,6 +161,12 @@ public:
      */
     void setActionShortcuts(const QString &actionId, const QList<QKeySequence> &seqs);
 
+    /**
+     * \brief Gets the application settings.
+     * \return Pointer to the QSettings object
+     */
+    QSettings *settings() { return _settings; }
+
 protected:
     /**
      * \brief Handles file drop events for drag-and-drop file loading.

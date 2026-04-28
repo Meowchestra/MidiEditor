@@ -175,6 +175,28 @@ QStringList FFXIVChannelFixer::allInstrumentNames() {
     };
 }
 
+QList<int> FFXIVChannelFixer::ffxivInstrumentOrder() {
+    return {
+        46, 0, 25, 45,      // Chordophones: Harp, Piano, Lute, Fiddle
+        73, 68, 71, 72, 75, // Woodwinds: Flute, Oboe, Clarinet, Fife, Panpipes
+        47, 96, 97, 98, 99, // Percussion: Timpani, Bongo, Bass Drum, Snare Drum, Cymbal
+        56, 57, 58, 60, 65, // Brass: Trumpet, Trombone, Tuba, Horn, Saxophone
+        40, 41, 42, 43,     // Strings: Violin, Viola, Cello, Double Bass
+        29, 27, 28, 30, 31  // Guitars: Overdriven, Clean, Muted, Power Chords, Special
+    };
+}
+
+QList<FFXIVChannelFixer::InstrumentGroup> FFXIVChannelFixer::ffxivInstrumentGroups() {
+    return {
+        { tr("Chordophones"), {46, 0, 25, 45} },
+        { tr("Woodwinds"),    {73, 68, 71, 72, 75} },
+        { tr("Percussion"),   {47, 96, 97, 98, 99} },
+        { tr("Brass"),        {56, 57, 58, 60, 65} },
+        { tr("Strings"),      {40, 41, 42, 43} },
+        { tr("Guitars"),      {29, 27, 28, 30, 31} }
+    };
+}
+
 // ---------------------------------------------------------------------------
 // analyzeFile — read-only scan for Tier detection
 // ---------------------------------------------------------------------------

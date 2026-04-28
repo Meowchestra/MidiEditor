@@ -45,11 +45,11 @@ void PerformanceSettingsWidget::setupUI() {
     _updaterGroup = new QGroupBox(tr("Updates"), this);
     QGridLayout *updaterLayout = new QGridLayout(_updaterGroup);
 
-    _checkUpdatesOnStartup = new QCheckBox(tr("Check for Updates at Startup"), this);
+    _checkUpdatesOnStartup = new QCheckBox(tr("Check for Updates on Startup"), this);
     _checkUpdatesOnStartup->setToolTip(tr("Automatically check for new versions when the application starts."));
     updaterLayout->addWidget(_checkUpdatesOnStartup, 0, 0, 1, 2);
 
-    QLabel *updaterDesc = new QLabel(tr("If unchecked, disables network requests to GitHub API on startup."), this);
+    QLabel *updaterDesc = new QLabel(tr("Makes network requests to GitHub API on startup to check for new versions automatically."), this);
     updaterDesc->setWordWrap(true);
     updaterDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     updaterLayout->addWidget(updaterDesc, 1, 0, 1, 2);

@@ -20,6 +20,7 @@
 #include "Appearance.h"
 
 #include <QCheckBox>
+#include <QComboBox>
 #include <QGroupBox>
 #include <QLabel>
 #include <QVBoxLayout>
@@ -42,13 +43,13 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
 
     _ffxivEnabledBox = new QCheckBox(tr("Enable Channel Fixer"), _ffxivGroup);
     _ffxivEnabledBox->setChecked(_settings->value("game_support/ffxiv_enabled", false).toBool());
-    _ffxivEnabledBox->setToolTip(tr("Adds FFXIV-specific tools to the Tracks and Channels panels."));
+    _ffxivEnabledBox->setToolTip(tr("Adds FFXIV-specific tools to the Tracks & Channels panels."));
     connect(_ffxivEnabledBox, SIGNAL(toggled(bool)), this, SLOT(onFFXIVBoxToggled(bool)));
     ffxivLayout->addWidget(_ffxivEnabledBox, 0, 0, 1, 2);
 
     QLabel *ffxivDesc = new QLabel(
         tr("When enabled, a <b>Fix XIV Channels</b> button appears in the "
-           "Tracks and Channels widgets. This automatically assigns each track "
+           "Tracks & Channels widgets. This automatically assigns each track "
            "to the correct MIDI channel and sets program-change events based on "
            "the track's instrument name so FFXIV soundfonts play back correctly.<br><br>"
            "Supported instruments (including common aliases): Harp, Piano, Lute, "
@@ -80,6 +81,32 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
     instrNamesDesc->setWordWrap(true);
     instrNamesDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     ffxivLayout->addWidget(instrNamesDesc, 3, 0, 1, 2);
+    
+    QHBoxLayout *CondenseRow = new QHBoxLayout();
+    _ffxivCondenseInstrumentsBox = new QCheckBox(tr("Condense Instrument Selection"), _ffxivGroup);
+    _ffxivCondenseInstrumentsBox->setChecked(_settings->value("game_support/ffxiv_condense_instruments", false).toBool());
+    _ffxivCondenseInstrumentsBox->setToolTip(tr("When enabled, instrument selection is condensed to the subset used by FFXIV."));
+    connect(_ffxivCondenseInstrumentsBox, SIGNAL(toggled(bool)), this, SLOT(onFFXIVCondenseInstrumentsToggled(bool)));
+    CondenseRow->addWidget(_ffxivCondenseInstrumentsBox);
+
+    _ffxivSortMethodBox = new QComboBox(_ffxivGroup);
+    _ffxivSortMethodBox->addItem(tr("Numeric Order"), 0);
+    _ffxivSortMethodBox->addItem(tr("Group Order"), 1);
+    int sortMethod = _settings->value("game_support/ffxiv_instrument_sort_method", 0).toInt();
+    _ffxivSortMethodBox->setCurrentIndex(_ffxivSortMethodBox->findData(sortMethod));
+    _ffxivSortMethodBox->setToolTip(tr("Choose how the condensed instrument list is sorted."));
+    connect(_ffxivSortMethodBox, SIGNAL(currentIndexChanged(int)), this, SLOT(onFFXIVSortMethodChanged(int)));
+    CondenseRow->addWidget(_ffxivSortMethodBox);
+    CondenseRow->addStretch();
+    ffxivLayout->addLayout(CondenseRow, 4, 0, 1, 2);
+
+    QLabel *CondenseDesc = new QLabel(
+        tr("Limits instrument selection in Channels & Event widgets to only supported instruments used by FFXIV."),
+        _ffxivGroup);
+    CondenseDesc->setTextFormat(Qt::RichText);
+    CondenseDesc->setWordWrap(true);
+    CondenseDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
+    ffxivLayout->addWidget(CondenseDesc, 5, 0, 1, 2);
 
     mainLayout->addWidget(_ffxivGroup);
     mainLayout->addStretch();
@@ -96,6 +123,18 @@ void GameSupportSettingsWidget::onFFXIVInstrumentNamesToggled(bool checked) {
     _settings->setValue("game_support/ffxiv_instrument_names", checked);
     applyFFXIVInstrumentNames(checked);
     emit instrumentNamesChanged();
+}
+
+void GameSupportSettingsWidget::onFFXIVCondenseInstrumentsToggled(bool checked) {
+    _settings->setValue("game_support/ffxiv_condense_instruments", checked);
+    _settings->sync();
+    emit instrumentNamesChanged();
+}
+
+void GameSupportSettingsWidget::onFFXIVSortMethodChanged(int index) {
+    int method = _ffxivSortMethodBox->itemData(index).toInt();
+    _settings->setValue("game_support/ffxiv_instrument_sort_method", method);
+    _settings->sync();
 }
 
 void GameSupportSettingsWidget::applyFFXIVInstrumentNames(bool enable) {
@@ -164,6 +203,10 @@ bool GameSupportSettingsWidget::accept() {
         _settings->setValue("game_support/ffxiv_enabled", newValue);
         emit settingsChanged();
     }
+    
+    _settings->setValue("game_support/ffxiv_condense_instruments", _ffxivCondenseInstrumentsBox->isChecked());
+    _settings->setValue("game_support/ffxiv_instrument_sort_method", _ffxivSortMethodBox->currentData().toInt());
+    _settings->sync();
 
     return true;
 }

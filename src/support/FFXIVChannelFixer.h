@@ -93,6 +93,25 @@ public:
     static QStringList allInstrumentNames();
 
     /**
+     * \brief Get the FFXIV instrument program numbers in game-order.
+     * \return List of program numbers (0-127)
+     */
+    static QList<int> ffxivInstrumentOrder();
+
+    /**
+     * \brief Represents a group of FFXIV instruments.
+     */
+    struct InstrumentGroup {
+        QString name;
+        QList<int> programs;
+    };
+
+    /**
+     * \brief Get the FFXIV instruments grouped by category.
+     */
+    static QList<InstrumentGroup> ffxivInstrumentGroups();
+
+    /**
      * \brief Analyse the file without modifying it.
      * \param file  The loaded MidiFile
      * \return JSON with trackCount, ffxivTrackCount, instrument list, etc.

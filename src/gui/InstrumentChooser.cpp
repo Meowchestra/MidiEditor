@@ -34,6 +34,10 @@
 #include "../midi/MidiChannel.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
+#include "../support/FFXIVChannelFixer.h"
+#include <algorithm>
+#include <QSettings>
+#include <QStandardItem>
 
 class InstrumentChooserDelegate : public QStyledItemDelegate {
 public:
@@ -64,10 +68,16 @@ public:
     }
 };
 
-InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
+InstrumentChooser::InstrumentChooser(MidiFile *file, int channel, QSettings *settings, QWidget *parent)
     : QDialog(parent) {
-    _file = f;
+    _file = file;
     _channel = channel;
+    _settings = settings;
+    
+    // Fallback if settings pointer is null
+    if (!_settings) {
+        _settings = new QSettings("MidiEditor", "NONE", this);
+    }
 
     setWindowTitle(tr("Channel Instrument"));
     QLabel *starttext = new QLabel(tr("Choose Instrument for Channel ") + QString::number(channel), this);
@@ -76,10 +86,67 @@ InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
     _box = new QComboBox(this);
     _box->setEditable(false);
     _box->setItemDelegate(new InstrumentChooserDelegate(_box));
-    for (int i = 0; i < 128; i++) {
-        _box->addItem(MidiFile::instrumentName(i), QString("[%1]").arg(i, 3, 10, QChar('0')));
+    
+    bool condense = _settings->value("game_support/ffxiv_condense_instruments", false).toBool();
+    int currentProgram = _file->channel(_channel)->progAtTick(0);
+
+    if (condense) {
+        QStringList ffxivNames = FFXIVChannelFixer::allInstrumentNames();
+        QSet<int> ffxivProgs;
+        for (const QString &name : ffxivNames) {
+            int p = FFXIVChannelFixer::programForInstrument(name);
+            if (p >= 0) ffxivProgs.insert(p);
+        }
+
+        int sortMethod = _settings->value("game_support/ffxiv_instrument_sort_method", 0).toInt();
+        if (sortMethod == 1) {
+            // FFXIV Group Sort - with group headers
+            QList<FFXIVChannelFixer::InstrumentGroup> groups = FFXIVChannelFixer::ffxivInstrumentGroups();
+            for (const auto &group : groups) {
+                // Add group header
+                _box->addItem("--- " + group.name + " ---");
+                int headerIndex = _box->count() - 1;
+                _box->setItemData(headerIndex, -1, Qt::UserRole + 1); // Mark as header
+                
+                // Make header look bold
+                QStandardItemModel *model = qobject_cast<QStandardItemModel*>(_box->model());
+                if (model) {
+                    QStandardItem *item = model->item(headerIndex);
+                    if (item) {
+                        item->setEnabled(false);
+                        QFont font = item->font();
+                        font.setBold(true);
+                        item->setFont(font);
+                    }
+                }
+
+                for (int p : group.programs) {
+                    _box->addItem(MidiFile::instrumentName(p), QString("[%1]").arg(p, 3, 10, QChar('0')));
+                    _box->setItemData(_box->count() - 1, p, Qt::UserRole + 1);
+                    if (p == currentProgram) {
+                        _box->setCurrentIndex(_box->count() - 1);
+                    }
+                }
+            }
+        } else {
+            // Numeric Sort
+            QList<int> sortedProgs = ffxivProgs.values();
+            std::sort(sortedProgs.begin(), sortedProgs.end());
+            for (int p : sortedProgs) {
+                _box->addItem(MidiFile::instrumentName(p), QString("[%1]").arg(p, 3, 10, QChar('0')));
+                _box->setItemData(_box->count() - 1, p, Qt::UserRole + 1);
+                if (p == currentProgram) {
+                    _box->setCurrentIndex(_box->count() - 1);
+                }
+            }
+        }
+    } else {
+        for (int i = 0; i < 128; i++) {
+            _box->addItem(MidiFile::instrumentName(i), QString("[%1]").arg(i, 3, 10, QChar('0')));
+            _box->setItemData(i, i, Qt::UserRole + 1);
+        }
+        _box->setCurrentIndex(currentProgram);
     }
-    _box->setCurrentIndex(_file->channel(_channel)->progAtTick(0));
 
     QLabel *endText = new QLabel(tr("<b>Warning:</b> this will edit the event at tick 0 of the file."
         "<br>If there is a Program Change Event after this tick,"
@@ -106,7 +173,7 @@ InstrumentChooser::InstrumentChooser(MidiFile *f, int channel, QWidget *parent)
 }
 
 void InstrumentChooser::accept() {
-    int program = _box->currentIndex();
+    int program = _box->itemData(_box->currentIndex(), Qt::UserRole + 1).toInt();
     bool removeOthers = _removeOthers->isChecked();
     MidiTrack *track = 0;
 

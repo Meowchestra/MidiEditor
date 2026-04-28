@@ -21,6 +21,7 @@
 
 // Qt includes
 #include <QDialog>
+#include <QSettings>
 
 // Forward declarations
 class MidiFile;
@@ -52,9 +53,10 @@ public:
      * \brief Creates a new InstrumentChooser.
      * \param f The MidiFile to add the program change to
      * \param channel The MIDI channel to set the instrument for
+     * \param settings The settings object
      * \param parent The parent widget
      */
-    InstrumentChooser(MidiFile *f, int channel, QWidget *parent = 0);
+    InstrumentChooser(MidiFile *f, int channel, QSettings *settings, QWidget *parent = 0);
 
 public slots:
     /**
@@ -74,6 +76,9 @@ private:
 
     /** \brief The MIDI channel number */
     int _channel;
+
+    /** \brief The settings object */
+    QSettings *_settings;
 };
 
 #endif // INSTRUMENTCHOOSER_H_

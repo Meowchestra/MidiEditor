@@ -22,6 +22,7 @@
 // Qt includes
 #include <QStyledItemDelegate>
 #include <QTableWidget>
+#include <QSettings>
 
 // Forward declarations
 class MidiEvent;
@@ -235,6 +236,18 @@ public:
      */
     void reportSelectionChangedByTool();
 
+    /**
+     * \brief Sets the application settings.
+     * \param settings Pointer to the QSettings object
+     */
+    void setSettings(QSettings *settings) { _settings = settings; }
+
+    /**
+     * \brief Gets the application settings.
+     * \return Pointer to the QSettings object
+     */
+    QSettings *settings() const { return _settings; }
+
 public slots:
     /**
      * \brief Reloads the event data and updates the display.
@@ -281,6 +294,9 @@ private:
 
     /** \brief The associated MIDI file */
     MidiFile *_file;
+
+    /** \brief The application settings */
+    QSettings *_settings;
 };
 
 #endif // EVENTWIDGET_H_

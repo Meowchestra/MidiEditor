@@ -25,6 +25,8 @@
 #include <QMessageBox>
 #include <QSpinBox>
 #include <QTextEdit>
+#include <QStandardItem>
+#include <algorithm>
 
 #include "../MidiEvent/MidiEvent.h"
 #include "../midi/MidiChannel.h"
@@ -45,6 +47,10 @@
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
 #include "../MidiEvent/UnknownEvent.h"
+#include "../support/FFXIVChannelFixer.h"
+
+#include <QSettings>
+#include <QtMath>
 
 #include "DataEditor.h"
 
@@ -248,11 +254,71 @@ void EventWidgetDelegate::setEditorData(QWidget *editor, const QModelIndex &inde
         case EventWidget::ProgramChangeProgram: {
             QComboBox *box = dynamic_cast<QComboBox *>(editor);
             int current = 0;
-            for (int i = 0; i < 128; i++) {
-                QString text = QString::number(i) + ": " + MidiFile::instrumentName(i);
-                box->addItem(text);
-                if (!text.compare(index.data().toString())) {
-                    current = i;
+            
+            QSettings *settings = eventWidget->settings();
+            bool condense = settings ? settings->value("game_support/ffxiv_condense_instruments", false).toBool() : false;
+            
+            if (condense) {
+                QStringList ffxivNames = FFXIVChannelFixer::allInstrumentNames();
+                QSet<int> ffxivProgs;
+                for (const QString &name : ffxivNames) {
+                    int p = FFXIVChannelFixer::programForInstrument(name);
+                    if (p >= 0) ffxivProgs.insert(p);
+                }
+                
+                int sortMethod = settings->value("game_support/ffxiv_instrument_sort_method", 0).toInt();
+                if (sortMethod == 1) {
+                    // FFXIV Group Sort - with group headers
+                    QList<FFXIVChannelFixer::InstrumentGroup> groups = FFXIVChannelFixer::ffxivInstrumentGroups();
+                    for (const auto &group : groups) {
+                        // Add group header
+                        box->addItem("--- " + group.name + " ---");
+                        int headerIndex = box->count() - 1;
+                        box->setItemData(headerIndex, -1, Qt::UserRole + 1); // Mark as header
+                        
+                        // Make header look bold
+                        QStandardItemModel *model = qobject_cast<QStandardItemModel*>(box->model());
+                        if (model) {
+                            QStandardItem *item = model->item(headerIndex);
+                            if (item) {
+                                item->setEnabled(false);
+                                QFont font = item->font();
+                                font.setBold(true);
+                                item->setFont(font);
+                            }
+                        }
+
+                        for (int p : group.programs) {
+                            QString text = QString::number(p) + ": " + MidiFile::instrumentName(p);
+                            box->addItem(text);
+                            box->setItemData(box->count() - 1, p, Qt::UserRole + 1);
+                            if (!text.compare(index.data().toString())) {
+                                current = box->count() - 1;
+                            }
+                        }
+                    }
+                } else {
+                    // Numeric Sort
+                    QList<int> sortedProgs = ffxivProgs.values();
+                    std::sort(sortedProgs.begin(), sortedProgs.end());
+                    
+                    for (int p : sortedProgs) {
+                        QString text = QString::number(p) + ": " + MidiFile::instrumentName(p);
+                        box->addItem(text);
+                        box->setItemData(box->count() - 1, p, Qt::UserRole + 1);
+                        if (!text.compare(index.data().toString())) {
+                            current = box->count() - 1;
+                        }
+                    }
+                }
+            } else {
+                for (int i = 0; i < 128; i++) {
+                    QString text = QString::number(i) + ": " + MidiFile::instrumentName(i);
+                    box->addItem(text);
+                    box->setItemData(i, i, Qt::UserRole + 1);
+                    if (!text.compare(index.data().toString())) {
+                        current = i;
+                    }
                 }
             }
             box->setCurrentIndex(current);
@@ -460,10 +526,11 @@ void EventWidgetDelegate::setModelData(QWidget *editor, QAbstractItemModel *mode
         }
         case EventWidget::ProgramChangeProgram: {
             QComboBox *box = dynamic_cast<QComboBox *>(editor);
+            int program = box->itemData(box->currentIndex(), Qt::UserRole + 1).toInt();
             foreach(MidiEvent* event, eventWidget->events()) {
                 ProgChangeEvent *c = dynamic_cast<ProgChangeEvent *>(event);
                 if (c) {
-                    c->setProgram(box->currentIndex());
+                    c->setProgram(program);
                 }
             }
             break;
@@ -590,6 +657,7 @@ void EventWidgetDelegate::setModelData(QWidget *editor, QAbstractItemModel *mode
 EventWidget::EventWidget(QWidget *parent)
     : QTableWidget(0, 2, parent) {
     _file = 0;
+    _settings = 0;
 
     QHeaderView *headerView = new QHeaderView(Qt::Horizontal, this);
     setHorizontalHeader(headerView);

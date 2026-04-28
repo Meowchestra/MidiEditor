@@ -582,6 +582,7 @@ MainWindow::MainWindow(QString initFile)
 
     // EventWidget
     _eventWidget = new EventWidget(lowerTabWidget);
+    _eventWidget->setSettings(_settings);
     Selection::_eventWidget = _eventWidget;
     lowerTabWidget->addTab(_eventWidget, tr("Event"));
     MidiEvent::setEventWidget(_eventWidget);
@@ -3182,13 +3183,15 @@ void MainWindow::editTrackAndChannel(MidiTrack *track) {
     }
 }
 
-void MainWindow::setInstrumentForChannel(int i) {
-    InstrumentChooser *d = new InstrumentChooser(file, i, this);
-    d->setModal(true);
-    d->exec();
+void MainWindow::setInstrumentForChannel(int channel) {
+    if (!file)
+        return;
+    InstrumentChooser *chooser = new InstrumentChooser(file, channel, _settings, this);
+    chooser->setModal(true);
+    chooser->exec();
 
-    if (i == NewNoteTool::editChannel()) {
-        editChannel(i);
+    if (channel == NewNoteTool::editChannel()) {
+        editChannel(channel);
     }
     updateChannelMenu();
 }
