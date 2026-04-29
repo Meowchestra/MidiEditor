@@ -11,6 +11,7 @@
 StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     : SettingsWidget(tr("Status Bar"), parent) {
     QFormLayout *layout = new QFormLayout(this);
+    layout->setContentsMargins(10, 10, 10, 10);
     setLayout(layout);
 
     _showStatusBar = new QCheckBox(tr("Show Status Bar"), this);

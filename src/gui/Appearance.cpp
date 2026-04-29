@@ -1047,6 +1047,9 @@ void Appearance::applyStyle() {
     QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
     if (!app) return;
 
+    // Clear stylesheet before setting style to prevent QStyleSheetStyle from interfering with native styles
+    app->setStyleSheet("");
+
     // Apply QWidget style first
     if (QStyleFactory::keys().contains(_applicationStyle, Qt::CaseInsensitive)) {
         app->setStyle(_applicationStyle);

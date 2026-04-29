@@ -122,7 +122,7 @@ LayoutSettingsWidget::LayoutSettingsWidget(QWidget *parent)
 
 void LayoutSettingsWidget::setupUI() {
     QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(10, 5, 10, 10);
+    mainLayout->setContentsMargins(10, 10, 10, 10);
     mainLayout->setSpacing(10);
 
     // Top Row: Toolbar Visibility and Icon Size
