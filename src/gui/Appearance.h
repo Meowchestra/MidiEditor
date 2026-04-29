@@ -130,6 +130,8 @@ public:
         onOctave = 0,  ///< Strips on octave boundaries
         onSharp = 1,   ///< Strips on sharp/flat keys
         onEven = 2,    ///< Strips on even-numbered keys
+        rainbowOctaves = 3, ///< Strips colored by octave
+        rainbowOctavesAlternating = 4, ///< Strips colored by octave with alternating rows
     };
 
     enum MarkerColorMode { ColorByTrack, ColorByChannel };
