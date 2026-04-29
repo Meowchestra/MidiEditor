@@ -134,6 +134,7 @@ MainWindow::MainWindow(QString initFile)
     _moveSelectedEventsToTrackMenu = 0;
     _toolbarWidget = nullptr;
     _updateChecker = nullptr;
+    _settingsDialog = nullptr;
     _silentUpdateCheck = false;
 
     Appearance::init(_settings);
@@ -4366,7 +4367,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     viewMB->addSeparator();
 
-    _statusBarAction = new QAction(tr("Status Bar"), this);
+    _toolbarAction = new QAction(tr("Show Toolbar"), this);
+    _toolbarAction->setCheckable(true);
+    _toolbarAction->setChecked(Appearance::toolbarVisible());
+    connect(_toolbarAction, SIGNAL(toggled(bool)), this, SLOT(toggleToolbar(bool)));
+    viewMB->addAction(_toolbarAction);
+    _actionMap["show_toolbar"] = _toolbarAction;
+
+    _statusBarAction = new QAction(tr("Show Status Bar"), this);
     _statusBarAction->setCheckable(true);
     _statusBarAction->setChecked(_settings->value("status_bar/visible", true).toBool());
     connect(_statusBarAction, SIGNAL(toggled(bool)), this, SLOT(toggleStatusBar(bool)));
@@ -4702,16 +4710,23 @@ void MainWindow::checkForUpdates(bool silent) {
 }
 
 void MainWindow::openConfig() {
-    SettingsDialog *d = new SettingsDialog(tr("Settings"), _settings, this);
-    d->setAttribute(Qt::WA_DeleteOnClose);
-    connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
-    connect(d, &SettingsDialog::settingsChanged, this, &MainWindow::updateGameSupportUI);
+    if (_settingsDialog) {
+        _settingsDialog->reloadSettings();
+        _settingsDialog->show();
+        _settingsDialog->raise();
+        _settingsDialog->activateWindow();
+        return;
+    }
+
+    _settingsDialog = new SettingsDialog(tr("Settings"), _settings, this);
+    connect(_settingsDialog, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
+    connect(_settingsDialog, &SettingsDialog::settingsChanged, this, &MainWindow::updateGameSupportUI);
     // Note: We don't connect settingsChanged() to updateRenderingMode() here because
     // we connect directly to PerformanceSettingsWidget for immediate updates
 
     // Connect to PerformanceSettingsWidget for immediate updates
     // Find the PerformanceSettingsWidget in the dialog and connect to its renderingModeChanged signal
-    QList<PerformanceSettingsWidget*> perfWidgets = d->findChildren<PerformanceSettingsWidget*>();
+    QList<PerformanceSettingsWidget*> perfWidgets = _settingsDialog->findChildren<PerformanceSettingsWidget*>();
     if (!perfWidgets.isEmpty()) {
         PerformanceSettingsWidget *perfWidget = perfWidgets.first();
         connect(perfWidget, &PerformanceSettingsWidget::renderingModeChanged,
@@ -4719,7 +4734,7 @@ void MainWindow::openConfig() {
     }
 
     // Connect to AppearanceSettingsWidget for immediate visual updates
-    QList<AppearanceSettingsWidget*> appearanceWidgets = d->findChildren<AppearanceSettingsWidget*>();
+    QList<AppearanceSettingsWidget*> appearanceWidgets = _settingsDialog->findChildren<AppearanceSettingsWidget*>();
     if (!appearanceWidgets.isEmpty()) {
         AppearanceSettingsWidget *appearanceWidget = appearanceWidgets.first();
         connect(appearanceWidget, &AppearanceSettingsWidget::appearanceChanged,
@@ -4728,7 +4743,7 @@ void MainWindow::openConfig() {
 
     // Connect to StatusBarSettingsWidget for immediate updates
     // Use updateAll to sync visibility, View menu checkbox, and status bar content
-    QList<StatusBarSettingsWidget*> statusBarWidgets = d->findChildren<StatusBarSettingsWidget*>();
+    QList<StatusBarSettingsWidget*> statusBarWidgets = _settingsDialog->findChildren<StatusBarSettingsWidget*>();
     if (!statusBarWidgets.isEmpty()) {
         StatusBarSettingsWidget *statusBarWidget = statusBarWidgets.first();
         connect(statusBarWidget, &StatusBarSettingsWidget::statusBarSettingsChanged,
@@ -4736,14 +4751,14 @@ void MainWindow::openConfig() {
     }
 
     // Connect to GameSupportSettingsWidget for immediate updates
-    QList<GameSupportSettingsWidget*> gameWidgets = d->findChildren<GameSupportSettingsWidget*>();
+    QList<GameSupportSettingsWidget*> gameWidgets = _settingsDialog->findChildren<GameSupportSettingsWidget*>();
     if (!gameWidgets.isEmpty()) {
         GameSupportSettingsWidget *gameWidget = gameWidgets.first();
         connect(gameWidget, &GameSupportSettingsWidget::settingsChanged,
                 this, &MainWindow::updateGameSupportUI);
     }
 
-    d->show();
+    _settingsDialog->show();
 }
 
 void MainWindow::enableMetronome(bool enable) {
@@ -4760,7 +4775,8 @@ void MainWindow::rebuildToolbar() {
             // Remove the old toolbar
             QWidget *parent = _toolbarWidget->parentWidget();
             if (!parent) {
-                return; // No parent, can't rebuild
+                // If the toolbar has no parent, try to find a suitable one or skip
+                return;
             }
 
             _toolbarWidget->setParent(nullptr);
@@ -4772,6 +4788,9 @@ void MainWindow::rebuildToolbar() {
             if (!_toolbarWidget) {
                 return; // Failed to create toolbar
             }
+            
+            // Explicitly set visibility after recreation
+            _toolbarWidget->setVisible(Appearance::toolbarVisible());
 
             // Add it back to the layout
             QGridLayout *layout = qobject_cast<QGridLayout *>(parent->layout());
@@ -5187,6 +5206,9 @@ QWidget *MainWindow::createCustomToolbar(QWidget *parent) {
         btnLayout->setColumnStretch(4, 1);
         btnLayout->addWidget(toolBar, 0, 0, 1, 1);
     }
+
+    // Set visibility from settings
+    buttonBar->setVisible(Appearance::toolbarVisible());
 
     return buttonBar;
 }
@@ -5779,6 +5801,15 @@ void MainWindow::updateAll() {
         }
         updateStatusBar(); // Refresh content if visible
     }
+
+    // Update toolbar visibility from settings
+    if (_toolbarWidget) {
+        bool showToolbar = Appearance::toolbarVisible();
+        _toolbarWidget->setVisible(showToolbar);
+        if (_toolbarAction) {
+            _toolbarAction->setChecked(showToolbar);
+        }
+    }
 }
 
 void MainWindow::updateRenderingMode() {
@@ -5810,6 +5841,11 @@ void MainWindow::rebuildToolbarFromSettings() {
     }
 
     if (isRebuilding) {
+        return;
+    }
+
+    // Safety check - ensure MainWindow is still valid
+    if (this == nullptr) {
         return;
     }
 
@@ -5863,6 +5899,15 @@ void MainWindow::rebuildToolbarFromSettings() {
 
                 // Refresh icons
                 refreshToolbarIcons();
+
+                // Update visibility and action state from current settings
+                bool showToolbar = Appearance::toolbarVisible();
+                _toolbarWidget->setVisible(showToolbar);
+                if (_toolbarAction) {
+                    _toolbarAction->blockSignals(true);
+                    _toolbarAction->setChecked(showToolbar);
+                    _toolbarAction->blockSignals(false);
+                }
             } else {
                 // If no layout found, fall back to complete rebuild
                 rebuildToolbar();
@@ -5873,6 +5918,11 @@ void MainWindow::rebuildToolbarFromSettings() {
             rebuildToolbar();
             refreshToolbarIcons();
         }
+    }
+
+    // Apply visibility after rebuild
+    if (_toolbarWidget) {
+        _toolbarWidget->setVisible(Appearance::toolbarVisible());
     }
 
     // Reset the rebuilding guard
@@ -6069,6 +6119,16 @@ void MainWindow::toggleStatusBar(bool visible) {
     if (_statusBar) {
         _statusBar->setVisible(visible);
         _settings->setValue("status_bar/visible", visible);
+    }
+}
+
+void MainWindow::toggleToolbar(bool visible) {
+    if (_toolbarWidget) {
+        _toolbarWidget->setVisible(visible);
+        Appearance::setToolbarVisible(visible);
+        if (_toolbarAction) {
+            _toolbarAction->setChecked(visible);
+        }
     }
 }
 

@@ -87,8 +87,7 @@ QPalette getNordPalette() {
     palette.setColor(QPalette::Link, QColor(136, 192, 208)); // nord8
     palette.setColor(QPalette::Highlight, QColor(129, 161, 193)); // nord9
     palette.setColor(QPalette::HighlightedText, QColor(46, 52, 64)); // nord0
-    palette.setColor(QPalette::Accent, QColor(129, 161, 193)); 
-#endif
+    palette.setColor(QPalette::Accent, QColor(129, 161, 193));
     return palette;
 }
 

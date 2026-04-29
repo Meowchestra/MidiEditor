@@ -14,6 +14,7 @@ public:
     StatusBarSettingsWidget(QWidget *parent = 0);
 
     virtual bool accept() override;
+    virtual void loadSettings() override;
 
 signals:
     void statusBarSettingsChanged();

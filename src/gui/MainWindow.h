@@ -22,6 +22,7 @@
 // Qt includes
 #include <QCloseEvent>
 #include <QMainWindow>
+#include <QPointer>
 #include <algorithm>
 #include <QComboBox>
 #include <QStatusBar>
@@ -56,6 +57,7 @@ class SelectionNavigator;
 class TweakTarget;
 class UpdateChecker;
 class QLabel;
+class SettingsDialog;
 
 /**
  * \class MainWindow
@@ -745,6 +747,7 @@ public slots:
      */
     void noteDurationSelected(QAction *action);
     void toggleStatusBar(bool visible);
+    void toggleToolbar(bool visible);
     void updateStatusBar();
 
     /**
@@ -1077,8 +1080,10 @@ private:
 
     /** \brief Main window status bar */
     QAction *_statusBarAction;
+    QAction *_toolbarAction;
     QStatusBar *_statusBar;
     QLabel *_statusLabel;
+    QPointer<SettingsDialog> _settingsDialog;
 };
 
 #endif // MAINWINDOW_H_

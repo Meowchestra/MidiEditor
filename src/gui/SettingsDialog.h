@@ -99,6 +99,11 @@ public slots:
      */
     void refreshToolbarIcons();
 
+    /**
+     * \brief Reloads settings for all panels.
+     */
+    void reloadSettings();
+
 signals:
     /**
      * \brief Emitted when settings have been changed and applied.

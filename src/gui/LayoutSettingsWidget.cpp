@@ -125,11 +125,29 @@ void LayoutSettingsWidget::setupUI() {
     mainLayout->setContentsMargins(10, 5, 10, 10);
     mainLayout->setSpacing(10);
 
-    // Enable customize toolbar checkbox
-    _enableCustomizeCheckbox = new QCheckBox("Customize Toolbar", this);
-    _enableCustomizeCheckbox->setToolTip("Enable to customize individual actions and their order. When disabled, uses ideal default layouts.");
-    connect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
-    mainLayout->addWidget(_enableCustomizeCheckbox);
+    // Top Row: Toolbar Visibility and Icon Size
+    QHBoxLayout *topRowLayout = new QHBoxLayout();
+    
+    _showToolbarCheckbox = new QCheckBox("Show Toolbar", this);
+    _showToolbarCheckbox->setToolTip("Show or hide the main toolbar.");
+    connect(_showToolbarCheckbox, SIGNAL(toggled(bool)), this, SLOT(toolbarVisibleToggled(bool)));
+    topRowLayout->addWidget(_showToolbarCheckbox);
+
+    topRowLayout->addSpacing(20);
+
+    QLabel *iconSizeLabel = new QLabel(tr("Icon Size:"), this);
+    topRowLayout->addWidget(iconSizeLabel);
+
+    _iconSizeSpinBox = new QSpinBox(this);
+    _iconSizeSpinBox->setMinimum(16);
+    _iconSizeSpinBox->setMaximum(32);
+    _iconSizeSpinBox->setValue(Appearance::toolbarIconSize());
+    _iconSizeSpinBox->setMinimumWidth(80);
+    connect(_iconSizeSpinBox, SIGNAL(valueChanged(int)), this, SLOT(iconSizeChanged(int)));
+    topRowLayout->addWidget(_iconSizeSpinBox);
+    
+    topRowLayout->addStretch();
+    mainLayout->addLayout(topRowLayout);
 
     // Row mode selection
     QGroupBox *rowModeGroup = new QGroupBox("Toolbar Layout", this);
@@ -147,21 +165,10 @@ void LayoutSettingsWidget::setupUI() {
 
     mainLayout->addWidget(rowModeGroup);
 
-    // Toolbar Icon Size
-    QHBoxLayout *iconSizeLayout = new QHBoxLayout();
-    QLabel *iconSizeLabel = new QLabel(tr("Icon Size:"), this);
-    iconSizeLayout->addWidget(iconSizeLabel);
-
-    _iconSizeSpinBox = new QSpinBox(this);
-    _iconSizeSpinBox->setMinimum(16);
-    _iconSizeSpinBox->setMaximum(32);
-    _iconSizeSpinBox->setValue(Appearance::toolbarIconSize());
-    _iconSizeSpinBox->setMinimumWidth(80); // Make it wider for better padding
-    connect(_iconSizeSpinBox, SIGNAL(valueChanged(int)), this, SLOT(iconSizeChanged(int)));
-    iconSizeLayout->addWidget(_iconSizeSpinBox);
-    iconSizeLayout->addStretch();
-
-    mainLayout->addLayout(iconSizeLayout);
+    // Customize Toolbar Checkbox
+    _enableCustomizeCheckbox = new QCheckBox("Customize Toolbar", this);
+    _enableCustomizeCheckbox->setToolTip("Enable to customize individual actions and their order. When disabled, uses ideal default layouts.");
+    connect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
 
     // Create container for customization options (initially hidden)
     _customizationWidget = new QWidget(this);
@@ -214,6 +221,9 @@ void LayoutSettingsWidget::setupUI() {
     connect(_resetButton, SIGNAL(clicked()), this, SLOT(resetToDefault()));
     customizationLayout->addWidget(_resetButton);
 
+    // Add customize checkbox before the customization container
+    mainLayout->addWidget(_enableCustomizeCheckbox);
+
     // Add the customization container to main layout (initially hidden)
     _customizationWidget->setVisible(false);
     mainLayout->addWidget(_customizationWidget);
@@ -230,8 +240,10 @@ void LayoutSettingsWidget::loadSettings() {
         disconnect(_singleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         disconnect(_doubleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         disconnect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
+        disconnect(_showToolbarCheckbox, SIGNAL(toggled(bool)), this, SLOT(toolbarVisibleToggled(bool)));
 
         _twoRowMode = Appearance::toolbarTwoRowMode();
+        _showToolbarCheckbox->setChecked(Appearance::toolbarVisible());
 
         if (_twoRowMode) {
             _doubleRowRadio->setChecked(true);
@@ -249,6 +261,7 @@ void LayoutSettingsWidget::loadSettings() {
         connect(_singleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         connect(_doubleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         connect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
+        connect(_showToolbarCheckbox, SIGNAL(toggled(bool)), this, SLOT(toolbarVisibleToggled(bool)));
 
         // Show/hide second row based on mode (only if customization is enabled)
         if (customizeEnabled) {
@@ -267,6 +280,7 @@ void LayoutSettingsWidget::loadSettings() {
 void LayoutSettingsWidget::saveSettings() {
     try {
         Appearance::setToolbarTwoRowMode(_twoRowMode);
+        Appearance::setToolbarVisible(_showToolbarCheckbox->isChecked());
 
         // Save action order and enabled states
         QStringList actionOrder;
@@ -305,16 +319,24 @@ void LayoutSettingsWidget::saveSettings() {
 }
 
 void LayoutSettingsWidget::triggerToolbarUpdate() {
-    // Trigger toolbar rebuild immediately when user makes changes
+    // Trigger toolbar rebuild when user makes changes
 
     try {
-        QWidget *widget = this;
-        while (widget && !qobject_cast<QMainWindow *>(widget)) {
-            widget = widget->parentWidget();
+        QMainWindow *mainWindow = nullptr;
+        
+        // Try to find the MainWindow from the top-level widgets
+        const QWidgetList topLevelWidgets = QApplication::topLevelWidgets();
+        for (QWidget *widget : topLevelWidgets) {
+            mainWindow = qobject_cast<QMainWindow *>(widget);
+            if (mainWindow) {
+                break;
+            }
         }
-        if (widget) {
-            // Use DirectConnection for immediate execution
-            QMetaObject::invokeMethod(widget, "rebuildToolbarFromSettings", Qt::DirectConnection);
+        
+        if (mainWindow) {
+            // Use QueuedConnection to prevent issues if this is called during widget destruction
+            // and to debounce rapid successive calls naturally through the event loop
+            QMetaObject::invokeMethod(mainWindow, "rebuildToolbarFromSettings", Qt::QueuedConnection);
         }
     } catch (...) {
         // If toolbar update fails, just continue
@@ -450,6 +472,12 @@ void LayoutSettingsWidget::customizeToolbarToggled(bool customizeToolbarEnabled)
         // Keep the row mode setting but use default layouts
         triggerToolbarUpdate();
     }
+}
+
+void LayoutSettingsWidget::toolbarVisibleToggled(bool visible) {
+    Appearance::setToolbarVisible(visible);
+    saveSettings();
+    triggerToolbarUpdate();
 }
 
 void LayoutSettingsWidget::rowModeChanged() {
@@ -621,10 +649,12 @@ void LayoutSettingsWidget::resetToDefault() {
         disconnect(_singleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         disconnect(_doubleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         disconnect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
+        disconnect(_showToolbarCheckbox, SIGNAL(toggled(bool)), this, SLOT(toolbarVisibleToggled(bool)));
 
         // Reset to default settings
         _singleRowRadio->setChecked(true);
         _twoRowMode = false;
+        _showToolbarCheckbox->setChecked(true);
 
         // Disable customization and hide customization options
         _enableCustomizeCheckbox->setChecked(false);
@@ -639,6 +669,7 @@ void LayoutSettingsWidget::resetToDefault() {
         Appearance::setToolbarEnabledActions(QStringList());
         Appearance::setToolbarTwoRowMode(false);
         Appearance::setToolbarCustomizeEnabled(false);
+        Appearance::setToolbarVisible(true);
 
         // Clear the action lists
         _actionsList->clear();
@@ -648,6 +679,7 @@ void LayoutSettingsWidget::resetToDefault() {
         connect(_singleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         connect(_doubleRowRadio, SIGNAL(toggled(bool)), this, SLOT(rowModeChanged()));
         connect(_enableCustomizeCheckbox, SIGNAL(toggled(bool)), this, SLOT(customizeToolbarToggled(bool)));
+        connect(_showToolbarCheckbox, SIGNAL(toggled(bool)), this, SLOT(toolbarVisibleToggled(bool)));
 
         // Update toolbar to use defaults (no need to save since customization is disabled)
         triggerToolbarUpdate();

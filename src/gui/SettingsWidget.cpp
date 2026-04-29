@@ -31,6 +31,9 @@ bool SettingsWidget::accept() {
     return true;
 }
 
+void SettingsWidget::loadSettings() {
+}
+
 QString SettingsWidget::title() {
     return _title;
 }

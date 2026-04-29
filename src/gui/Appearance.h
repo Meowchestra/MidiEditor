@@ -281,6 +281,18 @@ public:
      */
     static void setToolbarEnabledActions(const QStringList &enabled);
 
+    /**
+     * \brief Gets whether the toolbar is visible.
+     * \return True if the toolbar should be displayed
+     */
+    static bool toolbarVisible();
+
+    /**
+     * \brief Sets whether the toolbar is visible.
+     * \param visible True to show the toolbar, false to hide it
+     */
+    static void setToolbarVisible(bool visible);
+
     // === High DPI Scaling Control ===
 
     /**
@@ -761,6 +773,9 @@ private:
 
     /** \brief List of enabled toolbar actions */
     static QStringList _toolbarEnabledActions;
+
+    /** \brief Whether the toolbar is visible */
+    static bool _toolbarVisible;
 
     /** \brief Whether to ignore system DPI scaling */
     static bool _ignoreSystemScaling;

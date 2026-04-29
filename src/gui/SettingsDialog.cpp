@@ -173,3 +173,10 @@ void SettingsDialog::submit() {
     hide();
     emit settingsChanged();
 }
+void SettingsDialog::reloadSettings() {
+    for (SettingsWidget *widget : *_settingsWidgets) {
+        if (widget) {
+            widget->loadSettings();
+        }
+    }
+}

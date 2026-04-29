@@ -69,6 +69,11 @@ public:
      * \return True if settings are valid and applied successfully
      */
     virtual bool accept();
+    
+    /**
+     * \brief Loads settings from configuration.
+     */
+    virtual void loadSettings();
 
     /**
      * \brief Creates an information box widget.

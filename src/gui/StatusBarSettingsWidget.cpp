@@ -13,7 +13,7 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     QFormLayout *layout = new QFormLayout(this);
     setLayout(layout);
 
-    _showStatusBar = new QCheckBox(tr("Status Bar"), this);
+    _showStatusBar = new QCheckBox(tr("Show Status Bar"), this);
 
     _alignmentCombo = new QComboBox(this);
     _alignmentCombo->addItem(tr("Align Left"), 0);
@@ -80,24 +80,7 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
     _toleranceSpin->setSuffix(tr(" ticks"));
     layout->addRow(tr("Humanization Tolerance"), _toleranceSpin);
 
-    // Load current values directly from QSettings (not through dialog cast,
-    // since widget may not be fully parented to the dialog yet at construction time)
-    QSettings settings("MidiEditor", "NONE");
-    settings.beginGroup("status_bar");
-    _strategyCombo->setCurrentIndex(settings.value("strategy", 0).toInt());
-    _toleranceSpin->setValue(settings.value("tolerance", 10).toInt());
-    // Default to true to match MainWindow's default
-    _showStatusBar->setChecked(settings.value("visible", true).toBool());
-    _alignmentCombo->setCurrentIndex(settings.value("alignment", 0).toInt());
-    _offsetSpin->setValue(settings.value("offset", 0).toInt());
-    _separatorStyleCombo->setCurrentIndex(settings.value("separator_style", 0).toInt());
-    _separatorSpacingSpin->setValue(settings.value("separator_spacing", 7).toInt());
-    _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
-    _trackChannelModeCombo->setCurrentIndex(settings.value("track_channel_mode", 0).toInt());
-    _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
-    _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());
-    _showChordName->setChecked(settings.value("show_chord_name", true).toBool());
-    settings.endGroup();
+    loadSettings();
 
     connect(_strategyCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(strategyChanged(int)));
     connect(_strategyCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(notifyChanged()));
@@ -140,6 +123,54 @@ void StatusBarSettingsWidget::notifyChanged() {
 
 void StatusBarSettingsWidget::strategyChanged(int index) {
     _toleranceSpin->setEnabled(index == 2);
+}
+
+void StatusBarSettingsWidget::loadSettings() {
+    // Block signals during reload to prevent unnecessary notifications
+    _showStatusBar->blockSignals(true);
+    _alignmentCombo->blockSignals(true);
+    _offsetSpin->blockSignals(true);
+    _separatorStyleCombo->blockSignals(true);
+    _separatorSpacingSpin->blockSignals(true);
+    _showTrackChannel->blockSignals(true);
+    _trackChannelModeCombo->blockSignals(true);
+    _showNoteName->blockSignals(true);
+    _showNoteRange->blockSignals(true);
+    _showChordName->blockSignals(true);
+    _strategyCombo->blockSignals(true);
+    _toleranceSpin->blockSignals(true);
+
+    QSettings settings("MidiEditor", "NONE");
+    settings.beginGroup("status_bar");
+    _strategyCombo->setCurrentIndex(settings.value("strategy", 0).toInt());
+    _toleranceSpin->setValue(settings.value("tolerance", 10).toInt());
+    _showStatusBar->setChecked(settings.value("visible", true).toBool());
+    _alignmentCombo->setCurrentIndex(settings.value("alignment", 0).toInt());
+    _offsetSpin->setValue(settings.value("offset", 0).toInt());
+    _separatorStyleCombo->setCurrentIndex(settings.value("separator_style", 0).toInt());
+    _separatorSpacingSpin->setValue(settings.value("separator_spacing", 7).toInt());
+    _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
+    _trackChannelModeCombo->setCurrentIndex(settings.value("track_channel_mode", 0).toInt());
+    _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
+    _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());
+    _showChordName->setChecked(settings.value("show_chord_name", true).toBool());
+    settings.endGroup();
+
+    // Unblock signals
+    _showStatusBar->blockSignals(false);
+    _alignmentCombo->blockSignals(false);
+    _offsetSpin->blockSignals(false);
+    _separatorStyleCombo->blockSignals(false);
+    _separatorSpacingSpin->blockSignals(false);
+    _showTrackChannel->blockSignals(false);
+    _trackChannelModeCombo->blockSignals(false);
+    _showNoteName->blockSignals(false);
+    _showNoteRange->blockSignals(false);
+    _showChordName->blockSignals(false);
+    _strategyCombo->blockSignals(false);
+    _toleranceSpin->blockSignals(false);
+
+    strategyChanged(_strategyCombo->currentIndex());
 }
 
 bool StatusBarSettingsWidget::accept() {

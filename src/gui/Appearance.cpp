@@ -84,6 +84,7 @@ bool Appearance::_toolbarTwoRowMode = false;
 bool Appearance::_toolbarCustomizeEnabled = false;
 QStringList Appearance::_toolbarActionOrder = QStringList();
 QStringList Appearance::_toolbarEnabledActions = QStringList();
+bool Appearance::_toolbarVisible = true;
 bool Appearance::_shuttingDown = false;
 
 void Appearance::init(QSettings *settings) {
@@ -121,6 +122,7 @@ void Appearance::init(QSettings *settings) {
     _toolbarCustomizeEnabled = settings->value("toolbar_customize_enabled", false).toBool();
     _toolbarActionOrder = settings->value("toolbar_action_order", QStringList()).toStringList();
     _toolbarEnabledActions = settings->value("toolbar_enabled_actions", QStringList()).toStringList();
+    _toolbarVisible = settings->value("toolbar_visible", true).toBool();
 
     // Load custom color tracking FIRST
     QList<QVariant> customChannels = settings->value("custom_channel_colors", QList<QVariant>()).toList();
@@ -283,6 +285,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("toolbar_customize_enabled", _toolbarCustomizeEnabled);
     settings->setValue("toolbar_action_order", _toolbarActionOrder);
     settings->setValue("toolbar_enabled_actions", _toolbarEnabledActions);
+    settings->setValue("toolbar_visible", _toolbarVisible);
 
     // Save custom color tracking
     QList<QVariant> customChannels;
@@ -986,6 +989,14 @@ bool Appearance::toolbarTwoRowMode() {
 
 void Appearance::setToolbarTwoRowMode(bool twoRows) {
     _toolbarTwoRowMode = twoRows;
+}
+
+bool Appearance::toolbarVisible() {
+    return _toolbarVisible;
+}
+
+void Appearance::setToolbarVisible(bool visible) {
+    _toolbarVisible = visible;
 }
 
 bool Appearance::toolbarCustomizeEnabled() {

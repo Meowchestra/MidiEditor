@@ -192,6 +192,11 @@ public:
      * \param row2Actions Reference to receive second row action IDs
      */
     static void getDefaultToolbarRowDistribution(QStringList &row1Actions, QStringList &row2Actions);
+    
+    /**
+     * \brief Loads settings from configuration.
+     */
+    virtual void loadSettings() override;
 
 public slots:
     /**
@@ -199,6 +204,12 @@ public slots:
      * \param customizeToolbarEnabled True if customization is enabled
      */
     void customizeToolbarToggled(bool customizeToolbarEnabled);
+
+    /**
+     * \brief Handles toolbar visibility toggle.
+     * \param visible True if toolbar should be visible
+     */
+    void toolbarVisibleToggled(bool visible);
 
     /**
      * \brief Handles row mode changes (single/double row).
@@ -256,11 +267,6 @@ private:
     void setupUI();
 
     /**
-     * \brief Loads settings from configuration.
-     */
-    void loadSettings();
-
-    /**
      * \brief Saves settings to configuration.
      */
     void saveSettings();
@@ -300,6 +306,9 @@ private:
     /** \brief Radio buttons for row mode selection */
     QRadioButton *_singleRowRadio;
     QRadioButton *_doubleRowRadio;
+
+    /** \brief Checkbox for toolbar visibility */
+    QCheckBox *_showToolbarCheckbox;
 
     /** \brief Spin box for icon size selection */
     QSpinBox *_iconSizeSpinBox;
