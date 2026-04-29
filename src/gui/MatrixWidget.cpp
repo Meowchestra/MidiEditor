@@ -1330,6 +1330,12 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
             if (file && file->protocol()) {
                 file->protocol()->startNewAction(tr("Move Marker"));
             }
+
+            // Select the event for immediate inspection in the Event Widget
+            QList<MidiEvent *> selections;
+            selections.append(_draggedMarker);
+            Selection::instance()->setSelection(selections);
+
             update();
             return;
         }
