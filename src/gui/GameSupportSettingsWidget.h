@@ -74,6 +74,13 @@ public:
      */
     static bool isFFXIVEnabled(QSettings *settings);
 
+    /**
+     * \brief Returns whether FFXIV track rename presets are enabled.
+     * \param settings QSettings instance to read from
+     * \return True if FFXIV track rename presets are enabled
+     */
+    static bool isFFXIVRenamePresetsEnabled(QSettings *settings);
+
 signals:
     /**
      * \brief Emitted when any settings in this widget are changed
@@ -94,6 +101,7 @@ private slots:
     void onFFXIVBoxToggled(bool checked);
     void onFFXIVInstrumentNamesToggled(bool checked);
     void onFFXIVCondenseInstrumentsToggled(bool checked);
+    void onFFXIVRenamePresetsToggled(bool checked);
     void onFFXIVSortMethodChanged(int index);
 
 private:
@@ -113,6 +121,10 @@ private:
 
     /** \brief FFXIV condense instrument selection checkbox */
     QCheckBox *_ffxivCondenseInstrumentsBox;
+
+    /** \brief FFXIV rename presets checkbox */
+    QCheckBox *_ffxivRenamePresetsBox;
+
     QComboBox *_ffxivSortMethodBox;
 };
 

@@ -108,6 +108,20 @@ GameSupportSettingsWidget::GameSupportSettingsWidget(QSettings *settings, QWidge
     CondenseDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
     ffxivLayout->addWidget(CondenseDesc, 5, 0, 1, 2);
 
+    _ffxivRenamePresetsBox = new QCheckBox(tr("Enable Track Rename Presets"), _ffxivGroup);
+    _ffxivRenamePresetsBox->setChecked(_settings->value("game_support/ffxiv_track_rename_presets", false).toBool());
+    _ffxivRenamePresetsBox->setToolTip(tr("Adds a preset instrument dropdown to the track rename window."));
+    connect(_ffxivRenamePresetsBox, SIGNAL(toggled(bool)), this, SLOT(onFFXIVRenamePresetsToggled(bool)));
+    ffxivLayout->addWidget(_ffxivRenamePresetsBox, 6, 0, 1, 2);
+
+    QLabel *renamePresetsDesc = new QLabel(
+        tr("When renaming a track, a new icon allows you to quickly select an FFXIV instrument name from a list."),
+        _ffxivGroup);
+    renamePresetsDesc->setTextFormat(Qt::RichText);
+    renamePresetsDesc->setWordWrap(true);
+    renamePresetsDesc->setStyleSheet("color: gray; font-size: 11px; margin-left: 10px;");
+    ffxivLayout->addWidget(renamePresetsDesc, 7, 0, 1, 2);
+
     mainLayout->addWidget(_ffxivGroup);
     mainLayout->addStretch();
 }
@@ -129,6 +143,12 @@ void GameSupportSettingsWidget::onFFXIVCondenseInstrumentsToggled(bool checked) 
     _settings->setValue("game_support/ffxiv_condense_instruments", checked);
     _settings->sync();
     emit instrumentNamesChanged();
+}
+
+void GameSupportSettingsWidget::onFFXIVRenamePresetsToggled(bool checked) {
+    _settings->setValue("game_support/ffxiv_track_rename_presets", checked);
+    _settings->sync();
+    emit settingsChanged();
 }
 
 void GameSupportSettingsWidget::onFFXIVSortMethodChanged(int index) {
@@ -205,6 +225,7 @@ bool GameSupportSettingsWidget::accept() {
     }
     
     _settings->setValue("game_support/ffxiv_condense_instruments", _ffxivCondenseInstrumentsBox->isChecked());
+    _settings->setValue("game_support/ffxiv_track_rename_presets", _ffxivRenamePresetsBox->isChecked());
     _settings->setValue("game_support/ffxiv_instrument_sort_method", _ffxivSortMethodBox->currentData().toInt());
     _settings->sync();
 
@@ -217,4 +238,8 @@ QIcon GameSupportSettingsWidget::icon() {
 
 bool GameSupportSettingsWidget::isFFXIVEnabled(QSettings *settings) {
     return settings->value("game_support/ffxiv_enabled", false).toBool();
+}
+
+bool GameSupportSettingsWidget::isFFXIVRenamePresetsEnabled(QSettings *settings) {
+    return settings->value("game_support/ffxiv_track_rename_presets", false).toBool() && isFFXIVEnabled(settings);
 }

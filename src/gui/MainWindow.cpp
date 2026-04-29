@@ -70,6 +70,7 @@
 #include "SelectionNavigator.h"
 #include "SettingsDialog.h"
 #include "StrummerDialog.h"
+#include "TrackRenameDialog.h"
 #include "TrackListWidget.h"
 #include "TransposeDialog.h"
 #include "TweakTarget.h"
@@ -2212,10 +2213,9 @@ void MainWindow::renameTrack(int tracknumber) {
 
     file->protocol()->startNewAction(tr("Edit Track Name"));
 
-    bool ok;
-    QString text = QInputDialog::getText(this, tr("Set Track Name"), tr("Track Name (Track ") + QString::number(tracknumber) + tr(")"), QLineEdit::Normal, file->tracks()->at(tracknumber)->name(), &ok);
-    if (ok && !text.isEmpty()) {
-        file->tracks()->at(tracknumber)->setName(text);
+    TrackRenameDialog *d = new TrackRenameDialog(file->tracks()->at(tracknumber)->name(), tracknumber, _settings, this);
+    if (d->exec() == QDialog::Accepted && !d->name().isEmpty()) {
+        file->tracks()->at(tracknumber)->setName(d->name());
     }
 
     file->protocol()->endAction();
