@@ -2244,7 +2244,12 @@ void MatrixWidget::paintTimelineMarkers(QPainter *painter) {
         bool isActive = isHovered || isDragged;
 
         // Visual properties
-        QColor markerColor = _colorsByChannels ? *Appearance::channelColor(ev->channel()) : *ev->track()->color();
+        QColor markerColor;
+        if (Appearance::markerColorMode() == Appearance::ColorByChannel) {
+            markerColor = *Appearance::channelColor(ev->channel());
+        } else {
+            markerColor = *ev->track()->color();
+        }
         QString text = "";
         if (dynamic_cast<ProgChangeEvent*>(ev)) text = "PC";
         else if (dynamic_cast<ControlChangeEvent*>(ev)) text = "CC";
@@ -2261,7 +2266,9 @@ void MatrixWidget::paintTimelineMarkers(QPainter *painter) {
         int eventY = yPosOfLine(ev->line()) + (lineHeight() / 2);
         int stopY = qBound(timeHeight, eventY, height());
         // Guide line should be drawn BEHIND the marker icon
-        painter->drawLine(drawX, timeHeight, drawX, stopY);
+        if (Appearance::showMarkerGuideLines()) {
+            painter->drawLine(drawX, timeHeight, drawX, stopY);
+        }
 
         painter->setBrush(isActive ? markerColor.lighter(130) : markerColor);
         if (isDragged) {

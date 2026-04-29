@@ -196,6 +196,9 @@ public:
     static MarkerColorMode markerColorMode();
     static void setMarkerColorMode(MarkerColorMode mode);
 
+    static bool showMarkerGuideLines();
+    static void setShowMarkerGuideLines(bool enabled);
+
     static bool smoothPlaybackScrolling();
     static void setSmoothPlaybackScrolling(bool enabled);
 
@@ -752,6 +755,7 @@ private:
     static bool _showControlChangeMarkers;
     static bool _showTextEventMarkers;
     static MarkerColorMode _markerColorMode;
+    static bool _showMarkerGuideLines;
     static ColorPreset _colorPreset;
     static ApplicationTheme _applicationTheme;
     static bool _smoothPlaybackScrolling;

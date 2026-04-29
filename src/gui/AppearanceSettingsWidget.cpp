@@ -176,23 +176,30 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     connect(rangeLines, SIGNAL(toggled(bool)), this, SLOT(rangeLinesChanged(bool)));
     markerLayout->addWidget(rangeLines, 0, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Markers: Program Changes")), 1, 0);
+    markerLayout->addWidget(new QLabel(tr("Show Marker Guide Lines")), 1, 0);
+    QCheckBox *markerLines = new QCheckBox(this);
+    markerLines->setChecked(Appearance::showMarkerGuideLines());
+    connect(markerLines, SIGNAL(toggled(bool)), this, SLOT(markerGuideLinesChanged(bool)));
+    markerLayout->addWidget(markerLines, 1, 1);
+
+    markerLayout->addWidget(new QLabel(tr("Markers: Program Changes")), 2, 0);
     QCheckBox *pcMarkers = new QCheckBox(this);
     pcMarkers->setChecked(Appearance::showProgramChangeMarkers());
     connect(pcMarkers, SIGNAL(toggled(bool)), this, SLOT(programChangeMarkersChanged(bool)));
-    markerLayout->addWidget(pcMarkers, 1, 1);
+    markerLayout->addWidget(pcMarkers, 2, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Markers: Control Changes")), 2, 0);
+    markerLayout->addWidget(new QLabel(tr("Markers: Control Changes")), 3, 0);
     QCheckBox *ccMarkers = new QCheckBox(this);
     ccMarkers->setChecked(Appearance::showControlChangeMarkers());
     connect(ccMarkers, SIGNAL(toggled(bool)), this, SLOT(controlChangeMarkersChanged(bool)));
-    markerLayout->addWidget(ccMarkers, 2, 1);
+    markerLayout->addWidget(ccMarkers, 3, 1);
 
-    markerLayout->addWidget(new QLabel(tr("Markers: Text Events")), 3, 0);
+    markerLayout->addWidget(new QLabel(tr("Markers: Text Events")), 4, 0);
     QCheckBox *txtMarkers = new QCheckBox(this);
     txtMarkers->setChecked(Appearance::showTextEventMarkers());
     connect(txtMarkers, SIGNAL(toggled(bool)), this, SLOT(textEventMarkersChanged(bool)));
-    markerLayout->addWidget(txtMarkers, 3, 1);
+    markerLayout->addWidget(txtMarkers, 4, 1);
+    
     bottomGrid->addWidget(markerGroup, 0, 1);
 
     
@@ -277,6 +284,12 @@ void AppearanceSettingsWidget::controlChangeMarkersChanged(bool enabled) {
 
 void AppearanceSettingsWidget::textEventMarkersChanged(bool enabled) {
     Appearance::setShowTextEventMarkers(enabled);
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::markerGuideLinesChanged(bool enabled) {
+    Appearance::setShowMarkerGuideLines(enabled);
     emit appearanceChanged();
     update();
 }

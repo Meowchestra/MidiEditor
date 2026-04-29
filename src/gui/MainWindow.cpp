@@ -41,6 +41,7 @@
 #include <cmath>
 #include <algorithm>
 #include <QComboBox>
+#include <QFontMetrics>
 
 #include "Appearance.h"
 #include "AppearanceSettingsWidget.h"
@@ -513,8 +514,12 @@ MainWindow::MainWindow(QString initFile)
 
     _fixXIVChannelsTracksAction = new QAction(tr("Fix XIV Channels"), this);
     _fixXIVChannelsTracksAction->setToolTip(tr("Assign tracks to FFXIV channels based on their instrument names"));
+    Appearance::setActionIcon(_fixXIVChannelsTracksAction, ":/run_environment/graphics/tool/xiv-channels.png");
     connect(_fixXIVChannelsTracksAction, &QAction::triggered, this, &MainWindow::fixXIVChannels);
     tracksTB->addAction(_fixXIVChannelsTracksAction);
+    if (QToolButton* btn = qobject_cast<QToolButton*>(tracksTB->widgetForAction(_fixXIVChannelsTracksAction))) {
+        btn->setIconSize(QSize(32, 32));
+    }
     _fixXIVChannelsTracksAction->setVisible(false);
 
     _trackWidget = new TrackListWidget(tracksWidget);
@@ -562,8 +567,12 @@ MainWindow::MainWindow(QString initFile)
 
     _fixXIVChannelsChannelsAction = new QAction(tr("Fix XIV Channels"), this);
     _fixXIVChannelsChannelsAction->setToolTip(tr("Assign tracks to FFXIV channels based on their instrument names"));
+    Appearance::setActionIcon(_fixXIVChannelsChannelsAction, ":/run_environment/graphics/tool/xiv-channels.png");
     connect(_fixXIVChannelsChannelsAction, &QAction::triggered, this, &MainWindow::fixXIVChannels);
     channelsTB->addAction(_fixXIVChannelsChannelsAction);
+    if (QToolButton* btn = qobject_cast<QToolButton*>(channelsTB->widgetForAction(_fixXIVChannelsChannelsAction))) {
+        btn->setIconSize(QSize(32, 32));
+    }
     _fixXIVChannelsChannelsAction->setVisible(false);
 
     channelWidget = new ChannelListWidget(channelsWidget);
@@ -3750,6 +3759,9 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     QAction *dragModeAction = new QAction(tr("Drag Mode"), this);
     dragModeAction->setShortcut(QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_QuoteLeft))); // Alt + ~ (backtick/tilde key)
+    // No tab here; Qt will natively append the shortcut to the right
+    dragModeAction->setText(tr("Drag Mode"));
+    dragModeAction->setData(0);
     dragModeAction->setData(0);
     dragModeAction->setCheckable(true);
     dragModeAction->setChecked(true);
@@ -3760,9 +3772,12 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     noteDurationMB->addSeparator();
 
-    QList<QString> stdNames = {
-        tr("Whole Note (1/1)"), tr("Half Note (1/2)"), tr("Quarter Note (1/4)"), 
-        tr("8th Note (1/8)"), tr("16th Note (1/16)"), tr("32nd Note (1/32)"), tr("64th Note (1/64)")
+    QList<QString> stdBaseNames = {
+        tr("Whole Note"), tr("Half Note"), tr("Quarter Note"), 
+        tr("8th Note"), tr("16th Note"), tr("32nd Note"), tr("64th Note")
+    };
+    QList<QString> stdFractions = {
+        "(1/1)", "(1/2)", "(1/4)", "(1/8)", "(1/16)", "(1/32)", "(1/64)"
     };
     QList<int> stdDivs = {1, 2, 4, 8, 16, 32, 64};
     QList<QKeySequence> stdShortcuts = {
@@ -3775,9 +3790,20 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_7))
     };
 
-    for (int i = 0; i < stdNames.size(); ++i) {
+    QFontMetrics fm(noteDurationMB->font());
+    int maxWidth = fm.horizontalAdvance(tr("Quarter Note   "));
+
+    for (int i = 0; i < stdBaseNames.size(); ++i) {
         int divisor = stdDivs[i];
-        QAction *durationAction = new QAction(stdNames[i], this);
+        
+        // Pixel-perfect alignment for the middle column (fractions)
+        int nameWidth = fm.horizontalAdvance(stdBaseNames[i]);
+        int spaceWidth = fm.horizontalAdvance(" ");
+        int numSpaces = qMax(1, (maxWidth - nameWidth) / spaceWidth);
+        // No tab here; Qt will natively append the shortcut to the right
+        QString actionText = stdBaseNames[i] + QString(numSpaces, ' ') + stdFractions[i];
+        
+        QAction *durationAction = new QAction(actionText, this);
         durationAction->setShortcut(stdShortcuts[i]);
         durationAction->setData(divisor);
         durationAction->setCheckable(true);
@@ -3790,10 +3816,13 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     noteDurationMB->addSeparator();
 
-    QList<QString> tupNames = {
-        tr("Triplet (1/3)"), tr("Quintuplet (1/5)"), tr("Sextuplet (1/6)"),
-        tr("Septuplet (1/7)"), tr("Nonuplet (1/9)"), tr("8th Triplet (1/12)"),
-        tr("16th Triplet (1/24)"), tr("32nd Triplet (1/48)")
+    QList<QString> tupBaseNames = {
+        tr("Triplet"), tr("Quintuplet"), tr("Sextuplet"),
+        tr("Septuplet"), tr("Nonuplet"), tr("8th Triplet"),
+        tr("16th Triplet"), tr("32nd Triplet")
+    };
+    QList<QString> tupFractions = {
+        "(1/3)", "(1/5)", "(1/6)", "(1/7)", "(1/9)", "(1/12)", "(1/24)", "(1/48)"
     };
     QList<int> tupDivs = {3, 5, 6, 7, 9, 12, 24, 48};
     QList<QKeySequence> tupShortcuts = {
@@ -3807,15 +3836,35 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         QKeySequence(QKeyCombination(Qt::ALT | Qt::SHIFT, Qt::Key_8))
     };
 
-    for (int i = 0; i < tupNames.size(); ++i) {
+    // Triplets submenu
+    QMenu *durationTripletsMenu = new QMenu(tr("Triplets"), noteDurationMB);
+    noteDurationMB->addMenu(durationTripletsMenu);
+
+    // Tuplets submenu
+    QMenu *durationTupletsMenu = new QMenu(tr("Tuplets"), noteDurationMB);
+    noteDurationMB->addMenu(durationTupletsMenu);
+
+    for (int i = 0; i < tupBaseNames.size(); ++i) {
         int divisor = tupDivs[i];
-        QAction *durationAction = new QAction(tupNames[i], this);
+        
+        // Pixel-perfect alignment for the middle column (fractions)
+        int nameWidth = fm.horizontalAdvance(tupBaseNames[i]);
+        int spaceWidth = fm.horizontalAdvance(" ");
+        int numSpaces = qMax(1, (maxWidth - nameWidth) / spaceWidth);
+        // No tab here; Qt will natively append the shortcut to the right
+        QString actionText = tupBaseNames[i] + QString(numSpaces, ' ') + tupFractions[i];
+        
+        QAction *durationAction = new QAction(actionText, this);
         durationAction->setShortcut(tupShortcuts[i]);
         durationAction->setData(divisor);
         durationAction->setCheckable(true);
         QString actionId = QString("duration_") + QString::number(divisor);
         _defaultShortcuts[actionId] = QList<QKeySequence>() << durationAction->shortcut();
-        noteDurationMB->addAction(durationAction);
+        if (tupBaseNames[i].contains(tr("Triplet"))) {
+            durationTripletsMenu->addAction(durationAction);
+        } else {
+            durationTupletsMenu->addAction(durationAction);
+        }
         noteDurationGroup->addAction(durationAction);
         _actionMap[actionId] = durationAction;
     }
@@ -3952,17 +4001,17 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         QVariant variant(i);
         QString text;
         if (i == 0) {
-            text = tr("Whole Note");
+            text = tr("Whole Note\t(1/1)");
         } else if (i == 1) {
-            text = tr("Half Note");
+            text = tr("Half Note\t(1/2)");
         } else if (i == 2) {
-            text = tr("Quarter Note");
+            text = tr("Quarter Note\t(1/4)");
         } else {
             int noteValue = (int) qPow(2, i);
             if (noteValue == 32) {
-                text = tr("32nd Note");
+                text = tr("32nd Note\t(1/32)");
             } else {
-                text = QString::number(noteValue) + tr("th Note");
+                text = QString::number(noteValue) + tr("th Note\t(1/") + QString::number(noteValue) + ")";
             }
         }
         QAction *a = new QAction(text, this);
@@ -3975,66 +4024,72 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     quantMenu->addSeparator();
 
-    // Triplets
+    // Triplets submenu
+    QMenu *tripletsMenu = new QMenu(tr("Triplets"), quantMenu);
+    quantMenu->addMenu(tripletsMenu);
+
     QStringList tripletNames = QStringList()
-                               << tr("Whole Note Triplets")
-                               << tr("Half Note Triplets")
-                               << tr("Quarter Note Triplets")
-                               << tr("8th Note Triplets")
-                               << tr("16th Note Triplets")
-                               << tr("32nd Note Triplets");
+                               << tr("Whole Note Triplets\t(1/3)")
+                               << tr("Half Note Triplets\t(1/6)")
+                               << tr("Quarter Note Triplets\t(1/12)")
+                               << tr("8th Note Triplets\t(1/24)")
+                               << tr("16th Note Triplets\t(1/48)")
+                               << tr("32nd Note Triplets\t(1/96)");
 
     for (int i = 0; i < tripletNames.size(); i++) {
         QAction *tripletAction = new QAction(tripletNames[i], this);
         tripletAction->setData(QVariant(-100 - i));
         quantGroup->addAction(tripletAction);
-        quantMenu->addAction(tripletAction);
+        tripletsMenu->addAction(tripletAction);
         tripletAction->setCheckable(true);
         tripletAction->setChecked((-100 - i) == _quantizationGrid);
     }
 
-    quantMenu->addSeparator();
+    // Tuplets submenu
+    QMenu *tupletsMenu = new QMenu(tr("Tuplets"), quantMenu);
+    quantMenu->addMenu(tupletsMenu);
 
     // Quintuplets
     QStringList quintupletNames = QStringList()
-                                  << tr("Quarter Quintuplets")
-                                  << tr("8th Quintuplets")
-                                  << tr("16th Quintuplets");
+                                  << tr("Quarter Quintuplets\t(1/20)")
+                                  << tr("8th Quintuplets\t(1/40)")
+                                  << tr("16th Quintuplets\t(1/80)");
     for (int i = 0; i < quintupletNames.size(); i++) {
         QAction *quintupletAction = new QAction(quintupletNames[i], this);
         quintupletAction->setData(QVariant(-202 - i));
         quantGroup->addAction(quintupletAction);
-        quantMenu->addAction(quintupletAction);
+        tupletsMenu->addAction(quintupletAction);
         quintupletAction->setCheckable(true);
         quintupletAction->setChecked((-202 - i) == _quantizationGrid);
     }
 
     // Sextuplets
     QStringList quantSextupletNames = QStringList()
-                                      << tr("Quarter Sextuplets")
-                                      << tr("8th Sextuplets");
+                                      << tr("Quarter Sextuplets\t(1/24)")
+                                      << tr("8th Sextuplets\t(1/48)");
     for (int i = 0; i < quantSextupletNames.size(); i++) {
         QAction *sextupletAction = new QAction(quantSextupletNames[i], this);
         sextupletAction->setData(QVariant(-302 - i));
         quantGroup->addAction(sextupletAction);
-        quantMenu->addAction(sextupletAction);
+        tupletsMenu->addAction(sextupletAction);
         sextupletAction->setCheckable(true);
         sextupletAction->setChecked((-302 - i) == _quantizationGrid);
     }
 
-    quantMenu->addSeparator();
+    // Dotted notes submenu
+    QMenu *dottedMenu = new QMenu(tr("Dotted"), quantMenu);
+    quantMenu->addMenu(dottedMenu);
 
-    // Dotted notes
     QStringList quantDottedNames = QStringList()
-                                   << tr("Dotted Quarter Notes")
-                                   << tr("Dotted 8th Notes");
+                                   << tr("Dotted Quarter Notes\t(1/4.)")
+                                   << tr("Dotted 8th Notes\t(1/8.)");
     QList<int> quantDottedValues = QList<int>() << -502 << -503;
 
     for (int i = 0; i < quantDottedNames.size(); i++) {
         QAction *dottedAction = new QAction(quantDottedNames[i], this);
         dottedAction->setData(QVariant(quantDottedValues[i]));
         quantGroup->addAction(dottedAction);
-        quantMenu->addAction(dottedAction);
+        dottedMenu->addAction(dottedAction);
         dottedAction->setCheckable(true);
         dottedAction->setChecked(quantDottedValues[i] == _quantizationGrid);
     }
@@ -4251,17 +4306,17 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
         QVariant variant(i);
         QString text;
         if (i == 0) {
-            text = tr("Whole Note");
+            text = tr("Whole Note\t(1/1)");
         } else if (i == 1) {
-            text = tr("Half Note");
+            text = tr("Half Note\t(1/2)");
         } else if (i == 2) {
-            text = tr("Quarter Note");
+            text = tr("Quarter Note\t(1/4)");
         } else {
             int noteValue = (int) qPow(2, i);
             if (noteValue == 32) {
-                text = tr("32nd Note");
+                text = tr("32nd Note\t(1/32)");
             } else {
-                text = QString::number(noteValue) + tr("th Note");
+                text = QString::number(noteValue) + tr("th Note\t(1/") + QString::number(noteValue) + ")";
             }
         }
         QAction *a = new QAction(text, this);
@@ -4274,91 +4329,97 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     divMenu->addSeparator();
 
-    // Triplets
+    // Triplets submenu
+    QMenu *divTripletsMenu = new QMenu(tr("Triplets"), divMenu);
+    divMenu->addMenu(divTripletsMenu);
+
     QStringList rasterTripletNames = QStringList()
-                                     << tr("Whole Note Triplets")
-                                     << tr("Half Note Triplets")
-                                     << tr("Quarter Note Triplets")
-                                     << tr("8th Note Triplets")
-                                     << tr("16th Note Triplets")
-                                     << tr("32nd Note Triplets");
+                                     << tr("Whole Note Triplets\t(1/3)")
+                                     << tr("Half Note Triplets\t(1/6)")
+                                     << tr("Quarter Note Triplets\t(1/12)")
+                                     << tr("8th Note Triplets\t(1/24)")
+                                     << tr("16th Note Triplets\t(1/48)")
+                                     << tr("32nd Note Triplets\t(1/96)");
 
     for (int i = 0; i < rasterTripletNames.size(); i++) {
         QAction *tripletAction = new QAction(rasterTripletNames[i], this);
         tripletAction->setData(QVariant(-100 - i));
         divGroup->addAction(tripletAction);
-        divMenu->addAction(tripletAction);
+        divTripletsMenu->addAction(tripletAction);
         tripletAction->setCheckable(true);
         tripletAction->setChecked((-100 - i) == mw_matrixWidget->div());
     }
 
-    divMenu->addSeparator();
+    // Tuplets submenu
+    QMenu *divTupletsMenu = new QMenu(tr("Tuplets"), divMenu);
+    divMenu->addMenu(divTupletsMenu);
 
     // Quintuplets
     QStringList rasterQuintupletNames = QStringList()
-                                        << tr("Quarter Quintuplets")
-                                        << tr("8th Quintuplets")
-                                        << tr("16th Quintuplets");
+                                        << tr("Quarter Quintuplets\t(1/20)")
+                                        << tr("8th Quintuplets\t(1/40)")
+                                        << tr("16th Quintuplets\t(1/80)");
     for (int i = 0; i < rasterQuintupletNames.size(); i++) {
         QAction *quintupletAction = new QAction(rasterQuintupletNames[i], this);
         quintupletAction->setData(QVariant(-202 - i));
         divGroup->addAction(quintupletAction);
-        divMenu->addAction(quintupletAction);
+        divTupletsMenu->addAction(quintupletAction);
         quintupletAction->setCheckable(true);
         quintupletAction->setChecked((-202 - i) == mw_matrixWidget->div());
     }
 
     // Sextuplets
     QStringList rasterSextupletNames = QStringList()
-                                       << tr("Quarter Sextuplets")
-                                       << tr("8th Sextuplets")
-                                       << tr("16th Sextuplets");
+                                       << tr("Quarter Sextuplets\t(1/24)")
+                                       << tr("8th Sextuplets\t(1/48)")
+                                       << tr("16th Sextuplets\t(1/96)");
     for (int i = 0; i < rasterSextupletNames.size(); i++) {
         QAction *sextupletAction = new QAction(rasterSextupletNames[i], this);
         sextupletAction->setData(QVariant(-302 - i));
         divGroup->addAction(sextupletAction);
-        divMenu->addAction(sextupletAction);
+        divTupletsMenu->addAction(sextupletAction);
         sextupletAction->setCheckable(true);
         sextupletAction->setChecked((-302 - i) == mw_matrixWidget->div());
     }
 
     // Septuplets
     QStringList rasterSeptupletNames = QStringList()
-                                       << tr("Quarter Septuplets")
-                                       << tr("8th Septuplets")
-                                       << tr("16th Septuplets");
+                                       << tr("Quarter Septuplets\t(1/28)")
+                                       << tr("8th Septuplets\t(1/56)")
+                                       << tr("16th Septuplets\t(1/112)");
     for (int i = 0; i < rasterSeptupletNames.size(); i++) {
         QAction *septupletAction = new QAction(rasterSeptupletNames[i], this);
         septupletAction->setData(QVariant(-402 - i));
         divGroup->addAction(septupletAction);
-        divMenu->addAction(septupletAction);
+        divTupletsMenu->addAction(septupletAction);
         septupletAction->setCheckable(true);
         septupletAction->setChecked((-402 - i) == mw_matrixWidget->div());
     }
 
-    divMenu->addSeparator();
+    // Dotted notes submenu
+    QMenu *divDottedMenu = new QMenu(tr("Dotted"), divMenu);
+    divMenu->addMenu(divDottedMenu);
 
-    // Dotted notes
     QStringList rasterDottedNames = QStringList()
-                                    << tr("Dotted Half Notes")
-                                    << tr("Dotted Quarter Notes")
-                                    << tr("Dotted 8th Notes");
+                                    << tr("Dotted Half Notes\t(1/2.)")
+                                    << tr("Dotted Quarter Notes\t(1/4.)")
+                                    << tr("Dotted 8th Notes\t(1/8.)");
     QList<int> rasterDottedValues = QList<int>() << -501 << -502 << -503;
 
     for (int i = 0; i < rasterDottedNames.size(); i++) {
         QAction *dottedAction = new QAction(rasterDottedNames[i], this);
         dottedAction->setData(QVariant(rasterDottedValues[i]));
         divGroup->addAction(dottedAction);
-        divMenu->addAction(dottedAction);
+        divDottedMenu->addAction(dottedAction);
         dottedAction->setCheckable(true);
         dottedAction->setChecked(rasterDottedValues[i] == mw_matrixWidget->div());
     }
 
     // Double dotted notes (1.75x duration)
-    QAction *doubleDottedQuarter = new QAction(tr("Double Dotted Quarters"), this);
+    QAction *doubleDottedQuarter = new QAction(tr("Double Dotted Quarters\t(1/4..)"), this);
     doubleDottedQuarter->setData(QVariant(-602));
     divGroup->addAction(doubleDottedQuarter);
-    divMenu->addAction(doubleDottedQuarter);
+    divDottedMenu->addAction(doubleDottedQuarter);
     doubleDottedQuarter->setCheckable(true);
     doubleDottedQuarter->setChecked(-602 == mw_matrixWidget->div());
 

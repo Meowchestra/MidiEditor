@@ -188,6 +188,7 @@ public slots:
     void programChangeMarkersChanged(bool enabled);
     void controlChangeMarkersChanged(bool enabled);
     void textEventMarkersChanged(bool enabled);
+    void markerGuideLinesChanged(bool enabled);
 
     /**
      * \brief Handles playback scrolling setting changes.

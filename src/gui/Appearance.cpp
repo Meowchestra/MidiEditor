@@ -68,6 +68,7 @@ bool Appearance::_showProgramChangeMarkers = false;
 bool Appearance::_showControlChangeMarkers = false;
 bool Appearance::_showTextEventMarkers = false;
 Appearance::MarkerColorMode Appearance::_markerColorMode = Appearance::ColorByTrack;
+bool Appearance::_showMarkerGuideLines = true;
 Appearance::ColorPreset Appearance::_colorPreset = Appearance::PresetDefault;
 Appearance::ApplicationTheme Appearance::_applicationTheme = Appearance::ThemeAuto;
 bool Appearance::_smoothPlaybackScrolling = false;
@@ -96,6 +97,7 @@ void Appearance::init(QSettings *settings) {
     _showControlChangeMarkers = settings->value("show_control_change_markers", false).toBool();
     _showTextEventMarkers = settings->value("show_text_event_markers", false).toBool();
     _markerColorMode = static_cast<Appearance::MarkerColorMode>(settings->value("marker_color_mode", Appearance::ColorByTrack).toInt());
+    _showMarkerGuideLines = settings->value("show_marker_guide_lines", true).toBool();
     _colorPreset = static_cast<Appearance::ColorPreset>(settings->value("color_preset", Appearance::PresetDefault).toInt());
     _applicationTheme = static_cast<Appearance::ApplicationTheme>(settings->value("application_theme", Appearance::ThemeAuto).toInt());
     _smoothPlaybackScrolling = settings->value("rendering/smooth_playback_scroll", false).toBool();
@@ -273,6 +275,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("show_control_change_markers", _showControlChangeMarkers);
     settings->setValue("show_text_event_markers", _showTextEventMarkers);
     settings->setValue("marker_color_mode", static_cast<int>(_markerColorMode));
+    settings->setValue("show_marker_guide_lines", _showMarkerGuideLines);
     settings->setValue("color_preset", static_cast<int>(_colorPreset));
     settings->setValue("application_theme", static_cast<int>(_applicationTheme));
     settings->setValue("rendering/smooth_playback_scroll", _smoothPlaybackScrolling);
@@ -842,6 +845,14 @@ Appearance::MarkerColorMode Appearance::markerColorMode() {
 
 void Appearance::setMarkerColorMode(MarkerColorMode mode) {
     _markerColorMode = mode;
+}
+
+bool Appearance::showMarkerGuideLines() {
+    return _showMarkerGuideLines;
+}
+
+void Appearance::setShowMarkerGuideLines(bool enabled) {
+    _showMarkerGuideLines = enabled;
 }
 
 Appearance::ColorPreset Appearance::colorPreset() {
