@@ -949,6 +949,9 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
     int borderRight = 10;
     width = width - borderRight;
     if (number >= 0 && number <= 127) {
+        int line = 127 - number;
+        height = yPosOfLine(line + 1) - y;
+
         double scaleHeightBlack = 0.5;
         double scaleWidthBlack = 0.6;
 
@@ -1042,7 +1045,7 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             blackOnTop = false;
         }
 
-        bool selected = mouseY >= y && mouseY <= y + height && mouseX > lineNameWidth && mouseOver;
+        bool selected = mouseY >= y && mouseY < y + height && mouseX > lineNameWidth && mouseOver;
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             if (event->line() == 127 - number) {
                 selected = true;
@@ -1062,11 +1065,8 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             playerRect.setWidth(width * scaleWidthBlack);
             playerRect.setHeight(height * scaleHeightBlack + 0.5);
             QColor c = _cachedPianoBlackKeyColor;
-            if (mouseInRect(playerRect)) {
-                c = _cachedPianoBlackKeyHoverColor;
-                inRect = true;
-            }
-            painter->fillRect(playerRect, c);
+            inRect = mouseOver && (mouseX <= lineNameWidth) && (number == _lastHoverPianoKey);
+            painter->fillRect(playerRect, inRect ? _cachedPianoBlackKeyHoverColor : (selected ? _cachedPianoBlackKeySelectedColor : c));
 
             keyPolygon.append(QPoint(x, y));
             keyPolygon.append(QPoint(x, y + height * scaleHeightBlack));
@@ -1093,7 +1093,7 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
                 keyPolygon.append(QPoint(x + width * scaleWidthBlack, y + height + height * scaleHeightBlack / 2));
                 keyPolygon.append(QPoint(x, y + height + height * scaleHeightBlack / 2));
             }
-            inRect = mouseInRect(x, y, width, height);
+            inRect = mouseOver && (mouseX <= lineNameWidth) && (number == _lastHoverPianoKey);
             pianoKeys.insert(number, QRect(x, y, width, height));
         }
 
@@ -1221,9 +1221,63 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     int mouseX = qRound(event->position().x());
     int mouseY = qRound(event->position().y());
     int currentMs = msOfXPos(mouseX);
+    
+    // Determine the note under the cursor (or aligned with it in the matrix)
     int currentPianoKey = -1;
     if (mouseInRect(PianoArea)) {
-        currentPianoKey = (int) ((double) (mouseY - timeHeight) / lineHeight()) + startLineY;
+        // Accurate note detection using the hit-test map (handles black keys)
+        // Optimized loop using const_iterator; we check black keys as they overlap white keys
+        int hitNote = -1;
+        for (auto it = pianoKeys.constBegin(); it != pianoKeys.constEnd(); ++it) {
+            const QRect &r = it.value();
+            if (mouseX >= r.x() && mouseX < r.x() + r.width() &&
+                mouseY >= r.y() && mouseY < r.y() + r.height()) {
+                int note = it.key();
+                // Check if it's a black key (1, 3, 6, 8, 10 in standard octave)
+                if ((1 << (note % 12)) & 0x54A) {
+                    hitNote = note;
+                    break; // Black key found, it's definitely the intended one
+                }
+                hitNote = note; // Remember white key, but keep looking for a black key on top
+            }
+        }
+        currentPianoKey = hitNote;
+
+        // Fallback for white key "tips" (the right side of a black key's row)
+        // If we are in the piano area but missed the black key rect, we should hit the white key below or above.
+        if (currentPianoKey == -1) {
+            int currentLine = startLineY;
+            if (lineHeight() > 0) {
+                currentLine = (mouseY - timeHeight) / lineHeight() + startLineY;
+                while (yPosOfLine(currentLine + 1) <= mouseY) currentLine++;
+                while (yPosOfLine(currentLine) > mouseY) currentLine--;
+            }
+            int note = 127 - currentLine;
+            if ((1 << (note % 12)) & 0x54A) {
+                // Split the black key row horizontally. Top half belongs to note + 1, bottom half to note - 1.
+                int rowY = yPosOfLine(currentLine);
+                int nextY = yPosOfLine(currentLine + 1);
+                if (mouseY < rowY + (nextY - rowY) / 2.0) {
+                    currentPianoKey = note + 1;
+                } else {
+                    currentPianoKey = note - 1;
+                }
+            } else {
+                currentPianoKey = note;
+            }
+        }
+    }
+    
+    // Fallback or alignment: If in matrix, use linear calculation
+    // This ensures vertical movement in the matrix also triggers hover updates for the piano roll
+    if (currentPianoKey == -1) {
+        int currentLine = startLineY;
+        if (lineHeight() > 0) {
+            currentLine = (mouseY - timeHeight) / lineHeight() + startLineY;
+            while (yPosOfLine(currentLine + 1) <= mouseY) currentLine++;
+            while (yPosOfLine(currentLine) > mouseY) currentLine--;
+        }
+        currentPianoKey = 127 - currentLine;
     }
     
     bool inMarkerArea = mouseInRect(MarkerArea);
@@ -1281,6 +1335,12 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (needsUpdate) {
+        // Piano glissando: Play notes as the user drags across the keyboard
+        if (enabled && (event->buttons() & Qt::LeftButton) && mouseInRect(PianoArea) && 
+            currentPianoKey != _lastHoverPianoKey && currentPianoKey != -1) {
+            playNote(currentPianoKey);
+        }
+
         _lastHoverMs = currentMs;
         _lastHoverMarker = hoveredMarker;
         _lastHoverPianoKey = currentPianoKey;
@@ -1300,6 +1360,16 @@ int MatrixWidget::xPosOfMs(int ms) {
 
 int MatrixWidget::yPosOfLine(int line) {
     return timeHeight + (line - startLineY) * lineHeight();
+}
+
+int MatrixWidget::lineAtY(int y) {
+    int currentLine = startLineY;
+    if (lineHeight() > 0) {
+        currentLine = (y - timeHeight) / lineHeight() + startLineY;
+        while (yPosOfLine(currentLine + 1) <= y) currentLine++;
+        while (yPosOfLine(currentLine) > y) currentLine--;
+    }
+    return currentLine;
 }
 
 double MatrixWidget::lineHeight() {
@@ -1372,12 +1442,45 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
             }
         }
     } else if (enabled && (!MidiPlayer::isPlaying()) && (mouseInRect(PianoArea))) {
-        foreach(int key, pianoKeys.keys()) {
-            bool inRect = mouseInRect(pianoKeys.value(key));
-            if (inRect) {
-                // play note
-                playNote(key);
+        // Find the correct note, giving priority to black keys (sharps) as they are drawn on top
+        int hitNote = -1;
+        for (auto it = pianoKeys.constBegin(); it != pianoKeys.constEnd(); ++it) {
+            const QRect &r = it.value();
+            if (mouseX >= r.x() && mouseX < r.x() + r.width() &&
+                mouseY >= r.y() && mouseY < r.y() + r.height()) {
+                int note = it.key();
+                if ((1 << (note % 12)) & 0x54A) {
+                    hitNote = note;
+                    break;
+                }
+                hitNote = note;
             }
+        }
+        
+        // Fallback for white key "tips" (clicking the right side of a black key's row)
+        if (hitNote == -1) {
+            int currentLine = startLineY;
+            if (lineHeight() > 0) {
+                currentLine = (mouseY - timeHeight) / lineHeight() + startLineY;
+                while (yPosOfLine(currentLine + 1) <= mouseY) currentLine++;
+                while (yPosOfLine(currentLine) > mouseY) currentLine--;
+            }
+            int note = 127 - currentLine;
+            if ((1 << (note % 12)) & 0x54A) {
+                int rowY = yPosOfLine(currentLine);
+                int nextY = yPosOfLine(currentLine + 1);
+                if (mouseY < rowY + (nextY - rowY) / 2.0) {
+                    hitNote = note + 1;
+                } else {
+                    hitNote = note - 1;
+                }
+            } else {
+                hitNote = note;
+            }
+        }
+        
+        if (hitNote != -1) {
+            playNote(hitNote);
         }
     }
 }
@@ -1608,9 +1711,7 @@ bool MatrixWidget::eventInWidget(MidiEvent *event) {
     }
 }
 
-int MatrixWidget::lineAtY(int y) {
-    return (y - timeHeight) / lineHeight() + startLineY;
-}
+
 
 void MatrixWidget::zoomStd() {
     scaleX = 1;

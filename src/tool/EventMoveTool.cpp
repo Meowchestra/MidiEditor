@@ -82,16 +82,14 @@ void EventMoveTool::draw(QPainter *painter) {
         if (!moveLeftRight) {
             shiftX = 0;
         }
-        int shiftY = startY - mouseY;
-        if (!moveUpDown) {
-            shiftY = 0;
-        }
-        double lineHeight = matrixWidget->lineHeight();
-        int nLines = qAbs(shiftY) / lineHeight;
-        if (shiftY < 0) {
-            shiftY = -nLines * lineHeight;
-        } else {
-            shiftY = nLines * lineHeight;
+        int shiftY = 0;
+        int numLines = 0;
+        if (moveUpDown) {
+            int startLine = matrixWidget->lineAtY(startY);
+            int currentLine = matrixWidget->lineAtY(mouseY);
+            numLines = startLine - currentLine;
+            // The visual shift is the pixel difference between the two lines
+            shiftY = numLines * matrixWidget->lineHeight();
         }
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
             int customShiftY = shiftY;
@@ -164,12 +162,14 @@ bool EventMoveTool::release() {
     if (!moveLeftRight) {
         shiftX = 0;
     }
-    int shiftY = startY - mouseY;
-    if (!moveUpDown) {
-        shiftY = 0;
+    int shiftY = 0;
+    int numLines = 0;
+    if (moveUpDown) {
+        int startLine = matrixWidget->lineAtY(startY);
+        int currentLine = matrixWidget->lineAtY(mouseY);
+        numLines = startLine - currentLine;
+        shiftY = numLines * matrixWidget->lineHeight();
     }
-    double lineHeight = matrixWidget->lineHeight();
-    int numLines = shiftY / lineHeight;
 
     // return when there shiftX/shiftY is too small or there are no selected
     // events
