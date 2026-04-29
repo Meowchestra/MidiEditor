@@ -54,6 +54,7 @@
 #include "EventWidget.h"
 #include "FileLengthDialog.h"
 #include "InstrumentChooser.h"
+#include "../midi/InstrumentDefinitions.h"
 #include "LayoutSettingsWidget.h"
 #include "SplitChannelsDialog.h"
 #include "MatrixWidget.h"
@@ -2846,11 +2847,15 @@ void MainWindow::splitChannelsToTracks() {
         }
 
         if (eventCount > 0) {
+            if (prog < 0) {
+                prog = file->channel(ch)->progAtTick(0);
+            }
+
             QString name;
             if (ch == 9) {
-                name = tr("Drums");
+                name = tr("Drumkit");
             } else if (prog >= 0) {
-                name = MidiFile::gmInstrumentName(prog);
+                name = InstrumentDefinitions::instance()->instrumentName(prog);
             } else {
                 name = tr("Channel %1").arg(ch);
             }
@@ -3968,7 +3973,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _actionMap["explode_chords_to_tracks"] = explodeChordsAction;
 
     QAction *splitChannelsAction = new QAction(tr("Split Channels to Tracks"), this);
-    splitChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_E)));
+    splitChannelsAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::ALT, Qt::Key_E)));
     _defaultShortcuts["split_channels_to_tracks"] = QList<QKeySequence>() << splitChannelsAction->shortcut();
     connect(splitChannelsAction, SIGNAL(triggered()), this, SLOT(splitChannelsToTracks()));
     toolsMB->addAction(splitChannelsAction);

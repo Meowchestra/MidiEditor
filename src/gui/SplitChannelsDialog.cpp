@@ -24,6 +24,7 @@
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
 #include "../midi/MidiOutput.h"
+#include "../midi/InstrumentDefinitions.h"
 #include <QSettings>
 #include <QToolButton>
 #include <QTimer>
@@ -303,11 +304,15 @@ void SplitChannelsDialog::analyzeTrack(MidiTrack *track) {
         }
 
         if (eventCount > 0) {
+            if (prog < 0) {
+                prog = _file->channel(ch)->progAtTick(0);
+            }
+
             QString name;
             if (ch == 9) {
                 name = tr("Drumkit");
             } else if (prog >= 0) {
-                name = MidiFile::gmInstrumentName(prog);
+                name = InstrumentDefinitions::instance()->instrumentName(prog);
             } else {
                 name = tr("Channel %1").arg(ch);
             }
