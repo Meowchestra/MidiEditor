@@ -2248,12 +2248,11 @@ void MainWindow::removeTrack(int tracknumber) {
 
 void MainWindow::addTrack() {
     if (file) {
-        bool ok;
-        QString text = QInputDialog::getText(this, tr("Set Track Name"), tr("Track Name (New Track)"), QLineEdit::Normal, tr("New Track"), &ok);
-        if (ok && !text.isEmpty()) {
+        TrackRenameDialog *d = new TrackRenameDialog(tr("New Track"), file->numTracks(), _settings, this);
+        if (d->exec() == QDialog::Accepted && !d->name().isEmpty()) {
             file->protocol()->startNewAction("Add Track");
             file->addTrack();
-            file->tracks()->at(file->numTracks() - 1)->setName(text);
+            file->tracks()->at(file->numTracks() - 1)->setName(d->name());
             file->protocol()->endAction();
 
             updateTrackMenu();
@@ -4704,6 +4703,7 @@ void MainWindow::checkForUpdates(bool silent) {
 
 void MainWindow::openConfig() {
     SettingsDialog *d = new SettingsDialog(tr("Settings"), _settings, this);
+    d->setAttribute(Qt::WA_DeleteOnClose);
     connect(d, SIGNAL(settingsChanged()), this, SLOT(updateAll()));
     connect(d, &SettingsDialog::settingsChanged, this, &MainWindow::updateGameSupportUI);
     // Note: We don't connect settingsChanged() to updateRenderingMode() here because

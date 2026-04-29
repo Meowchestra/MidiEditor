@@ -194,7 +194,7 @@ unix:!macx {
 
 win32: {
     DEFINES += __WINDOWS_MM__
-    LIBS += -lwinmm
+    LIBS += -lwinmm -ldwmapi
     CONFIG += static release
     RC_FILE = midieditor.rc
     OBJECTS_DIR = .tmp

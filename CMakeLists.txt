@@ -187,8 +187,9 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(MidiEditor PRIVATE ${OPENGL_LIBRARIES})
 
 # Link zlib for GP7 extraction (raw deflate)
-find_package(ZLIB REQUIRED)
-target_link_libraries(MidiEditor PRIVATE ZLIB::ZLIB)
+set(ZLIB_INCLUDE_DIR "C:/Qt/6.11.0/msvc2022_64/include/QtZlib")
+target_include_directories(MidiEditor PRIVATE ${ZLIB_INCLUDE_DIR})
+target_link_libraries(MidiEditor PRIVATE ${ZLIB_LIBRARY})
 
 # Optional FluidSynth support for built-in synthesizer
 # Accept pre-built install dir via -DFLUIDSYNTH_DIR=... or FLUIDSYNTH_DIR env var
@@ -392,7 +393,7 @@ if(PLAT_LINUX)
     target_link_libraries(MidiEditor PRIVATE asound)
 elseif(PLAT_WINDOWS)
     target_compile_definitions(MidiEditor PRIVATE __WINDOWS_MM__)
-    target_link_libraries(MidiEditor PRIVATE winmm)
+    target_link_libraries(MidiEditor PRIVATE winmm dwmapi)
 
     # Add Windows resource file if it exists
     if(EXISTS "${CMAKE_SOURCE_DIR}/midieditor.rc")
@@ -435,7 +436,6 @@ if(WIN32)
         # Deploy Qt libraries to build directory for debugging
         add_custom_command(TARGET MidiEditor POST_BUILD
             COMMAND ${WINDEPLOYQT_EXECUTABLE}
-                --debug
                 --compiler-runtime
                 --force
                 --no-translations

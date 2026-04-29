@@ -28,6 +28,7 @@
 
 // Forward declarations
 class QCheckBox;
+class QComboBox;
 
 /**
  * \class NamedColorWidgetItem
@@ -200,12 +201,21 @@ public slots:
      */
     void styleChanged(const QString &style);
 
+    /**
+     * \brief Handles application theme changes.
+     * \param index The new theme index
+     */
+    void themeChanged(int index);
+
 private:
     /** \brief List of channel color items */
     QList<NamedColorWidgetItem *> *_channelItems;
 
     /** \brief List of track color items */
     QList<NamedColorWidgetItem *> *_trackItems;
+
+    /** \brief ComboBox for theme presets */
+    QComboBox *_themeCombo;
 };
 
 #endif // APPEARANCESETTINGSWIDGET_H_

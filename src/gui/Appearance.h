@@ -144,8 +144,21 @@ public:
         PresetLogic
     };
 
+    enum ApplicationTheme {
+        ThemeAuto,
+        ThemeLight,
+        ThemeDark,
+        ThemeSakura,
+        ThemeAMOLED,
+        ThemeMaterialDark,
+        ThemeNord
+    };
+
     static ColorPreset colorPreset();
     static void setColorPreset(ColorPreset preset);
+
+    static ApplicationTheme applicationTheme();
+    static void setApplicationTheme(ApplicationTheme theme);
 
     /**
      * \brief Gets the current strip style.
@@ -342,6 +355,12 @@ public:
      * \brief Applies the current style to the application.
      */
     static void applyStyle();
+
+    /**
+     * \brief Applies DWM custom title bar colors for the widget based on the active theme.
+     * \param widget The widget to apply the DWM title bar styling to.
+     */
+    static void applyTitleBarColor(QWidget* widget);
 
     /**
      * \brief Notifies components that icon size has changed.
@@ -722,6 +741,7 @@ private:
     static bool _showTextEventMarkers;
     static MarkerColorMode _markerColorMode;
     static ColorPreset _colorPreset;
+    static ApplicationTheme _applicationTheme;
     static bool _smoothPlaybackScrolling;
 
     /** \brief Current application style name */

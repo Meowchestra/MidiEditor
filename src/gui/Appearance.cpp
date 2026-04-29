@@ -14,6 +14,28 @@
 #include "TrackListWidget.h"
 #include "ChannelListWidget.h"
 #include "ControlChangeSettingsWidget.h"
+#include "ThemePalettes.h"
+
+#ifdef Q_OS_WIN
+#include <dwmapi.h>
+
+class AppearanceEventFilter : public QObject {
+public:
+    AppearanceEventFilter(QObject *parent = nullptr) : QObject(parent) {}
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        if (event->type() == QEvent::Show) {
+            QWidget *widget = qobject_cast<QWidget *>(watched);
+            if (widget && widget->isWindow()) {
+                Appearance::applyTitleBarColor(widget);
+            }
+        }
+        return QObject::eventFilter(watched, event);
+    }
+};
+
+static AppearanceEventFilter *g_appearanceEventFilter = nullptr;
+
+#endif
 
 // Prevent rapid successive theme changes
 static QDateTime lastThemeChange;
@@ -33,6 +55,12 @@ QHash<int, QColor *> Appearance::trackColors = QHash<int, QColor *>();
 QSet<int> Appearance::customChannelColors = QSet<int>();
 QSet<int> Appearance::customTrackColors = QSet<int>();
 QMap<QAction *, QString> Appearance::registeredIconActions = QMap<QAction *, QString>();
+
+// Icon caching for performance on theme switch
+static QHash<QString, QIcon> s_iconCache;
+static Appearance::ApplicationTheme s_lastIconTheme = Appearance::ThemeAuto;
+static bool s_lastDarkMode = false;
+
 int Appearance::_opacity = 100;
 Appearance::stripStyle Appearance::_strip = Appearance::onSharp;
 bool Appearance::_showRangeLines = false;
@@ -41,6 +69,7 @@ bool Appearance::_showControlChangeMarkers = false;
 bool Appearance::_showTextEventMarkers = false;
 Appearance::MarkerColorMode Appearance::_markerColorMode = Appearance::ColorByTrack;
 Appearance::ColorPreset Appearance::_colorPreset = Appearance::PresetDefault;
+Appearance::ApplicationTheme Appearance::_applicationTheme = Appearance::ThemeAuto;
 bool Appearance::_smoothPlaybackScrolling = false;
 
 QString Appearance::_applicationStyle = "windowsvista";
@@ -67,6 +96,7 @@ void Appearance::init(QSettings *settings) {
     _showTextEventMarkers = settings->value("show_text_event_markers", false).toBool();
     _markerColorMode = static_cast<Appearance::MarkerColorMode>(settings->value("marker_color_mode", Appearance::ColorByTrack).toInt());
     _colorPreset = static_cast<Appearance::ColorPreset>(settings->value("color_preset", Appearance::PresetDefault).toInt());
+    _applicationTheme = static_cast<Appearance::ApplicationTheme>(settings->value("application_theme", Appearance::ThemeAuto).toInt());
     _smoothPlaybackScrolling = settings->value("rendering/smooth_playback_scroll", false).toBool();
 
     // Set default style with fallback
@@ -242,6 +272,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("show_text_event_markers", _showTextEventMarkers);
     settings->setValue("marker_color_mode", static_cast<int>(_markerColorMode));
     settings->setValue("color_preset", static_cast<int>(_colorPreset));
+    settings->setValue("application_theme", static_cast<int>(_applicationTheme));
     settings->setValue("rendering/smooth_playback_scroll", _smoothPlaybackScrolling);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
@@ -818,6 +849,14 @@ void Appearance::setColorPreset(Appearance::ColorPreset preset) {
     _colorPreset = preset;
 }
 
+Appearance::ApplicationTheme Appearance::applicationTheme() {
+    return _applicationTheme;
+}
+
+void Appearance::setApplicationTheme(Appearance::ApplicationTheme theme) {
+    _applicationTheme = theme;
+}
+
 bool Appearance::smoothPlaybackScrolling() {
     return _smoothPlaybackScrolling;
 }
@@ -978,6 +1017,7 @@ QStringList Appearance::availableStyles() {
     // Qt Quick Controls styles (Material, Universal, FluentWinUI3, etc.) don't work with QWidget applications
     QStringList styles = QStyleFactory::keys();
     styles.sort();
+    
     return styles;
 }
 
@@ -986,27 +1026,102 @@ void Appearance::applyStyle() {
     if (!app) return;
 
     // Apply QWidget style first
-    if (QStyleFactory::keys().contains(_applicationStyle)) {
+    if (QStyleFactory::keys().contains(_applicationStyle, Qt::CaseInsensitive)) {
         app->setStyle(_applicationStyle);
     }
 
-    // Apply dark mode specific styling if needed
-    if (shouldUseDarkMode()) {
-        QString darkStyleSheet =
-                "QToolButton:checked { "
-                "    background-color: rgba(80, 80, 80, 150); "
-                "    border: 1px solid rgba(120, 120, 120, 150); "
-                "} "
-                "QToolBar::separator { "
-                "    background-color: rgba(120, 120, 120, 150); "
-                "    width: 1px; "
-                "    height: 1px; "
-                "    margin: 2px; "
-                "}";
-        app->setStyleSheet(darkStyleSheet);
-    } else {
-        app->setStyleSheet(""); // Clear custom styling for light mode
+    bool isCustomTheme = (_applicationTheme >= ThemeSakura);
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+    // Guard against redundant setColorScheme() calls that trigger cascading signals
+    static Qt::ColorScheme s_lastSetScheme = Qt::ColorScheme::Unknown;
+    Qt::ColorScheme desiredScheme = Qt::ColorScheme::Unknown;
+    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura) {
+        desiredScheme = Qt::ColorScheme::Light;
+    } else if (_applicationTheme == ThemeDark || _applicationTheme == ThemeAMOLED || 
+               _applicationTheme == ThemeMaterialDark || _applicationTheme == ThemeNord) {
+        desiredScheme = Qt::ColorScheme::Dark;
     }
+    if (desiredScheme != s_lastSetScheme) {
+        s_lastSetScheme = desiredScheme;
+        QApplication::styleHints()->setColorScheme(desiredScheme);
+    }
+#endif
+
+    // Apply specific palettes and stylesheets for custom themes
+    if (isCustomTheme) {
+        if (_applicationTheme == ThemeSakura) {
+            app->setPalette(ThemePalettes::getSakuraPalette());
+            app->setStyleSheet(ThemePalettes::getSakuraStyleSheet());
+        } else if (_applicationTheme == ThemeAMOLED) {
+            app->setPalette(ThemePalettes::getAmoledPalette());
+            app->setStyleSheet(ThemePalettes::getAmoledStyleSheet());
+        } else if (_applicationTheme == ThemeMaterialDark) {
+            app->setPalette(ThemePalettes::getMaterialDarkPalette());
+            app->setStyleSheet(ThemePalettes::getMaterialDarkStyleSheet());
+        } else if (_applicationTheme == ThemeNord) {
+            app->setPalette(ThemePalettes::getNordPalette());
+            app->setStyleSheet(ThemePalettes::getNordStyleSheet());
+        }
+    } else {
+        // Passing a default-constructed QPalette clears the application's custom palette flag,
+        // which completely restores native OS drawing routines (e.g. Windows UxTheme).
+        app->setPalette(QPalette());
+
+        // Apply button accent override ONLY for Windows 11 style in non-custom themes.
+        // This keeps other styles (Fusion, etc.) native while giving Windows 11 a neutral look.
+        QString buttonStyleSheet;
+        if (_applicationStyle.compare("windows11", Qt::CaseInsensitive) == 0) {
+            if (shouldUseDarkMode()) {
+                buttonStyleSheet =
+                        "QToolButton:checked { "
+                        "    background-color: rgba(88, 96, 110, 120); "
+                        "} ";
+            } else {
+                buttonStyleSheet =
+                        "QToolButton:checked { "
+                        "    background-color: rgba(180, 188, 196, 140); "
+                        "} ";
+            }
+        }
+        app->setStyleSheet(buttonStyleSheet);
+    }
+
+#ifdef Q_OS_WIN
+    // Install event filter to catch new dialogs/windows if not already installed
+    if (!g_appearanceEventFilter) {
+        g_appearanceEventFilter = new AppearanceEventFilter(app);
+        app->installEventFilter(g_appearanceEventFilter);
+    }
+
+    // Apply DWM Dark Mode title bar for existing top-level widgets
+    foreach(QWidget* widget, app->topLevelWidgets()) {
+        applyTitleBarColor(widget);
+    }
+#endif
+}
+
+void Appearance::applyTitleBarColor(QWidget* widget) {
+#ifdef Q_OS_WIN
+    if (!widget || !widget->winId()) return;
+
+    BOOL dark = shouldUseDarkMode() ? TRUE : FALSE;
+    DwmSetWindowAttribute((HWND)widget->winId(), 20 /*DWMWA_USE_IMMERSIVE_DARK_MODE*/, &dark, sizeof(dark));
+    DwmSetWindowAttribute((HWND)widget->winId(), 19 /*older win10 versions*/, &dark, sizeof(dark));
+    
+    // Apply custom caption colors for Windows 11 (build 22000+)
+    COLORREF captionColor = 0xFFFFFFFF; // DWM_COLOR_DEFAULT
+    if (_applicationTheme == ThemeSakura) {
+        captionColor = RGB(255, 240, 245); // Match Sakura main background (LavenderBlush)
+    } else if (_applicationTheme == ThemeAMOLED) {
+        captionColor = RGB(0, 0, 0); // Pure black
+    } else if (_applicationTheme == ThemeMaterialDark) {
+        captionColor = RGB(30, 29, 35); // Material dark background
+    } else if (_applicationTheme == ThemeNord) {
+        captionColor = RGB(46, 52, 64); // Nord0
+    }
+    DwmSetWindowAttribute((HWND)widget->winId(), 35 /*DWMWA_CAPTION_COLOR*/, &captionColor, sizeof(captionColor));
+#endif
 }
 
 void Appearance::notifyIconSizeChanged() {
@@ -1034,6 +1149,16 @@ bool Appearance::isDarkModeEnabled() {
 }
 
 bool Appearance::shouldUseDarkMode() {
+    // If user has overridden the theme via ApplicationTheme setting, use that
+    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura) {
+        darkModeResult = false;
+        return false;
+    } else if (_applicationTheme == ThemeDark || _applicationTheme == ThemeAMOLED || 
+               _applicationTheme == ThemeMaterialDark || _applicationTheme == ThemeNord) {
+        darkModeResult = true;
+        return true;
+    }
+
     QString style = _applicationStyle.toLower();
 
     // Simple cache check - no expensive DateTime operations
@@ -1103,6 +1228,15 @@ QColor Appearance::grayColor() {
 }
 
 QColor Appearance::pianoWhiteKeyColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(55, 55, 58);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(35, 35, 35);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(76, 86, 106); // nord3
+    }
     if (shouldUseDarkMode()) {
         return QColor(120, 120, 120); // Darker gray for dark mode
     }
@@ -1110,6 +1244,15 @@ QColor Appearance::pianoWhiteKeyColor() {
 }
 
 QColor Appearance::pianoBlackKeyColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(22, 22, 25);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(0, 0, 0);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(46, 52, 64); // nord0
+    }
     if (shouldUseDarkMode()) {
         return Qt::black; // Keep black keys black in dark mode
     }
@@ -1117,6 +1260,15 @@ QColor Appearance::pianoBlackKeyColor() {
 }
 
 QColor Appearance::pianoWhiteKeyHoverColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(70, 70, 75);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(50, 50, 50);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(94, 105, 122);
+    }
     if (shouldUseDarkMode()) {
         return QColor(100, 100, 100); // Dark gray for hover in dark mode
     }
@@ -1124,6 +1276,15 @@ QColor Appearance::pianoWhiteKeyHoverColor() {
 }
 
 QColor Appearance::pianoBlackKeyHoverColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(45, 45, 48);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(30, 30, 30);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(67, 76, 94); // nord2
+    }
     if (shouldUseDarkMode()) {
         return QColor(150, 150, 150); // Light gray for hover in dark mode
     }
@@ -1131,6 +1292,15 @@ QColor Appearance::pianoBlackKeyHoverColor() {
 }
 
 QColor Appearance::pianoWhiteKeySelectedColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(80, 85, 90);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(60, 60, 60);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(110, 125, 145);
+    }
     if (shouldUseDarkMode()) {
         return QColor(150, 150, 150); // Light gray for selected in dark mode
     }
@@ -1138,6 +1308,15 @@ QColor Appearance::pianoWhiteKeySelectedColor() {
 }
 
 QColor Appearance::pianoBlackKeySelectedColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(50, 50, 55);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(35, 35, 35);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(76, 86, 106); // nord3
+    }
     if (shouldUseDarkMode()) {
         return QColor(100, 100, 100); // Dark gray for selected in dark mode
     }
@@ -1145,6 +1324,18 @@ QColor Appearance::pianoBlackKeySelectedColor() {
 }
 
 QColor Appearance::stripHighlightColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 245, 250); // Alternating subtle pink (Lighter)
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(67, 76, 94); // nord2
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(40, 40, 40); // Material dark alternate
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(24, 24, 24); // Slightly brighter for visible alternation
+    }
     if (shouldUseDarkMode()) {
         return QColor(70, 70, 70); // Dark gray
     }
@@ -1152,6 +1343,18 @@ QColor Appearance::stripHighlightColor() {
 }
 
 QColor Appearance::stripNormalColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 235, 245); // Alternating subtle pink (Darker)
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(59, 66, 82); // nord1
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(30, 29, 35); // Material dark background
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(0, 0, 0); // Pure black
+    }
     if (shouldUseDarkMode()) {
         return QColor(55, 55, 55); // Darker gray
     }
@@ -1159,6 +1362,12 @@ QColor Appearance::stripNormalColor() {
 }
 
 QColor Appearance::rangeLineColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(230, 210, 255); // Pastel purple for C3/C6
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(129, 161, 193); // nord9 (highlighted C3/C6)
+    }
     if (shouldUseDarkMode()) {
         return QColor(120, 105, 85); // Brighter cream for dark mode
     }
@@ -1166,6 +1375,18 @@ QColor Appearance::rangeLineColor() {
 }
 
 QColor Appearance::velocityBackgroundColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 245, 250); // Very light pink
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(46, 52, 64); // nord0
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(34, 34, 34); // Slightly lighter than background
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(10, 10, 10);
+    }
     if (shouldUseDarkMode()) {
         return QColor(60, 75, 85); // Dark blue-gray
     }
@@ -1173,6 +1394,18 @@ QColor Appearance::velocityBackgroundColor() {
 }
 
 QColor Appearance::velocityGridColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 220, 230); // Pink grid
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(67, 76, 94); // nord2
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(50, 50, 50); // Gray grid
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(40, 40, 40); // Dark gray grid
+    }
     if (shouldUseDarkMode()) {
         return QColor(80, 95, 105); // Lighter blue-gray
     }
@@ -1187,6 +1420,18 @@ QColor Appearance::systemTextColor() {
 }
 
 QColor Appearance::systemWindowColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 235, 245); // Muted pink background for measure timeline
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(46, 52, 64); // nord0
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(30, 29, 35); // Material dark background
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(0, 0, 0); // Pure black
+    }
     if (shouldUseDarkMode()) {
         return QColor(35, 35, 35); // Darker background for time area in dark mode
     }
@@ -1250,6 +1495,15 @@ QColor Appearance::cursorLineColor() {
 }
 
 QColor Appearance::cursorTriangleColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(4, 185, 127, 80); // Material green accent
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(230, 126, 34, 80); // AMOLED orange accent
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(129, 161, 193, 80); // nord9 accent
+    }
     if (shouldUseDarkMode()) {
         return QColor(80, 95, 105); // Dark blue-gray for dark mode
     }
@@ -1285,6 +1539,15 @@ QColor Appearance::pianoKeyLineHighlightColor() {
 }
 
 QColor Appearance::measureTextColor() {
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(180, 190, 200);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(160, 165, 170);
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(216, 222, 233); // nord4
+    }
     if (shouldUseDarkMode()) {
         return QColor(200, 200, 200); // Light gray for dark mode
     }
@@ -1292,6 +1555,18 @@ QColor Appearance::measureTextColor() {
 }
 
 QColor Appearance::measureBarColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 182, 193); // Light pink
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(76, 86, 106); // nord3
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(55, 55, 60);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(35, 35, 35);
+    }
     if (shouldUseDarkMode()) {
         return QColor(100, 100, 100); // Medium gray for dark mode
     }
@@ -1299,6 +1574,18 @@ QColor Appearance::measureBarColor() {
 }
 
 QColor Appearance::measureLineColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 105, 180); // Hot pink
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(136, 192, 208); // nord8
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(80, 85, 90);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(65, 65, 65);
+    }
     if (shouldUseDarkMode()) {
         return QColor(120, 120, 120); // Medium gray for dark mode
     }
@@ -1306,6 +1593,18 @@ QColor Appearance::measureLineColor() {
 }
 
 QColor Appearance::timelineGridColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(255, 215, 230); // Light pink grid
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(100, 112, 128); // Brighter than nord2 for visible grid lines
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(70, 70, 70); // Brighter grid against dark strips
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(50, 50, 50); // Visible grid against black strips
+    }
     if (shouldUseDarkMode()) {
         return QColor(100, 100, 100); // Medium gray for dark mode
     }
@@ -1327,6 +1626,18 @@ QColor Appearance::recordingIndicatorColor() {
 }
 
 QColor Appearance::programEventHighlightColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(240, 228, 245); // Lilac — clearly distinct from pink note strips
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(59, 66, 82); // nord1 (creates distinct separation from matrix)
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(28, 28, 28);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(12, 16, 22); // Dark blue-tinted — distinct from pure gray/black strips
+    }
     if (shouldUseDarkMode()) {
         return QColor(60, 70, 90); // Darker blue for dark mode (different from strip)
     }
@@ -1334,6 +1645,18 @@ QColor Appearance::programEventHighlightColor() {
 }
 
 QColor Appearance::programEventNormalColor() {
+    if (_applicationTheme == ThemeSakura) {
+        return QColor(232, 218, 238); // Deeper lilac — clearly distinct from pink note strips
+    }
+    if (_applicationTheme == ThemeNord) {
+        return QColor(46, 52, 64); // nord0 (creates distinct separation from matrix)
+    }
+    if (_applicationTheme == ThemeMaterialDark) {
+        return QColor(22, 22, 22);
+    }
+    if (_applicationTheme == ThemeAMOLED) {
+        return QColor(6, 10, 16); // Darker blue-tinted — distinct from pure gray/black strips
+    }
     if (shouldUseDarkMode()) {
         return QColor(45, 55, 70); // Darker blue-gray for dark mode (different from strip)
     }
@@ -1376,7 +1699,13 @@ QPixmap Appearance::adjustIconForDarkMode(const QPixmap &original, const QString
     QPixmap adjusted = original;
     QPainter painter(&adjusted);
     painter.setCompositionMode(QPainter::CompositionMode_SourceAtop);
-    painter.fillRect(adjusted.rect(), QColor(180, 180, 180)); // Light gray for dark mode
+    
+    QColor iconColor = QColor(180, 180, 180); // Default light gray
+    if (_applicationTheme == ThemeAMOLED || _applicationTheme == ThemeMaterialDark || _applicationTheme == ThemeNord) {
+        iconColor = Qt::white; // White icons for very dark custom themes
+    }
+    
+    painter.fillRect(adjusted.rect(), iconColor);
     painter.end();
     return adjusted;
 }
@@ -1387,14 +1716,24 @@ QIcon Appearance::adjustIconForDarkMode(const QString &iconPath) {
         return QIcon(); // Return empty icon to avoid crashes
     }
 
+    bool dark = shouldUseDarkMode();
+    if (s_lastIconTheme != _applicationTheme || s_lastDarkMode != dark) {
+        s_iconCache.clear();
+        s_lastIconTheme = _applicationTheme;
+        s_lastDarkMode = dark;
+    }
+
+    if (s_iconCache.contains(iconPath)) {
+        return s_iconCache[iconPath];
+    }
+
     QPixmap original(iconPath);
 
     // Check if the pixmap loaded successfully
     if (original.isNull()) {
-        return QIcon(); // Return empty icon instead of crashing
+        return QIcon(iconPath);
     }
 
-    // Extract filename from path for icon name detection
     QString fileName = iconPath;
     if (fileName.contains("/")) {
         fileName = fileName.split("/").last();
@@ -1403,8 +1742,9 @@ QIcon Appearance::adjustIconForDarkMode(const QString &iconPath) {
         fileName = fileName.split(".").first();
     }
 
-    QPixmap adjusted = adjustIconForDarkMode(original, fileName);
-    return QIcon(adjusted);
+    QIcon result(adjustIconForDarkMode(original, fileName));
+    s_iconCache[iconPath] = result;
+    return result;
 }
 
 void Appearance::refreshAllIcons() {
@@ -1503,6 +1843,12 @@ void Appearance::setActionIcon(QAction *action, const QString &iconPath) {
 }
 
 void Appearance::refreshColors() {
+    // Update all widgets
+    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
+    if (!app) {
+        return;
+    }
+
     // Prevent cascading toolbar updates during style changes
     static bool isRefreshingColors = false;
     static QDateTime lastRefresh;
@@ -1512,9 +1858,25 @@ void Appearance::refreshColors() {
         return; // Already refreshing, prevent recursion
     }
 
-    // Debounce rapid refresh calls
+    static QTimer* s_pendingRefreshTimer = nullptr;
     if (lastRefresh.isValid() && lastRefresh.msecsTo(now) < 200) {
+        // If a refresh is requested too soon, schedule it for the near future
+        // to ensure the final state is always applied.
+        if (!s_pendingRefreshTimer) {
+            s_pendingRefreshTimer = new QTimer(app);
+            s_pendingRefreshTimer->setSingleShot(true);
+            QObject::connect(s_pendingRefreshTimer, &QTimer::timeout, []() {
+                refreshColors();
+            });
+        }
+        if (!s_pendingRefreshTimer->isActive()) {
+            s_pendingRefreshTimer->start(210);
+        }
         return; // Too soon since last refresh
+    }
+
+    if (s_pendingRefreshTimer && s_pendingRefreshTimer->isActive()) {
+        s_pendingRefreshTimer->stop();
     }
 
     isRefreshingColors = true;
@@ -1526,6 +1888,11 @@ void Appearance::refreshColors() {
     bool schemeChanged = (s_lastScheme == -1) || (s_lastScheme != (newScheme ? 1 : 0));
     s_lastScheme = newScheme ? 1 : 0;
 
+    // Detect actual theme change for icon recoloring
+    static ApplicationTheme s_lastTheme = ThemeAuto;
+    bool themeChanged = (s_lastTheme != _applicationTheme);
+    s_lastTheme = _applicationTheme;
+
     // Detect application style name change (e.g., windowsvista -> windows11)
     static QString s_lastStyleName = QString();
     bool styleNameChanged = (s_lastStyleName.isEmpty() || s_lastStyleName != _applicationStyle);
@@ -1535,21 +1902,17 @@ void Appearance::refreshColors() {
         // Auto-reset default colors for the new theme
         autoResetDefaultColors();
     } catch (...) {
-        // Color reset failed - this might be the crash source
-        // Continue with other updates but skip color reset
-    }
-
-    // Update all widgets
-    QApplication *app = qobject_cast<QApplication *>(QApplication::instance());
-    if (!app) {
-        return;
+        // Color reset failed - continue with other updates
     }
 
     // Update all top-level widgets with crash protection
     foreach(QWidget* widget, app->topLevelWidgets()) {
         if (widget->isVisible()) {
-            // Only do full style unpolish/polish if the actual application style changed
-            if (styleNameChanged) {
+            // Full style unpolish/polish is needed when the style name, scheme, or theme changes.
+            // This ensures native styles (like Windows 11) update their internal caches/brushes
+            // and pick up the new palette correctly. Without this, switching between light
+            // and dark themes can result in 'inverted' or stale backgrounds.
+            if (styleNameChanged || schemeChanged || themeChanged) {
                 try {
                     widget->style()->unpolish(widget);
                     widget->style()->polish(widget);
@@ -1557,13 +1920,17 @@ void Appearance::refreshColors() {
                     // If style repolish fails for some widget, skip it
                 }
             }
-            // Always update to schedule a repaint, but avoid redundant unpolish/polish
+            // Always update to schedule a repaint
             try { widget->update(); } catch (...) {}
 
-            // Refresh all ToolButton icons for theme changes
-            QList<ToolButton *> toolButtons = widget->findChildren<ToolButton *>();
-            foreach(ToolButton* toolButton, toolButtons) {
-                toolButton->refreshIcon();
+            // Refresh ToolButton icons only when theme/scheme actually changed
+            // This is a perf bottleneck — each refreshIcon() does
+            // QImage->QPixmap->QPainter compositing
+            if (schemeChanged || themeChanged) {
+                QList<ToolButton *> toolButtons = widget->findChildren<ToolButton *>();
+                foreach(ToolButton* toolButton, toolButtons) {
+                    toolButton->refreshIcon();
+                }
             }
 
             // Refresh all ProtocolWidget colors for theme changes
@@ -1621,30 +1988,29 @@ void Appearance::refreshColors() {
             }
 
             // Refresh all LayoutSettingsWidget icons for theme changes
-            QList<QWidget *> layoutSettingsWidgets = widget->findChildren<QWidget *>("LayoutSettingsWidget");
-            foreach(QWidget* layoutWidget, layoutSettingsWidgets) {
-                // Call refreshIcons method if it exists
-                QMetaObject::invokeMethod(layoutWidget, "refreshIcons", Qt::DirectConnection);
+            if (schemeChanged || themeChanged) {
+                QList<QWidget *> layoutSettingsWidgets = widget->findChildren<QWidget *>("LayoutSettingsWidget");
+                foreach(QWidget* layoutWidget, layoutSettingsWidgets) {
+                    QMetaObject::invokeMethod(layoutWidget, "refreshIcons", Qt::DirectConnection);
+                }
             }
 
             // Refresh toolbar icons for widgets that support it
             if (widget->objectName() == "MainWindow" || widget->inherits("MainWindow")) {
-                // MainWindow has refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
             } else if (widget->objectName() == "SettingsDialog" || widget->inherits("SettingsDialog")) {
-                // SettingsDialog has its own refreshToolbarIcons method
                 QMetaObject::invokeMethod(widget, "refreshToolbarIcons", Qt::DirectConnection);
             }
-
-            // Force immediate processing of paint events
-            app->processEvents();
         }
     }
 
-    // Refresh all icons after widget updates
-    refreshAllIcons();
+    // Refresh registered action icons (uses cache — fast when theme unchanged)
+    if (schemeChanged || themeChanged) {
+        refreshAllIcons();
+    }
 
-    // Reapply styling for theme changes
+    // Reapply styling for theme changes (title bars, stylesheets)
+    // The static guard in applyStyle() prevents infinite recursion.
     applyStyle();
 
     // Update MatrixWidgets efficiently
@@ -1657,7 +2023,7 @@ void Appearance::refreshColors() {
             try { matrixWidget->updateCachedAppearanceColors(); } catch (...) {}
 
             // Only drop pixmaps and invalidate track color cache if scheme actually changed
-            if (schemeChanged) {
+            if (schemeChanged || themeChanged) {
                 try { matrixWidget->updateRenderingSettings(); } catch (...) {}
             } else {
                 // No effective scheme change; a simple update is enough

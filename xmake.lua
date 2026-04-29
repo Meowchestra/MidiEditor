@@ -187,6 +187,7 @@ target("MidiEditor") do
     elseif is_plat("windows") then
         add_defines("__WINDOWS_MM__")
         add_syslinks("winmm")
+        add_syslinks("dwmapi")
         add_files("midieditor.rc")
         set_kind("binary")
         add_ldflags("/SUBSYSTEM:WINDOWS", {force = true})

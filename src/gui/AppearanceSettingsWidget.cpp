@@ -127,26 +127,39 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     connect(styleCombo, SIGNAL(currentTextChanged(QString)), this, SLOT(styleChanged(QString)));
     styleLayout->addWidget(styleCombo, 0, 1);
 
-    styleLayout->addWidget(new QLabel(tr("Color Preset")), 1, 0);
+    styleLayout->addWidget(new QLabel(tr("Theme Preset")), 1, 0);
+    _themeCombo = new QComboBox(this);
+    _themeCombo->addItems({tr("Default"), tr("Light"), tr("Dark"), 
+                          tr("Sakura"), tr("AMOLED"), tr("Material Dark"), tr("Nord")});
+    _themeCombo->setCurrentIndex(static_cast<int>(Appearance::applicationTheme()));
+    connect(_themeCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(themeChanged(int)));
+    styleLayout->addWidget(_themeCombo, 1, 1);
+    
+    // Initial check for windowsvista
+    if (Appearance::applicationStyle().toLower() == "windowsvista") {
+        _themeCombo->setEnabled(false);
+    }
+
+    styleLayout->addWidget(new QLabel(tr("Color Preset")), 2, 0);
     QComboBox *presetCombo = new QComboBox(this);
     presetCombo->addItems({tr("Default"), tr("Pastel"), tr("Vibrant"), tr("Accessible"),
                            tr("FL Studio Classic"), tr("Ableton Live Muted"), tr("Logic Pro Distinct")});
     presetCombo->setCurrentIndex(static_cast<int>(Appearance::colorPreset()));
     connect(presetCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(colorPresetChanged(int)));
-    styleLayout->addWidget(presetCombo, 1, 1);
+    styleLayout->addWidget(presetCombo, 2, 1);
 
-    styleLayout->addWidget(new QLabel(tr("Strip Style")), 2, 0);
+    styleLayout->addWidget(new QLabel(tr("Strip Style")), 3, 0);
     QComboBox *strip = new QComboBox(this);
     strip->addItems({tr("Highlight by Octaves"), tr("Highlight by Scale"), tr("Highlight by Alternating")});
     strip->setCurrentIndex(Appearance::strip());
     connect(strip, SIGNAL(currentIndexChanged(int)), this, SLOT(stripStyleChanged(int)));
-    styleLayout->addWidget(strip, 2, 1);
+    styleLayout->addWidget(strip, 3, 1);
 
-    styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 3, 0);
+    styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 4, 0);
     QCheckBox *smoothScroll = new QCheckBox(this);
     smoothScroll->setChecked(Appearance::smoothPlaybackScrolling());
     connect(smoothScroll, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
-    styleLayout->addWidget(smoothScroll, 3, 1);
+    styleLayout->addWidget(smoothScroll, 4, 1);
     
     bottomGrid->addWidget(styleGroup, 0, 0);
 
@@ -276,11 +289,40 @@ void AppearanceSettingsWidget::smoothPlaybackScrollingChanged(bool enabled) {
 }
 
 void AppearanceSettingsWidget::styleChanged(const QString &style) {
+    if (style.toLower() == "windowsvista") {
+        if (_themeCombo) {
+            _themeCombo->setEnabled(false);
+            _themeCombo->blockSignals(true);
+            _themeCombo->setCurrentIndex(0); // Force to Default
+            _themeCombo->blockSignals(false);
+            Appearance::setApplicationTheme(Appearance::ThemeAuto);
+        }
+    } else {
+        if (_themeCombo) {
+            _themeCombo->setEnabled(true);
+        }
+    }
     Appearance::setApplicationStyle(style);
 
     // Force immediate color refresh for all widgets
     Appearance::forceColorRefresh();
     refreshColors(); // Also refresh this widget's colors immediately
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::themeChanged(int index) {
+    Appearance::setApplicationTheme(static_cast<Appearance::ApplicationTheme>(index));
+    
+    // Apply style sets palette and resets theme override
+    Appearance::applyStyle();
+    
+    // Force immediate color refresh for all widgets
+    // forceColorRefresh() calls refreshColors() internally
+    Appearance::forceColorRefresh();
+    refreshColors(); // Refresh this widget's color swatches immediately
+    
+    emit appearanceChanged();
     update();
 }
 
