@@ -651,7 +651,7 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
     _sampleRateCombo->addItems({"44100 Hz", "48000 Hz", "88200 Hz", "96000 Hz", "176400 Hz", "192000 Hz"});
     QString rateStr = QString::number(static_cast<int>(engine->sampleRate())) + " Hz";
     if (_sampleRateCombo->findText(rateStr) != -1) _sampleRateCombo->setCurrentText(rateStr);
-    else _sampleRateCombo->setCurrentText("44100 Hz");
+    else _sampleRateCombo->setCurrentText("48000 Hz");
     row1LeftLayout->addWidget(_sampleRateCombo, 1);
 
     _sampleFormatCombo = new QComboBox(_fluidSynthSettingsGroup);

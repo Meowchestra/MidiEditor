@@ -45,8 +45,8 @@ FluidSynthEngine::FluidSynthEngine()
       _synth(nullptr),
       _audioDriver(nullptr),
       _initialized(false),
-      _audioDriverName(),
-      _sampleRate(44100.0),
+      _audioDriverName("wasapi"),
+      _sampleRate(48000.0),
       _sampleFormat("16bits"),
       _gain(0.5),
       _reverbEngine("fdn"),
@@ -718,6 +718,13 @@ QStringList FluidSynthEngine::availableAudioDrivers() const {
             });
         delete_fluid_settings(tmpSettings);
     }
+    
+    // Move WASAPI to the top if present
+    int wasapiIdx = drivers.indexOf("wasapi");
+    if (wasapiIdx > 0) {
+        drivers.move(wasapiIdx, 0);
+    }
+    
     return drivers;
 }
 
@@ -799,8 +806,8 @@ void FluidSynthEngine::saveSettings(QSettings *settings) {
 void FluidSynthEngine::loadSettings(QSettings *settings) {
     settings->beginGroup("FluidSynth");
 
-    _audioDriverName = settings->value("audioDriver", "").toString();
-    _sampleRate = settings->value("sampleRate", 44100.0).toDouble();
+    _audioDriverName = settings->value("audioDriver", "wasapi").toString();
+    _sampleRate = settings->value("sampleRate", 48000.0).toDouble();
     _sampleFormat = settings->value("sampleFormat", "16bits").toString();
     _gain = settings->value("gain", 0.5).toDouble();
     _reverbEngine = settings->value("reverbEngine", "fdn").toString();
