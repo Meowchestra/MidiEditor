@@ -2043,7 +2043,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 
     // Selection Operations
     QAction* quantizeAction = contextMenu.addAction(tr("Quantize Selection"));
-    Appearance::setActionIcon(quantizeAction, ":/run_environment/graphics/tool/quantize.png");
+    // Appearance::setActionIcon(quantizeAction, ":/run_environment/graphics/tool/quantize.png");
     quantizeAction->setEnabled(hasSelection);
 
     contextMenu.addSeparator();
@@ -2080,14 +2080,14 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 
     // Transpose actions
     QMenu* transposeSubMenu = contextMenu.addMenu(tr("Transpose Selection"));
-    Appearance::setActionIcon(transposeSubMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
+    // Appearance::setActionIcon(transposeSubMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
     transposeSubMenu->setEnabled(hasSelection);
     QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose..."));
-    Appearance::setActionIcon(transposeAction, ":/run_environment/graphics/tool/transpose.png");
+    // Appearance::setActionIcon(transposeAction, ":/run_environment/graphics/tool/transpose.png");
     QAction* octaveUpAction = transposeSubMenu->addAction(tr("Octave Up"));
-    Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
+    // Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
     QAction* octaveDownAction = transposeSubMenu->addAction(tr("Octave Down"));
-    Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
+    // Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
 
     // General actions
     QAction* scaleAction = contextMenu.addAction(tr("Scale Events"));

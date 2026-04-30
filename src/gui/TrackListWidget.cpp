@@ -358,16 +358,16 @@ void TrackListWidget::contextMenuEvent(QContextMenuEvent *event) {
 
     // Group 2: Tools
     QAction *quantizeTrackAction = menu.addAction(tr("Quantize Track"));
-    Appearance::setActionIcon(quantizeTrackAction, ":/run_environment/graphics/tool/quantize.png");
+    // Appearance::setActionIcon(quantizeTrackAction, ":/run_environment/graphics/tool/quantize.png");
     
     QMenu *transposeMenu = menu.addMenu(tr("Transpose Track"));
-    Appearance::setActionIcon(transposeMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
+    // Appearance::setActionIcon(transposeMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
     QAction *transposeDialogAction = transposeMenu->addAction(tr("Transpose..."));
-    Appearance::setActionIcon(transposeDialogAction, ":/run_environment/graphics/tool/transpose.png");
+    // Appearance::setActionIcon(transposeDialogAction, ":/run_environment/graphics/tool/transpose.png");
     QAction *octaveUpAction = transposeMenu->addAction(tr("Octave Up"));
-    Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
+    // Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
     QAction *octaveDownAction = transposeMenu->addAction(tr("Octave Down"));
-    Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
+    // Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
 
     QAction *explodeAction = menu.addAction(tr("Explode Chords to Tracks"));
     QAction *splitAction = menu.addAction(tr("Split Channels to Tracks"));
