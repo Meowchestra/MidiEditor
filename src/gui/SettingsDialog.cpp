@@ -106,8 +106,8 @@ SettingsDialog::SettingsDialog(QString title, QSettings *settings, QWidget *pare
             _mainWindow, SLOT(toggleSmoothPlaybackScroll(bool)));
             
     addSetting(new LayoutSettingsWidget(central));
-    addSetting(new KeybindsSettingsWidget(this, central));
     addSetting(new StatusBarSettingsWidget(central));
+    addSetting(new KeybindsSettingsWidget(this, central));
     addSetting(new PerformanceSettingsWidget(settings, central));
     GameSupportSettingsWidget *gameSupport = new GameSupportSettingsWidget(settings, central);
     addSetting(gameSupport);

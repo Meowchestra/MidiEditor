@@ -140,6 +140,21 @@ signals:
      */
     void trackOrderChanged();
 
+    void cloneTrackRequested(MidiTrack *track);
+
+    void mergeTrackRequested(MidiTrack *source, MidiTrack *destination);
+    void moveTrackUpRequested(MidiTrack *track);
+    void moveTrackDownRequested(MidiTrack *track);
+    void quantizeTrackRequested(MidiTrack *track);
+    void transposeTrackRequested(MidiTrack *track);
+    void transposeTrackOctaveUpRequested(MidiTrack *track);
+    void transposeTrackOctaveDownRequested(MidiTrack *track);
+    void explodeTrackChordsRequested(MidiTrack *track);
+    void splitTrackChannelsRequested(MidiTrack *track);
+    void selectTrackEventsRequested(MidiTrack *track);
+    void clearTrackEventsRequested(MidiTrack *track);
+    void moveTrackEventsToChannelRequested(MidiTrack *track, int channel);
+
 public slots:
     /**
      * \brief Updates the track list display.
@@ -174,6 +189,9 @@ protected:
      * \return True if drop was handled successfully
      */
     bool dropMimeData(int index, const QMimeData *data, Qt::DropAction action) override;
+
+    void contextMenuEvent(QContextMenuEvent *event) override;
+    void mousePressEvent(QMouseEvent *event) override;
 
 private:
     /** \brief The associated MIDI file */

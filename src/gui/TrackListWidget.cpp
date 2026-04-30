@@ -22,6 +22,7 @@
 
 #include "../midi/MidiFile.h"
 #include "../midi/MidiTrack.h"
+#include "../midi/MidiChannel.h"
 #include "../protocol/Protocol.h"
 
 #include <QAction>
@@ -30,6 +31,8 @@
 #include <QGridLayout>
 #include <QLabel>
 #include <QMimeData>
+#include <QMenu>
+#include <QContextMenuEvent>
 #include <QPainter>
 #include <QToolBar>
 #include <QWidget>
@@ -313,7 +316,122 @@ void TrackListWidget::reorderTracks(int fromIndex, int toIndex) {
     // Force rebuild by clearing trackorder so update() detects a change
     trackorder.clear();
     update();
-    
+
     // Emit signal to notify other components
     emit trackOrderChanged();
+}
+
+void TrackListWidget::contextMenuEvent(QContextMenuEvent *event) {
+    QListWidgetItem *item = itemAt(event->pos());
+    if (!item) return;
+
+    int index = row(item);
+    if (index < 0 || index >= trackorder.size()) return;
+
+    MidiTrack *track = trackorder.at(index);
+
+    QMenu menu(this);
+    
+    // Group 1: Track Management
+    QAction *cloneAction = menu.addAction(tr("Clone Track"));
+    
+    QMenu *mergeMenu = menu.addMenu(tr("Merge Track..."));
+    QList<MidiTrack*> otherTracks;
+    for (int i = 0; i < file->numTracks(); ++i) {
+        MidiTrack *t = file->tracks()->at(i);
+        if (t != track) {
+            QAction *mAct = mergeMenu->addAction(QString("%1 %2: %3").arg(tr("Track")).arg(i).arg(t->name()));
+            mAct->setData(QVariant::fromValue((void*)t));
+            otherTracks.append(t);
+        }
+    }
+    if (otherTracks.isEmpty()) mergeMenu->setEnabled(false);
+
+    QMenu *moveMenu = menu.addMenu(tr("Move Track"));
+    QAction *moveUpAction = moveMenu->addAction(tr("Move Up"));
+    QAction *moveDownAction = moveMenu->addAction(tr("Move Down"));
+    int trackIdx = file->tracks()->indexOf(track);
+    if (trackIdx <= 0) moveUpAction->setEnabled(false);
+    if (trackIdx >= file->numTracks() - 1) moveDownAction->setEnabled(false);
+
+    menu.addSeparator();
+
+    // Group 2: Tools
+    QAction *quantizeTrackAction = menu.addAction(tr("Quantize Track"));
+    Appearance::setActionIcon(quantizeTrackAction, ":/run_environment/graphics/tool/quantize.png");
+    
+    QMenu *transposeMenu = menu.addMenu(tr("Transpose Track"));
+    Appearance::setActionIcon(transposeMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
+    QAction *transposeDialogAction = transposeMenu->addAction(tr("Transpose..."));
+    Appearance::setActionIcon(transposeDialogAction, ":/run_environment/graphics/tool/transpose.png");
+    QAction *octaveUpAction = transposeMenu->addAction(tr("Octave Up"));
+    Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
+    QAction *octaveDownAction = transposeMenu->addAction(tr("Octave Down"));
+    Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
+
+    QAction *explodeAction = menu.addAction(tr("Explode Chords to Tracks"));
+    QAction *splitAction = menu.addAction(tr("Split Channels to Tracks"));
+
+    menu.addSeparator();
+
+    // Group 3: Selection & Content
+    QAction *selectAllAction = menu.addAction(tr("Select All Events"));
+    
+    QMenu *toChannelMenu = menu.addMenu(tr("Move Events to Channel..."));
+    for (int i = 0; i < 16; i++) {
+        QString instName;
+        if (i == 9) {
+            instName = tr("Percussion");
+        } else {
+            instName = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
+        }
+        QAction *action = toChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instName));
+        action->setData(i);
+    }
+
+    QAction *clearAction = menu.addAction(tr("Remove Events"));
+
+    QAction *selectedAction = menu.exec(event->globalPos());
+
+    if (selectedAction == cloneAction) {
+        emit cloneTrackRequested(track);
+    } else if (mergeMenu->actions().contains(selectedAction)) {
+        MidiTrack *dest = (MidiTrack*)selectedAction->data().value<void*>();
+        emit mergeTrackRequested(track, dest);
+    } else if (selectedAction == moveUpAction) {
+        emit moveTrackUpRequested(track);
+    } else if (selectedAction == moveDownAction) {
+        emit moveTrackDownRequested(track);
+    } else if (selectedAction == quantizeTrackAction) {
+        emit quantizeTrackRequested(track);
+    } else if (selectedAction == transposeDialogAction) {
+        emit transposeTrackRequested(track);
+    } else if (selectedAction == octaveUpAction) {
+        emit transposeTrackOctaveUpRequested(track);
+    } else if (selectedAction == octaveDownAction) {
+        emit transposeTrackOctaveDownRequested(track);
+    } else if (selectedAction == explodeAction) {
+        emit explodeTrackChordsRequested(track);
+    } else if (selectedAction == splitAction) {
+        emit splitTrackChannelsRequested(track);
+    } else if (selectedAction == selectAllAction) {
+        emit selectTrackEventsRequested(track);
+    } else if (toChannelMenu->actions().contains(selectedAction)) {
+        emit moveTrackEventsToChannelRequested(track, selectedAction->data().toInt());
+    } else if (selectedAction == clearAction) {
+        emit clearTrackEventsRequested(track);
+    }
+}
+
+void TrackListWidget::mousePressEvent(QMouseEvent *event) {
+    if (event->button() == Qt::MiddleButton) {
+        QListWidgetItem *item = itemAt(event->pos());
+        if (item) {
+            setCurrentItem(item);
+            QContextMenuEvent ce(QContextMenuEvent::Mouse, event->pos(), event->globalPos());
+            contextMenuEvent(&ce);
+            return;
+        }
+    }
+    QListWidget::mousePressEvent(event);
 }

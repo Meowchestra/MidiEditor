@@ -450,6 +450,7 @@ public slots:
      * \param action The action containing channel information
      */
     void deleteChannel(QAction *action);
+
     void deleteTrack(QAction *action);
 
     /**
@@ -539,7 +540,24 @@ public slots:
 
     void transposeNSemitones();
 
+    void setVelocityDialog();
+
     void transposeSelection(int semitones);
+
+    void cloneTrack(MidiTrack *track);
+
+    void mergeTrack(MidiTrack *source, MidiTrack *destination);
+    void moveTrackUp(MidiTrack *track);
+    void moveTrackDown(MidiTrack *track);
+    void quantizeTrack(MidiTrack *track);
+    void transposeTrack(MidiTrack *track);
+    void transposeTrackOctaveUp(MidiTrack *track);
+    void transposeTrackOctaveDown(MidiTrack *track);
+    void explodeTrackChords(MidiTrack *track);
+    void splitTrackChannels(MidiTrack *track);
+    void selectTrackEvents(MidiTrack *track);
+    void clearTrackEvents(MidiTrack *track);
+    void moveTrackEventsToChannel(MidiTrack *track, int channel);
 
     /**
      * \brief Converts pitch bend data affecting selected notes into discrete notes.
@@ -552,12 +570,12 @@ public slots:
     /**
      * \brief Explodes chords into separate tracks based on chosen strategy.
      */
-    void explodeChordsToTracks();
+    void explodeChordsToTracks(MidiTrack *sourceTrack = nullptr);
 
     /**
      * \brief Splits a multi-channel track into one track per channel.
      */
-    void splitChannelsToTracks();
+    void splitChannelsToTracks(MidiTrack *sourceTrack = nullptr);
 
     /**
      * \brief Fixes FFXIV channel assignments and program changes.
@@ -746,8 +764,11 @@ public slots:
      * \brief Handles note duration preset selection.
      */
     void noteDurationSelected(QAction *action);
+
     void toggleStatusBar(bool visible);
+
     void toggleToolbar(bool visible);
+
     void updateStatusBar();
 
     /**
@@ -1020,7 +1041,7 @@ private:
     /**
      * \brief Creates a simple custom toolbar widget.
      * \param parent The parent widget
-     * \return Pointer to the created simple toolbar widget
+     * \return Pointer to the created simple custom toolbar widget
      */
     QWidget *createSimpleCustomToolbar(QWidget *parent);
 
@@ -1080,9 +1101,13 @@ private:
 
     /** \brief Main window status bar */
     QAction *_statusBarAction;
+
     QAction *_toolbarAction;
+
     QStatusBar *_statusBar;
+
     QLabel *_statusLabel;
+
     QPointer<SettingsDialog> _settingsDialog;
 };
 

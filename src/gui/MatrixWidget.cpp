@@ -38,6 +38,7 @@
 #include "../tool/EditorTool.h"
 #include "../tool/Selection.h"
 #include "../tool/StandardTool.h"
+#include "Appearance.h"
 #include "../tool/SelectTool.h"
 #include "../tool/EventTool.h"
 #include "MainWindow.h"
@@ -2038,6 +2039,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 
     // Selection Operations
     QAction* quantizeAction = contextMenu.addAction(tr("Quantize Selection"));
+    Appearance::setActionIcon(quantizeAction, ":/run_environment/graphics/tool/quantize.png");
     quantizeAction->setEnabled(hasSelection);
 
     contextMenu.addSeparator();
@@ -2060,7 +2062,10 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
             instName = tr("Percussion");
         } else {
             // Use the instrument at the first event's tick for better accuracy
-            int tick = selectedEvents.first()->midiTime();
+            int tick = 0;
+            if (!selectedEvents.isEmpty()) {
+                tick = selectedEvents.first()->midiTime();
+            }
             instName = MidiFile::instrumentName(file->channel(i)->progAtTick(tick));
         }
         QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instName));
@@ -2070,11 +2075,15 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     contextMenu.addSeparator();
 
     // Transpose actions
-    QMenu* transposeSubMenu = contextMenu.addMenu(tr("Transpose"));
+    QMenu* transposeSubMenu = contextMenu.addMenu(tr("Transpose Selection"));
+    Appearance::setActionIcon(transposeSubMenu->menuAction(), ":/run_environment/graphics/tool/transpose.png");
     transposeSubMenu->setEnabled(hasSelection);
-    QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose Selection"));
-    QAction* octaveUpAction = transposeSubMenu->addAction(tr("Transpose Octave Up"));
-    QAction* octaveDownAction = transposeSubMenu->addAction(tr("Transpose Octave Down"));
+    QAction* transposeAction = transposeSubMenu->addAction(tr("Transpose..."));
+    Appearance::setActionIcon(transposeAction, ":/run_environment/graphics/tool/transpose.png");
+    QAction* octaveUpAction = transposeSubMenu->addAction(tr("Octave Up"));
+    Appearance::setActionIcon(octaveUpAction, ":/run_environment/graphics/tool/transpose_up.png");
+    QAction* octaveDownAction = transposeSubMenu->addAction(tr("Octave Down"));
+    Appearance::setActionIcon(octaveDownAction, ":/run_environment/graphics/tool/transpose_down.png");
 
     // General actions
     QAction* scaleAction = contextMenu.addAction(tr("Scale Events"));

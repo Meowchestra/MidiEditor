@@ -75,6 +75,7 @@
 #include "TrackRenameDialog.h"
 #include "TrackListWidget.h"
 #include "TransposeDialog.h"
+#include "VelocityDialog.h"
 #include "TweakTarget.h"
 #include "UpdateChecker.h"
 
@@ -526,6 +527,19 @@ MainWindow::MainWindow(QString initFile)
     _trackWidget = new TrackListWidget(tracksWidget);
     connect(_trackWidget, SIGNAL(trackRenameClicked(int)), this, SLOT(renameTrack(int)), Qt::QueuedConnection);
     connect(_trackWidget, SIGNAL(trackRemoveClicked(int)), this, SLOT(removeTrack(int)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(cloneTrackRequested(MidiTrack*)), this, SLOT(cloneTrack(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(mergeTrackRequested(MidiTrack*, MidiTrack*)), this, SLOT(mergeTrack(MidiTrack*, MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(moveTrackUpRequested(MidiTrack*)), this, SLOT(moveTrackUp(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(moveTrackDownRequested(MidiTrack*)), this, SLOT(moveTrackDown(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(quantizeTrackRequested(MidiTrack*)), this, SLOT(quantizeTrack(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(transposeTrackRequested(MidiTrack*)), this, SLOT(transposeTrack(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(transposeTrackOctaveUpRequested(MidiTrack*)), this, SLOT(transposeTrackOctaveUp(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(transposeTrackOctaveDownRequested(MidiTrack*)), this, SLOT(transposeTrackOctaveDown(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(explodeTrackChordsRequested(MidiTrack*)), this, SLOT(explodeTrackChords(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(splitTrackChannelsRequested(MidiTrack*)), this, SLOT(splitTrackChannels(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(selectTrackEventsRequested(MidiTrack*)), this, SLOT(selectTrackEvents(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(clearTrackEventsRequested(MidiTrack*)), this, SLOT(clearTrackEvents(MidiTrack*)), Qt::QueuedConnection);
+    connect(_trackWidget, SIGNAL(moveTrackEventsToChannelRequested(MidiTrack*,int)), this, SLOT(moveTrackEventsToChannel(MidiTrack*,int)), Qt::QueuedConnection);
     connect(_trackWidget, SIGNAL(trackClicked(MidiTrack*)), this, SLOT(editTrackAndChannel(MidiTrack*)), Qt::QueuedConnection);
 
     tracksLayout->addWidget(_trackWidget, 1, 0, 1, 1);
@@ -2617,13 +2631,14 @@ void MainWindow::convertPitchBendToNotes() {
     updateAll();
 }
 
-void MainWindow::explodeChordsToTracks() {
+void MainWindow::explodeChordsToTracks(MidiTrack *sourceTrack) {
     if (!file) {
         return;
     }
 
-    // Determine source scope: selected notes on current edit track, otherwise all notes on that track
-    MidiTrack *sourceTrack = file->track(NewNoteTool::editTrack());
+    if (!sourceTrack) {
+        sourceTrack = file->track(NewNoteTool::editTrack());
+    }
     if (!sourceTrack) {
         return;
     }
@@ -2801,13 +2816,14 @@ void MainWindow::explodeChordsToTracks() {
     updateAll();
 }
 
-void MainWindow::splitChannelsToTracks() {
+void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
     if (!file) {
         return;
     }
 
-    // Determine default source track: the current edit track
-    MidiTrack *sourceTrack = file->track(NewNoteTool::editTrack());
+    if (!sourceTrack) {
+        sourceTrack = file->track(NewNoteTool::editTrack());
+    }
     if (!sourceTrack) {
         return;
     }
@@ -3060,6 +3076,270 @@ void MainWindow::splitChannelsToTracks() {
     updateAll();
 }
 
+void MainWindow::cloneTrack(MidiTrack *source) {
+    if (!file || !source) return;
+
+    file->protocol()->startNewAction(tr("Clone Track"));
+
+    // Create new track
+    file->addTrack();
+    MidiTrack *newTrack = file->tracks()->last();
+    newTrack->setName(source->name() + tr(" (copy)"));
+    newTrack->assignChannel(source->assignedChannel());
+
+    // Move to right below the original track
+    int originalIndex = file->tracks()->indexOf(source);
+    if (originalIndex >= 0) {
+        file->tracks()->removeOne(newTrack);
+        file->tracks()->insert(originalIndex + 1, newTrack);
+        // Renumber tracks
+        for (int i = 0; i < file->tracks()->size(); ++i) {
+            file->tracks()->at(i)->setNumber(i);
+        }
+    }
+
+    // Copy events
+    for (int ch = 0; ch < 19; ++ch) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        // Use uniqueKeys to iterate safely
+        QList<int> ticks = emap->uniqueKeys();
+        foreach(int tick, ticks) {
+            QList<MidiEvent *> events = emap->values(tick);
+            foreach(MidiEvent *ev, events) {
+                if (ev->track() == source) {
+                    if (NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(ev)) {
+                        // For notes, use insertNote to handle OffEvent correctly
+                        if (on->offEvent()) {
+                            file->channel(ch)->insertNote(on->note(), on->midiTime(), on->offEvent()->midiTime(), on->velocity(), newTrack);
+                        }
+                    } else if (!dynamic_cast<OffEvent *>(ev)) {
+                        // For other events (except OffEvents which are handled by insertNote), copy and insert
+                        ProtocolEntry *pe = ev->copy();
+                        MidiEvent *copy = dynamic_cast<MidiEvent *>(pe);
+                        if (copy) {
+                            copy->setTrack(newTrack, false);
+                            file->channel(ch)->insertEvent(copy, tick, false);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::mergeTrack(MidiTrack *source, MidiTrack *destination) {
+    if (!file || !source || !destination || source == destination) return;
+
+    file->protocol()->startNewAction(tr("Merge Track"));
+
+    // Deselect events from source track
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        if (event->track() == source) {
+            EventTool::deselectEvent(event);
+        }
+    }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+
+    // Move all events from source to destination
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        QList<int> ticks = emap->uniqueKeys();
+        foreach(int tick, ticks) {
+            QList<MidiEvent *> events = emap->values(tick);
+            foreach(MidiEvent *ev, events) {
+                if (ev->track() == source) {
+                    ev->setTrack(destination, true);
+                }
+            }
+        }
+    }
+
+    // Remove source track
+    if (!file->removeTrack(source)) {
+        QMessageBox::warning(this, tr("Error"), tr("The selected track can't be removed!"));
+    }
+
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::moveTrackUp(MidiTrack *track) {
+    if (!file || !track) return;
+    int idx = file->tracks()->indexOf(track);
+    if (idx <= 0) return;
+
+    file->protocol()->startNewAction(tr("Move Track Up"));
+    file->tracks()->swapItemsAt(idx, idx - 1);
+    // Renumber tracks
+    for (int i = 0; i < file->tracks()->size(); ++i) {
+        file->tracks()->at(i)->setNumber(i);
+    }
+    file->protocol()->endAction();
+    updateAll();
+    _trackWidget->update();
+}
+
+void MainWindow::moveTrackDown(MidiTrack *track) {
+    if (!file || !track) return;
+    int idx = file->tracks()->indexOf(track);
+    if (idx < 0 || idx >= file->tracks()->size() - 1) return;
+
+    file->protocol()->startNewAction(tr("Move Track Down"));
+    file->tracks()->swapItemsAt(idx, idx + 1);
+    // Renumber tracks
+    for (int i = 0; i < file->tracks()->size(); ++i) {
+        file->tracks()->at(i)->setNumber(i);
+    }
+    file->protocol()->endAction();
+    updateAll();
+    _trackWidget->update();
+}
+
+void MainWindow::quantizeTrack(MidiTrack *track) {
+    if (!file || !track) return;
+    QList<int> ticks = file->quantization(_quantizationGrid);
+    file->protocol()->startNewAction(tr("Quantize Track"), new QImage(":/run_environment/graphics/tool/quantize.png"));
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* e, emap->values()) {
+            if (e->track() == track) {
+                int onTime = e->midiTime();
+                e->setMidiTime(quantize(onTime, ticks));
+                OnEvent *on = dynamic_cast<OnEvent *>(e);
+                if (on) {
+                    MidiEvent *off = on->offEvent();
+                    off->setMidiTime(quantize(off->midiTime(), ticks) - 1);
+                    if (off->midiTime() <= on->midiTime()) {
+                        int idx = ticks.indexOf(off->midiTime() + 1);
+                        if ((idx >= 0) && (ticks.size() > idx + 1)) {
+                            off->setMidiTime(ticks.at(idx + 1) - 1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::transposeTrack(MidiTrack *track) {
+    if (!file || !track) return;
+    QList<NoteOnEvent *> events;
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) {
+                NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(ev);
+                if (on) events.append(on);
+            }
+        }
+    }
+    if (events.isEmpty()) return;
+    TransposeDialog *d = new TransposeDialog(events, file, this);
+    d->setModal(true);
+    d->show();
+}
+
+void MainWindow::transposeTrackOctaveUp(MidiTrack *track) {
+    if (!file || !track) return;
+    file->protocol()->startNewAction(tr("Transpose Octave Up"), new QImage(":/run_environment/graphics/tool/transpose_up.png"));
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) {
+                NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(ev);
+                if (on) {
+                    on->setNote(on->note() + 12);
+                }
+            }
+        }
+    }
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::transposeTrackOctaveDown(MidiTrack *track) {
+    if (!file || !track) return;
+    file->protocol()->startNewAction(tr("Transpose Octave Down"), new QImage(":/run_environment/graphics/tool/transpose_down.png"));
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) {
+                NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(ev);
+                if (on) {
+                    on->setNote(on->note() - 12);
+                }
+            }
+        }
+    }
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::explodeTrackChords(MidiTrack *track) {
+    explodeChordsToTracks(track);
+}
+
+void MainWindow::splitTrackChannels(MidiTrack *track) {
+    splitChannelsToTracks(track);
+}
+
+void MainWindow::selectTrackEvents(MidiTrack *track) {
+    if (!file || !track) return;
+    Selection::instance()->clearSelection();
+    QList<MidiEvent *> events;
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) {
+                events.append(ev);
+            }
+        }
+    }
+    Selection::instance()->setSelection(events);
+    updateAll();
+}
+
+void MainWindow::clearTrackEvents(MidiTrack *track) {
+    if (!file || !track) return;
+    file->protocol()->startNewAction(tr("Clear All Events"), new QImage(":/run_environment/graphics/tool/eraser.png"));
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        QList<MidiEvent *> toRemove;
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) toRemove.append(ev);
+        }
+        foreach(MidiEvent* ev, toRemove) {
+            file->channel(ch)->removeEvent(ev);
+        }
+    }
+    file->protocol()->endAction();
+    updateAll();
+}
+
+void MainWindow::moveTrackEventsToChannel(MidiTrack *track, int channel) {
+    if (!file || !track || channel < 0 || channel >= 16) return;
+    file->protocol()->startNewAction(tr("Move Track to Channel"));
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *emap = file->channel(ch)->eventMap();
+        foreach(MidiEvent* ev, emap->values()) {
+            if (ev->track() == track) {
+                if (OnEvent *on = dynamic_cast<OnEvent *>(ev)) {
+                    on->moveToChannel(channel, false);
+                } else if (!dynamic_cast<OffEvent *>(ev)) {
+                    ev->setChannel(channel, false);
+                }
+            }
+        }
+    }
+    file->protocol()->endAction();
+    updateAll();
+}
+
 void MainWindow::transposeNSemitones() {
     if (!file) {
         return;
@@ -3078,6 +3358,28 @@ void MainWindow::transposeNSemitones() {
     }
 
     TransposeDialog *d = new TransposeDialog(events, file, this);
+    d->setModal(true);
+    d->show();
+}
+
+void MainWindow::setVelocityDialog() {
+    if (!file) {
+        return;
+    }
+
+    QList<NoteOnEvent *> events;
+    foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+        NoteOnEvent *on = dynamic_cast<NoteOnEvent *>(event);
+        if (on) {
+            events.append(on);
+        }
+    }
+
+    if (events.isEmpty()) {
+        return;
+    }
+
+    VelocityDialog *d = new VelocityDialog(events, file, this);
     d->setModal(true);
     d->show();
 }
@@ -4241,6 +4543,15 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     QAction *setFileLengthMs = new QAction(tr("Set File Duration"), this);
     connect(setFileLengthMs, SIGNAL(triggered()), this, SLOT(setFileLengthMs()));
     toolsMB->addAction(setFileLengthMs);
+    _actionMap["set_file_duration"] = setFileLengthMs;
+
+    QAction *setVelocityAction = new QAction(tr("Set Velocity"), this);
+    _activateWithSelections.append(setVelocityAction);
+    setVelocityAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_L)));
+    _defaultShortcuts["set_velocity"] = QList<QKeySequence>() << setVelocityAction->shortcut();
+    connect(setVelocityAction, SIGNAL(triggered()), this, SLOT(setVelocityDialog()));
+    toolsMB->addAction(setVelocityAction);
+    _actionMap["set_velocity"] = setVelocityAction;
 
     QAction *scaleSelection = new QAction(tr("Scale Events"), this);
     _activateWithSelections.append(scaleSelection);

@@ -16,39 +16,36 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "TransposeDialog.h"
+#include "VelocityDialog.h"
 #include "MainWindow.h"
 
-#include <QButtonGroup>
 #include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QImage>
-#include <QRadioButton>
 #include <QSpinBox>
 
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 
-TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *file, QWidget *parent) : QDialog(parent) {
-    setWindowTitle(tr("Transpose Selection"));
+VelocityDialog::VelocityDialog(QList<NoteOnEvent *> toUpdate, MidiFile *file, QWidget *parent) : QDialog(parent) {
+    setWindowTitle(tr("Set Velocity"));
 
-    _toTranspose = toTranspose;
+    _toUpdate = toUpdate;
     _file = file;
 
-    QLabel *text = new QLabel(tr("Number of semitones: "), this);
+    QLabel *text = new QLabel(tr("Velocity (0-127): "), this);
     _valueBox = new QSpinBox(this);
     _valueBox->setMinimum(0);
     _valueBox->setMaximum(127);
-    _valueBox->setValue(0);
-
-    QButtonGroup *group = new QButtonGroup(this);
-    _up = new QRadioButton(tr("Up"), this);
-    _down = new QRadioButton(tr("Down"), this);
-    _up->setChecked(true);
-    group->addButton(_up);
-    group->addButton(_down);
+    
+    // Set default value to the velocity of the first note in selection if available
+    if (!toUpdate.isEmpty()) {
+        _valueBox->setValue(toUpdate.first()->velocity());
+    } else {
+        _valueBox->setValue(100);
+    }
 
     QPushButton *breakButton = new QPushButton(tr("Cancel"), this);
     connect(breakButton, SIGNAL(clicked()), this, SLOT(hide()));
@@ -58,32 +55,21 @@ TransposeDialog::TransposeDialog(QList<NoteOnEvent *> toTranspose, MidiFile *fil
     QGridLayout *layout = new QGridLayout(this);
     layout->addWidget(text, 0, 0, 1, 1);
     layout->addWidget(_valueBox, 0, 1, 1, 2);
-    layout->addWidget(_up, 1, 0, 1, 1);
-    layout->addWidget(_down, 1, 2, 1, 1);
-    layout->addWidget(acceptButton, 2, 0, 1, 1);
-    layout->addWidget(breakButton, 2, 2, 1, 1);
+    layout->addWidget(acceptButton, 1, 0, 1, 1);
+    layout->addWidget(breakButton, 1, 2, 1, 1);
     layout->setColumnStretch(1, 1);
 
     _valueBox->setFocus();
+    _valueBox->selectAll();
 }
 
-void TransposeDialog::accept() {
-    int semitones = _valueBox->value();
-    if (_down->isChecked()) {
-        semitones *= -1;
-    }
+void VelocityDialog::accept() {
+    int velocity = _valueBox->value();
 
-    if (semitones != 0) {
-        QString actionName = tr("Transpose Selection");
-        if (semitones == 12) actionName = tr("Transpose Octave Up");
-        else if (semitones == -12) actionName = tr("Transpose Octave Down");
-
-        _file->protocol()->startNewAction(actionName, new QImage(":/run_environment/graphics/tool/transpose.png"));
-        foreach(NoteOnEvent* e, _toTranspose) {
-            int newNote = e->note() + semitones;
-            if (newNote >= 0 && newNote <= 127) {
-                e->setNote(newNote);
-            }
+    if (!_toUpdate.isEmpty()) {
+        _file->protocol()->startNewAction(tr("Set Velocity"));
+        foreach(NoteOnEvent* e, _toUpdate) {
+            e->setVelocity(velocity);
         }
         _file->protocol()->endAction();
     }
