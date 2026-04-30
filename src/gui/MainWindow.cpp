@@ -579,6 +579,7 @@ MainWindow::MainWindow(QString initFile)
     channelWidget = new ChannelListWidget(channelsWidget);
     connect(channelWidget, SIGNAL(channelStateChanged()), this, SLOT(updateChannelMenu()), Qt::QueuedConnection);
     connect(channelWidget, SIGNAL(selectInstrumentClicked(int)), this, SLOT(setInstrumentForChannel(int)), Qt::QueuedConnection);
+    connect(channelWidget, &ChannelListWidget::channelClicked, this, [this](int ch) { this->editChannel(ch, false); });
     channelsLayout->addWidget(channelWidget, 1, 0, 1, 1);
     upperTabWidget->addTab(channelsWidget, tr("Channels"));
 
@@ -826,11 +827,13 @@ void MainWindow::setFile(MidiFile *newFile) {
     connect(newFile, SIGNAL(trackChanged()), this, SLOT(updateTrackMenu()));
     setWindowTitle(QApplication::applicationName() + " - " + newFile->path() + "[*]");
     connect(newFile, SIGNAL(cursorPositionChanged()), channelWidget, SLOT(update()));
+    connect(newFile, SIGNAL(cursorPositionChanged()), this, SLOT(updateChannelMenu()));
 
     // Connect recalcWidgetSize to the matrix widget container
     connect(newFile, SIGNAL(recalcWidgetSize()), _matrixWidgetContainer, SLOT(calcSizes()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(markEdited()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), eventWidget(), SLOT(reload()));
+    connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(updateChannelMenu()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(checkEnableActionsForSelection()));
     connect(newFile->protocol(), SIGNAL(actionFinished()), this, SLOT(updateStatusBar()));
     // Set file on the appropriate widget based on rendering mode
@@ -1845,6 +1848,13 @@ void MainWindow::deleteSelectedEvents() {
 
             // Remove all events from this channel at once
             foreach(MidiEvent* ev, eventsByChannel[channelNum]) {
+                // if it's the only TimeSig / TempoChange at 0, don't delete it
+                if (channelNum == 18 || channelNum == 17) {
+                    if ((ev->midiTime() == 0) && (channel->eventMap()->count(0) <= 1)) {
+                        continue;
+                    }
+                }
+
                 // Handle track name events
                 if (channelNum == 16 && (MidiEvent *) (ev->track()->nameEvent()) == ev) {
                     ev->track()->setNameEvent(0);
@@ -2017,7 +2027,8 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _deleteChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            int tick = file->cursorTick();
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(tick));
             if (channel == 9) instName = tr("Percussion");
             action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
@@ -2027,7 +2038,8 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _moveSelectedEventsToChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            int tick = file->cursorTick();
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(tick));
             if (channel == 9) instName = tr("Percussion");
             action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
@@ -2037,7 +2049,8 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _pasteToChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file && channel >= 0) {
-            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            int tick = file->cursorTick();
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(tick));
             if (channel == 9) instName = tr("Percussion");
             action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
@@ -2047,7 +2060,8 @@ void MainWindow::updateChannelMenu() {
     foreach(QAction* action, _selectAllFromChannelMenu->actions()) {
         int channel = action->data().toInt();
         if (file) {
-            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(0));
+            int tick = file->cursorTick();
+            QString instName = MidiFile::instrumentName(file->channel(channel)->progAtTick(tick));
             if (channel == 9) instName = tr("Percussion");
             action->setText(tr("Channel %1: %2").arg(channel).arg(instName));
         }
@@ -2057,7 +2071,8 @@ void MainWindow::updateChannelMenu() {
     if (_chooseEditChannel) {
         for (int ch = 0; ch < 16; ++ch) {
             if (file) {
-                QString instName = MidiFile::instrumentName(file->channel(ch)->progAtTick(0));
+                int tick = file->cursorTick();
+                QString instName = MidiFile::instrumentName(file->channel(ch)->progAtTick(tick));
                 if (ch == 9) instName = tr("Percussion");
                 _chooseEditChannel->setItemText(ch, tr("Channel %1: %2").arg(ch).arg(instName));
             } else {
@@ -3191,10 +3206,78 @@ void MainWindow::editTrack(int i, bool assign) {
 }
 
 void MainWindow::editTrackAndChannel(MidiTrack *track) {
-    editTrack(track->number(), false);
-    if (track->assignedChannel() > -1) {
-        editChannel(track->assignedChannel(), false);
+    if (!track || !file) return;
+
+    int targetTrackNum = track->number();
+    editTrack(targetTrackNum, false);
+
+    int cursorTick = file->cursorTick();
+    int bestTick = -1;
+    int detectedCh = -1;
+
+    // Stage 1: Time-Aware Detection
+    // Find the channel of the event belonging to this track that is closest to (but not after) the cursor.
+    for (int ch = 0; ch < 16; ch++) {
+        QMultiMap<int, MidiEvent *> *chEvents = file->channelEvents(ch);
+        QMultiMapIterator<int, MidiEvent *> it(*chEvents);
+        while (it.hasNext()) {
+            it.next();
+            
+            // Stop searching this channel if we've passed the cursor
+            if (it.key() > cursorTick) {
+                break;
+            }
+
+            MidiEvent *ev = it.value();
+            MidiTrack *evTrack = ev->track();
+            
+            // Verify track ownership
+            if (evTrack && (evTrack == track || evTrack->number() == targetTrackNum)) {
+                if (it.key() >= bestTick) {
+                    bestTick = it.key();
+                    detectedCh = ch;
+                }
+            }
+        }
     }
+
+    // Stage 2: Global Fallback
+    // If the cursor is before any notes on this track, find the absolute first event.
+    if (detectedCh == -1) {
+        int earliestTick = -1;
+        for (int ch = 0; ch < 16; ch++) {
+            QMultiMap<int, MidiEvent *> *chEvents = file->channelEvents(ch);
+            QMultiMapIterator<int, MidiEvent *> it(*chEvents);
+            while (it.hasNext()) {
+                it.next();
+                MidiEvent *ev = it.value();
+                MidiTrack *evTrack = ev->track();
+                
+                if (evTrack && (evTrack == track || evTrack->number() == targetTrackNum)) {
+                    if (earliestTick == -1 || it.key() < earliestTick) {
+                        earliestTick = it.key();
+                        detectedCh = ch;
+                    }
+                    // We do NOT break here because we want the absolute earliest across ALL channels
+                }
+            }
+        }
+    }
+
+    // Apply detection or safe default
+    int focusCh;
+    if (detectedCh != -1) {
+        // Dynamic detection is always the source of truth if events exist
+        focusCh = detectedCh;
+    } else {
+        // Only use the static sequential assignment if the track is completely empty
+        focusCh = track->assignedChannel();
+        if (focusCh == -1) {
+            focusCh = 0;
+        }
+    }
+
+    editChannel(focusCh, false);
 }
 
 void MainWindow::setInstrumentForChannel(int channel) {
@@ -3205,7 +3288,7 @@ void MainWindow::setInstrumentForChannel(int channel) {
     chooser->exec();
 
     if (channel == NewNoteTool::editChannel()) {
-        editChannel(channel);
+        editChannel(channel, false);
     }
     updateChannelMenu();
 }

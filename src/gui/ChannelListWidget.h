@@ -161,11 +161,24 @@ signals:
      */
     void selectInstrumentClicked(int channel);
 
+    /**
+     * \brief Emitted when a channel is clicked to be focused.
+     * \param channel The channel number that was clicked
+     */
+    void channelClicked(int channel);
+
 public slots:
     /**
      * \brief Updates the channel list display.
      */
     void update();
+
+private slots:
+    /**
+     * \brief Handles channel item clicks to emit channelClicked.
+     * \param item The clicked list widget item
+     */
+    void chooseChannel(QListWidgetItem *item);
 
 private:
     /** \brief The associated MIDI file */

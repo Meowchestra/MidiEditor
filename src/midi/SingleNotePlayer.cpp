@@ -22,6 +22,10 @@
 
 #include "../MidiEvent/NoteOnEvent.h"
 #include "MidiOutput.h"
+#include "MidiFile.h"
+#include "MidiChannel.h"
+#include "MidiTrack.h"
+#include "../gui/MidiSettingsWidget.h"
 #include <QTimer>
 
 SingleNotePlayer::SingleNotePlayer() {
@@ -38,6 +42,18 @@ void SingleNotePlayer::play(NoteOnEvent *event) {
         MidiOutput::sendCommand(offMessage);
         timer->stop();
     }
+
+    // Ensure the correct instrument is playing for this specific note's location
+    if (event->file() && event->channel() >= 0 && event->channel() < 16) {
+        int prog;
+        if (AdditionalMidiSettingsWidget::trackBasedProgramChanges() && event->track()) {
+            prog = event->track()->progAtTick(event->midiTime());
+        } else {
+            prog = event->file()->channel(event->channel())->progAtTick(event->midiTime());
+        }
+        MidiOutput::sendProgram(event->channel(), prog);
+    }
+
     offMessage = event->saveOffEvent();
     MidiOutput::sendCommand(event);
     playing = true;

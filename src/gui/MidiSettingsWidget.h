@@ -75,6 +75,12 @@ public:
      */
     bool accept();
 
+    /**
+     * \brief Returns whether track-based program changes are enabled.
+     * \return True if track-based program changes are enabled.
+     */
+    static bool trackBasedProgramChanges();
+
 public slots:
     /**
      * \brief Handles manual mode toggle changes.
@@ -102,6 +108,9 @@ public slots:
 private:
     /** \brief Alternative player mode checkbox */
     QCheckBox *_alternativePlayerModeBox;
+
+    /** \brief Track-based program changes checkbox */
+    QCheckBox *_trackBasedProgramChangesBox;
 
 
     /** \brief Settings storage */

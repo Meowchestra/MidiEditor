@@ -1639,8 +1639,30 @@ void MatrixWidget::pianoEmulator(QKeyEvent *event) {
 }
 
 void MatrixWidget::playNote(int note) {
+    int ch = MidiOutput::standardChannel();
+
+    // Always re-sync the channel's program with the synthesizer before playing,
+    // so the preview reflects any instrument changes or deleted program events.
+    if (file && ch >= 0 && ch < 16) {
+        int prog = file->channel(ch)->progAtTick(file->cursorTick());
+        MidiOutput::sendProgram(ch, prog);
+
+        // Ensure the channel is audible by resetting Volume (CC 7) and Expression (CC 11)
+        QByteArray vol;
+        vol.append(0xB0 | ch);
+        vol.append(7);
+        vol.append(127);
+        MidiOutput::sendCommand(vol);
+
+        QByteArray exp;
+        exp.append(0xB0 | ch);
+        exp.append(11);
+        exp.append(127);
+        MidiOutput::sendCommand(exp);
+    }
+
     pianoEvent->setNote(note);
-    pianoEvent->setChannel(MidiOutput::standardChannel(), false);
+    pianoEvent->setChannel(ch, false);
     MidiPlayer::play(pianoEvent);
 }
 
@@ -2033,9 +2055,15 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     QMenu* moveToChannelMenu = contextMenu.addMenu(tr("Move Events to Channel..."));
     moveToChannelMenu->setEnabled(hasSelection);
     for (int i = 0; i < 16; i++) {
-        QString instrument = MidiFile::instrumentName(file->channel(i)->progAtTick(0));
-        if (i == 9) instrument = tr("Percussion");
-        QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instrument));
+        QString instName;
+        if (i == 9) {
+            instName = tr("Percussion");
+        } else {
+            // Use the instrument at the first event's tick for better accuracy
+            int tick = selectedEvents.first()->midiTime();
+            instName = MidiFile::instrumentName(file->channel(i)->progAtTick(tick));
+        }
+        QAction* action = moveToChannelMenu->addAction(tr("Channel %1: %2").arg(i).arg(instName));
         action->setData(i);
     }
 

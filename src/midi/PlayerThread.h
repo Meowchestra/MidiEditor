@@ -162,6 +162,9 @@ private:
 
     /** \brief Current measure and position tracking */
     int measure, posInMeasure;
+
+    /** \brief Tracker for currently playing program per channel (for compatibility mode) */
+    int currentChannelProgram[16];
 };
 
 #endif // PLAYERTHREAD_H_

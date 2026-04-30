@@ -20,6 +20,7 @@
 
 #include "../gui/Appearance.h"
 #include "../MidiEvent/TextEvent.h"
+#include "../MidiEvent/ProgChangeEvent.h"
 #include "MidiChannel.h"
 #include "MidiFile.h"
 
@@ -159,4 +160,53 @@ void MidiTrack::assignChannel(int ch) {
 
 int MidiTrack::assignedChannel() {
     return _assignedChannel;
+}
+
+int MidiTrack::progAtTick(int tick) {
+    if (!_file) return 0;
+
+    // Scan all 16 MIDI channels for ProgChangeEvents belonging to this track
+    int bestProg = -1;
+    int bestTick = -1;
+
+    for (int ch = 0; ch < 16; ch++) {
+        MidiChannel *channel = _file->channel(ch);
+        if (!channel) continue;
+
+        QMultiMap<int, MidiEvent *> *events = channel->eventMap();
+        if (!events || events->isEmpty()) continue;
+
+        // Walk backwards from the target tick to find the latest ProgChangeEvent on this track
+        QMultiMap<int, MidiEvent *>::iterator it = events->upperBound(tick);
+        while (it != events->begin()) {
+            --it;
+            if (it.key() > tick) continue;
+            ProgChangeEvent *ev = dynamic_cast<ProgChangeEvent *>(it.value());
+            if (ev && ev->track() == this && it.key() > bestTick) {
+                bestProg = ev->program();
+                bestTick = it.key();
+                break; // found the latest one in this channel at or before tick
+            }
+        }
+    }
+
+    if (bestProg >= 0) return bestProg;
+
+    // Fallback: find the very first ProgChangeEvent on this track anywhere
+    for (int ch = 0; ch < 16; ch++) {
+        MidiChannel *channel = _file->channel(ch);
+        if (!channel) continue;
+
+        QMultiMap<int, MidiEvent *> *events = channel->eventMap();
+        if (!events || events->isEmpty()) continue;
+
+        for (auto it = events->begin(); it != events->end(); ++it) {
+            ProgChangeEvent *ev = dynamic_cast<ProgChangeEvent *>(it.value());
+            if (ev && ev->track() == this) {
+                return ev->program();
+            }
+        }
+    }
+
+    return 0;
 }

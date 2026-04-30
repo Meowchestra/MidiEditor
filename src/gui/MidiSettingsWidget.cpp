@@ -362,7 +362,16 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     layout->addWidget(separator(), 5, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Metronome Volume (Velocity):"), this), 6, 0, 1, 2, Qt::AlignVCenter);
+    _trackBasedProgramChangesBox = new QCheckBox(tr("Track-Based Program Changes (Compatibility Mode)"), this);
+    _trackBasedProgramChangesBox->setChecked(_settings->value("track_based_program_changes", false).toBool());
+    layout->addWidget(_trackBasedProgramChangesBox, 6, 0, 1, 6);
+
+    QWidget *_trackModeInfoBox = createInfoBox(tr("When enabled, notes will use the Program Change from their Track, even if it is on a different Channel. This forces standard MIDI synthesizers to simulate track-based instruments. Warning: If multiple tracks share the same channel, their instruments may overwrite each other during playback."));
+    layout->addWidget(_trackModeInfoBox, 7, 0, 1, 6);
+
+    layout->addWidget(separator(), 8, 0, 1, 6);
+
+    layout->addWidget(new QLabel(tr("Metronome Volume (Velocity):"), this), 9, 0, 1, 2, Qt::AlignVCenter);
     
     QHBoxLayout *metronomeLayout = new QHBoxLayout();
     _metronomeLoudnessSlider = new QSlider(Qt::Horizontal, this);
@@ -374,7 +383,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     _metronomeLoudnessLabel = new QLabel(QString::number(Metronome::loudness()), this);
     _metronomeLoudnessLabel->setFixedWidth(25);
     metronomeLayout->addWidget(_metronomeLoudnessLabel, 0);
-    layout->addLayout(metronomeLayout, 6, 2, 1, 4);
+    layout->addLayout(metronomeLayout, 9, 2, 1, 4);
 
     layout->addWidget(new QLabel(tr("Start Command:"), this), 10, 0, 1, 2);
     startCmd = new QLineEdit(this);
@@ -386,7 +395,12 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     layout->addWidget(Terminal::terminal()->console(), 12, 0, 1, 6);
 
     startCmd->setText(_settings->value("start_cmd", "").toString());
-    layout->setRowStretch(3, 1);
+    layout->setRowStretch(12, 1);
+}
+
+bool AdditionalMidiSettingsWidget::trackBasedProgramChanges() {
+    QSettings settings(QString("MidiEditor"), QString("NONE"));
+    return settings.value("track_based_program_changes", false).toBool();
 }
 
 void AdditionalMidiSettingsWidget::manualModeToggled(bool enable) {
@@ -451,6 +465,7 @@ bool AdditionalMidiSettingsWidget::accept() {
     if (!text.isEmpty()) {
         _settings->setValue("start_cmd", text);
     }
+    _settings->setValue("track_based_program_changes", _trackBasedProgramChangesBox->isChecked());
     return true;
 }
 

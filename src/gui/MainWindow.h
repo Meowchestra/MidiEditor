@@ -604,14 +604,14 @@ public slots:
      * \param i The channel number to edit
      * \param assign Whether to assign the channel
      */
-    void editChannel(int i, bool assign = true);
+    void editChannel(int i, bool assign = false);
 
     /**
      * \brief Edits a specific MIDI track.
      * \param i The track number to edit
      * \param assign Whether to assign the track
      */
-    void editTrack(int i, bool assign = true);
+    void editTrack(int i, bool assign = false);
 
     /**
      * \brief Edits both track and channel for a MIDI track.

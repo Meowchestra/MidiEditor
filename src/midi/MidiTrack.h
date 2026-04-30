@@ -177,7 +177,14 @@ public:
      * \brief Reloads the track's state from a protocol entry.
      * \param entry The protocol entry to restore state from
      */
-    virtual void reloadState(ProtocolEntry *entry);
+    void reloadState(ProtocolEntry *entry);
+
+    /**
+     * \brief Returns the active program change for this track at the given tick.
+     * \param tick The tick to check
+     * \return The program number (0-127), or 0 if none found
+     */
+    int progAtTick(int tick);
 
     // === Visual and Utility Methods ===
 

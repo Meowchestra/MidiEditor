@@ -1091,7 +1091,9 @@ QVariant EventWidget::fieldContent(EditorField field) {
             if (channel == 9) {
                 instName = tr("Percussion");
             } else {
-                instName = MidiFile::instrumentName(_file->channel(channel)->progAtTick(0));
+                // Use the instrument at the first event's tick for better accuracy
+                int tick = _events.first()->midiTime();
+                instName = MidiFile::instrumentName(_file->channel(channel)->progAtTick(tick));
             }
             return QVariant(tr("Channel %1: %2").arg(channel).arg(instName));
         }

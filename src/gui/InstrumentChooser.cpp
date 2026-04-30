@@ -35,6 +35,7 @@
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 #include "../support/FFXIVChannelFixer.h"
+#include "../tool/NewNoteTool.h"
 #include <algorithm>
 #include <QSettings>
 #include <QStandardItem>
@@ -148,9 +149,10 @@ InstrumentChooser::InstrumentChooser(MidiFile *file, int channel, QSettings *set
         _box->setCurrentIndex(currentProgram);
     }
 
-    QLabel *endText = new QLabel(tr("<b>Warning:</b> this will edit the event at tick 0 of the file."
-        "<br>If there is a Program Change Event after this tick,"
-        "<br>the instrument selected there will be audible!"
+    QLabel *endText = new QLabel(tr("<b>Note:</b> This places a Program Change event at <b>tick 0</b>"
+        "<br>on the <b>currently selected track</b>."
+        "<br><br><b>Warning:</b> If there is another Program Change Event after"
+        "<br>this tick, the instrument selected there will be audible instead!"
         "<br>If you want all other Program Change Events to be"
         "<br>removed, select the box below."));
 
@@ -187,7 +189,11 @@ void InstrumentChooser::accept() {
         }
     }
     if (!track) {
-        track = _file->track(0);
+        int currentTrackIdx = NewNoteTool::editTrack();
+        track = _file->track(currentTrackIdx);
+        if (!track) {
+            track = _file->track(0); // Safe fallback
+        }
     }
 
     ProgChangeEvent *event = 0;

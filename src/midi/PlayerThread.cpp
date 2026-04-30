@@ -17,6 +17,9 @@
  */
 
 #include "PlayerThread.h"
+#include "../gui/MidiSettingsWidget.h"
+#include "../MidiEvent/NoteOnEvent.h"
+#include "../MidiEvent/ProgChangeEvent.h"
 #include "../MidiEvent/KeySignatureEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
@@ -24,6 +27,7 @@
 #include "MidiInput.h"
 #include "MidiOutput.h"
 #include "MidiPlayer.h"
+#include "MidiTrack.h"
 #include <QMultiMap>
 #include <QElapsedTimer>
 
@@ -79,12 +83,23 @@ void PlayerThread::run() {
     }
     MidiOutput::playedNotes.clear();
 
+    // Initialize program tracking for track-based compatibility mode
+    for (int i = 0; i < 16; i++) {
+        currentChannelProgram[i] = -1;
+    }
+
     // All Events before position should be sent, progChanges and ControlChanges
     QMultiMap<int, MidiEvent *>::iterator it = events->begin();
     while (it != events->end()) {
         if (it.key() >= position) {
             break;
         }
+        
+        ProgChangeEvent *p = dynamic_cast<ProgChangeEvent *>(it.value());
+        if (p && p->channel() >= 0 && p->channel() < 16) {
+            currentChannelProgram[p->channel()] = p->program();
+        }
+        
         MidiOutput::sendCommand(it.value());
         it++;
     }
@@ -186,6 +201,23 @@ void PlayerThread::timeout() {
                         emit meterChanged(timeSig->num(), timeSig->denom());
                     }
                 }
+                
+                ProgChangeEvent *p = dynamic_cast<ProgChangeEvent *>(ev);
+                if (p && p->channel() >= 0 && p->channel() < 16) {
+                    currentChannelProgram[p->channel()] = p->program();
+                }
+
+                if (AdditionalMidiSettingsWidget::trackBasedProgramChanges()) {
+                    NoteOnEvent *n = dynamic_cast<NoteOnEvent *>(ev);
+                    if (n && n->track() && n->channel() >= 0 && n->channel() < 16) {
+                        int prog = n->track()->progAtTick(n->midiTime());
+                        if (currentChannelProgram[n->channel()] != prog) {
+                            MidiOutput::sendProgram(n->channel(), prog);
+                            currentChannelProgram[n->channel()] = prog;
+                        }
+                    }
+                }
+                
                 MidiOutput::sendCommand(ev);
             }
 
