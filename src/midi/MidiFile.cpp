@@ -176,6 +176,7 @@ MidiFile::~MidiFile() {
 
 bool MidiFile::readMidiFile(QDataStream *content, QStringList *log) {
     OffEvent::clearOnEvents();
+    MidiEvent::resetTextEncodingCache();
 
     quint8 tempByte;
 

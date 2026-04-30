@@ -25,6 +25,7 @@
 #include "../midi/MidiOutput.h"
 #include "../midi/Metronome.h"
 #include <QCheckBox>
+#include <QComboBox>
 #include <QGridLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -35,7 +36,6 @@
 #include <QTextEdit>
 
 #ifdef FLUIDSYNTH_SUPPORT
-#include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileDialog>
@@ -366,12 +366,35 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     _trackBasedProgramChangesBox->setChecked(_settings->value("track_based_program_changes", false).toBool());
     layout->addWidget(_trackBasedProgramChangesBox, 6, 0, 1, 6);
 
-    QWidget *_trackModeInfoBox = createInfoBox(tr("When enabled, notes will use the Program Change from their Track, even if it is on a different Channel. This forces standard MIDI synthesizers to simulate track-based instruments. Warning: If multiple tracks share the same channel, their instruments may overwrite each other during playback."));
+    _trackModeInfoBox = createInfoBox(tr("When enabled, notes will use the Program Change from their Track, even if it is on a different Channel. This forces standard MIDI synthesizers to simulate track-based instruments. Warning: If multiple tracks share the same channel, their instruments may overwrite each other during playback."));
     layout->addWidget(_trackModeInfoBox, 7, 0, 1, 6);
 
     layout->addWidget(separator(), 8, 0, 1, 6);
 
-    layout->addWidget(new QLabel(tr("Metronome Volume (Velocity):"), this), 9, 0, 1, 2, Qt::AlignVCenter);
+    layout->addWidget(new QLabel(tr("Text Encoding Fallback:"), this), 9, 0, 1, 2);
+    _textEncodingCombo = new QComboBox(this);
+    _textEncodingCombo->addItem(tr("Auto-Detect (uchardet)"), "Auto-Detect");
+    _textEncodingCombo->addItem(tr("System Default"), "System");
+    _textEncodingCombo->addItem(tr("UTF-8"), "UTF-8");
+    _textEncodingCombo->addItem(tr("Latin-1 (ISO-8859-1)"), "ISO-8859-1");
+    _textEncodingCombo->addItem(tr("Shift-JIS (Japanese)"), "Shift-JIS");
+    _textEncodingCombo->addItem(tr("GBK (Chinese Simplified)"), "GBK");
+    _textEncodingCombo->addItem(tr("Big5 (Chinese Traditional)"), "Big5");
+    _textEncodingCombo->addItem(tr("EUC-KR (Korean)"), "EUC-KR");
+    _textEncodingCombo->addItem(tr("Windows-1251 (Cyrillic)"), "windows-1251");
+    
+    QString currentEncoding = _settings->value("text_encoding_fallback", "Auto-Detect").toString();
+    int encodingIdx = _textEncodingCombo->findData(currentEncoding);
+    if (encodingIdx != -1) _textEncodingCombo->setCurrentIndex(encodingIdx);
+    
+    layout->addWidget(_textEncodingCombo, 9, 2, 1, 4);
+
+    _textEncodingInfoBox = createInfoBox(tr("When reading MIDI text events, the application will try UTF-8 first. If the text is not valid UTF-8, it will use this fallback encoding. \"Auto-Detect\" will use uchardet to guess the encoding based on character frequency."));
+    layout->addWidget(_textEncodingInfoBox, 10, 0, 1, 6);
+    
+    layout->addWidget(separator(), 11, 0, 1, 6);
+
+    layout->addWidget(new QLabel(tr("Metronome Volume (Velocity):"), this), 12, 0, 1, 2, Qt::AlignVCenter);
     
     QHBoxLayout *metronomeLayout = new QHBoxLayout();
     _metronomeLoudnessSlider = new QSlider(Qt::Horizontal, this);
@@ -383,19 +406,19 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     _metronomeLoudnessLabel = new QLabel(QString::number(Metronome::loudness()), this);
     _metronomeLoudnessLabel->setFixedWidth(25);
     metronomeLayout->addWidget(_metronomeLoudnessLabel, 0);
-    layout->addLayout(metronomeLayout, 9, 2, 1, 4);
+    layout->addLayout(metronomeLayout, 12, 2, 1, 4);
 
-    layout->addWidget(new QLabel(tr("Start Command:"), this), 10, 0, 1, 2);
+    layout->addWidget(new QLabel(tr("Start Command:"), this), 13, 0, 1, 2);
     startCmd = new QLineEdit(this);
-    layout->addWidget(startCmd, 10, 2, 1, 4);
+    layout->addWidget(startCmd, 13, 2, 1, 4);
 
     _startCmdInfoBox = createInfoBox(tr("The start command can be used to start additional software components (e.g. MIDI synthesizers) each time, MidiEditor is started. You can see the output of the started software / script in the field below."));
-    layout->addWidget(_startCmdInfoBox, 11, 0, 1, 6);
+    layout->addWidget(_startCmdInfoBox, 14, 0, 1, 6);
 
-    layout->addWidget(Terminal::terminal()->console(), 12, 0, 1, 6);
+    layout->addWidget(Terminal::terminal()->console(), 15, 0, 1, 6);
 
     startCmd->setText(_settings->value("start_cmd", "").toString());
-    layout->setRowStretch(12, 1);
+    layout->setRowStretch(15, 1);
 }
 
 bool AdditionalMidiSettingsWidget::trackBasedProgramChanges() {
@@ -421,41 +444,25 @@ void AdditionalMidiSettingsWidget::setMetronomeVelocity(int value) {
 
 void AdditionalMidiSettingsWidget::refreshColors() {
     // Update info box colors to match current theme
-    if (_tpqInfoBox) {
-        QLabel *label = qobject_cast<QLabel *>(_tpqInfoBox);
-        if (label) {
-            QColor bgColor = Appearance::infoBoxBackgroundColor();
-            QColor textColor = Appearance::infoBoxTextColor();
-            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
-            label->setStyleSheet(styleSheet);
+    auto updateInfoBox = [](QWidget *box) {
+        if (box) {
+            QLabel *label = qobject_cast<QLabel *>(box);
+            if (label) {
+                QColor bgColor = Appearance::infoBoxBackgroundColor();
+                QColor textColor = Appearance::infoBoxTextColor();
+                QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
+                        .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
+                        .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
+                label->setStyleSheet(styleSheet);
+            }
         }
-    }
+    };
 
-    if (_startCmdInfoBox) {
-        QLabel *label = qobject_cast<QLabel *>(_startCmdInfoBox);
-        if (label) {
-            QColor bgColor = Appearance::infoBoxBackgroundColor();
-            QColor textColor = Appearance::infoBoxTextColor();
-            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
-            label->setStyleSheet(styleSheet);
-        }
-    }
-
-    if (_playerModeInfoBox) {
-        QLabel *label = qobject_cast<QLabel *>(_playerModeInfoBox);
-        if (label) {
-            QColor bgColor = Appearance::infoBoxBackgroundColor();
-            QColor textColor = Appearance::infoBoxTextColor();
-            QString styleSheet = QString("color: rgb(%1, %2, %3); background-color: rgb(%4, %5, %6); padding: 5px")
-                    .arg(textColor.red()).arg(textColor.green()).arg(textColor.blue())
-                    .arg(bgColor.red()).arg(bgColor.green()).arg(bgColor.blue());
-            label->setStyleSheet(styleSheet);
-        }
-    }
+    updateInfoBox(_tpqInfoBox);
+    updateInfoBox(_startCmdInfoBox);
+    updateInfoBox(_playerModeInfoBox);
+    updateInfoBox(_trackModeInfoBox);
+    updateInfoBox(_textEncodingInfoBox);
 
     update();
 }
@@ -466,6 +473,7 @@ bool AdditionalMidiSettingsWidget::accept() {
         _settings->setValue("start_cmd", text);
     }
     _settings->setValue("track_based_program_changes", _trackBasedProgramChangesBox->isChecked());
+    _settings->setValue("text_encoding_fallback", _textEncodingCombo->currentData().toString());
     return true;
 }
 

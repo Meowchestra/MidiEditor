@@ -35,11 +35,23 @@
 #include "UnknownEvent.h"
 
 #include <QByteArray>
+#include <QStringDecoder>
+#include <QSettings>
+#include <uchardet.h>
 
 #include "../midi/MidiChannel.h"
 
 quint8 MidiEvent::_startByte = 0;
 EventWidget *MidiEvent::_eventWidget = 0;
+
+// File-level encoding detection state
+static QByteArray s_accumulatedTextData;
+static QString s_cachedEncoding;
+
+void MidiEvent::resetTextEncodingCache() {
+    s_accumulatedTextData.clear();
+    s_cachedEncoding.clear();
+}
 
 MidiEvent::MidiEvent(int channel, MidiTrack *track)
     : ProtocolEntry()
@@ -339,9 +351,126 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                     textData.truncate(nullIdx);
                                 }
 
-                                // QString::fromUtf8() safely handles malformed UTF-8 by replacing
-                                // invalid sequences with Unicode replacement characters (U+FFFD)
-                                textEvent->setText(QString::fromUtf8(textData).remove(QChar(0)).trimmed());
+                                QString decodedText;
+                                QStringDecoder utf8Decoder(QStringDecoder::Utf8);
+                                decodedText = utf8Decoder(textData);
+                                
+                                if (utf8Decoder.hasError() || decodedText.contains(QChar::ReplacementCharacter)) {
+                                    QSettings settings("MidiEditor", "NONE");
+                                    QString fallback = settings.value("text_encoding_fallback", "Auto-Detect").toString();
+                                    
+                                    if (fallback == "Auto-Detect") {
+                                        // Accumulate non-UTF-8 bytes across events for
+                                        // better statistical detection accuracy
+                                        s_accumulatedTextData.append(textData);
+                                        
+                                        uchardet_t ud = uchardet_new();
+                                        uchardet_handle_data(ud, s_accumulatedTextData.constData(), s_accumulatedTextData.size());
+                                        uchardet_data_end(ud);
+                                        const char *charset = uchardet_get_charset(ud);
+                                        if (charset && charset[0] != '\0') {
+                                            s_cachedEncoding = QString::fromUtf8(charset);
+                                        }
+                                        uchardet_delete(ud);
+                                        
+                                        
+                                        // Map uchardet names to Qt-compatible encoding names
+                                        static const QHash<QString, QString> encodingMap = {
+                                            {"GB18030",       "GBK"},
+                                            {"gb18030",       "GBK"},
+                                            {"GB2312",        "GBK"},
+                                            {"gb2312",        "GBK"},
+                                            {"EUC-CN",        "GBK"},
+                                            {"SHIFT_JIS",     "Shift-JIS"},
+                                            {"Shift_JIS",     "Shift-JIS"},
+                                            {"shift_jis",     "Shift-JIS"},
+                                            {"EUC-JP",        "EUC-JP"},
+                                            {"euc-jp",        "EUC-JP"},
+                                            {"EUC-KR",        "EUC-KR"},
+                                            {"euc-kr",        "EUC-KR"},
+                                            {"Big5",          "Big5"},
+                                            {"big5",          "Big5"},
+                                            {"BIG5",          "Big5"},
+                                            {"ISO-8859-1",    "ISO-8859-1"},
+                                            {"windows-1252",  "ISO-8859-1"},
+                                            {"windows-1251",  "windows-1251"},
+                                            {"KOI8-R",        "KOI8-R"},
+                                            {"x-mac-cyrillic","windows-1251"},
+                                        };
+                                        
+                                        fallback = encodingMap.value(s_cachedEncoding, s_cachedEncoding);
+                                        
+                                        
+                                        // Heuristic: if uchardet returns a single-byte encoding,
+                                        // empty, or ASCII but the data has consecutive high-byte
+                                        // pairs, it's likely a CJK double-byte encoding.
+                                        // Try each common CJK encoding and score by counting
+                                        // how many real CJK/kana characters are produced.
+                                        // The correct encoding produces full CJK ideographs;
+                                        // wrong encodings produce half-width katakana or symbols.
+                                        if (fallback == "ISO-8859-1" || fallback == "ASCII" || fallback.isEmpty()) {
+                                            int highBytePairs = 0;
+                                            for (int i = 0; i + 1 < textData.size(); i++) {
+                                                quint8 b1 = (quint8)textData[i];
+                                                quint8 b2 = (quint8)textData[i + 1];
+                                                if (b1 >= 0x80 && b2 >= 0x40) {
+                                                    highBytePairs++;
+                                                    i++;
+                                                }
+                                            }
+                                            if (highBytePairs >= 2) {
+                                                static const char* cjkEncodings[] = {
+                                                    "Shift-JIS", "GBK", "EUC-JP", "Big5", "EUC-KR"
+                                                };
+                                                int bestScore = -1;
+                                                QString bestEncoding;
+                                                for (const char *enc : cjkEncodings) {
+                                                    QStringDecoder tryDecoder(enc);
+                                                    if (!tryDecoder.isValid()) continue;
+                                                    QString tryText = tryDecoder(textData);
+                                                    if (tryDecoder.hasError() || tryText.contains(QChar::ReplacementCharacter))
+                                                        continue;
+                                                    // Score: count CJK ideographs and full kana
+                                                    int score = 0;
+                                                    for (const QChar &ch : tryText) {
+                                                        ushort u = ch.unicode();
+                                                        if ((u >= 0x4E00 && u <= 0x9FFF) ||  // CJK Unified Ideographs
+                                                            (u >= 0x3400 && u <= 0x4DBF) ||  // CJK Extension A
+                                                            (u >= 0x3040 && u <= 0x309F) ||  // Hiragana
+                                                            (u >= 0x30A0 && u <= 0x30FF) ||  // Katakana (full-width)
+                                                            (u >= 0x3000 && u <= 0x303F) ||  // CJK Symbols
+                                                            (u >= 0xFF01 && u <= 0xFF5E) ||  // Fullwidth ASCII
+                                                            (u >= 0xAC00 && u <= 0xD7AF)) {  // Hangul
+                                                            score++;
+                                                        }
+                                                    }
+                                                    if (score > bestScore) {
+                                                        bestScore = score;
+                                                        bestEncoding = QString::fromUtf8(enc);
+                                                    }
+                                                }
+                                                if (!bestEncoding.isEmpty()) {
+                                                    fallback = bestEncoding;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (fallback == "System") {
+                                        QStringDecoder sysDecoder(QStringDecoder::System);
+                                        decodedText = sysDecoder(textData);
+                                    } else {
+                                        QStringDecoder fallbackDecoder(fallback.toUtf8().constData());
+                                        if (fallbackDecoder.isValid()) {
+                                            decodedText = fallbackDecoder(textData);
+                                        } else {
+                                            QStringDecoder sysDecoder(QStringDecoder::System);
+                                            decodedText = sysDecoder(textData);
+                                        }
+                                    }
+                                }
+
+                                textEvent->setText(decodedText.remove(QChar(0)).trimmed());
                                 *ok = true;
                                 return textEvent;
                             } else {

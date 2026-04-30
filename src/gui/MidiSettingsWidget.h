@@ -130,6 +130,13 @@ private:
     QWidget *_tpqInfoBox;
     QWidget *_startCmdInfoBox;
     QWidget *_playerModeInfoBox;
+    QWidget *_trackModeInfoBox;
+    
+    /** \brief Text encoding combo box */
+    QComboBox *_textEncodingCombo;
+    
+    /** \brief Text encoding info box */
+    QWidget *_textEncodingInfoBox;
 };
 
 /**

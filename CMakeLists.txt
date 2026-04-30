@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.24 FATAL_ERROR)
+cmake_minimum_required(VERSION 4.2 FATAL_ERROR)
 
 set(MIDIEDITOR_RELEASE_VERSION_STRING "4.4.1")
 project(MidiEditor VERSION ${MIDIEDITOR_RELEASE_VERSION_STRING} LANGUAGES CXX)
@@ -181,6 +181,21 @@ target_link_libraries(MidiEditor PRIVATE
         Qt6::OpenGLWidgets
         Qt6::Concurrent
 )
+
+# Fetch and link uchardet for automatic text encoding detection
+include(FetchContent)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "Build static" FORCE)
+set(BUILD_BINARY OFF CACHE BOOL "No binary" FORCE)
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "Suppress CMake < 3.5 error for uchardet")
+FetchContent_Declare(
+    uchardet
+    GIT_REPOSITORY https://gitlab.freedesktop.org/uchardet/uchardet.git
+    GIT_TAG        v0.0.8
+)
+FetchContent_MakeAvailable(uchardet)
+target_link_libraries(MidiEditor PRIVATE libuchardet)
+target_include_directories(MidiEditor PRIVATE ${uchardet_SOURCE_DIR}/src)
+
 
 # Link system OpenGL library for cross-platform compatibility
 find_package(OpenGL REQUIRED)

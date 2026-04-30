@@ -149,6 +149,13 @@ public:
 
     int temporaryRecordID();
 
+    /**
+     * \brief Resets the text encoding detection cache.
+     * Call this before loading a new MIDI file so that encoding
+     * detection from a previously loaded file does not interfere.
+     */
+    static void resetTextEncodingCache();
+
     virtual void moveToChannel(int channel, bool toProtocol = true);
 
 protected:

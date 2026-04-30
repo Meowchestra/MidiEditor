@@ -1,6 +1,7 @@
 
 local MIDIEDITOR_RELEASE_VERSION_STRING = "4.4.1"
 add_requires("zlib")
+add_requires("uchardet")
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)
 set_allowedplats("windows", "linux", "macosx")
 
@@ -78,7 +79,7 @@ target("MidiEditor") do
         set_symbols("debug")
     end
 
-    add_packages("qt6widgets", "zlib")
+    add_packages("qt6widgets", "zlib", "uchardet")
     add_rules("qt.widgetapp")
     add_frameworks({
         "QtGui", "QtWidgets", "QtCore", "QtNetwork",

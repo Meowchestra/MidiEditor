@@ -94,7 +94,8 @@ AboutDialog::AboutDialog(QWidget *parent)
                                  "<p>"
                                  "RtMidi (Copyright (c) 2003-2014 Gary P. Scavone)<br>"
                                  "FluidSynth<br>"
-                                 "libsndfile (libogg, libvorbis, libflac, libopus)"
+                                 "libsndfile (libogg, libvorbis, libflac, libopus)<br>"
+                                 "uchardet"
                                  "</p>"
                                  "</body>"
                                  "</html>");
