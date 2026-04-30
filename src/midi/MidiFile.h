@@ -101,6 +101,18 @@ public:
     bool save(QString path);
 
     /**
+     * \brief Saves a filtered MIDI file for audio export.
+     *
+     * Like save(), but skips events on muted channels and muted tracks,
+     * respecting solo state. This ensures the exported audio matches
+     * what the user hears during playback.
+     *
+     * \param path File path to save to
+     * \return True if save was successful, false otherwise
+     */
+    bool saveForExport(QString path, int startTick = 0, int endTick = -1);
+
+    /**
      * \brief Writes a delta time value to a byte array.
      * \param time The time value to encode
      * \return QByteArray containing the encoded delta time

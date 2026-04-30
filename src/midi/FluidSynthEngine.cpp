@@ -482,40 +482,50 @@ void FluidSynthEngine::sendMidiData(const QByteArray &data) {
 // Export
 // ============================================================================
 
-void FluidSynthEngine::exportToWav(const QString &midiFilePath, const QString &wavFilePath) {
+void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &outputPath,
+                                    const AudioExportSettings &settings) {
+    _exportCancelled.store(false);
+
     if (!_initialized) {
-        emit exportFinished(false, wavFilePath);
+        emit exportFinished(false, outputPath);
         return;
     }
 
-    fluid_settings_t* settings = new_fluid_settings();
-    fluid_settings_setstr(settings, "audio.driver", "file");
-    fluid_settings_setstr(settings, "audio.file.name", wavFilePath.toUtf8().constData());
-    
+    fluid_settings_t* expSettings = new_fluid_settings();
+    fluid_settings_setstr(expSettings, "audio.driver", "file");
+    fluid_settings_setstr(expSettings, "audio.file.name", outputPath.toUtf8().constData());
+    QString fileType = settings.fileType();
+    double sampleRate = settings.sampleRate();
+    QString sampleFormat = settings.sampleFormat;
+
+    fluid_settings_setstr(expSettings, "audio.file.type", fileType.toUtf8().constData());
+    fluid_settings_setnum(expSettings, "synth.sample-rate", sampleRate);
+
+    // Copy synth settings from the live engine
     _engineMutex.lock();
-    fluid_settings_setnum(settings, "synth.sample-rate", _sampleRate);
-    fluid_settings_setint(settings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
-    fluid_settings_setint(settings, "synth.chorus.active", _chorusEnabled ? 1 : 0);
-    fluid_settings_setnum(settings, "synth.gain", _gain);
-    fluid_settings_setint(settings, "synth.polyphony", _polyphony);
-    fluid_settings_setstr(settings, "audio.sample-format", _sampleFormat.toUtf8().constData());
-    fluid_settings_setstr(settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
+    fluid_settings_setint(expSettings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
+    fluid_settings_setint(expSettings, "synth.chorus.active", _chorusEnabled ? 1 : 0);
+    fluid_settings_setnum(expSettings, "synth.gain", _gain);
+    fluid_settings_setint(expSettings, "synth.polyphony", _polyphony);
+
+    fluid_settings_setstr(expSettings, "audio.sample-format", sampleFormat.toUtf8().constData());
+    fluid_settings_setstr(expSettings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
 
     // Get loaded font paths while holding lock
-    QStringList fontstoload;
+    QStringList fontsToLoad;
     for (int i = 0; i < _loadedFonts.size(); ++i) {
-        fontstoload.append(_loadedFonts[i].second);
+        fontsToLoad.append(_loadedFonts[i].second);
     }
     _engineMutex.unlock();
 
-    fluid_synth_t* synth = new_fluid_synth(settings);
+    fluid_synth_t* synth = new_fluid_synth(expSettings);
     if (!synth) {
-        delete_fluid_settings(settings);
-        emit exportFinished(false, wavFilePath);
+        delete_fluid_settings(expSettings);
+        emit exportFinished(false, outputPath);
         return;
     }
 
-    for (const QString &f : fontstoload) {
+    for (const QString &f : fontsToLoad) {
         fluid_synth_sfload(synth, f.toUtf8().constData(), 1);
     }
 
@@ -523,8 +533,8 @@ void FluidSynthEngine::exportToWav(const QString &midiFilePath, const QString &w
     if (fluid_player_add(player, midiFilePath.toUtf8().constData()) != FLUID_OK) {
         delete_fluid_player(player);
         delete_fluid_synth(synth);
-        delete_fluid_settings(settings);
-        emit exportFinished(false, wavFilePath);
+        delete_fluid_settings(expSettings);
+        emit exportFinished(false, outputPath);
         return;
     }
 
@@ -533,35 +543,68 @@ void FluidSynthEngine::exportToWav(const QString &midiFilePath, const QString &w
     if (!renderer) {
         delete_fluid_player(player);
         delete_fluid_synth(synth);
-        delete_fluid_settings(settings);
-        emit exportFinished(false, wavFilePath);
+        delete_fluid_settings(expSettings);
+        emit exportFinished(false, outputPath);
         return;
     }
 
     int totalTicks = fluid_player_get_total_ticks(player);
-    if (totalTicks <= 0) totalTicks = 1; // guard
-    
-    int lastPercent = -1;
+    if (totalTicks <= 0) totalTicks = 1;
 
+    int lastPercent = -1;
+    bool cancelled = false;
+
+    // Render the MIDI content
     while (fluid_player_get_status(player) == FLUID_PLAYER_PLAYING) {
+        if (_exportCancelled.load()) {
+            cancelled = true;
+            break;
+        }
         if (fluid_file_renderer_process_block(renderer) != FLUID_OK) {
             break;
         }
         int curTick = fluid_player_get_current_tick(player);
-        int percent = (int)(100.0 * curTick / totalTicks);
+        int percent = static_cast<int>(100.0 * curTick / totalTicks);
+        if (percent > 99) percent = 99; // Reserve 100 for completion
         if (percent != lastPercent) {
             lastPercent = percent;
             emit exportProgress(percent);
         }
     }
 
+    // Render reverb tail: 2 seconds of silence so reverb/sustain fades naturally
+    if (!cancelled && settings.includeReverbTail) {
+        int tailFrames = static_cast<int>(settings.sampleRate() * 2.0);
+        int framesPerBlock = 64; // FluidSynth default block size
+        fluid_settings_getint(expSettings, "audio.period-size", &framesPerBlock);
+        if (framesPerBlock <= 0) framesPerBlock = 64;
+        int totalBlocks = tailFrames / framesPerBlock;
+        for (int i = 0; i < totalBlocks; ++i) {
+            if (_exportCancelled.load()) {
+                cancelled = true;
+                break;
+            }
+            fluid_file_renderer_process_block(renderer);
+        }
+    }
+
     delete_fluid_file_renderer(renderer);
     delete_fluid_player(player);
     delete_fluid_synth(synth);
-    delete_fluid_settings(settings);
+    delete_fluid_settings(expSettings);
 
-    emit exportProgress(100);
-    emit exportFinished(true, wavFilePath);
+    if (cancelled) {
+        // Remove the partial output file
+        QFile::remove(outputPath);
+        emit exportCancelled();
+    } else {
+        emit exportProgress(100);
+        emit exportFinished(true, outputPath);
+    }
+}
+
+void FluidSynthEngine::cancelExport() {
+    _exportCancelled.store(true);
 }
 
 // ============================================================================

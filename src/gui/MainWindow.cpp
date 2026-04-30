@@ -46,6 +46,7 @@
 #include "Appearance.h"
 #include "AppearanceSettingsWidget.h"
 #include "AboutDialog.h"
+#include "AudioExportDialog.h"
 #include "ChannelVisibilityManager.h"
 #include "ChannelListWidget.h"
 #include "CompleteMidiSetupDialog.h"
@@ -3478,6 +3479,23 @@ void MainWindow::markEdited() {
     setWindowModified(true);
 }
 
+void MainWindow::exportAudio() {
+#ifdef FLUIDSYNTH_SUPPORT
+    if (!file) return;
+
+    if (!MidiOutput::isFluidSynthOutput()) {
+        QMessageBox::warning(this, tr("Export Audio"),
+                             tr("Audio export requires FluidSynth to be enabled in MIDI I/O settings."));
+        return;
+    }
+
+    AudioExportDialog *dialog = new AudioExportDialog(file, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    dialog->exec();
+#endif
+}
+
 void MainWindow::noteColorsByChannel() {
     mw_matrixWidget->setColorsByChannel();
     _colorsByChannel->setChecked(true);
@@ -3817,6 +3835,19 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _actionMap["save_as"] = saveAsAction;
 
     fileMB->addSeparator();
+
+#ifdef FLUIDSYNTH_SUPPORT
+    QAction *exportAudioAction = new QAction(tr("Export Audio..."), this);
+    exportAudioAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+    _defaultShortcuts["export_audio"] = QList<QKeySequence>() << exportAudioAction->shortcut();
+    Appearance::setActionIcon(exportAudioAction, ":/run_environment/graphics/tool/noicon.png");
+    connect(exportAudioAction, &QAction::triggered, this, &MainWindow::exportAudio);
+    exportAudioAction->setEnabled(MidiOutput::isFluidSynthOutput());
+    fileMB->addAction(exportAudioAction);
+    _actionMap["export_audio"] = exportAudioAction;
+
+    fileMB->addSeparator();
+#endif
 
     QAction *quitAction = new QAction(tr("Quit"), this);
     quitAction->setShortcut(QKeySequence::Quit);
@@ -6292,6 +6323,12 @@ void MainWindow::updateAll() {
         }
         updateStatusBar(); // Refresh content if visible
     }
+
+#ifdef FLUIDSYNTH_SUPPORT
+    if (_actionMap.contains("export_audio")) {
+        _actionMap["export_audio"]->setEnabled(MidiOutput::isFluidSynthOutput());
+    }
+#endif
 
     // Update toolbar visibility from settings
     if (_toolbarWidget) {

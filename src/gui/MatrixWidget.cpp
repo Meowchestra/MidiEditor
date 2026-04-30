@@ -1328,6 +1328,8 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
                 setCursor(Qt::ArrowCursor);
             }
         }
+    } else if (MidiPlayer::isPlaying()) {
+        setCursor(Qt::ArrowCursor);
     }
 
     // Optimization: Only update if hover state changed, unless we already flagged for update
@@ -2110,6 +2112,11 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     QAction* snapEndAction = contextMenu.addAction(tr("Snap End to Next Start"));
     snapEndAction->setEnabled(hasSelection);
 
+    // Export
+    contextMenu.addSeparator();
+    QAction* exportAudioAction = contextMenu.addAction(tr("Export Selection as Audio..."));
+    exportAudioAction->setEnabled(hasSelection);
+
     // Show menu and get selected action
     QAction* selectedAction = contextMenu.exec(globalPos);
 
@@ -2147,6 +2154,10 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     // Handle Transpose Octave Up
     else if (selectedAction == octaveUpAction) {
         EditorTool::mainWindow()->transposeSelectedNotesOctaveUp();
+    }
+    // Handle Export Selection as Audio
+    else if (selectedAction == exportAudioAction) {
+        EditorTool::mainWindow()->exportAudio();
     }
     // Handle Transpose Octave Down
     else if (selectedAction == octaveDownAction) {

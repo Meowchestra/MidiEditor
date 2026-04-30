@@ -17,6 +17,7 @@
  */
 
 #include "MidiSettingsWidget.h"
+#include "MainWindow.h"
 #include "Appearance.h"
 
 #include "../Terminal.h"
@@ -57,6 +58,7 @@
 #include <QtConcurrent/QtConcurrent>
 #include "../midi/FluidSynthEngine.h"
 #include "../midi/MidiOutput.h"
+#include "AudioExportDialog.h"
 #include "DownloadSoundFontDialog.h"
 
 #include <QStandardPaths>
@@ -827,6 +829,7 @@ void MidiSettingsWidget::outputChanged(QListWidgetItem *item) {
 #ifdef FLUIDSYNTH_SUPPORT
         updateFluidSynthSettingsEnabled();
 #endif
+        _mainWindow->updateAll();
     }
 }
 
@@ -953,45 +956,11 @@ void MidiSettingsWidget::onExportToWav() {
     MidiFile *file = _mainWindow->getFile();
     if (!file) return;
 
-    QString exportName = QFileInfo(file->path()).baseName();
-    if (exportName.isEmpty()) {
-        exportName = "Exported Midi";
-    }
-    
-    QString defaultPath = QDir(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation)).filePath(exportName + ".wav");
-    QString wavPath = QFileDialog::getSaveFileName(
-        this,
-        tr("Export MIDI to WAV"),
-        defaultPath,
-        tr("WAV Audio Files (*.wav)")
-    );
-
-    if (wavPath.isEmpty()) {
-        return;
-    }
-
-    // Save current memory state to a temporary fast-render file
-    QString tempMidi = QDir::tempPath() + "/MidiEditor_fastrender_" + QString::number(QCoreApplication::applicationPid()) + ".mid";
-    if (!file->save(tempMidi)) {
-        return;
-    }
-
-    _exportWavBtn->setEnabled(false);
-    _exportWavBtn->setText(tr("Exporting..."));
-    
-    // Initialize the visual progress bar immediately at 0%
-    onExportProgress(0);
-    
-    // Disconnect any old connections to avoid double calls
-    disconnect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
-    disconnect(FluidSynthEngine::instance(), SIGNAL(exportFinished(bool,QString)), this, SLOT(onExportFinished(bool,QString)));
-    
-    connect(FluidSynthEngine::instance(), SIGNAL(exportProgress(int)), this, SLOT(onExportProgress(int)));
-    connect(FluidSynthEngine::instance(), SIGNAL(exportFinished(bool,QString)), this, SLOT(onExportFinished(bool,QString)));
-
-    QThreadPool::globalInstance()->start([tempMidi, wavPath]() {
-        FluidSynthEngine::instance()->exportToWav(tempMidi, wavPath);
-    });
+    // Delegate to the comprehensive AudioExportDialog
+    AudioExportDialog *dialog = new AudioExportDialog(file, this);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->setModal(true);
+    dialog->exec();
 }
 
 void MidiSettingsWidget::onExportProgress(int percent) {

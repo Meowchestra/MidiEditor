@@ -20,6 +20,7 @@
 
 #include <QDataStream>
 #include <QFile>
+#include <QSet>
 
 #include "../MidiEvent/ControlChangeEvent.h"
 #include "../MidiEvent/KeySignatureEvent.h"
@@ -27,6 +28,7 @@
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/OnEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
+#include "../MidiEvent/PitchBendEvent.h"
 #include "../MidiEvent/TempoChangeEvent.h"
 #include "../MidiEvent/TextEvent.h"
 #include "../MidiEvent/TimeSignatureEvent.h"
@@ -491,6 +493,14 @@ QMap<int, MidiEvent *> *MidiFile::tempoEvents() {
 void MidiFile::calcMaxTime() {
     double time = 0;
     QList<MidiEvent *> events = getSortedEvents(channels[17]->eventMap());
+    // Find the actual end tick by scanning all channels
+    int actualEndTick = 0;
+    for (int i = 0; i < 19; i++) {
+        if (channels[i]->eventMap()->isEmpty()) continue;
+        int last = channels[i]->eventMap()->lastKey();
+        if (last > actualEndTick) actualEndTick = last;
+    }
+
     for (int i = 0; i < events.length(); i++) {
         TempoChangeEvent *ev = dynamic_cast<TempoChangeEvent *>(events.at(i));
         if (!ev) {
@@ -500,7 +510,7 @@ void MidiFile::calcMaxTime() {
         if (i < events.length() - 1) {
             ticks = events.at(i + 1)->midiTime() - ev->midiTime();
         } else {
-            ticks = midiTicks - ev->midiTime();
+            ticks = actualEndTick - ev->midiTime();
         }
         time += ticks * ev->msPerTick();
     }
@@ -1662,6 +1672,197 @@ bool MidiFile::save(QString path) {
     f->close();
 
     _saved = true;
+
+    return true;
+}
+
+bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
+    QFile *f = new QFile(path);
+
+    if (!f->open(QIODevice::WriteOnly)) {
+        return false;
+    }
+
+    QDataStream *stream = new QDataStream(f);
+    stream->setByteOrder(QDataStream::BigEndian);
+
+    int actualEnd = (endTick == -1) ? this->endTick() : endTick;
+
+    // Collect all events, filtering by range and mute/solo state
+    QMultiMap<int, MidiEvent *> allEvents = QMultiMap<int, MidiEvent *>();
+    QSet<MidiEvent *> skippedOnEvents;
+
+    MidiEvent* lastProg[16] = {nullptr};
+    MidiEvent* lastPitchBend[16] = {nullptr};
+    QMap<int, MidiEvent*> lastCC[16];
+
+    for (int i = 0; i < 19; i++) {
+        QMultiMap<int, MidiEvent *>::iterator it = channels[i]->eventMap()->begin();
+        while (it != channels[i]->eventMap()->end()) {
+            MidiEvent *event = it.value();
+            int tick = it.key();
+
+            bool include = true;
+            int exportTick = tick - startTick;
+
+            // Meta channels (16=tempo, 17=time sig, 18=key sig)
+            if (i >= 16) {
+                if (tick < startTick) {
+                    exportTick = 0;
+                } else if (tick > actualEnd) {
+                    include = false;
+                }
+            } else {
+                // Regular channel filtering
+                if (tick < startTick) {
+                    include = false;
+                    // Track latest Program/Control changes before startTick
+                    if (!channelMuted(i) && event->track() && !event->track()->muted()) {
+                        if (dynamic_cast<ProgChangeEvent*>(event)) {
+                            lastProg[i] = event;
+                        } else if (ControlChangeEvent* cc = dynamic_cast<ControlChangeEvent*>(event)) {
+                            lastCC[i][cc->controlNumber()] = event;
+                        } else if (dynamic_cast<PitchBendEvent*>(event)) {
+                            lastPitchBend[i] = event;
+                        }
+                    }
+                } else if (tick > actualEnd) {
+                    include = false;
+                }
+                if (include && channelMuted(i)) {
+                    include = false;
+                }
+                if (include && event->track() && event->track()->muted()) {
+                    include = false;
+                }
+            }
+
+            if (include) {
+                // If this is an OffEvent whose NoteOn was skipped, skip it too
+                OffEvent *off = dynamic_cast<OffEvent *>(event);
+                if (off && off->onEvent() && skippedOnEvents.contains(off->onEvent())) {
+                    include = false;
+                }
+            }
+
+            if (include) {
+                allEvents.insert(exportTick, event);
+            } else {
+                // Track skipped NoteOn events
+                OnEvent *on = dynamic_cast<OnEvent *>(event);
+                if (on) {
+                    skippedOnEvents.insert(event);
+                }
+            }
+
+            it++;
+        }
+    }
+
+    // Inject the latest state before startTick to ensure correct instruments
+    for (int i = 0; i < 16; i++) {
+        if (lastProg[i]) allEvents.insert(0, lastProg[i]);
+        if (lastPitchBend[i]) allEvents.insert(0, lastPitchBend[i]);
+        for (MidiEvent* cc : lastCC[i].values()) {
+            allEvents.insert(0, cc);
+        }
+    }
+
+    int exportDuration = actualEnd - startTick;
+    if (exportDuration < 0) exportDuration = 0;
+
+    QByteArray data = QByteArray();
+    data.append('M');
+    data.append('T');
+    data.append('h');
+    data.append('d');
+
+    int trackL = 6;
+    for (int i = 3; i >= 0; i--) {
+        data.append((qint8) ((trackL & (0xFF << 8 * i)) >> 8 * i));
+    }
+
+    for (int i = 1; i >= 0; i--) {
+        data.append((qint8) ((_midiFormat & (0xFF << 8 * i)) >> 8 * i));
+    }
+
+    for (int i = 1; i >= 0; i--) {
+        data.append((qint8) ((numTracks() & (0xFF << 8 * i)) >> 8 * i));
+    }
+
+    for (int i = 1; i >= 0; i--) {
+        data.append((qint8) ((timePerQuarter & (0xFF << 8 * i)) >> 8 * i));
+    }
+
+    for (int num = 0; num < numTracks(); num++) {
+        data.append('M');
+        data.append('T');
+        data.append('r');
+        data.append('k');
+
+        int trackLengthPos = data.size();
+
+        data.append('\0');
+        data.append('\0');
+        data.append('\0');
+        data.append('\0');
+
+        int numBytes = 0;
+        int currentTick = 0;
+        QMultiMap<int, MidiEvent *>::iterator it = allEvents.begin();
+        while (it != allEvents.end()) {
+            MidiEvent *event = it.value();
+            int tick = it.key();
+
+            // Handle track assignment for export
+            bool isMeta = (event->channel() >= 16);
+            bool skip = false;
+            if (isMeta) {
+                // Meta-events (Tempo, Time Sig, Key Sig) must go ONLY to Track 0
+                if (num != 0) skip = true;
+            } else {
+                // Regular events must match the current track
+                if (_tracks->at(num) != event->track()) skip = true;
+            }
+
+            if (!skip) {
+                int time = tick - currentTick;
+                QByteArray deltaTime = writeDeltaTime(time);
+                numBytes += deltaTime.size();
+                data.append(deltaTime);
+
+                QByteArray eventData = event->save();
+                numBytes += eventData.size();
+                data.append(eventData);
+
+                currentTick = tick;
+            }
+            it++;
+        }
+
+        // write the endEvent
+        int time = exportDuration - currentTick;
+        QByteArray deltaTime = writeDeltaTime(time);
+        numBytes += deltaTime.size();
+        data.append(deltaTime);
+        data.append(char(0xFF));
+        data.append(char(0x2F));
+        data.append('\0');
+        numBytes += 3;
+
+        // write numBytes
+        for (int i = 3; i >= 0; i--) {
+            data[trackLengthPos + 3 - i] = ((qint8) ((numBytes & (0xFF << 8 * i)) >> 8 * i));
+        }
+    }
+
+    for (int i = 0; i < data.size(); i++) {
+        (*stream) << (qint8) (data.at(i));
+    }
+
+    f->close();
+    delete stream;
+    delete f;
 
     return true;
 }

@@ -27,8 +27,83 @@
 #include <QRecursiveMutex>
 #include <QString>
 #include <QStringList>
+#include <atomic>
 
 #include <fluidsynth.h>
+
+/**
+ * \brief Configuration for audio export operations.
+ */
+struct AudioExportSettings {
+    enum Format { WAV, FLAC, OPUS, OGG_VORBIS, MP3 };
+
+    Format format = WAV;
+    int rate = 48000;
+    QString sampleFormat = "16bits";
+    bool includeReverbTail = true;  ///< Add 2s after last note for reverb/sustain fade
+
+    double sampleRate() const { return static_cast<double>(rate); }
+
+    /// FluidSynth audio.file.type value
+    QString fileType() const {
+        switch (format) {
+            case WAV:        return "wav";
+            case FLAC:       return "flac";
+            case OPUS:       return "opus";
+            case OGG_VORBIS: return "oga";
+            case MP3:        return "mp3";
+        }
+        return "wav";
+    }
+
+    /// File dialog filter string
+    QString filterString() const {
+        switch (format) {
+            case WAV:        return QObject::tr("WAV Audio (*.wav)");
+            case FLAC:       return QObject::tr("FLAC Audio (*.flac)");
+            case OPUS:       return QObject::tr("Opus Audio (*.opus)");
+            case OGG_VORBIS: return QObject::tr("OGG Vorbis Audio (*.ogg)");
+            case MP3:        return QObject::tr("MP3 Audio (*.mp3)");
+        }
+        return QObject::tr("WAV Audio (*.wav)");
+    }
+
+    /// Default file extension including dot
+    QString extension() const {
+        switch (format) {
+            case WAV:        return ".wav";
+            case FLAC:       return ".flac";
+            case OPUS:       return ".opus";
+            case OGG_VORBIS: return ".ogg";
+            case MP3:        return ".mp3";
+        }
+        return ".wav";
+    }
+
+    /// Human-readable format name
+    static QString formatName(Format f) {
+        switch (f) {
+            case WAV:        return QObject::tr("WAV - Uncompressed PCM (.wav)");
+            case FLAC:       return QObject::tr("FLAC - Lossless Compression (.flac)");
+            case OPUS:       return QObject::tr("Opus - Lossy Compression (.opus)");
+            case OGG_VORBIS: return QObject::tr("OGG Vorbis - Lossy Compression (.ogg)");
+            case MP3:        return QObject::tr("MP3 - Lossy Compression (.mp3)");
+        }
+        return "WAV";
+    }
+
+    /// Short format name (e.g. WAV, Opus)
+    static QString formatShortName(Format f) {
+        switch (f) {
+            case WAV:        return "WAV";
+            case FLAC:       return "FLAC";
+            case OPUS:       return "Opus";
+            case OGG_VORBIS: return "OGG Vorbis";
+            case MP3:        return "MP3";
+        }
+        return "WAV";
+    }
+};
 
 class QSettings;
 
@@ -143,11 +218,25 @@ public:
     void sendMidiData(const QByteArray &data);
 
     // === Export ===
-    
+
     /**
-     * \brief Synchronous export to WAV file. Emits progress signals.
+     * \brief Multi-format audio export. Supports WAV, FLAC, Opus, OGG Vorbis.
+     *
+     * Creates an offline FluidSynth instance, renders the MIDI file to
+     * the specified output path using the given settings.
+     * Emits exportProgress/exportFinished/exportCancelled signals.
+     *
+     * \param midiFilePath Path to the temporary MIDI file to render
+     * \param outputPath Path for the output audio file
+     * \param settings Export configuration (format, quality, reverb tail)
      */
-    void exportToWav(const QString &midiFilePath, const QString &wavFilePath);
+    void exportAudio(const QString &midiFilePath, const QString &outputPath,
+                     const AudioExportSettings &settings);
+
+    /**
+     * \brief Requests cancellation of a running export.
+     */
+    void cancelExport();
 
     // === Audio Settings ===
     void setAudioDriver(const QString &driver);
@@ -200,6 +289,7 @@ signals:
     void engineRestarted();
     void exportProgress(int percent);
     void exportFinished(bool success, const QString &path);
+    void exportCancelled();
 
 private:
     FluidSynthEngine();
@@ -237,6 +327,9 @@ private:
     bool _isStackUpdatePending;
     QStringList _pendingStackUpdate;
     bool _isEngineRestartPending;
+
+    // Export cancellation flag
+    std::atomic<bool> _exportCancelled{false};
 };
 
 #endif // FLUIDSYNTH_SUPPORT

@@ -598,6 +598,11 @@ public slots:
     void markEdited();
 
     /**
+     * \brief Opens the audio export dialog for multi-format rendering.
+     */
+    void exportAudio();
+
+    /**
      * \brief Sets the note coloring mode to color by MIDI channels.
      */
     void noteColorsByChannel();
