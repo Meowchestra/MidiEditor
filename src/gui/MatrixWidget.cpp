@@ -288,7 +288,10 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
 
     if (totalRepaint) {
         this->pianoKeys.clear();
-        pixmap = new QPixmap(width(), height());
+        qreal dpr = devicePixelRatioF();
+        pixmap = new QPixmap(size() * dpr);
+        pixmap->setDevicePixelRatio(dpr);
+        pixmap->fill(_cachedBackgroundColor);
         QPainter *pixpainter = new QPainter(pixmap);
 
         // Apply cached user-configurable performance settings
@@ -1988,7 +1991,8 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 
         QLabel* iconLabel = new QLabel(btn);
         QIcon icon = Appearance::adjustIconForDarkMode(iconPath);
-        QPixmap pixmap = icon.pixmap(iconSize, iconSize, enabled ? QIcon::Normal : QIcon::Disabled);
+        qreal dpr = btn->devicePixelRatioF();
+        QPixmap pixmap = icon.pixmap(QSize(iconSize, iconSize), dpr, enabled ? QIcon::Normal : QIcon::Disabled);
         iconLabel->setPixmap(pixmap);
         iconLabel->setAlignment(Qt::AlignCenter);
         iconLabel->setAttribute(Qt::WA_TransparentForMouseEvents);

@@ -95,8 +95,10 @@ void ProtocolWidget::update() {
             item->setSizeHint(QSize(0, 30));
             item->setFont(f);
             if (step->image()) {
-                QImage img = step->image()->scaled(20, 20, Qt::KeepAspectRatio);
+                qreal dpr = devicePixelRatioF();
+                QImage img = step->image()->scaled(20 * dpr, 20 * dpr, Qt::KeepAspectRatio, Qt::SmoothTransformation);
                 QPixmap pixmap = QPixmap::fromImage(img);
+                pixmap.setDevicePixelRatio(dpr);
                 // Apply dark mode adjustment to protocol step icons
                 pixmap = Appearance::adjustIconForDarkMode(pixmap, "protocol_step");
                 item->setIcon(QIcon(pixmap));
