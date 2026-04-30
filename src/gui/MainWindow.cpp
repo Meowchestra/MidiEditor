@@ -1161,7 +1161,7 @@ void MainWindow::forwardMarker() {
 
     int newTick = -1;
 
-    foreach(MidiEvent* event, file->channel(16)->eventMap()->values()) {
+    foreach(MidiEvent* event, file->channel(16)->sortedEvents()) {
         int eventTick = event->midiTime();
         if (eventTick <= oldTick) continue;
         TextEvent *textEvent = dynamic_cast<TextEvent *>(event);
@@ -1198,7 +1198,7 @@ void MainWindow::backMarker() {
     }
 
     int newTick = 0;
-    QList<MidiEvent *> events = file->channel(16)->eventMap()->values();
+    QList<MidiEvent *> events = file->channel(16)->sortedEvents();
 
     for (int eventNumber = events.size() - 1; eventNumber >= 0; eventNumber--) {
         MidiEvent *event = events.at(eventNumber);

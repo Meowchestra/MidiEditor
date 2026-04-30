@@ -23,6 +23,7 @@
  */
 
 #include "MidiChannel.h"
+#include <algorithm>
 
 #include "../gui/Appearance.h"
 #include "../gui/ChannelVisibilityManager.h"
@@ -167,6 +168,22 @@ int MidiChannel::number() {
 
 QMultiMap<int, MidiEvent *> *MidiChannel::eventMap() {
     return _events;
+}
+
+QList<MidiEvent *> MidiChannel::sortedEvents() {
+    QList<MidiEvent *> events = _events->values();
+    int start = 0;
+    while (start < events.length()) {
+        int end = start + 1;
+        while (end < events.length() && events.at(start)->midiTime() == events.at(end)->midiTime()) {
+            end++;
+        }
+        if (end - start > 1) {
+            std::reverse(events.begin() + start, events.begin() + end);
+        }
+        start = end;
+    }
+    return events;
 }
 
 QColor *MidiChannel::color() {

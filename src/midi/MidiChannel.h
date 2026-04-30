@@ -110,6 +110,12 @@ public:
     QMultiMap<int, MidiEvent *> *eventMap();
 
     /**
+     * \brief Gets a list of all events in chronological order.
+     * \return List of all events in the channel, with same-tick events in correct FIFO order
+     */
+    QList<MidiEvent *> sortedEvents();
+
+    /**
      * \brief Inserts a new note into this channel.
      * \param note MIDI note number (0-127)
      * \param startTick Start time in MIDI ticks

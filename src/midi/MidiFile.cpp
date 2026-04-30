@@ -35,6 +35,23 @@
 #include "MidiTrack.h"
 #include "InstrumentDefinitions.h"
 #include "math.h"
+#include <algorithm>
+
+static QList<MidiEvent *> getSortedEvents(QMultiMap<int, MidiEvent *> *map) {
+    QList<MidiEvent *> events = map->values();
+    int start = 0;
+    while (start < events.length()) {
+        int end = start + 1;
+        while (end < events.length() && events.at(start)->midiTime() == events.at(end)->midiTime()) {
+            end++;
+        }
+        if (end - start > 1) {
+            std::reverse(events.begin() + start, events.begin() + end);
+        }
+        start = end;
+    }
+    return events;
+}
 
 int MidiFile::defaultTimePerQuarter = 192;
 
@@ -473,7 +490,7 @@ QMap<int, MidiEvent *> *MidiFile::tempoEvents() {
 
 void MidiFile::calcMaxTime() {
     double time = 0;
-    QList<MidiEvent *> events = channels[17]->eventMap()->values();
+    QList<MidiEvent *> events = getSortedEvents(channels[17]->eventMap());
     for (int i = 0; i < events.length(); i++) {
         TempoChangeEvent *ev = dynamic_cast<TempoChangeEvent *>(events.at(i));
         if (!ev) {
@@ -506,7 +523,7 @@ int MidiFile::timeMS(int midiTime) {
 int MidiFile::tick(int ms) {
     double time = 0;
 
-    QList<MidiEvent *> events = channels[17]->eventMap()->values();
+    QList<MidiEvent *> events = getSortedEvents(channels[17]->eventMap());
     TempoChangeEvent *event = 0;
 
     double timeMsNextEvent = 0;
@@ -544,7 +561,7 @@ int MidiFile::tick(int ms) {
 int MidiFile::msOfTick(int tick, QList<MidiEvent *> *events, int
                        msOfFirstEventInList) {
     if (!events) {
-        events = new QList<MidiEvent *>(channels[17]->eventMap()->values());
+        events = new QList<MidiEvent *>(getSortedEvents(channels[17]->eventMap()));
         if (!events) {
             return 0;
         }
@@ -595,7 +612,7 @@ int MidiFile::tick(int startms, int endms, QList<MidiEvent *> **eventList,
     *eventList = new QList<MidiEvent *>;
 
     // TempoChangeEvents
-    QList<MidiEvent *> events = channels[17]->eventMap()->values();
+    QList<MidiEvent *> events = getSortedEvents(channels[17]->eventMap());
 
     // event is the previous Event in events, ev the current
     TempoChangeEvent *event = 0;
@@ -677,7 +694,7 @@ int MidiFile::measure(int startTick, int endTick,
         delete (*eventList);
     }
     *eventList = new QList<TimeSignatureEvent *>;
-    QList<MidiEvent *> events = channels[18]->eventMap()->values();
+    QList<MidiEvent *> events = getSortedEvents(channels[18]->eventMap());
     TimeSignatureEvent *event = 0;
     int i = 0;
     int measure = 1;
@@ -726,7 +743,7 @@ int MidiFile::measure(int startTick, int endTick,
 }
 
 int MidiFile::measure(int startTick, int *startTickOfMeasure, int *endTickOfMeasure) {
-    QList<MidiEvent *> events = channels[18]->eventMap()->values();
+    QList<MidiEvent *> events = getSortedEvents(channels[18]->eventMap());
     TimeSignatureEvent *event = 0;
     int i = 0;
     int measure = 1;
@@ -1813,18 +1830,16 @@ MidiTrack *MidiFile::track(int number) {
 }
 
 int MidiFile::tonalityAt(int tick) {
-    QMultiMap<int, MidiEvent *> *events = channels[16]->eventMap();
+    QList<MidiEvent *> events = getSortedEvents(channels[16]->eventMap());
 
-    QMultiMap<int, MidiEvent *>::iterator it = events->begin();
     KeySignatureEvent *event = 0;
-    while (it != events->end()) {
-        KeySignatureEvent *keySig = dynamic_cast<KeySignatureEvent *>(it.value());
+    for (int i = 0; i < events.length(); i++) {
+        KeySignatureEvent *keySig = dynamic_cast<KeySignatureEvent *>(events.at(i));
         if (keySig && keySig->midiTime() <= tick) {
             event = keySig;
         } else if (keySig) {
             break;
         }
-        it++;
     }
 
     if (!event) {
@@ -1835,17 +1850,15 @@ int MidiFile::tonalityAt(int tick) {
 }
 
 void MidiFile::meterAt(int tick, int *num, int *denum, TimeSignatureEvent **lastTimeSigEvent) {
-    QMap<int, MidiEvent *> *meterEvents = timeSignatureEvents();
-    QMap<int, MidiEvent *>::iterator it = meterEvents->begin();
+    QList<MidiEvent *> meterEvents = getSortedEvents(channels[18]->eventMap());
     TimeSignatureEvent *event = 0;
-    while (it != meterEvents->end()) {
-        TimeSignatureEvent *timeSig = dynamic_cast<TimeSignatureEvent *>(it.value());
+    for (int i = 0; i < meterEvents.length(); i++) {
+        TimeSignatureEvent *timeSig = dynamic_cast<TimeSignatureEvent *>(meterEvents.at(i));
         if (timeSig && timeSig->midiTime() <= tick) {
             event = timeSig;
         } else if (timeSig) {
             break;
         }
-        it++;
     }
 
     if (!event) {
@@ -1938,7 +1951,7 @@ QList<int> MidiFile::quantization(int fractionSize) {
 
     QList<int> list;
 
-    QList<MidiEvent *> timeSigs = timeSignatureEvents()->values();
+    QList<MidiEvent *> timeSigs = getSortedEvents(channels[18]->eventMap());
     TimeSignatureEvent *last = 0;
     foreach(MidiEvent* event, timeSigs) {
         TimeSignatureEvent *t = dynamic_cast<TimeSignatureEvent *>(event);
@@ -1966,21 +1979,23 @@ QList<int> MidiFile::quantization(int fractionSize) {
 
 
 int MidiFile::startTickOfMeasure(int measure) {
-    QMap<int, MidiEvent *> *timeSigs = timeSignatureEvents();
-    QMap<int, MidiEvent *>::iterator it = timeSigs->begin();
+    QList<MidiEvent *> timeSigs = getSortedEvents(channels[18]->eventMap());
+
+    if (timeSigs.isEmpty()) {
+        return 0; // Fallback
+    }
 
     // Find the time signature event the measure is in and its start measure
     int currentMeasure = 1;
-    TimeSignatureEvent *currentEvent = dynamic_cast<TimeSignatureEvent *>(timeSigs->value(0));
-    it++;
-    while (it != timeSigs->end()) {
-        int endMeasureOfCurrentEvent = currentMeasure + ceil((it.key() - currentEvent->midiTime()) / currentEvent->ticksPerMeasure());
+    TimeSignatureEvent *currentEvent = dynamic_cast<TimeSignatureEvent *>(timeSigs.first());
+    
+    for (int i = 1; i < timeSigs.length(); i++) {
+        int endMeasureOfCurrentEvent = currentMeasure + ceil((timeSigs.at(i)->midiTime() - currentEvent->midiTime()) / currentEvent->ticksPerMeasure());
         if (endMeasureOfCurrentEvent > measure) {
             break;
         }
-        currentEvent = dynamic_cast<TimeSignatureEvent *>(it.value());
+        currentEvent = dynamic_cast<TimeSignatureEvent *>(timeSigs.at(i));
         currentMeasure = endMeasureOfCurrentEvent;
-        it++;
     }
 
     return currentEvent->midiTime() + (measure - currentMeasure) * currentEvent->ticksPerMeasure();
