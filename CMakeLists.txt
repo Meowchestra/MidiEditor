@@ -272,6 +272,7 @@ target_include_directories(MidiEditor PRIVATE
     src/converter
     src/converter/GuitarPro
     src/converter/MML
+    src/converter/MusicXml
     src/gui
     src/midi
     src/MidiEvent
@@ -283,7 +284,7 @@ message(STATUS "Added project include directories")
 
 # Source files - be more specific to avoid test/doc/example files
 file(GLOB SOURCES_MAIN "src/*.cpp")
-file(GLOB SOURCES_CONVERTER "src/converter/*.cpp" "src/converter/GuitarPro/*.cpp" "src/converter/MML/*.cpp")
+file(GLOB SOURCES_CONVERTER "src/converter/*.cpp" "src/converter/GuitarPro/*.cpp" "src/converter/MML/*.cpp" "src/converter/MusicXml/*.cpp")
 file(GLOB SOURCES_MIDIEVENT "src/MidiEvent/*.cpp")
 file(GLOB SOURCES_GUI "src/gui/*.cpp")
 file(GLOB SOURCES_PROTOCOL "src/protocol/*.cpp")
@@ -328,7 +329,7 @@ list(FILTER SOURCES EXCLUDE REGEX ".*/old/.*")
 
 # Headers - be more specific to avoid test/doc/example files
 file(GLOB HEADERS_MAIN "src/*.h")
-file(GLOB HEADERS_CONVERTER "src/converter/*.h" "src/converter/GuitarPro/*.h" "src/converter/MML/*.h")
+file(GLOB HEADERS_CONVERTER "src/converter/*.h" "src/converter/GuitarPro/*.h" "src/converter/MML/*.h" "src/converter/MusicXml/*.h")
 file(GLOB HEADERS_MIDIEVENT "src/MidiEvent/*.h")
 file(GLOB HEADERS_GUI "src/gui/*.h")
 file(GLOB HEADERS_PROTOCOL "src/protocol/*.h")

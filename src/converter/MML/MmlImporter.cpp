@@ -53,6 +53,8 @@ MidiFile* MmlImporter::loadFile(QString path, bool* ok) {
     MmlDialect dialect = MmlDialect::Auto;
     if (path.endsWith(".ms2mml", Qt::CaseInsensitive)) {
         dialect = MmlDialect::MapleStory2;
+    } else if (path.endsWith(".3mle", Qt::CaseInsensitive)) {
+        dialect = MmlDialect::Mabinogi;
     }
 
     std::string stdContent = content.toStdString();
