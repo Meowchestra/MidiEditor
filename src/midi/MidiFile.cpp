@@ -27,6 +27,7 @@
 #include "../MidiEvent/MidiEvent.h"
 #include "../MidiEvent/OffEvent.h"
 #include "../MidiEvent/OnEvent.h"
+#include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
 #include "../MidiEvent/PitchBendEvent.h"
 #include "../MidiEvent/TempoChangeEvent.h"
@@ -494,7 +495,8 @@ void MidiFile::calcMaxTime() {
     double time = 0;
     QList<MidiEvent *> events = getSortedEvents(channels[17]->eventMap());
     // Find the actual end tick by scanning all channels
-    int actualEndTick = 0;
+    // Start with midiTicks to ensure the set file length is respected
+    int actualEndTick = midiTicks;
     for (int i = 0; i < 19; i++) {
         if (channels[i]->eventMap()->isEmpty()) continue;
         int last = channels[i]->eventMap()->lastKey();
@@ -520,6 +522,16 @@ void MidiFile::calcMaxTime() {
 
 int MidiFile::maxTime() {
     return maxTimeMS;
+}
+
+int MidiFile::lastEventTick() const {
+    int actualEndTick = 0;
+    for (int i = 0; i < 19; i++) {
+        if (channels[i]->eventMap()->isEmpty()) continue;
+        int last = channels[i]->eventMap()->lastKey();
+        if (last > actualEndTick) actualEndTick = last;
+    }
+    return actualEndTick;
 }
 
 int MidiFile::endTick() {
@@ -2338,4 +2350,62 @@ void MidiFile::insertMeasures(int after, int numMeasures) {
 
     calcMaxTime();
     ProtocolEntry::protocol(toCopy, this);
+}
+
+void MidiFile::trimStart(int trimTick) {
+    if (trimTick <= 0) return;
+
+    protocol()->startNewAction(tr("Trim Blank Start"));
+
+    // Collect all events to avoid iterator invalidation
+    for (int ch = 0; ch < 19; ch++) {
+        QMultiMap<int, MidiEvent *> *map = channel(ch)->eventMap();
+        QList<MidiEvent *> events = map->values();
+
+        foreach(MidiEvent *event, events) {
+            int oldTick = event->midiTime();
+            int newTick = qMax(0, oldTick - trimTick);
+
+            // Special rule: if it was before or at the trim point, move to 0 to preserve state
+            if (oldTick <= trimTick) {
+                newTick = 0;
+            }
+
+            if (newTick != oldTick) {
+                event->setMidiTime(newTick, true);
+            }
+        }
+    }
+
+    // Update total length
+    int newMidiTicks = qMax(0, midiTicks - trimTick);
+    setMidiTicks(newMidiTicks);
+
+    protocol()->endAction();
+    emit recalcWidgetSize();
+}
+
+int MidiFile::firstNoteTick() const {
+    int firstTick = -1;
+    for (int i = 0; i < 16; i++) {
+        if (channels[i]->eventMap()->isEmpty()) continue;
+        QMultiMap<int, MidiEvent *>::const_iterator it = channels[i]->eventMap()->constBegin();
+        while (it != channels[i]->eventMap()->constEnd()) {
+            if (dynamic_cast<NoteOnEvent *>(it.value())) {
+                int t = it.key();
+                if (firstTick == -1 || t < firstTick) firstTick = t;
+                break;
+            }
+            it++;
+        }
+    }
+    return firstTick;
+}
+
+int MidiFile::firstNonEmptyMeasure() {
+    int tick = firstNoteTick();
+    if (tick < 0) return 1;
+
+    int start, end;
+    return measure(tick, &start, &end);
 }

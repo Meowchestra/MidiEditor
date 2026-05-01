@@ -54,6 +54,7 @@
 #include "ExplodeChordsDialog.h"
 #include "EventWidget.h"
 #include "FileLengthDialog.h"
+#include "TrimStartDialog.h"
 #include "InstrumentChooser.h"
 #include "../midi/InstrumentDefinitions.h"
 #include "LayoutSettingsWidget.h"
@@ -1591,6 +1592,15 @@ void MainWindow::setFileLengthMs() {
         return;
 
     FileLengthDialog *d = new FileLengthDialog(file, this);
+    d->setModal(true);
+    d->show();
+}
+
+void MainWindow::trimBlankStart() {
+    if (!file)
+        return;
+
+    TrimStartDialog *d = new TrimStartDialog(file, this);
     d->setModal(true);
     d->show();
 }
@@ -4692,6 +4702,11 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(setFileLengthMs, SIGNAL(triggered()), this, SLOT(setFileLengthMs()));
     toolsMB->addAction(setFileLengthMs);
     _actionMap["set_file_duration"] = setFileLengthMs;
+
+    QAction *trimBlankStartAction = new QAction(tr("Trim Blank Start"), this);
+    connect(trimBlankStartAction, SIGNAL(triggered()), this, SLOT(trimBlankStart()));
+    toolsMB->addAction(trimBlankStartAction);
+    _actionMap["trim_blank_start"] = trimBlankStartAction;
 
     QAction *setVelocityAction = new QAction(tr("Set Velocity"), this);
     _activateWithSelections.append(setVelocityAction);

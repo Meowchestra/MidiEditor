@@ -59,12 +59,29 @@ public slots:
      */
     void accept();
 
+private slots:
+    /** \brief Updates HMS components based on total milliseconds */
+    void updateFromMs();
+
+    /** \brief Updates total milliseconds based on HMS components */
+    void updateFromHMS();
+
+    /** \brief Sets the duration to the last event's time */
+    void fitToEvents();
+
+    /** \brief Sets the duration to the end of the last measure containing an event */
+    void fitToLastMeasure();
+
 private:
     /** \brief The MIDI file to modify */
     MidiFile *_file;
 
-    /** \brief Spin box for entering the length in milliseconds */
-    QSpinBox *_box;
+    /** \brief Spin boxes for time components */
+    QSpinBox *_msBox;     // Total ms
+    QSpinBox *_hBox;      // Hours
+    QSpinBox *_mBox;      // Minutes
+    QSpinBox *_sBox;      // Seconds
+    QSpinBox *_msSubBox;  // Milliseconds part
 };
 
 #endif // FILELENGTHDIALOG_H_

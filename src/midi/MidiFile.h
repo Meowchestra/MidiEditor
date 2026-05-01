@@ -168,6 +168,12 @@ public:
      */
     void calcMaxTime();
 
+    /**
+     * \brief Gets the tick of the last event in the file.
+     * \return The tick of the last event
+     */
+    int lastEventTick() const;
+
     // === Time Conversion Methods ===
 
     /**
@@ -395,6 +401,24 @@ public:
      * \param numMeasures Number of measures to insert
      */
     void insertMeasures(int after, int numMeasures);
+
+    /**
+     * \brief Trims blank time from the start of the file.
+     * \param trimTick The tick position to trim until
+     */
+    void trimStart(int trimTick);
+
+    /**
+     * \brief Finds the tick of the first note in the file.
+     * \return The tick of the first note, or -1 if no notes found
+     */
+    int firstNoteTick() const;
+
+    /**
+     * \brief Finds the first measure that contains at least one note.
+     * \return The measure number (1-based)
+     */
+    int firstNonEmptyMeasure();
 
     // === Protocol System Integration ===
 

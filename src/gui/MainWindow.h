@@ -371,6 +371,11 @@ public slots:
     void setFileLengthMs();
 
     /**
+     * \brief Opens dialog to trim blank time from the start of the file.
+     */
+    void trimBlankStart();
+
+    /**
      * \brief Called when scroll positions change in the editor.
      * \param startMs Start time in milliseconds
      * \param maxMs Maximum time in milliseconds

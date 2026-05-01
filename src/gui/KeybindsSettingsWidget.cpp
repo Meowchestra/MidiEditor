@@ -155,7 +155,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     // Tools menu - Quantization & Transform
     order << "quantize" << "quantize_ntuplet_dialog" << "quantize_ntuplet_repeat"
           << "transpose" << "transpose_up" << "transpose_down"
-          << "set_file_duration" << "set_velocity"
+          << "set_file_duration" << "trim_blank_start" << "set_velocity"
           << "scale_selection" << "magnet";
     
     // View menu
