@@ -66,10 +66,17 @@ int NoteOnEvent::line() {
     return 127 - _note;
 }
 
-void NoteOnEvent::setNote(int n) {
-    ProtocolEntry *toCopy = copy();
+void NoteOnEvent::setNote(int n, bool toProtocol) {
+    ProtocolEntry *toCopy = nullptr;
+    if (toProtocol) {
+        toCopy = copy();
+    }
     _note = n;
-    protocol(toCopy, this);
+    if (toProtocol) {
+        protocol(toCopy, this);
+    } else {
+        delete toCopy;
+    }
 }
 
 ProtocolEntry *NoteOnEvent::copy() {

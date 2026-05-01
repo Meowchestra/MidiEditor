@@ -49,6 +49,7 @@ public:
     bool keepDrumsOnSource() const;
     bool removeEmptySource() const;
     bool insertAtEnd() const;
+    bool forceDrumSplit() const;
 
     bool useDrumKitPreset() const;
     DrumKitPreset selectedDrumKitPreset() const;
@@ -74,6 +75,7 @@ private:
 
     QCheckBox *_keepDrumsCheck;
     QCheckBox *_removeSourceCheck;
+    QCheckBox *_forceDrumSplitCheck;
     QRadioButton *_insertAfterRadio;
     QRadioButton *_insertAtEndRadio;
     QTableWidget *_channelTable;

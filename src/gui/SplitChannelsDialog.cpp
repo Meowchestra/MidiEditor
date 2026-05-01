@@ -58,6 +58,7 @@ public:
 #include <QScrollBar>
 #include <QGridLayout>
 #include <QFrame>
+#include <QSplitter>
 #include <algorithm>
 #include <QHeaderView>
 #include <QDialogButtonBox>
@@ -100,6 +101,9 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     
     connect(_sourceTrackCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &SplitChannelsDialog::onSourceTrackChanged);
 
+    QSplitter *splitter = new QSplitter(Qt::Vertical, this);
+    splitter->setChildrenCollapsible(false);
+
     // Channels Found preview table
     QGroupBox *previewGroup = new QGroupBox(tr("Channels Found"), this);
     QVBoxLayout *previewLayout = new QVBoxLayout(previewGroup);
@@ -119,7 +123,7 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
 
     previewLayout->addWidget(_channelTable);
     
-    mainLayout->addWidget(previewGroup);
+    splitter->addWidget(previewGroup);
 
     // Drum Kit Splitting UI (Hidden by default, shown if track has drums)
     _drumsGroup = new QGroupBox(tr("Drum Kit Splitting (Channel 9)"), this);
@@ -182,8 +186,10 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     drumsLayout->addWidget(_mappingContainer);
     _mappingContainer->hide();
     
-    mainLayout->addWidget(_drumsGroup);
+    splitter->addWidget(_drumsGroup);
     _drumsGroup->hide();
+    
+    mainLayout->addWidget(splitter, 1);
     
     connect(_editMapBtn, &QPushButton::toggled, this, [this](bool checked) {
         _mappingContainer->setVisible(checked);
@@ -214,6 +220,14 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     _keepDrumsCheck = new QCheckBox(tr("Keep Channel 9 (Percussion) on source track"), this);
     _keepDrumsCheck->setToolTip(tr("When checked, drum events stay on the source track instead of getting their own track"));
     optionsLayout->addWidget(_keepDrumsCheck);
+
+    _forceDrumSplitCheck = new QCheckBox(tr("Force drum kit splitting on source track"), this);
+    _forceDrumSplitCheck->setToolTip(tr("Allows splitting drum events to tracks even if they are not on channel 9"));
+    optionsLayout->addWidget(_forceDrumSplitCheck);
+    
+    connect(_forceDrumSplitCheck, &QCheckBox::toggled, this, [this](bool) {
+        analyzeTrack(_sourceTrack);
+    });
 
     _removeSourceCheck = new QCheckBox(tr("Remove empty source track after split"), this);
     _removeSourceCheck->setChecked(true);
@@ -259,6 +273,10 @@ bool SplitChannelsDialog::removeEmptySource() const {
 
 bool SplitChannelsDialog::insertAtEnd() const {
     return _insertAtEndRadio && _insertAtEndRadio->isChecked();
+}
+
+bool SplitChannelsDialog::forceDrumSplit() const {
+    return _forceDrumSplitCheck && _forceDrumSplitCheck->isChecked();
 }
 
 bool SplitChannelsDialog::useDrumKitPreset() const {
@@ -328,6 +346,10 @@ void SplitChannelsDialog::analyzeTrack(MidiTrack *track) {
             hasDrums = true;
             break;
         }
+    }
+    
+    if (_forceDrumSplitCheck && _forceDrumSplitCheck->isChecked()) {
+        hasDrums = true;
     }
 
     if (hasDrums) {

@@ -81,7 +81,7 @@ public:
      * \brief Sets the MIDI note number.
      * \param n The new note number (0-127)
      */
-    void setNote(int n);
+    void setNote(int n, bool toProtocol = true);
 
     /**
      * \brief Sets the note velocity.

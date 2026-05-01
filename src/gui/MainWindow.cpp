@@ -2762,19 +2762,40 @@ void MainWindow::explodeChordsToTracks(MidiTrack *sourceTrack) {
         return A->note() > B->note();
     };
 
-    // Helper to copy or move note
+    // Collect which channels are affected so we can snapshot them once
+    // instead of creating per-event protocol copies.
+    QSet<int> affectedChannels;
+    for (const auto &grp : chordGroups) {
+        for (const NoteWrap &nw : grp) {
+            if (nw.on) affectedChannels.insert(nw.on->channel());
+        }
+    }
+
+    // Snapshot affected channels ONCE before bulk mutations
+    QMap<int, ProtocolEntry*> channelSnapshots;
+    for (int ch : affectedChannels) {
+        channelSnapshots[ch] = file->channel(ch)->copy();
+    }
+
+    // Helper to copy or move note — all with toProtocol=false
     auto processNote = [&](NoteOnEvent *on, MidiTrack *dst) {
         if (!on || !on->offEvent()) return;
         if (keepOriginal) {
-            // Copy note to new track
+            // Copy note to new track without per-event protocol overhead.
+            // MidiChannel::insertNote does a channel copy() each call,
+            // so we create the events manually instead.
             int ch = on->channel();
-            file->channel(ch)->insertNote(on->note(), on->midiTime(), 
-                                          on->offEvent()->midiTime(), 
-                                          on->velocity(), dst);
+            NoteOnEvent *newOn = new NoteOnEvent(on->note(), on->velocity(), ch, dst);
+            OffEvent *newOff = new OffEvent(ch, 127 - on->note(), dst);
+            newOff->setOnEvent(newOn);
+            newOff->setFile(file);
+            newOff->setMidiTime(on->offEvent()->midiTime(), false);
+            newOn->setFile(file);
+            newOn->setMidiTime(on->midiTime(), false);
         } else {
-            // Move note to new track
-            on->setTrack(dst);
-            on->offEvent()->setTrack(dst);
+            // Move note to new track - cheap protocol recording for track change
+            on->setTrack(dst, true);
+            on->offEvent()->setTrack(dst, true);
         }
     };
 
@@ -2823,6 +2844,11 @@ void MainWindow::explodeChordsToTracks(MidiTrack *sourceTrack) {
                 processNote(grp[i].on, dst);
             }
         }
+    }
+
+    // Record single channel-level protocol entries for undo
+    for (auto it = channelSnapshots.begin(); it != channelSnapshots.end(); ++it) {
+        file->channel(it.key())->protocol(it.value(), file->channel(it.key()));
     }
 
     // Reorder tracks if not inserting at end
@@ -2876,6 +2902,7 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
     bool removeSource = dialog->removeEmptySource();
     bool insertAtEnd = dialog->insertAtEnd();
     bool useDrumPreset = dialog->useDrumKitPreset();
+    bool forceDrumSplit = dialog->forceDrumSplit();
     DrumKitPreset drumPreset = dialog->selectedDrumKitPreset();
     sourceTrack = dialog->sourceTrack();
     delete dialog;
@@ -2931,9 +2958,17 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
         }
     }
 
-    if (activeChannels.size() <= 1 && !(activeChannels.size() == 1 && activeChannels[0].channel == 9 && useDrumPreset)) {
+    bool hasDrumChannel = false;
+    for (const auto &info : activeChannels) {
+        if (info.channel == 9 || forceDrumSplit) {
+            hasDrumChannel = true;
+            break;
+        }
+    }
+
+    if (activeChannels.size() <= 1 && !(hasDrumChannel && useDrumPreset)) {
         QMessageBox::information(this, tr("Split Channels to Tracks"),
-            tr("This track only uses one channel (and is not being drum-split) — nothing to split."));
+            tr("This track only uses a single channel and contains no drum kit events to split."));
         return;
     }
 
@@ -2945,7 +2980,7 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
     int movedEvents = 0;
 
     for (const auto &info : activeChannels) {
-        if (info.channel == 9) {
+        if (info.channel == 9 || forceDrumSplit) {
             if (skipDrums) {
                 continue;
             }
@@ -2958,8 +2993,8 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
                     }
                 }
 
-                // Collect NoteOn events and ProgChange events, group them
-                QMultiMap<int, MidiEvent *> *emap = file->channel(9)->eventMap();
+                // Collect NoteOn events, group them by preset track name
+                QMultiMap<int, MidiEvent *> *emap = file->channel(info.channel)->eventMap();
                 QMap<QString, QList<NoteOnEvent*> > groupNotes;
                 
                 for (auto it = emap->begin(); it != emap->end(); ++it) {
@@ -2976,6 +3011,15 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
 
                 MidiTrack *firstDrumTrack = nullptr;
 
+                // Snapshot source channel ONCE before bulk mutations to enable undo.
+                // Without this, each per-event setTrack/moveToChannel/setNote call
+                // would create its own full channel copy
+                ProtocolEntry *srcChSnap = file->channel(info.channel)->copy();
+
+                // Collect which destination channels we'll write to
+                QSet<int> destChannels;
+                QMap<QString, MidiTrack*> groupTrackMap;
+
                 // Create a track for each used group
                 for (const auto &g : drumPreset.groups) {
                     if (!groupNotes[g.trackName].isEmpty()) {
@@ -2984,35 +3028,51 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
                         if (!firstDrumTrack) firstDrumTrack = dst;
                         dst->setName(g.trackName);
                         
-                        // Set channel (10 or 1-9/11-15 for melodic)
                         int newCh = g.staysOnPercussionChannel ? 9 : 0;
                         dst->assignChannel(newCh);
                         newTracks.append(dst);
+                        groupTrackMap[g.trackName] = dst;
+                        destChannels.insert(newCh);
+                    }
+                }
 
-                        // Move and transpose events
-                        for (NoteOnEvent *noteOn : groupNotes[g.trackName]) {
-                            int targetNote = noteToTargetMap[noteOn->note()].second;
-                            
-                            // Move NoteOn
-                            noteOn->setTrack(dst);
-                            noteOn->moveToChannel(newCh);
-                            if (noteOn->note() != targetNote) {
-                                noteOn->setNote(targetNote);
-                            }
-                            movedEvents++;
-                            
-                            // Move paired NoteOff
-                            if (OffEvent *offEv = noteOn->offEvent()) {
-                                offEv->setTrack(dst);
-                                // OffEvent moves channel via NoteOnEvent::moveToChannel inside OnEvent
-                                movedEvents++;
-                            }
-                        }
+                // Snapshot destination channels ONCE before mutations
+                QMap<int, ProtocolEntry*> destChSnaps;
+                for (int dch : destChannels) {
+                    if (dch != info.channel) {
+                        destChSnaps[dch] = file->channel(dch)->copy();
+                    }
+                }
+
+                // Perform all event mutations with toProtocol=false to avoid
+                // creating per-event protocol copies
+                for (const auto &g : drumPreset.groups) {
+                    if (groupNotes[g.trackName].isEmpty()) continue;
+
+                    MidiTrack *dst = groupTrackMap[g.trackName];
+                    int newCh = g.staysOnPercussionChannel ? 9 : 0;
+
+                    for (NoteOnEvent *noteOn : groupNotes[g.trackName]) {
+                        int targetNote = noteToTargetMap[noteOn->note()].second;
                         
-                        // Add program change if needed for melodic tracks
-                        if (!g.staysOnPercussionChannel && g.programNumber >= 0) {
-                            new ProgChangeEvent(newCh, g.programNumber, dst);
+                        noteOn->setTrack(dst, true);
+                        noteOn->moveToChannel(newCh, false);
+                        if (noteOn->note() != targetNote) {
+                            noteOn->setNote(targetNote, true);
                         }
+                        movedEvents++;
+                        
+                        if (OffEvent *offEv = noteOn->offEvent()) {
+                            offEv->setTrack(dst, true);
+                            movedEvents++;
+                        }
+                    }
+                    
+                    // Insert program change properly into the channel event map
+                    if (!g.staysOnPercussionChannel && g.programNumber >= 0) {
+                        ProgChangeEvent *pc = new ProgChangeEvent(newCh, g.programNumber, dst);
+                        pc->setFile(file);
+                        file->channel(newCh)->insertEvent(pc, 0, false);
                     }
                 }
                 
@@ -3026,15 +3086,25 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
                         }
                     }
                     for (MidiEvent *ev : remainingEvents) {
-                        ev->setTrack(firstDrumTrack);
+                        ev->setTrack(firstDrumTrack, true);
                         movedEvents++;
                     }
                 }
+
+                // Record single channel-level protocol entries for undo
+                file->channel(info.channel)->protocol(srcChSnap, file->channel(info.channel));
+                for (auto it = destChSnaps.begin(); it != destChSnaps.end(); ++it) {
+                    file->channel(it.key())->protocol(it.value(), file->channel(it.key()));
+                }
+
                 continue;
             }
         }
 
         // Regular channel split logic (or drums without preset)
+        // Snapshot channel once before bulk track reassignment
+        ProtocolEntry *chSnap = file->channel(info.channel)->copy();
+
         file->addTrack();
         MidiTrack *dst = file->tracks()->last();
         dst->setName(info.instrumentName);
@@ -3050,9 +3120,12 @@ void MainWindow::splitChannelsToTracks(MidiTrack *sourceTrack) {
             }
         }
         for (MidiEvent *ev : toMove) {
-            ev->setTrack(dst);
+            ev->setTrack(dst, true);
             movedEvents++;
         }
+
+        // Record single protocol entry for this channel
+        file->channel(info.channel)->protocol(chSnap, file->channel(info.channel));
     }
 
     // Reorder tracks if not inserting at end
