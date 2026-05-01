@@ -95,4 +95,27 @@ QString getNordStyleSheet() {
     return "QToolBar::separator { background-color: rgba(76, 86, 106, 150); width: 1px; height: 1px; margin: 2px; }";
 }
 
+QPalette getAiryPalette() {
+    QPalette palette;
+    palette.setColor(QPalette::Window, QColor(250, 252, 255)); // Very light, slightly cool white
+    palette.setColor(QPalette::WindowText, QColor(60, 70, 80)); // Soft dark blue-gray text
+    palette.setColor(QPalette::Base, QColor(255, 255, 255)); // Pure white
+    palette.setColor(QPalette::AlternateBase, QColor(245, 248, 252)); // Airy light blue-gray
+    palette.setColor(QPalette::ToolTipBase, QColor(255, 255, 255));
+    palette.setColor(QPalette::ToolTipText, QColor(60, 70, 80));
+    palette.setColor(QPalette::Text, QColor(40, 50, 60));
+    palette.setColor(QPalette::Button, QColor(240, 246, 252)); // Airy light blue button
+    palette.setColor(QPalette::ButtonText, QColor(50, 60, 70));
+    palette.setColor(QPalette::BrightText, QColor(255, 100, 100));
+    palette.setColor(QPalette::Link, QColor(100, 160, 255));
+    palette.setColor(QPalette::Highlight, QColor(210, 230, 255)); // Airy blue highlight
+    palette.setColor(QPalette::HighlightedText, QColor(30, 40, 50));
+    palette.setColor(QPalette::Accent, QColor(150, 200, 255));
+    return palette;
+}
+
+QString getAiryStyleSheet() {
+    return "QToolBar::separator { background-color: rgba(200, 210, 220, 150); width: 1px; height: 1px; margin: 2px; }";
+}
+
 } // namespace ThemePalettes

@@ -46,6 +46,16 @@ namespace ThemePalettes {
      */
     QString getNordStyleSheet();
 
+    /**
+     * \brief Returns the palette for the Airy theme
+     */
+    QPalette getAiryPalette();
+
+    /**
+     * \brief Returns any specific stylesheet tweaks for Airy
+     */
+    QString getAiryStyleSheet();
+
 }
 
 #endif // THEMEPALETTES_H_

@@ -774,6 +774,8 @@ public slots:
 
     void toggleToolbar(bool visible);
 
+    void toggleControlWidget(bool visible);
+
     void updateStatusBar();
 
     /**
@@ -1108,6 +1110,8 @@ private:
     QAction *_statusBarAction;
 
     QAction *_toolbarAction;
+
+    QAction *_controlWidgetAction;
 
     QStatusBar *_statusBar;
 

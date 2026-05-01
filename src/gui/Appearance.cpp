@@ -1061,7 +1061,7 @@ void Appearance::applyStyle() {
     // Guard against redundant setColorScheme() calls that trigger cascading signals
     static Qt::ColorScheme s_lastSetScheme = Qt::ColorScheme::Unknown;
     Qt::ColorScheme desiredScheme = Qt::ColorScheme::Unknown;
-    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura) {
+    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura || _applicationTheme == ThemeAiry) {
         desiredScheme = Qt::ColorScheme::Light;
     } else if (_applicationTheme == ThemeDark || _applicationTheme == ThemeAMOLED || 
                _applicationTheme == ThemeMaterialDark || _applicationTheme == ThemeNord) {
@@ -1087,6 +1087,9 @@ void Appearance::applyStyle() {
         } else if (_applicationTheme == ThemeNord) {
             app->setPalette(ThemePalettes::getNordPalette());
             app->setStyleSheet(ThemePalettes::getNordStyleSheet());
+        } else if (_applicationTheme == ThemeAiry) {
+            app->setPalette(ThemePalettes::getAiryPalette());
+            app->setStyleSheet(ThemePalettes::getAiryStyleSheet());
         }
     } else {
         // Passing a default-constructed QPalette clears the application's custom palette flag,
@@ -1175,7 +1178,7 @@ bool Appearance::isDarkModeEnabled() {
 
 bool Appearance::shouldUseDarkMode() {
     // If user has overridden the theme via ApplicationTheme setting, use that
-    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura) {
+    if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura || _applicationTheme == ThemeAiry) {
         darkModeResult = false;
         return false;
     } else if (_applicationTheme == ThemeDark || _applicationTheme == ThemeAMOLED || 

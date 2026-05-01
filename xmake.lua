@@ -1,5 +1,21 @@
 
 local MIDIEDITOR_RELEASE_VERSION_STRING = "4.4.1"
+
+-- Override uchardet package to use gitlab source instead of rate-limited freedesktop downloads
+package("uchardet")
+    set_homepage("https://www.freedesktop.org/wiki/Software/uchardet/")
+    set_description("An encoding detector library")
+    
+    add_urls("https://gitlab.freedesktop.org/uchardet/uchardet.git")
+    add_versions("0.0.8", "v0.0.8")
+    
+    add_deps("cmake")
+    on_install(function (package)
+        local configs = {"-DBUILD_BINARY=OFF", "-DBUILD_STATIC=ON", "-DBUILD_SHARED=OFF"}
+        import("package.tools.cmake").install(package, configs)
+    end)
+package_end()
+
 add_requires("zlib")
 add_requires("uchardet")
 set_version(MIDIEDITOR_RELEASE_VERSION_STRING)

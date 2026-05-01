@@ -153,7 +153,8 @@ public:
         ThemeSakura,
         ThemeAMOLED,
         ThemeMaterialDark,
-        ThemeNord
+        ThemeNord,
+        ThemeAiry
     };
 
     static ColorPreset colorPreset();

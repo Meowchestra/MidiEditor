@@ -4909,6 +4909,17 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     viewMB->addAction(_toolbarAction);
     _actionMap["show_toolbar"] = _toolbarAction;
 
+    _controlWidgetAction = new QAction(tr("Show Control Widget"), this);
+    _controlWidgetAction->setCheckable(true);
+    bool velVisible = _settings->value("control_widget_visible", true).toBool();
+    _controlWidgetAction->setChecked(velVisible);
+    if (_miscWidgetControl && _miscWidgetControl->parentWidget()) {
+        _miscWidgetControl->parentWidget()->setVisible(velVisible);
+    }
+    connect(_controlWidgetAction, SIGNAL(toggled(bool)), this, SLOT(toggleControlWidget(bool)));
+    viewMB->addAction(_controlWidgetAction);
+    _actionMap["show_control_widget"] = _controlWidgetAction;
+
     _statusBarAction = new QAction(tr("Show Status Bar"), this);
     _statusBarAction->setCheckable(true);
     _statusBarAction->setChecked(_settings->value("status_bar/visible", true).toBool());
@@ -5016,6 +5027,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     playbackMB->addSeparator();
 
     QMenu *speedMenu = new QMenu(tr("Playback Speed..."));
+    Appearance::setActionIcon(speedMenu->menuAction(), ":/run_environment/graphics/tool/playback-speed.png");
     connect(speedMenu, SIGNAL(triggered(QAction*)), this, SLOT(setSpeed(QAction*)));
 
     QList<double> speeds;
@@ -5057,13 +5069,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     playbackMB->addAction(lockAction);
     lockAction->setChecked(mw_matrixWidget->screenLocked());
     _actionMap["lock"] = lockAction;
-
-    QAction *smoothScrollAction = new QAction(tr("Smooth Playback Scrolling"), this);
-    smoothScrollAction->setCheckable(true);
-    smoothScrollAction->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
-    connect(smoothScrollAction, SIGNAL(toggled(bool)), this, SLOT(toggleSmoothPlaybackScroll(bool)));
-    playbackMB->addAction(smoothScrollAction);
-    _actionMap["smooth_playback_scroll"] = smoothScrollAction;
+    _defaultShortcuts["lock"] = QList<QKeySequence>();
 
     QAction *metronomeAction = new QAction(tr("Metronome"), this);
     Appearance::setActionIcon(metronomeAction, ":/run_environment/graphics/tool/metronome.png");
@@ -5072,6 +5078,14 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     connect(metronomeAction, SIGNAL(toggled(bool)), this, SLOT(enableMetronome(bool)));
     playbackMB->addAction(metronomeAction);
     _actionMap["metronome"] = metronomeAction;
+
+    QAction *smoothScrollAction = new QAction(tr("Smooth Playback Scrolling"), this);
+    smoothScrollAction->setCheckable(true);
+    smoothScrollAction->setChecked(_settings->value("rendering/smooth_playback_scroll", false).toBool());
+    connect(smoothScrollAction, SIGNAL(toggled(bool)), this, SLOT(toggleSmoothPlaybackScroll(bool)));
+    playbackMB->addAction(smoothScrollAction);
+    _actionMap["smooth_playback_scroll"] = smoothScrollAction;
+    _defaultShortcuts["smooth_playback_scroll"] = QList<QKeySequence>();
 
     QAction *pianoEmulationAction = new QAction(tr("Piano Emulation"), this);
     pianoEmulationAction->setCheckable(true);
@@ -6670,6 +6684,16 @@ void MainWindow::toggleToolbar(bool visible) {
         if (_toolbarAction) {
             _toolbarAction->setChecked(visible);
         }
+    }
+}
+
+void MainWindow::toggleControlWidget(bool visible) {
+    if (_miscWidgetControl && _miscWidgetControl->parentWidget()) {
+        _miscWidgetControl->parentWidget()->setVisible(visible);
+        if (_controlWidgetAction) {
+            _controlWidgetAction->setChecked(visible);
+        }
+        _settings->setValue("control_widget_visible", visible);
     }
 }
 

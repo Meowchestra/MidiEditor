@@ -38,6 +38,7 @@
         <file>run_environment/graphics/tool/paste.png</file>
         <file>run_environment/graphics/tool/pause.png</file>
         <file>run_environment/graphics/tool/play.png</file>
+        <file>run_environment/graphics/tool/playback-speed.png</file>
         <file>run_environment/graphics/tool/quantize.png</file>
         <file>run_environment/graphics/tool/record.png</file>
         <file>run_environment/graphics/tool/redo.png</file>

@@ -130,7 +130,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     styleLayout->addWidget(new QLabel(tr("Theme Preset")), 1, 0);
     _themeCombo = new QComboBox(this);
     _themeCombo->addItems({tr("Default"), tr("Light"), tr("Dark"), 
-                          tr("Sakura"), tr("AMOLED"), tr("Material Dark"), tr("Nord")});
+                          tr("Sakura"), tr("AMOLED"), tr("Material Dark"), tr("Nord"), tr("Airy")});
     _themeCombo->setCurrentIndex(static_cast<int>(Appearance::applicationTheme()));
     connect(_themeCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(themeChanged(int)));
     styleLayout->addWidget(_themeCombo, 1, 1);

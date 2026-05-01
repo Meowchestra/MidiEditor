@@ -957,7 +957,7 @@ void MidiSettingsWidget::onExportToWav() {
     if (!file) return;
 
     // Delegate to the comprehensive AudioExportDialog
-    AudioExportDialog *dialog = new AudioExportDialog(file, this);
+    AudioExportDialog *dialog = new AudioExportDialog(file, _mainWindow);
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->setModal(true);
     dialog->exec();

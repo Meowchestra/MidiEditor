@@ -165,7 +165,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     // Playback menu
     order << "play_stop" << "play" << "pause" << "record" << "stop"
           << "back_to_begin" << "back" << "forward" << "back_marker" << "forward_marker"
-          << "lock" << "metronome";
+          << "lock" << "smooth_playback_scroll" << "metronome";
     
     // MIDI menu
     order << "thru" << "panic";
