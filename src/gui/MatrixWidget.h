@@ -229,6 +229,12 @@ public:
      * \return True if screen is locked, false if auto-scroll is enabled
      */
     bool screenLocked();
+    
+    // === Area Getters ===
+    QRectF pianoArea() const { return PianoArea; }
+    QRectF timeLineArea() const { return TimeLineArea; }
+    QRectF toolArea() const { return ToolArea; }
+    QRectF markerArea() const { return MarkerArea; }
 
     /**
      * \brief Gets the minimum visible MIDI time.

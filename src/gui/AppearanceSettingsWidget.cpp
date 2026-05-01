@@ -156,10 +156,10 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     styleLayout->addWidget(strip, 3, 1);
 
     styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 4, 0);
-    QCheckBox *smoothScroll = new QCheckBox(this);
-    smoothScroll->setChecked(Appearance::smoothPlaybackScrolling());
-    connect(smoothScroll, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
-    styleLayout->addWidget(smoothScroll, 4, 1);
+    _smoothScrollCheckBox = new QCheckBox(this);
+    _smoothScrollCheckBox->setChecked(Appearance::smoothPlaybackScrolling());
+    connect(_smoothScrollCheckBox, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
+    styleLayout->addWidget(_smoothScrollCheckBox, 4, 1);
     
     bottomGrid->addWidget(styleGroup, 0, 0);
 
@@ -262,6 +262,14 @@ void AppearanceSettingsWidget::stripStyleChanged(int strip) {
     Appearance::setStrip(static_cast<Appearance::stripStyle>(strip));
     emit appearanceChanged();
     update();
+}
+
+void AppearanceSettingsWidget::loadSettings() {
+    if (_smoothScrollCheckBox) {
+        _smoothScrollCheckBox->blockSignals(true);
+        _smoothScrollCheckBox->setChecked(Appearance::smoothPlaybackScrolling());
+        _smoothScrollCheckBox->blockSignals(false);
+    }
 }
 
 void AppearanceSettingsWidget::rangeLinesChanged(bool enabled) {

@@ -79,6 +79,35 @@ public:
      */
     void setEnabled(bool b);
 
+    // === Geometric Testing ===
+
+    /**
+     * \brief Tests if mouse is within a rectangle.
+     * \param x Rectangle X coordinate
+     * \param y Rectangle Y coordinate
+     * \param width Rectangle width
+     * \param height Rectangle height
+     * \return True if mouse is within the rectangle
+     */
+    bool mouseInRect(int x, int y, int width, int height);
+
+    /**
+     * \brief Tests if mouse is within a rectangle.
+     * \param rect The rectangle to test
+     * \return True if mouse is within the rectangle
+     */
+    bool mouseInRect(QRectF rect);
+
+    /**
+     * \brief Tests if mouse is between two points.
+     * \param x1 First point X coordinate
+     * \param y1 First point Y coordinate
+     * \param x2 Second point X coordinate
+     * \param y2 Second point Y coordinate
+     * \return True if mouse is between the points
+     */
+    bool mouseBetween(int x1, int y1, int x2, int y2);
+
 protected:
     // === Event Handlers ===
 
@@ -138,34 +167,6 @@ protected:
      */
     int draggedY();
 
-    // === Geometric Testing ===
-
-    /**
-     * \brief Tests if mouse is within a rectangle.
-     * \param x Rectangle X coordinate
-     * \param y Rectangle Y coordinate
-     * \param width Rectangle width
-     * \param height Rectangle height
-     * \return True if mouse is within the rectangle
-     */
-    bool mouseInRect(int x, int y, int width, int height);
-
-    /**
-     * \brief Tests if mouse is within a rectangle.
-     * \param rect The rectangle to test
-     * \return True if mouse is within the rectangle
-     */
-    bool mouseInRect(QRectF rect);
-
-    /**
-     * \brief Tests if mouse is between two points.
-     * \param x1 First point X coordinate
-     * \param y1 First point Y coordinate
-     * \param x2 Second point X coordinate
-     * \param y2 Second point Y coordinate
-     * \return True if mouse is between the points
-     */
-    bool mouseBetween(int x1, int y1, int x2, int y2);
 
     /**
      * \brief Sets mouse pinning state for constrained operations.

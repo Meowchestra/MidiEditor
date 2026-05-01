@@ -49,6 +49,9 @@
         <file>run_environment/graphics/tool/screen_unlocked.png</file>
         <file>run_environment/graphics/tool/select.png</file>
         <file>run_environment/graphics/tool/select_box.png</file>
+        <file>run_environment/graphics/tool/select_box2.png</file>
+        <file>run_environment/graphics/tool/select_box3.png</file>
+        <file>run_environment/graphics/tool/select_cursor.png</file>
         <file>run_environment/graphics/tool/select_left.png</file>
         <file>run_environment/graphics/tool/select_right.png</file>
         <file>run_environment/graphics/tool/select_single.png</file>

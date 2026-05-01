@@ -693,14 +693,18 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
 
     // Essential actions (New, Open, Save, Undo, Redo) are defined in getEssentialActionIds() and getEssentialActionInfos()
 
-    // Tool actions - these were in the original toolbar, so enable by default
+    // Tool actions
     actions << ToolbarActionInfo{"standard_tool", tr("Standard Tool"), ":/run_environment/graphics/tool/select.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"select_left", tr("Select Left"), ":/run_environment/graphics/tool/select_left.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{"select_right", tr("Select Right"), ":/run_environment/graphics/tool/select_right.png", nullptr, true, false, "Tools"};
 
     // Additional selection tools (disabled by default)
     actions << ToolbarActionInfo{"select_single", tr("Select Single"), ":/run_environment/graphics/tool/select_single.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"select_box", tr("Select Box"), ":/run_environment/graphics/tool/select_box.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"select_row", tr("Select Row"), ":/run_environment/graphics/tool/select_cursor.png", nullptr, false, false, "Tools"};
+    actions << ToolbarActionInfo{"select_measure", tr("Select Measure"), ":/run_environment/graphics/tool/select_box3.png", nullptr, false, false, "Tools"};
+
+    // Additional selection tools
+    actions << ToolbarActionInfo{"select_left", tr("Select Left"), ":/run_environment/graphics/tool/select_left.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"select_right", tr("Select Right"), ":/run_environment/graphics/tool/select_right.png", nullptr, true, false, "Tools"};
 
     // Edit actions
     actions << ToolbarActionInfo{"separator3", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
@@ -727,7 +731,7 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"forward", tr("Forward"), ":/run_environment/graphics/tool/forward.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"forward_marker", tr("Forward Marker"), ":/run_environment/graphics/tool/forward_marker.png", nullptr, true, false, "Playback"};
 
-    // Additional tools - these were in the original toolbar, so enable by default
+    // Additional tools
     actions << ToolbarActionInfo{"separator6", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"metronome", tr("Metronome"), ":/run_environment/graphics/tool/metronome.png", nullptr, true, false, "Playback" };
     actions << ToolbarActionInfo{"align_left", tr("Align Left"), ":/run_environment/graphics/tool/align_left.png", nullptr, true, false, "Tools"};
@@ -755,17 +759,18 @@ QList<ToolbarActionInfo> LayoutSettingsWidget::getDefaultActions() {
     actions << ToolbarActionInfo{"time_signature", tr("Time Signature"), ":/run_environment/graphics/tool/meter.png", nullptr, true, false, "View"};
     actions << ToolbarActionInfo{"tempo", tr("Tempo"), ":/run_environment/graphics/tool/tempo.png", nullptr, true, false, "View"};
 
-    // Movement and editing tools (from MainWindow action map) - disabled by default but available
+    // Movement and editing tools (disabled by default)
     actions << ToolbarActionInfo{"separator11", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"move_all", tr("Move All Directions"), ":/run_environment/graphics/tool/move_up_down_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_lr", tr("Move Left/Right"), ":/run_environment/graphics/tool/move_left_right.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"move_ud", tr("Move Up/Down"), ":/run_environment/graphics/tool/move_up_down.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"size_change", tr("Size Change"), ":/run_environment/graphics/tool/change_size.png", nullptr, false, false, "Tools"};
 
-    // Additional useful actions (only include those with icons)
+    // Additional useful actions
     actions << ToolbarActionInfo{"separator12", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
     actions << ToolbarActionInfo{"panic", tr("MIDI Panic"), ":/run_environment/graphics/tool/panic.png", nullptr, false, false, "MIDI"};
     actions << ToolbarActionInfo{"separator13", tr("--- Separator ---"), "", nullptr, true, false, "Separator"};
+    // Additional useful actions (disabled by default)
     actions << ToolbarActionInfo{"transpose", tr("Transpose Selection"), ":/run_environment/graphics/tool/transpose.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_up", tr("Transpose Up"), ":/run_environment/graphics/tool/transpose_up.png", nullptr, false, false, "Tools"};
     actions << ToolbarActionInfo{"transpose_down", tr("Transpose Down"), ":/run_environment/graphics/tool/transpose_down.png", nullptr, false, false, "Tools"};
@@ -804,7 +809,7 @@ void LayoutSettingsWidget::refreshIcons() {
 }
 
 void LayoutSettingsWidget::iconSizeChanged(int size) {
-    // CRITICAL FIX: If customize is enabled but lists are empty, repopulate them
+    // If customize is enabled but lists are empty, repopulate them
     if (_enableCustomizeCheckbox->isChecked() && _actionsList->count() == 0) {
         populateActionsList(true); // Force repopulation
         if (_actionsList->count() > 0) {
@@ -814,7 +819,7 @@ void LayoutSettingsWidget::iconSizeChanged(int size) {
 
     Appearance::setToolbarIconSize(size);
     // Icon size changes require complete rebuild, so use immediate update
-    triggerToolbarUpdate(); // Unfortunately, icon size changes require complete rebuild
+    triggerToolbarUpdate();
 }
 
 void LayoutSettingsWidget::debouncedToolbarUpdate() {
@@ -828,7 +833,8 @@ void LayoutSettingsWidget::debouncedToolbarUpdate() {
 QStringList LayoutSettingsWidget::getComprehensiveActionOrder() {
     // Single source of truth for action order - optimized for single-row flow
     QStringList order;
-    order << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
+    order   << "standard_tool" << "select_single" << "select_box" << "select_row"
+            << "select_measure" << "select_left" << "select_right" << "separator3"
             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
             << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
@@ -872,7 +878,9 @@ void LayoutSettingsWidget::getDefaultRowDistribution(QStringList &row1Actions, Q
     row2Actions.clear();
 
     // Row 1: Editing and tool actions
-    row1Actions << "standard_tool" << "select_left" << "select_right" << "select_single" << "select_box" << "separator3"
+    row1Actions 
+            << "standard_tool" << "select_single" << "select_box" << "select_row" 
+			<< "select_measure" << "select_left" << "select_right" << "separator3"
             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
             << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "move_all" << "move_lr" << "move_ud" << "size_change" << "separator6"
@@ -882,7 +890,8 @@ void LayoutSettingsWidget::getDefaultRowDistribution(QStringList &row1Actions, Q
             << "measure" << "time_signature" << "tempo";
 
     // Row 2: Playback and view actions
-    row2Actions << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
+    row2Actions 
+            << "back_to_begin" << "back_marker" << "back" << "play" << "pause"
             << "stop" << "record" << "forward" << "forward_marker" << "separator10"
             << "metronome"
             << "zoom_hor_in" << "zoom_hor_out" << "zoom_ver_in" << "zoom_ver_out"
@@ -920,7 +929,7 @@ QStringList LayoutSettingsWidget::getDefaultToolbarOrder() {
     // Minimal default toolbar order - only essential + commonly used actions
     // This is what users see when customization is disabled
     QStringList order;
-    order << "standard_tool" << "select_left" << "select_right" << "separator3"
+    order   << "standard_tool" << "select_left" << "select_right" << "separator3"
             << "new_note" << "remove_notes" << "copy" << "paste" << "separator4"
             << "glue" << "scissors" << "delete_overlaps" << "separator5"
             << "back_to_begin" << "back_marker" << "back" << "play" << "pause"

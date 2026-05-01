@@ -64,6 +64,7 @@ bool EditorTool::release() {
 bool EditorTool::move(int mouseX, int mouseY) {
     this->mouseX = mouseX;
     this->mouseY = mouseY;
+    this->mouseIn = true;
     return false;
 }
 

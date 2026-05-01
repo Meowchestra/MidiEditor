@@ -174,6 +174,7 @@ public slots:
      * \param strip The new strip style
      */
     void stripStyleChanged(int strip);
+    void loadSettings() override;
 
     /**
      * \brief Handles range lines setting changes.
@@ -217,6 +218,9 @@ private:
 
     /** \brief ComboBox for theme presets */
     QComboBox *_themeCombo;
+
+    /** \brief CheckBox for smooth playback scrolling */
+    QCheckBox *_smoothScrollCheckBox;
 };
 
 #endif // APPEARANCESETTINGSWIDGET_H_

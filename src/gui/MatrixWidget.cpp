@@ -1317,6 +1317,13 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
                 needsUpdate = true;
             }
             
+            // Handle measure dragging if Measure select tool is active
+            if (SelectTool *st = dynamic_cast<SelectTool *>(Tool::currentTool())) {
+                if (st->stoolType() == SELECTION_TYPE_MEASURE && (event->buttons() & Qt::LeftButton)) {
+                    needsUpdate = true;
+                }
+            }
+            
             // Cursor updates
             if (inMarkerArea) {
                 if (hoveredMarker) {
@@ -1446,6 +1453,60 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
             if (enabled) {
                 update();
             }
+        }
+    } else if (enabled && (!MidiPlayer::isPlaying()) && event->modifiers().testFlag(Qt::AltModifier)
+               && event->button() == Qt::LeftButton && mouseInRect(TimeLineArea) && file) {
+        // Alt+click on timeline: select all events in this measure
+        // Use the logic implemented in SelectTool by creating a temp instance.
+        SelectTool tempTool(SELECTION_TYPE_MEASURE);
+        tempTool.setMatrixWidget(this);
+        tempTool.selectMeasure(file->tick(msOfXPos(mouseX)), event->modifiers());
+        update();
+    } else if (enabled && (!MidiPlayer::isPlaying()) && event->modifiers().testFlag(Qt::AltModifier)
+               && event->button() == Qt::LeftButton && mouseInRect(PianoArea) && file) {
+        // Alt+click on piano key: select all events on this row
+        // Use high-accuracy hit detection matching hover/glissando logic
+        int hitNote = -1;
+        for (auto it = pianoKeys.constBegin(); it != pianoKeys.constEnd(); ++it) {
+            const QRect &r = it.value();
+            if (mouseX >= r.x() && mouseX < r.x() + r.width() &&
+                mouseY >= r.y() && mouseY < r.y() + r.height()) {
+                int note = it.key();
+                if ((1 << (note % 12)) & 0x54A) {
+                    hitNote = note;
+                    break;
+                }
+                hitNote = note;
+            }
+        }
+        
+        if (hitNote == -1) {
+            // Fallback for white key "tips" (clicking the right side of a black key's row)
+            int currentLine = startLineY;
+            if (lineHeight() > 0) {
+                currentLine = (mouseY - timeHeight) / lineHeight() + startLineY;
+                while (yPosOfLine(currentLine + 1) <= mouseY) currentLine++;
+                while (yPosOfLine(currentLine) > mouseY) currentLine--;
+            }
+            int note = 127 - currentLine;
+            if ((1 << (note % 12)) & 0x54A) {
+                int rowY = yPosOfLine(currentLine);
+                int nextY = yPosOfLine(currentLine + 1);
+                if (mouseY < rowY + (nextY - rowY) / 2.0) {
+                    hitNote = note + 1;
+                } else {
+                    hitNote = note - 1;
+                }
+            } else {
+                hitNote = note;
+            }
+        }
+
+        if (hitNote != -1) {
+            SelectTool tempTool(SELECTION_TYPE_ROW);
+            tempTool.setMatrixWidget(this);
+            tempTool.selectRow(127 - hitNote, event->modifiers());
+            update();
         }
     } else if (enabled && (!MidiPlayer::isPlaying()) && (mouseInRect(PianoArea))) {
         // Find the correct note, giving priority to black keys (sharps) as they are drawn on top
@@ -2115,7 +2176,7 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
     // Export
     contextMenu.addSeparator();
     QAction* exportAudioAction = contextMenu.addAction(tr("Export Selection as Audio..."));
-    exportAudioAction->setEnabled(hasSelection);
+    exportAudioAction->setEnabled(hasSelection && MidiOutput::isFluidSynthOutput());
 
     // Show menu and get selected action
     QAction* selectedAction = contextMenu.exec(globalPos);

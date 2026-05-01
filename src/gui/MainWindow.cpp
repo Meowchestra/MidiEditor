@@ -1666,6 +1666,11 @@ void MainWindow::toggleSmoothPlaybackScroll(bool enable) {
         menuAction->setChecked(enable);
         menuAction->blockSignals(false);
     }
+
+    // Sync the settings dialog if it's open
+    if (_settingsDialog && _settingsDialog->isVisible()) {
+        _settingsDialog->reloadSettings();
+    }
 }
 
 void MainWindow::scaleSelection() {
@@ -3838,7 +3843,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
 #ifdef FLUIDSYNTH_SUPPORT
     QAction *exportAudioAction = new QAction(tr("Export Audio..."), this);
-    exportAudioAction->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_E));
+    exportAudioAction->setShortcut(QKeySequence(QKeyCombination(Qt::CTRL | Qt::SHIFT, Qt::Key_E)));
     _defaultShortcuts["export_audio"] = QList<QKeySequence>() << exportAudioAction->shortcut();
     Appearance::setActionIcon(exportAudioAction, ":/run_environment/graphics/tool/noicon.png");
     connect(exportAudioAction, &QAction::triggered, this, &MainWindow::exportAudio);
@@ -4045,44 +4050,52 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsToolsMenu->addSeparator();
 
-    QAction *selectSingleAction = new ToolButton(new SelectTool(SELECTION_TYPE_SINGLE), QKeySequence(Qt::Key_F4), toolsToolsMenu);
+    QAction *selectSingleAction = new ToolButton(new SelectTool(SELECTION_TYPE_SINGLE), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F1)), toolsToolsMenu);
     _defaultShortcuts["select_single"] = QList<QKeySequence>() << selectSingleAction->shortcut();
     toolsToolsMenu->addAction(selectSingleAction);
     _actionMap["select_single"] = selectSingleAction;
-    QAction *selectBoxAction = new ToolButton(new SelectTool(SELECTION_TYPE_BOX), QKeySequence(Qt::Key_F5), toolsToolsMenu);
+    QAction *selectBoxAction = new ToolButton(new SelectTool(SELECTION_TYPE_BOX), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F2)), toolsToolsMenu);
     _defaultShortcuts["select_box"] = QList<QKeySequence>() << selectBoxAction->shortcut();
     toolsToolsMenu->addAction(selectBoxAction);
     _actionMap["select_box"] = selectBoxAction;
-    QAction *selectLeftAction = new ToolButton(new SelectTool(SELECTION_TYPE_LEFT), QKeySequence(Qt::Key_F6), toolsToolsMenu);
+    QAction *selectRowAction = new ToolButton(new SelectTool(SELECTION_TYPE_ROW), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F3)), toolsToolsMenu);
+    _defaultShortcuts["select_row"] = QList<QKeySequence>() << selectRowAction->shortcut();
+    toolsToolsMenu->addAction(selectRowAction);
+    _actionMap["select_row"] = selectRowAction;
+    QAction *selectMeasureAction = new ToolButton(new SelectTool(SELECTION_TYPE_MEASURE), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F4)), toolsToolsMenu);
+    _defaultShortcuts["select_measure"] = QList<QKeySequence>() << selectMeasureAction->shortcut();
+    toolsToolsMenu->addAction(selectMeasureAction);
+    _actionMap["select_measure"] = selectMeasureAction;
+    QAction *selectLeftAction = new ToolButton(new SelectTool(SELECTION_TYPE_LEFT), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F5)), toolsToolsMenu);
     _defaultShortcuts["select_left"] = QList<QKeySequence>() << selectLeftAction->shortcut();
     toolsToolsMenu->addAction(selectLeftAction);
     _actionMap["select_left"] = selectLeftAction;
-    QAction *selectRightAction = new ToolButton(new SelectTool(SELECTION_TYPE_RIGHT), QKeySequence(Qt::Key_F7), toolsToolsMenu);
+    QAction *selectRightAction = new ToolButton(new SelectTool(SELECTION_TYPE_RIGHT), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F6)), toolsToolsMenu);
     _defaultShortcuts["select_right"] = QList<QKeySequence>() << selectRightAction->shortcut();
     toolsToolsMenu->addAction(selectRightAction);
     _actionMap["select_right"] = selectRightAction;
 
     toolsToolsMenu->addSeparator();
 
-    QAction *moveAllAction = new ToolButton(new EventMoveTool(true, true), QKeySequence(Qt::Key_F8), toolsToolsMenu);
+    QAction *moveAllAction = new ToolButton(new EventMoveTool(true, true), QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_F1)), toolsToolsMenu);
     _defaultShortcuts["move_all"] = QList<QKeySequence>() << moveAllAction->shortcut();
     _activateWithSelections.append(moveAllAction);
     toolsToolsMenu->addAction(moveAllAction);
     _actionMap["move_all"] = moveAllAction;
 
-    QAction *moveLRAction = new ToolButton(new EventMoveTool(false, true), QKeySequence(Qt::Key_F9), toolsToolsMenu);
+    QAction *moveLRAction = new ToolButton(new EventMoveTool(false, true), QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_F2)), toolsToolsMenu);
     _defaultShortcuts["move_lr"] = QList<QKeySequence>() << moveLRAction->shortcut();
     _activateWithSelections.append(moveLRAction);
     toolsToolsMenu->addAction(moveLRAction);
     _actionMap["move_lr"] = moveLRAction;
 
-    QAction *moveUDAction = new ToolButton(new EventMoveTool(true, false), QKeySequence(Qt::Key_F10), toolsToolsMenu);
+    QAction *moveUDAction = new ToolButton(new EventMoveTool(true, false), QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_F3)), toolsToolsMenu);
     _defaultShortcuts["move_ud"] = QList<QKeySequence>() << moveUDAction->shortcut();
     _activateWithSelections.append(moveUDAction);
     toolsToolsMenu->addAction(moveUDAction);
     _actionMap["move_ud"] = moveUDAction;
 
-    QAction *sizeChangeAction = new ToolButton(new SizeChangeTool(), QKeySequence(Qt::Key_F11), toolsToolsMenu);
+    QAction *sizeChangeAction = new ToolButton(new SizeChangeTool(), QKeySequence(QKeyCombination(Qt::SHIFT, Qt::Key_F4)), toolsToolsMenu);
     _defaultShortcuts["size_change"] = QList<QKeySequence>() << sizeChangeAction->shortcut();
     _activateWithSelections.append(sizeChangeAction);
     toolsToolsMenu->addAction(sizeChangeAction);
@@ -4090,15 +4103,15 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
 
     toolsToolsMenu->addSeparator();
 
-    QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F1)), toolsToolsMenu);
+    QAction *measureAction = new ToolButton(new MeasureTool(), QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_F1)), toolsToolsMenu);
     _defaultShortcuts["measure"] = QList<QKeySequence>() << measureAction->shortcut();
     toolsToolsMenu->addAction(measureAction);
     _actionMap["measure"] = measureAction;
-    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F2)), toolsToolsMenu);
+    QAction *timeSignatureAction = new ToolButton(new TimeSignatureTool(), QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_F2)), toolsToolsMenu);
     _defaultShortcuts["time_signature"] = QList<QKeySequence>() << timeSignatureAction->shortcut();
     toolsToolsMenu->addAction(timeSignatureAction);
     _actionMap["time_signature"] = timeSignatureAction;
-    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::CTRL, Qt::Key_F3)), toolsToolsMenu);
+    QAction *tempoAction = new ToolButton(new TempoTool(), QKeySequence(QKeyCombination(Qt::ALT, Qt::Key_F3)), toolsToolsMenu);
     _defaultShortcuts["tempo"] = QList<QKeySequence>() << tempoAction->shortcut();
     toolsToolsMenu->addAction(tempoAction);
     _actionMap["tempo"] = tempoAction;
@@ -6068,7 +6081,7 @@ QList<ToolbarActionInfo> MainWindow::getDefaultActionsForPlaceholder() {
     actions << ToolbarActionInfo{"glue", "Glue Notes", ":/run_environment/graphics/tool/glue.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"scissors", "Scissors", ":/run_environment/graphics/tool/scissors.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"delete_overlaps", "Delete Overlaps", ":/run_environment/graphics/tool/deleteoverlap.png", nullptr, true, false, "Tools"};
-    actions << ToolbarActionInfo{ "size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, true, false, "Tools"};
+    actions << ToolbarActionInfo{"size_change", "Size Change", ":/run_environment/graphics/tool/change_size.png", nullptr, true, false, "Tools"};
     actions << ToolbarActionInfo{"back_to_begin", "Back to Begin", ":/run_environment/graphics/tool/back_to_begin.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"back_marker", "Back Marker", ":/run_environment/graphics/tool/back_marker.png", nullptr, true, false, "Playback"};
     actions << ToolbarActionInfo{"back", "Back", ":/run_environment/graphics/tool/back.png", nullptr, true, false, "Playback"};

@@ -197,6 +197,21 @@ bool StandardTool::press(bool leftClick) {
         newNoteTool->press(leftClick);
         return false;
     }
+    // Alt+click: select all events on this row or measure
+    if (QApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
+        if (matrixWidget->mouseInRect(matrixWidget->pianoArea())) {
+            selectTool->setSelectionType(SELECTION_TYPE_ROW);
+            Tool::setCurrentTool(selectTool);
+            selectTool->press(leftClick); // Hand over to selectTool to allow dragging
+            return true;
+        } else if (matrixWidget->mouseInRect(matrixWidget->timeLineArea())) {
+            selectTool->setSelectionType(SELECTION_TYPE_MEASURE);
+            Tool::setCurrentTool(selectTool);
+            selectTool->press(leftClick); // Hand over to selectTool to allow dragging
+            return true;
+        }
+    }
+    selectTool->setSelectionType(SELECTION_TYPE_BOX);
     Tool::setCurrentTool(selectTool);
     selectTool->move(mouseX, mouseY);
     selectTool->press(leftClick);

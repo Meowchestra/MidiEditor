@@ -67,7 +67,7 @@ AudioExportDialog::AudioExportDialog(MidiFile *file, QWidget *parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(0);
 
-    // Build all three pages
+    // Build both pages
     buildConfigPage();
     buildCompletionPage();
 
@@ -79,8 +79,8 @@ AudioExportDialog::AudioExportDialog(MidiFile *file, QWidget *parent)
         _rangeSelection->setChecked(true);
         onRangeChanged();
     }
-
     showConfigPage();
+    centerOnParent();
 }
 
 // ============================================================================
@@ -94,9 +94,11 @@ void AudioExportDialog::buildConfigPage() {
     layout->setSpacing(10);
 
     // --- Info ---
-    QString fileName = QFileInfo(_file->path()).fileName();
+    QString path = _file->path();
+    QString fileName = QFileInfo(path).fileName();
     if (fileName.isEmpty()) fileName = tr("Untitled");
     _sourceLabel = new QLabel(tr("<b>Source:</b> %1").arg(fileName), _configPage);
+    _sourceLabel->setToolTip(path);
     layout->addWidget(_sourceLabel);
 
     _durationLabel = new QLabel(_configPage);
@@ -287,7 +289,6 @@ void AudioExportDialog::buildConfigPage() {
     updateEstimatedSize();
 }
 
-
 void AudioExportDialog::buildCompletionPage() {
     _completionPage = new QWidget(this);
     QVBoxLayout *layout = new QVBoxLayout(_completionPage);
@@ -337,6 +338,8 @@ void AudioExportDialog::buildCompletionPage() {
 void AudioExportDialog::showConfigPage() {
     _configPage->setVisible(true);
     _completionPage->setVisible(false);
+    setFixedSize(sizeHint());
+    centerOnParent();
 }
 
 void AudioExportDialog::showCompletionPage(bool success) {
@@ -387,6 +390,28 @@ void AudioExportDialog::showCompletionPage(bool success) {
     }
 
     setFixedSize(sizeHint());
+    centerOnParent();
+}
+
+void AudioExportDialog::centerOnParent() {
+    if (parentWidget()) {
+        QRect parentRect = parentWidget()->geometry();
+        QRect dialogRect = geometry();
+        int x = parentRect.x() + (parentRect.width() - dialogRect.width()) / 2;
+        int y = parentRect.y() + (parentRect.height() - dialogRect.height()) / 2;
+        move(x, y);
+    }
+}
+
+int AudioExportDialog::lastActualEventTick() const {
+    if (!_file) return 0;
+    int lastTick = 0;
+    for (int i = 0; i < 19; i++) {
+        if (_file->channel(i)->eventMap()->isEmpty()) continue;
+        int last = _file->channel(i)->eventMap()->lastKey();
+        if (last > lastTick) lastTick = last;
+    }
+    return lastTick;
 }
 
 // ============================================================================
@@ -429,6 +454,7 @@ QString AudioExportDialog::formatFileSize(double bytes) const {
 }
 
 QString AudioExportDialog::formatDuration(double seconds) const {
+    if (seconds < 0) seconds = 0;
     int totalSec = static_cast<int>(seconds);
     int min = totalSec / 60;
     int sec = totalSec % 60;
@@ -464,7 +490,7 @@ double AudioExportDialog::estimateDurationSeconds() const {
     int maxTick = 0;
 
     int fromTick = 0;
-    int toTick = _file->endTick();
+    int toTick = lastActualEventTick();
 
     if (_rangeCustom->isChecked()) {
         int fromMeasure = _rangeFrom->value();
@@ -554,10 +580,14 @@ void AudioExportDialog::onExportClicked() {
     
     // Handle Range
     int startTick = 0;
-    int endTick = _file->endTick();
+    int endTick = lastActualEventTick();
     if (_rangeCustom->isChecked()) {
-        startTick = _file->startTickOfMeasure(_rangeFrom->value());
-        endTick = _file->startTickOfMeasure(_rangeTo->value() + 1);
+        int fromMeasure = _rangeFrom->value();
+        int toMeasure = _rangeTo->value();
+        if (fromMeasure > toMeasure) std::swap(fromMeasure, toMeasure);
+        
+        startTick = _file->startTickOfMeasure(fromMeasure);
+        endTick = _file->startTickOfMeasure(toMeasure + 1);
     } else if (_rangeSelection->isChecked()) {
         QList<MidiEvent *> selected = Selection::instance()->selectedEvents();
         if (!selected.isEmpty()) {
@@ -573,6 +603,9 @@ void AudioExportDialog::onExportClicked() {
             endTick = maxT;
         }
     }
+
+    if (endTick > _file->endTick()) endTick = _file->endTick();
+    if (startTick < 0) startTick = 0;
 
     if (_trimSilenceCheck->isChecked()) {
         int firstNoteTick = -1;
@@ -607,8 +640,12 @@ void AudioExportDialog::onExportClicked() {
 
     // Connect signals
     FluidSynthEngine *engine = FluidSynthEngine::instance();
+    connect(engine, &FluidSynthEngine::exportProgress,
+            this, &AudioExportDialog::onExportProgress, Qt::QueuedConnection);
     connect(engine, &FluidSynthEngine::exportFinished,
             this, &AudioExportDialog::onExportFinished, Qt::QueuedConnection);
+    connect(engine, &FluidSynthEngine::exportCancelled,
+            this, &AudioExportDialog::onExportCancelled, Qt::QueuedConnection);
 
     // Run export in background thread
     QThreadPool::globalInstance()->start([tempMidi, outputPath, settings]() {
@@ -616,30 +653,14 @@ void AudioExportDialog::onExportClicked() {
     });
 }
 
-void AudioExportDialog::onExportProgress(int percent) {
-    _progressBar->setValue(percent);
-    _progressLabel->setText(tr("Exporting Audio... %1%").arg(percent));
+void AudioExportDialog::onExportProgress(int /*percent*/) {
+    _exportBtn->setText(tr("Exporting..."));
 }
 
 void AudioExportDialog::onExportFinished(bool success, const QString &path) {
     _exportBtn->setEnabled(true);
     _exportBtn->setText(tr("Export..."));
 
-    // Disconnect signals
-    FluidSynthEngine *engine = FluidSynthEngine::instance();
-    disconnect(engine, &FluidSynthEngine::exportFinished,
-               this, &AudioExportDialog::onExportFinished);
-
-    // Clean up temp MIDI
-    QString tempMidi = QDir::tempPath() + "/MidiEditor_export_" +
-                       QString::number(QCoreApplication::applicationPid()) + ".mid";
-    QFile::remove(tempMidi);
-
-    _exportedPath = path;
-    showCompletionPage(success);
-}
-
-void AudioExportDialog::onExportCancelled() {
     // Disconnect signals
     FluidSynthEngine *engine = FluidSynthEngine::instance();
     disconnect(engine, &FluidSynthEngine::exportProgress,
@@ -654,13 +675,30 @@ void AudioExportDialog::onExportCancelled() {
                        QString::number(QCoreApplication::applicationPid()) + ".mid";
     QFile::remove(tempMidi);
 
-    // Return to config page
-    showConfigPage();
+    _exportedPath = path;
+    showCompletionPage(success);
+}
+
+void AudioExportDialog::onExportCancelled() {
+    _exportBtn->setEnabled(true);
+    _exportBtn->setText(tr("Export..."));
+
+    // Disconnect signals
+    FluidSynthEngine *engine = FluidSynthEngine::instance();
+    disconnect(engine, &FluidSynthEngine::exportProgress,
+               this, &AudioExportDialog::onExportProgress);
+    disconnect(engine, &FluidSynthEngine::exportFinished,
+               this, &AudioExportDialog::onExportFinished);
+    disconnect(engine, &FluidSynthEngine::exportCancelled,
+               this, &AudioExportDialog::onExportCancelled);
+
+    // Clean up temp MIDI
+    QString tempMidi = QDir::tempPath() + "/MidiEditor_export_" +
+                       QString::number(QCoreApplication::applicationPid()) + ".mid";
+    QFile::remove(tempMidi);
 }
 
 void AudioExportDialog::onCancelExport() {
-    _cancelExportBtn->setEnabled(false);
-    _cancelExportBtn->setText(tr("Cancelling..."));
     FluidSynthEngine::instance()->cancelExport();
 }
 

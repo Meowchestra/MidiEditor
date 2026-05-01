@@ -1692,23 +1692,47 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
     QMultiMap<int, MidiEvent *> allEvents = QMultiMap<int, MidiEvent *>();
     QSet<MidiEvent *> skippedOnEvents;
 
-    MidiEvent* lastProg[16] = {nullptr};
-    MidiEvent* lastPitchBend[16] = {nullptr};
+    MidiEvent* lastProg[16];
+    MidiEvent* lastPitchBend[16];
     QMap<int, MidiEvent*> lastCC[16];
+    for (int i = 0; i < 16; i++) {
+        lastProg[i] = nullptr;
+        lastPitchBend[i] = nullptr;
+    }
+
+    MidiEvent* lastTempo = nullptr;
+    MidiEvent* lastTimeSig = nullptr;
+    MidiEvent* lastKeySig = nullptr;
+
+    // Tracks for each channel that will receive state injection
+    MidiTrack* channelFirstTrack[16];
+    for (int i = 0; i < 16; i++) channelFirstTrack[i] = nullptr;
 
     for (int i = 0; i < 19; i++) {
-        QMultiMap<int, MidiEvent *>::iterator it = channels[i]->eventMap()->begin();
-        while (it != channels[i]->eventMap()->end()) {
-            MidiEvent *event = it.value();
-            int tick = it.key();
+        QList<MidiEvent *> channelEvents = getSortedEvents(channels[i]->eventMap());
+        for (MidiEvent *event : channelEvents) {
+            int tick = event->midiTime();
 
             bool include = true;
             int exportTick = tick - startTick;
 
-            // Meta channels (16=tempo, 17=time sig, 18=key sig)
+            // Track earliest track used by each channel within the range
+            if (i < 16 && tick >= startTick && tick <= actualEnd) {
+                if (!channelFirstTrack[i]) channelFirstTrack[i] = event->track();
+            }
+
+            // Meta channels (16=key sig, 17=tempo, 18=time sig)
             if (i >= 16) {
                 if (tick < startTick) {
-                    exportTick = 0;
+                    // Only keep the LATEST meta events before startTick
+                    include = false;
+                    if (i == 17) { // Tempo
+                        if (!lastTempo || tick >= lastTempo->midiTime()) lastTempo = event;
+                    } else if (i == 18) { // Time Sig
+                        if (!lastTimeSig || tick >= lastTimeSig->midiTime()) lastTimeSig = event;
+                    } else if (i == 16) { // Key Sig
+                        if (!lastKeySig || tick >= lastKeySig->midiTime()) lastKeySig = event;
+                    }
                 } else if (tick > actualEnd) {
                     include = false;
                 }
@@ -1719,11 +1743,11 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
                     // Track latest Program/Control changes before startTick
                     if (!channelMuted(i) && event->track() && !event->track()->muted()) {
                         if (dynamic_cast<ProgChangeEvent*>(event)) {
-                            lastProg[i] = event;
+                            if (!lastProg[i] || tick >= lastProg[i]->midiTime()) lastProg[i] = event;
                         } else if (ControlChangeEvent* cc = dynamic_cast<ControlChangeEvent*>(event)) {
-                            lastCC[i][cc->controlNumber()] = event;
+                            lastCC[i][cc->control()] = event;
                         } else if (dynamic_cast<PitchBendEvent*>(event)) {
-                            lastPitchBend[i] = event;
+                            if (!lastPitchBend[i] || tick >= lastPitchBend[i]->midiTime()) lastPitchBend[i] = event;
                         }
                     }
                 } else if (tick > actualEnd) {
@@ -1750,16 +1774,18 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
             } else {
                 // Track skipped NoteOn events
                 OnEvent *on = dynamic_cast<OnEvent *>(event);
-                if (on) {
+                if (on && tick >= startTick) { // Only track as skipped if it's within range
                     skippedOnEvents.insert(event);
                 }
             }
-
-            it++;
         }
     }
 
-    // Inject the latest state before startTick to ensure correct instruments
+    // Inject the latest state before startTick to ensure correct instruments and timing
+    if (lastTempo) allEvents.insert(0, lastTempo);
+    if (lastTimeSig) allEvents.insert(0, lastTimeSig);
+    if (lastKeySig) allEvents.insert(0, lastKeySig);
+
     for (int i = 0; i < 16; i++) {
         if (lastProg[i]) allEvents.insert(0, lastProg[i]);
         if (lastPitchBend[i]) allEvents.insert(0, lastPitchBend[i]);
@@ -1770,6 +1796,8 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
 
     int exportDuration = actualEnd - startTick;
     if (exportDuration < 0) exportDuration = 0;
+
+    QList<MidiEvent *> sortedExportEvents = getSortedEvents(&allEvents);
 
     QByteArray data = QByteArray();
     data.append('M');
@@ -1809,10 +1837,8 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
 
         int numBytes = 0;
         int currentTick = 0;
-        QMultiMap<int, MidiEvent *>::iterator it = allEvents.begin();
-        while (it != allEvents.end()) {
-            MidiEvent *event = it.value();
-            int tick = it.key();
+        for (MidiEvent *event : sortedExportEvents) {
+            int tick = qMax(0, event->midiTime() - startTick);
 
             // Handle track assignment for export
             bool isMeta = (event->channel() >= 16);
@@ -1837,7 +1863,6 @@ bool MidiFile::saveForExport(QString path, int startTick, int endTick) {
 
                 currentTick = tick;
             }
-            it++;
         }
 
         // write the endEvent

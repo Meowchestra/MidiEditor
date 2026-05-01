@@ -59,6 +59,7 @@ private slots:
     void onFormatChanged(int index);
     void onAudioConfigChanged(int index);
     void onRangeChanged();
+    void centerOnParent();
 
     // Completion dialog actions
     void openExportedFile();
@@ -66,12 +67,12 @@ private slots:
 
 private:
     void buildConfigPage();
-    void buildProgressPage();
     void buildCompletionPage();
 
     void showConfigPage();
-    void showProgressPage();
     void showCompletionPage(bool success);
+
+    int lastActualEventTick() const;
 
     AudioExportSettings currentSettings() const;
     double estimateDurationSeconds() const;
@@ -100,12 +101,6 @@ private:
     QLabel *_estimatedSizeLabel;
     QPushButton *_exportBtn;
     QPushButton *_cancelConfigBtn;
-
-    // Progress page widgets
-    QWidget *_progressPage;
-    QProgressBar *_progressBar;
-    QLabel *_progressLabel;
-    QPushButton *_cancelExportBtn;
 
     // Completion page widgets
     QWidget *_completionPage;

@@ -26,6 +26,8 @@
 #define SELECTION_TYPE_LEFT 1     ///< Left-click selection
 #define SELECTION_TYPE_BOX 2      ///< Box/rectangle selection
 #define SELECTION_TYPE_SINGLE 3   ///< Single event selection
+#define SELECTION_TYPE_ROW 4      ///< Row selection
+#define SELECTION_TYPE_MEASURE 5  ///< Measure selection
 
 // Forward declarations
 class MidiEvent;
@@ -123,14 +125,39 @@ public:
     bool showsSelection();
 
     /**
+     * \brief Sets the selection type.
+     * \param type The selection type (SELECTION_TYPE_*)
+     */
+    void setSelectionType(int type) { stool_type = type; }
+
+    /**
      * \brief Returns the selection type.
      * \return The selection type (SELECTION_TYPE_*)
      */
     int stoolType() const { return stool_type; }
 
+    /**
+     * \brief Selects all events in a specific row.
+     * \param line The pitch/row line number (0-127)
+     * \param modifiers Keyboard modifiers for additive/subtractive selection
+     */
+    void selectRow(int line, Qt::KeyboardModifiers modifiers);
+
+    /**
+     * \brief Selects all events in a specific measure.
+     * \param tick A tick position within the target measure
+     * \param modifiers Keyboard modifiers for additive/subtractive selection
+     */
+    void selectMeasure(int tick, Qt::KeyboardModifiers modifiers);
+
 protected:
     /** \brief The selection type for this tool instance */
     int stool_type;
+
+    /** \brief Drag start tick for measure selection */
+    int _dragStartTick = -1;
+    /** \brief Drag current tick for measure selection */
+    int _dragLastTick = -1;
 
     /** \brief Selection rectangle coordinates */
     int x_rect, y_rect;

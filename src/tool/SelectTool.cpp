@@ -19,9 +19,12 @@
 #include "SelectTool.h"
 #include "Selection.h"
 #include "../MidiEvent/MidiEvent.h"
+#include "../MidiEvent/OnEvent.h"
+#include "../MidiEvent/OffEvent.h"
 #include "../gui/MatrixWidget.h"
 #include "../gui/Appearance.h"
 #include "../midi/MidiFile.h"
+#include "../midi/MidiChannel.h"
 #include "../protocol/Protocol.h"
 #include "StandardTool.h"
 
@@ -51,6 +54,16 @@ SelectTool::SelectTool(int type)
             setToolTipText(QObject::tr("Select All Events (Right Side)"));
             break;
         }
+        case SELECTION_TYPE_ROW: {
+            setImage(":/run_environment/graphics/tool/select_cursor.png");
+            setToolTipText(QObject::tr("Select All Events (Row)"));
+            break;
+        }
+        case SELECTION_TYPE_MEASURE: {
+            setImage(":/run_environment/graphics/tool/select_box3.png");
+            setToolTipText(QObject::tr("Select All Events (Measure)"));
+            break;
+        }
     }
 }
 
@@ -60,6 +73,8 @@ SelectTool::SelectTool(SelectTool &other)
     x_rect = 0;
     y_rect = 0;
     _isActive = false;
+    _dragStartTick = -1;
+    _dragLastTick = -1;
 }
 
 void SelectTool::draw(QPainter *painter) {
@@ -82,6 +97,49 @@ void SelectTool::draw(QPainter *painter) {
                 painter->drawRect(mouseX, 0, matrixWidget->width() - 1, matrixWidget->height() - 1);
             }
         }
+    } else if (stool_type == SELECTION_TYPE_ROW && mouseIn) {
+        int line = matrixWidget->lineAtY(mouseY);
+        // Allow row selection in both note area (0-127) and misc area (>127)
+        if (line >= 0) {
+            int rowY = matrixWidget->yPosOfLine(line);
+            int nextRowY = matrixWidget->yPosOfLine(line + 1);
+            painter->setPen(Appearance::borderColor());
+            QColor selectionColor = Appearance::foregroundColor();
+            selectionColor.setAlpha(100);
+            painter->setBrush(selectionColor);
+            painter->drawRect(0, rowY, matrixWidget->width() - 1, nextRowY - rowY);
+        }
+    } else if (stool_type == SELECTION_TYPE_MEASURE && file()) {
+        if (_isActive && _dragStartTick != -1) {
+            // Highlight all measures from start to current drag pos
+            int startMeasureTick, startMeasureEnd;
+            int currentMeasureTick, currentMeasureEnd;
+            file()->measure(_dragStartTick, &startMeasureTick, &startMeasureEnd);
+            file()->measure(file()->tick(matrixWidget->msOfXPos(mouseX)), &currentMeasureTick, &currentMeasureEnd);
+            
+            int minTick = qMin(startMeasureTick, currentMeasureTick);
+            int maxTick = qMax(startMeasureEnd, currentMeasureEnd);
+            
+            int startX = matrixWidget->xPosOfMs(file()->msOfTick(minTick));
+            int endX = matrixWidget->xPosOfMs(file()->msOfTick(maxTick));
+            
+            painter->setPen(Appearance::borderColor());
+            QColor selectionColor = Appearance::foregroundColor();
+            selectionColor.setAlpha(100);
+            painter->setBrush(selectionColor);
+            painter->drawRect(startX, 0, endX - startX, matrixWidget->height() - 1);
+        } else if (mouseIn) {
+            int tick = file()->tick(matrixWidget->msOfXPos(mouseX));
+            int measureStartTick, measureEndTick;
+            file()->measure(tick, &measureStartTick, &measureEndTick);
+            int startX = matrixWidget->xPosOfMs(file()->msOfTick(measureStartTick));
+            int endX = matrixWidget->xPosOfMs(file()->msOfTick(measureEndTick));
+            painter->setPen(Appearance::borderColor());
+            QColor selectionColor = Appearance::foregroundColor();
+            selectionColor.setAlpha(100);
+            painter->setBrush(selectionColor);
+            painter->drawRect(startX, 0, endX - startX, matrixWidget->height() - 1);
+        }
     }
 }
 
@@ -94,6 +152,9 @@ bool SelectTool::press(bool leftClick) {
     if (stool_type == SELECTION_TYPE_BOX) {
         y_rect = mouseY;
         x_rect = mouseX;
+    } else if (stool_type == SELECTION_TYPE_MEASURE && file()) {
+        _dragStartTick = file()->tick(matrixWidget->msOfXPos(mouseX));
+        _dragLastTick = _dragStartTick;
     }
     return true;
 }
@@ -101,6 +162,7 @@ bool SelectTool::press(bool leftClick) {
 bool SelectTool::release() {
     if (!file() || !_isActive) {
         _isActive = false;
+        _dragStartTick = -1;
         return false;
     }
     _isActive = false;
@@ -108,7 +170,10 @@ bool SelectTool::release() {
     file()->protocol()->startNewAction(QObject::tr("Selection Changed"), image());
     ProtocolEntry *toCopy = copy();
 
-    if (!QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier) && !QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
+    Qt::KeyboardModifiers mods = QApplication::keyboardModifiers();
+    bool modifierHeld = (mods & Qt::ShiftModifier) || (mods & Qt::ControlModifier);
+
+    if (!modifierHeld) {
         clearSelection();
     }
 
@@ -135,19 +200,24 @@ bool SelectTool::release() {
             x_end = mouseX + 1;
             y_end = mouseY + 1;
         }
+
+        bool isShift = (mods & Qt::ShiftModifier);
+        bool isCtrl = (mods & Qt::ControlModifier);
+
         foreach(MidiEvent* event, *(matrixWidget->activeEvents())) {
             if (inRect(event, x_start, y_start, x_end, y_end)) {
-                bool modifierHeld = QApplication::keyboardModifiers().testFlag(Qt::ControlModifier) ||
-                                    QApplication::keyboardModifiers().testFlag(Qt::ShiftModifier);
-                if (modifierHeld) {
-                    // Toggle: deselect if already selected, select if not
-                    QList<MidiEvent *> &selected = Selection::instance()->selectedEvents();
-                    if (selected.contains(event)) {
-                        deselectEvent(event);
-                    } else {
+                if (isShift) {
+                    // Additive: select if not already selected
+                    if (!Selection::instance()->selectedEvents().contains(event)) {
                         selectEvent(event, false, true, false);
                     }
+                } else if (isCtrl) {
+                    // Subtractive: unselect if already selected
+                    if (Selection::instance()->selectedEvents().contains(event)) {
+                        deselectEvent(event);
+                    }
                 } else {
+                    // Normal: select
                     selectEvent(event, false, false, false);
                 }
             }
@@ -167,10 +237,62 @@ bool SelectTool::release() {
             selectEvent(event, false, false, false);
         }
         Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+    } else if (stool_type == SELECTION_TYPE_ROW) {
+        selectRow(matrixWidget->lineAtY(mouseY), mods);
+    } else if (stool_type == SELECTION_TYPE_MEASURE) {
+        // Handle potentially multi-measure drag selection
+        int currentTick = file()->tick(matrixWidget->msOfXPos(mouseX));
+        int measureStart, measureEnd;
+        int dragStart, dragEnd;
+        file()->measure(_dragStartTick, &dragStart, &measureEnd);
+        file()->measure(currentTick, &measureStart, &dragEnd);
+        
+        int finalStart = qMin(dragStart, measureStart);
+        int finalEnd = qMax(dragEnd, measureEnd);
+        
+        bool isShift = (mods & Qt::ShiftModifier);
+        bool isCtrl = (mods & Qt::ControlModifier);
+        bool isAlt = (mods & Qt::AltModifier);
+
+        if (!isShift && !isCtrl && !isAlt) {
+            clearSelection();
+        }
+
+        // Collect all events in the measure range first
+        QList<MidiEvent *> allMeasureEvents;
+        for (int i = 0; i < 16; ++i) {
+            MidiChannel *channel = file()->channel(i);
+            if (!channel) continue;
+            foreach (MidiEvent *event, *(channel->eventMap())) {
+                int eventStart = event->midiTime();
+                int eventEnd = eventStart;
+                if (OnEvent *on = dynamic_cast<OnEvent*>(event)) {
+                    if (on->offEvent()) eventEnd = on->offEvent()->midiTime();
+                }
+                if (!(eventEnd <= finalStart || eventStart >= finalEnd)) {
+                    allMeasureEvents.append(event);
+                }
+            }
+        }
+
+        foreach(MidiEvent* event, allMeasureEvents) {
+            if (isShift || isAlt) { // Alt on measures is additive only
+                if (!Selection::instance()->selectedEvents().contains(event)) {
+                    selectEvent(event, false, true, false);
+                }
+            } else if (isCtrl) {
+                if (Selection::instance()->selectedEvents().contains(event)) {
+                    deselectEvent(event);
+                }
+            } else {
+                selectEvent(event, false, true, false);
+            }
+        }
     }
 
     x_rect = 0;
     y_rect = 0;
+    _dragStartTick = -1;
 
     protocol(toCopy, this);
     file()->protocol()->endAction();
@@ -192,6 +314,10 @@ bool SelectTool::inRect(MidiEvent *event, int x_start, int y_start, int x_end, i
 
 bool SelectTool::move(int mouseX, int mouseY) {
     EditorTool::move(mouseX, mouseY);
+    if (_isActive && stool_type == SELECTION_TYPE_MEASURE && file()) {
+        _dragLastTick = file()->tick(matrixWidget->msOfXPos(mouseX));
+        return true; // Trigger update during drag
+    }
     return true;
 }
 
@@ -209,6 +335,8 @@ void SelectTool::reloadState(ProtocolEntry *entry) {
     y_rect = 0;
     stool_type = other->stool_type;
     _isActive = false;
+    _dragStartTick = -1;
+    _dragLastTick = -1;
 }
 
 bool SelectTool::releaseOnly() {
@@ -217,4 +345,103 @@ bool SelectTool::releaseOnly() {
 
 bool SelectTool::showsSelection() {
     return true;
+}
+
+void SelectTool::selectRow(int line, Qt::KeyboardModifiers modifiers) {
+    if (line < 0 || !matrixWidget || !file()) return;
+
+    bool isShift = (modifiers & Qt::ShiftModifier);
+    bool isCtrl = (modifiers & Qt::ControlModifier);
+    bool isAlt = (modifiers & Qt::AltModifier);
+
+    if (!isShift && !isCtrl && !isAlt) {
+        clearSelection();
+    }
+    
+    QList<MidiEvent *> eventsToSelect;
+    for (int i = 0; i < 19; ++i) {
+        MidiChannel *channel = file()->channel(i);
+        if (!channel) continue;
+        foreach (MidiEvent *event, *(channel->eventMap())) {
+            if (event->line() == line) {
+                eventsToSelect.append(event);
+            }
+        }
+    }
+
+    foreach(MidiEvent* event, eventsToSelect) {
+        if (isShift) {
+            if (!Selection::instance()->selectedEvents().contains(event)) {
+                selectEvent(event, false, true, false);
+            }
+        } else if (isCtrl) {
+            if (Selection::instance()->selectedEvents().contains(event)) {
+                deselectEvent(event);
+            }
+        } else if (isAlt) {
+            // Alt on row: Toggle
+            if (Selection::instance()->selectedEvents().contains(event)) {
+                deselectEvent(event);
+            } else {
+                selectEvent(event, false, true, false);
+            }
+        } else {
+            selectEvent(event, false, false, false);
+        }
+    }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
+}
+
+void SelectTool::selectMeasure(int tick, Qt::KeyboardModifiers modifiers) {
+    if (!file() || !matrixWidget) return;
+
+    int measureStartTick, measureEndTick;
+    file()->measure(tick, &measureStartTick, &measureEndTick);
+
+    bool isShift = (modifiers & Qt::ShiftModifier);
+    bool isCtrl = (modifiers & Qt::ControlModifier);
+    bool isAlt = (modifiers & Qt::AltModifier);
+
+    if (!isShift && !isCtrl && !isAlt) {
+        clearSelection();
+    }
+
+    // Select all note events that overlap this measure
+    QList<MidiEvent *> eventsToSelect;
+    for (int i = 0; i < 16; ++i) { // Only scan instrument channels for measure selection
+        MidiChannel *channel = file()->channel(i);
+        if (!channel) continue;
+        foreach (MidiEvent *event, *(channel->eventMap())) {
+            int eventStart = event->midiTime();
+            int eventEnd = eventStart;
+            
+            if (OnEvent *on = dynamic_cast<OnEvent*>(event)) {
+                if (on->offEvent()) {
+                    eventEnd = on->offEvent()->midiTime();
+                }
+            }
+            
+            // Overlap check: selects if any part of the note is inside the measure
+            bool overlaps = !(eventEnd <= measureStartTick || eventStart >= measureEndTick);
+            
+            if (overlaps) {
+                eventsToSelect.append(event);
+            }
+        }
+    }
+
+    foreach(MidiEvent* event, eventsToSelect) {
+        if (isShift || isAlt) { // Alt on measures is additive only
+            if (!Selection::instance()->selectedEvents().contains(event)) {
+                selectEvent(event, false, true, false);
+            }
+        } else if (isCtrl) {
+            if (Selection::instance()->selectedEvents().contains(event)) {
+                deselectEvent(event);
+            }
+        } else {
+            selectEvent(event, false, true, false);
+        }
+    }
+    Selection::instance()->setSelection(Selection::instance()->selectedEvents());
 }

@@ -124,7 +124,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     QStringList order;
     
     // File menu
-    order << "new" << "open" << "save" << "save_as" << "quit";
+    order << "new" << "open" << "save" << "save_as" << "export_audio" << "quit";
     
     // Edit menu
     order << "undo" << "redo" << "select_all"
@@ -133,7 +133,7 @@ QStringList KeybindsSettingsWidget::getActionOrder() const {
     
     // Tools menu - Tools submenu
     order << "standard_tool" << "new_note" << "remove_notes"
-          << "select_single" << "select_box" << "select_left" << "select_right"
+          << "select_single" << "select_box" << "select_row" << "select_measure" << "select_left" << "select_right"
           << "move_all" << "move_lr" << "move_ud" << "size_change"
           << "measure" << "time_signature" << "tempo"
           << "duration_drag" << "duration_1" << "duration_2" << "duration_4" 
