@@ -640,7 +640,7 @@ MainWindow::MainWindow(QString initFile)
 
     // below add two rows for choosing track/channel new events shall be assigned to
     chooserWidget = new QWidget(rightSplitter);
-    chooserWidget->setMinimumWidth(350);
+    chooserWidget->setMinimumWidth(280);
     rightSplitter->addWidget(chooserWidget);
     QVBoxLayout *chooserLayout = new QVBoxLayout(chooserWidget);
     QLabel *trackchannelLabel = new QLabel(tr("Add new events to..."));
