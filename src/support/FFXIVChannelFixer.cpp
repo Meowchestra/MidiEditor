@@ -469,7 +469,32 @@ QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOp
 
         for (int t = 0; t < trackCount; t++) {
             QString canonical = canonicalNames[t];
-            if (canonical.isEmpty()) continue;
+            if (canonical.isEmpty()) {
+                // If it's an unmatched track, check if it's primarily on channel 9.
+                // Resetting drum tracks to channel 0 ruins the percussion mapping.
+                MidiTrack *track = file->track(t);
+                QHash<int, int> chCount;
+                for (int ch = 0; ch < 16; ch++) {
+                    MidiChannel *channel = file->channel(ch);
+                    if (!channel) continue;
+                    auto *eventMap = channel->eventMap();
+                    for (auto it = eventMap->begin(); it != eventMap->end(); ++it) {
+                        if (it.value()->track() == track && dynamic_cast<NoteOnEvent*>(it.value()))
+                            chCount[ch]++;
+                    }
+                }
+                int bestCh = -1, bestCount = 0;
+                for (auto it = chCount.begin(); it != chCount.end(); ++it) {
+                    if (it.value() > bestCount) { bestCount = it.value(); bestCh = it.key(); }
+                }
+                if (bestCh == 9) {
+                    channelFor[t] = 9;
+                    usedChannels.insert(9);
+                } else {
+                    channelFor[t] = 0; // Explicitly fallback to channel 0
+                }
+                continue;
+            }
 
             if (isPercussion(canonical)) {
                 channelFor[t] = 9;
