@@ -58,6 +58,8 @@ class TweakTarget;
 class UpdateChecker;
 class QLabel;
 class SettingsDialog;
+class UpdateManager;
+class QJsonObject;
 
 /**
  * \class MainWindow
@@ -797,6 +799,9 @@ public slots:
      * \brief Opens the start time tweaking dialog.
      */
     void tweakStartTime();
+#ifndef QT_NO_DEBUG
+    void testUpdate();
+#endif
 
     /**
      * \brief Opens the end time tweaking dialog.
@@ -877,7 +882,7 @@ public slots:
      * \brief Check for application updates.
      * \param silent If true, only show UI if an update is available.
      */
-    void checkForUpdates(bool silent = false);
+    void checkForUpdates(bool silent = false, bool forceDialog = false);
 
     /**
      * \brief Refreshes toolbar icons when theme changes.
@@ -1110,6 +1115,7 @@ private:
 
     /** \brief Whether the current update check should be silent (no UI if no update) */
     bool _silentUpdateCheck;
+    UpdateManager *_updateManager;
 
     /** \brief Main window status bar */
     QAction *_statusBarAction;

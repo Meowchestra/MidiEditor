@@ -10,6 +10,7 @@ package("uchardet")
     add_versions("0.0.8", "v0.0.8")
     
     add_deps("cmake")
+    add_includedirs("include", "include/uchardet")
     on_install(function (package)
         local configs = {"-DBUILD_BINARY=OFF", "-DBUILD_STATIC=ON", "-DBUILD_SHARED=OFF"}
         import("package.tools.cmake").install(package, configs)

@@ -119,6 +119,8 @@ public:
 
     /** \brief Name used for the FluidSynth virtual output port */
     static const QString FLUIDSYNTH_PORT_NAME;
+#else
+    static inline bool isFluidSynthOutput() { return false; }
 #endif
 
     // === Channel and Program Management ===
