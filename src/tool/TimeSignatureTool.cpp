@@ -24,8 +24,12 @@ void TimeSignatureTool::draw(QPainter *painter) {
 
     int startX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureStartTick));
     int endX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(measureEndTick));
-    painter->setOpacity(0.5);
-    painter->fillRect(startX, 0, endX - startX, matrixWidget->height(), Appearance::timeSignatureToolHighlightColor());
+    
+    painter->setPen(Appearance::borderColor());
+    QColor selectionColor = Appearance::timeSignatureToolHighlightColor();
+    selectionColor.setAlpha(100);
+    painter->setBrush(selectionColor);
+    painter->drawRect(startX, 0, endX - startX, matrixWidget->height() - 1);
 }
 
 bool TimeSignatureTool::press(bool leftClick) {

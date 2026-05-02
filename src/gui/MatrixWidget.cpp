@@ -40,6 +40,7 @@
 #include "../tool/StandardTool.h"
 #include "Appearance.h"
 #include "../tool/SelectTool.h"
+#include "../tool/MeasureTool.h"
 #include "../tool/EventTool.h"
 #include "MainWindow.h"
 #include <algorithm>
@@ -1412,14 +1413,28 @@ void MatrixWidget::leaveEvent(QEvent *event) {
 }
 
 void MatrixWidget::mousePressEvent(QMouseEvent *event) {
-    if (event->button() == Qt::RightButton && (event->modifiers() & Qt::ControlModifier)) {
-        // Ignore the press; let contextMenuEvent handle it cleanly on release
-        return;
-    }
+    EditorTool* currentTool = Tool::currentTool();
 
-    if (event->button() == Qt::MiddleButton) {
-        showContextMenu(event->globalPos(), event->pos());
-        return;
+    // Special case for MeasureTool: Right-Click for context menu, Middle-Click for deletion
+    if (dynamic_cast<MeasureTool*>(currentTool)) {
+        if (event->button() == Qt::RightButton) {
+            showContextMenu(event->globalPos(), event->pos());
+            return;
+        }
+        if (event->button() == Qt::MiddleButton) {
+            // Allow fall-through to tool press() handling
+        }
+    } else {
+        // Standard behavior: Middle-Click for context menu
+        if (event->button() == Qt::MiddleButton) {
+            showContextMenu(event->globalPos(), event->pos());
+            return;
+        }
+        
+        if (event->button() == Qt::RightButton && (event->modifiers() & Qt::ControlModifier)) {
+            // Ignore the press; let contextMenuEvent handle it cleanly on release
+            return;
+        }
     }
 
     PaintWidget::mousePressEvent(event);
@@ -1449,7 +1464,7 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
     }
 
     if (!MidiPlayer::isPlaying() && Tool::currentTool() && mouseInRect(ToolArea)) {
-        if (Tool::currentTool()->press(event->buttons() == Qt::LeftButton)) {
+        if (Tool::currentTool()->press(event->button() == Qt::LeftButton)) {
             if (enabled) {
                 update();
             }
@@ -2017,6 +2032,35 @@ void MatrixWidget::showContextMenu(const QPoint& globalPos, const QPoint& localP
 {
     // Only appear for Standard Tool and certain Select Tools
     EditorTool* currentTool = Tool::currentTool();
+    
+    // Handle MeasureTool specifically
+    if (MeasureTool* mt = dynamic_cast<MeasureTool*>(currentTool)) {
+        // Only show context menu if not near a divider (insertion point)
+        int dist, measureX;
+        // Hack: We need mouseX in the tool, but we can calculate it from localPos.x()
+        // closestMeasureStart is private, so we'll just check it here.
+        int ms = msOfXPos(localPos.x());
+        int tick = file->tick(ms);
+        int mStart, mEnd;
+        file->measure(tick, &mStart, &mEnd);
+        int x1 = xPosOfMs(file->msOfTick(mStart));
+        int x2 = xPosOfMs(file->msOfTick(mEnd));
+        int dStart = abs(localPos.x() - x1);
+        int dEnd = abs(localPos.x() - x2);
+        
+        if (dStart >= 20 && dEnd >= 20) {
+            QMenu contextMenu(this);
+            QAction* delAction = contextMenu.addAction(tr("Delete Selected Measures"));
+            connect(delAction, &QAction::triggered, [mt](){ mt->deleteSelectedMeasures(); });
+            
+            QAction* unselectAction = contextMenu.addAction(tr("Unselect All"));
+            connect(unselectAction, &QAction::triggered, [mt](){ mt->clearSelection(); });
+            
+            contextMenu.exec(globalPos);
+        }
+        return;
+    }
+
     bool allowedTool = false;
     if (dynamic_cast<StandardTool*>(currentTool) || dynamic_cast<SelectTool*>(currentTool)) {
         allowedTool = true;

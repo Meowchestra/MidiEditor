@@ -2068,6 +2068,13 @@ MidiTrack *MidiFile::track(int number) {
 }
 
 int MidiFile::tonalityAt(int tick) {
+    int tonality;
+    bool minor;
+    keyAt(tick, &tonality, &minor);
+    return tonality;
+}
+
+void MidiFile::keyAt(int tick, int *tonality, bool *minor) {
     QList<MidiEvent *> events = getSortedEvents(channels[16]->eventMap());
 
     KeySignatureEvent *event = 0;
@@ -2081,9 +2088,11 @@ int MidiFile::tonalityAt(int tick) {
     }
 
     if (!event) {
-        return 0;
+        if (tonality) *tonality = 0;
+        if (minor) *minor = false;
     } else {
-        return event->tonality();
+        if (tonality) *tonality = event->tonality();
+        if (minor) *minor = event->minor();
     }
 }
 
@@ -2317,8 +2326,7 @@ void MidiFile::deleteMeasures(int from, int to) {
 }
 
 void MidiFile::insertMeasures(int after, int numMeasures) {
-    if (after == 0) {
-        // Cannot insert before first measure.
+    if (after < 0) {
         return;
     }
     ProtocolEntry *toCopy = copy();
@@ -2328,7 +2336,7 @@ void MidiFile::insertMeasures(int after, int numMeasures) {
     int num;
     int denom;
     TimeSignatureEvent *lastTimeSig;
-    meterAt(tick - 1, &num, &denom, &lastTimeSig);
+    meterAt(tick == 0 ? 0 : tick - 1, &num, &denom, &lastTimeSig);
     int numTicks = lastTimeSig->ticksPerMeasure() * numMeasures;
     midiTicks = midiTicks + numTicks;
 
@@ -2337,14 +2345,34 @@ void MidiFile::insertMeasures(int after, int numMeasures) {
         QList<MidiEvent *> toUpdate;
         QMultiMap<int, MidiEvent *>::Iterator it = channel(ch)->eventMap()->begin();
         while (it != channel(ch)->eventMap()->end()) {
-            if (it.key() >= tick) {
+            bool shouldShift = false;
+            if (it.key() > tick) {
+                shouldShift = true;
+            } else if (it.key() == tick) {
+                // Special case for Tick 0: Keep meta/setup events at Tick 0
+                if (tick == 0) {
+                    int line = it.value()->line();
+                    if (line < 128) { // Note events
+                        shouldShift = true;
+                    } else { // Meta / Control events
+                        shouldShift = false;
+                    }
+                } else {
+                    shouldShift = true;
+                }
+            }
+
+            if (shouldShift) {
                 toUpdate.append(it.value());
             }
             it++;
         }
 
         foreach(MidiEvent *event, toUpdate) {
-            event->setMidiTime(event->midiTime() + numTicks);
+            // Must remove using OLD time first, then update, then add
+            channel(ch)->removeEvent(event, false);
+            event->setMidiTime(event->midiTime() + numTicks, false);
+            channel(ch)->insertEvent(event, event->midiTime(), false);
         }
     }
 

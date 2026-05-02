@@ -133,7 +133,7 @@ public:
      * Updates the tool's button appearance (if it exists) to show
      * the deselected state.
      */
-    void deselect();
+    virtual void deselect();
 
     /**
      * \brief Selects this tool.
@@ -141,7 +141,7 @@ public:
      * Updates the tool's button appearance (if it exists) to show
      * the selected state.
      */
-    void select();
+    virtual void select();
 
     /**
      * \brief Checks if this tool is currently selected.

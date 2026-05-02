@@ -22,9 +22,14 @@ void TempoTool::draw(QPainter *painter) {
     if (_startX > -1) {
         int start = rasteredX(_startX);
         int end = rasteredX(mouseX);
-        painter->setOpacity(0.5);
-        painter->fillRect(start, 0, end - start, matrixWidget->height(), Appearance::tempoToolHighlightColor());
+        
+        painter->setPen(Appearance::borderColor());
+        QColor selectionColor = Appearance::tempoToolHighlightColor();
+        selectionColor.setAlpha(100);
+        painter->setBrush(selectionColor);
+        painter->drawRect(start, 0, end - start, matrixWidget->height() - 1);
     } else {
+        // Just draw the rastered insertion line
         int x = rasteredX(mouseX);
         painter->setPen(Appearance::foregroundColor());
         painter->drawLine(x, 0, x, matrixWidget->height());

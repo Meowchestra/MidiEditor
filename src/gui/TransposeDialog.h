@@ -28,6 +28,8 @@
 // Forward declarations
 class NoteOnEvent;
 class MidiFile;
+class QComboBox;
+class QCheckBox;
 
 /**
  * \class TransposeDialog
@@ -47,6 +49,14 @@ class MidiFile;
  * valid MIDI note range and provides feedback if any notes would be
  * out of range after transposition.
  */
+class QComboBox;
+class QStackedWidget;
+
+/**
+ * \class TransposeDialog
+ *
+ * \brief Advanced dialog for transposing MIDI notes.
+ */
 class TransposeDialog : public QDialog {
     Q_OBJECT
 
@@ -65,18 +75,50 @@ public slots:
      */
     void accept();
 
+private slots:
+    void updateIntervalLabel();
+    void onIntervalComboChanged(int index);
+
 private:
     /** \brief List of notes to transpose */
     QList<NoteOnEvent *> _toTranspose;
 
-    /** \brief Spin box for entering the transposition interval */
-    QSpinBox *_valueBox;
-
-    /** \brief Radio buttons for direction selection */
-    QRadioButton *_up, *_down;
-
     /** \brief The MIDI file containing the notes */
     MidiFile *_file;
+
+    QComboBox *_modeSelector;
+    QStackedWidget *_stack;
+
+    // Mode 1: Standard (Interval)
+    QSpinBox *_chromaticOctBox;
+    QSpinBox *_chromaticMsBox;
+    QRadioButton *_chromaticUp, *_chromaticDown;
+    QComboBox *_chromaticIntervalCombo;
+    QLabel *_chromaticIntervalInfo;
+
+    // Mode 2: Key Conversion
+    QComboBox *_fromKeyRoot, *_fromKeyMode;
+    QComboBox *_toKeyRoot, *_toKeyMode;
+    QComboBox *_keyDirection;
+
+    // Mode 3: Scale-Aware Shift
+    QComboBox *_diatonicScaleRoot, *_diatonicScaleType;
+    QSpinBox *_diatonicSteps;
+    QRadioButton *_diatonicUp, *_diatonicDown;
+
+    QWidget* createStandardTab();
+    QWidget* createKeyTab();
+    QWidget* createScaleTab();
+
+    QString identifyChord();
+    QString identifyRange();
+    int calculateChromaticShift();
+    int performDiatonicTranspose(int note, int steps, int root, int scaleType);
+    int performModalInterchange(int note, int srcRoot, int srcType, int tgtRoot, int tgtType);
+    void applyRangeProtection(int &shift);
+    void detectScale(int &outRoot, int &outType);
+    bool _protectRange;
+    QCheckBox *_excludeDrums;
 };
 
 #endif // TRANSPOSEDIALOG_H_

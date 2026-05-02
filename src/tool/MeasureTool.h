@@ -19,6 +19,8 @@
 #ifndef MEASURETOOL_H_
 #define MEASURETOOL_H_
 
+#include <QList>
+
 #include "EventTool.h"
 
 /**
@@ -54,6 +56,21 @@ public:
      * \param painter The QPainter to draw with
      */
     void draw(QPainter *painter);
+    
+    /**
+     * \brief Handles tool activation.
+     */
+    void enter();
+
+    /**
+     * \brief Handles tool selection.
+     */
+    void select();
+
+    /**
+     * \brief Handles tool deselection.
+     */
+    void deselect();
 
     /**
      * \brief Handles mouse press events to start measure selection.
@@ -101,12 +118,25 @@ public:
      */
     void reloadState(ProtocolEntry *entry);
 
-private:
-    /** \brief Index of the first selected measure */
-    int _firstSelectedMeasure;
+    /**
+     * \brief Deletes the currently selected measures.
+     */
+    void deleteSelectedMeasures();
 
-    /** \brief Index of the second selected measure (for range selection) */
-    int _secondSelectedMeasure;
+    /**
+     * \brief Clears the current measure selection.
+     */
+    void clearSelection();
+
+private:
+    /** \brief List of individually selected measures */
+    QList<int> _selectedMeasures;
+
+    /** \brief The anchor measure where a drag or shift-click started */
+    int _dragAnchorMeasure;
+
+    /** \brief Whether the user is currently dragging to select a range */
+    bool _isDragging;
 
     /**
      * \brief Finds the closest measure start position to the given coordinates.

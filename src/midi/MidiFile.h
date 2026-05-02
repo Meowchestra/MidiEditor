@@ -447,12 +447,15 @@ public:
      */
     MidiTrack *track(int number);
 
-    /**
-     * \brief Gets the tonality (key signature) at a specific tick.
-     * \param tick The tick position to query
-     * \return The tonality value (positive for sharps, negative for flats)
-     */
     int tonalityAt(int tick);
+
+    /**
+     * \brief Gets the key signature at a specific tick.
+     * \param tick The tick position to query
+     * \param tonality Pointer to receive the tonality (sharps/flats)
+     * \param minor Pointer to receive the minor status
+     */
+    void keyAt(int tick, int *tonality, bool *minor);
 
     /**
      * \brief Gets the time signature at a specific tick.
