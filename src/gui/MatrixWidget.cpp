@@ -70,11 +70,6 @@
 #include "../tool/SelectTool.h"
 #include "../tool/EventTool.h"
 
-#define NUM_LINES 139
-#define PIXEL_PER_S 100
-#define PIXEL_PER_LINE 11
-#define PIXEL_PER_EVENT 15
-
 MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
     : PaintWidget(parent), _settings(settings) {
     screen_locked = false;
@@ -278,6 +273,16 @@ void MatrixWidget::scrollYChanged(int scrollPositionY) {
 void MatrixWidget::paintEvent(QPaintEvent *event) {
     if (!file)
         return;
+
+    // PERFORMANCE: Update selection caches once per paint cycle to avoid O(N_selection) loops in sub-methods
+    _cachedSelection.clear();
+    _cachedSelectedRows.clear();
+    _cachedDrawnRowHighlights.clear();
+    const QList<MidiEvent*>& selectedEvents = Selection::instance()->selectedEvents();
+    for (MidiEvent* event : selectedEvents) {
+        _cachedSelection.insert(event);
+        _cachedSelectedRows.insert(event->line());
+    }
 
     QPainter *painter = new QPainter(this);
     QFont font = Appearance::improveFont(painter->font());
@@ -834,13 +839,6 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
     }
     QColor cC = *file->channel(channel)->color();
 
-    // PERFORMANCE: Cache selected events to avoid expensive lookups during this channel's painting
-    QSet<MidiEvent*> cachedSelection;
-    const QList<MidiEvent*>& selectedEvents = Selection::instance()->selectedEvents();
-    for (MidiEvent* event : selectedEvents) {
-        cachedSelection.insert(event);
-    }
-
     // filter events
     QMultiMap<int, MidiEvent *> *map = file->channelEvents(channel);
 
@@ -924,11 +922,15 @@ void MatrixWidget::paintChannel(QPainter *painter, int channel) {
             }
             event->draw(painter, eventColor);
 
-            if (cachedSelection.contains(event)) {
-                painter->setPen(Qt::gray);
-                painter->drawLine(lineNameWidth, y, this->width(), y);
-                painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
-                painter->setPen(_cachedForegroundColor);
+            if (_cachedSelection.contains(event)) {
+                // PERFORMANCE: Only draw horizontal selection lines once per row to avoid massive overdraw
+                if (!_cachedDrawnRowHighlights.contains(line)) {
+                    painter->setPen(Qt::gray);
+                    painter->drawLine(lineNameWidth, y, this->width(), y);
+                    painter->drawLine(lineNameWidth, y + height, this->width(), y + height);
+                    painter->setPen(_cachedForegroundColor);
+                    _cachedDrawnRowHighlights.insert(line);
+                }
             }
             objects->prepend(event);
             localObjectsSet.insert(event);
@@ -1050,13 +1052,8 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             blackOnTop = false;
         }
 
-        bool selected = mouseY >= y && mouseY < y + height && mouseX > lineNameWidth && mouseOver;
-        foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-            if (event->line() == 127 - number) {
-                selected = true;
-                break;
-            }
-        }
+        bool selected = (mouseY >= y && mouseY < y + height && mouseX > lineNameWidth && mouseOver) || 
+                        _cachedSelectedRows.contains(127 - number);
 
         QPolygon keyPolygon;
 

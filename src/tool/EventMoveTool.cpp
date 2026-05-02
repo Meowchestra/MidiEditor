@@ -26,6 +26,8 @@
 #include "../protocol/Protocol.h"
 #include "Selection.h"
 #include "StandardTool.h"
+#include "../gui/ChannelVisibilityManager.h"
+#include "../midi/MidiChannel.h"
 
 EventMoveTool::EventMoveTool(bool upDown, bool leftRight)
     : EventTool() {
@@ -91,35 +93,67 @@ void EventMoveTool::draw(QPainter *painter) {
             // The visual shift is the pixel difference between the two lines
             shiftY = numLines * matrixWidget->lineHeight();
         }
+        QSet<int> drawnX;
+        int matrixWidth = matrixWidget->width();
+        int matrixHeight = matrixWidget->height();
+        int timeHeight = matrixWidget->getTimeHeight();
+        int lineNameWidth = matrixWidget->getLineNameWidth();
+        double lineHeight = matrixWidget->lineHeight();
+
         foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
+            // Check visibility by track and channel first
+            if (event->track()->hidden() || !ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
+                continue;
+            }
+
             int customShiftY = shiftY;
             if (event->line() > 127) {
                 customShiftY = 0;
             }
-            if (event->shown()) {
-                // Calculate unclipped coordinates for drag preview to show full note length
-                int dragX, dragWidth;
-                NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
-                if (noteOn && noteOn->offEvent()) {
-                    // For notes, calculate raw coordinates without viewport clipping
-                    int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->midiTime()));
-                    int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->offEvent()->midiTime()));
-                    dragX = rawX;
-                    dragWidth = rawEndX - rawX;
-                } else {
-                    // For non-note events, use the stored coordinates
-                    dragX = event->x();
-                    dragWidth = event->width();
-                }
 
-                painter->setPen(Qt::lightGray);
-                painter->setBrush(Qt::darkBlue);
-                painter->drawRoundedRect(dragX - shiftX, event->y() - customShiftY, dragWidth, event->height(), 1, 1);
-                painter->setPen(Qt::gray);
-                painter->drawLine(dragX - shiftX, 0, dragX - shiftX, matrixWidget->height());
-                painter->drawLine(dragX + dragWidth - shiftX, 0, dragX + dragWidth - shiftX, matrixWidget->height());
-                painter->setPen(Qt::black);
+            // Calculate current drag coordinates dynamically (don't rely on event->x/y as they may be stale for off-screen notes)
+            int dragX, dragWidth;
+            NoteOnEvent *noteOn = dynamic_cast<NoteOnEvent *>(event);
+            if (noteOn && noteOn->offEvent()) {
+                int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->midiTime()));
+                int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(noteOn->offEvent()->midiTime()));
+                dragX = rawX;
+                dragWidth = rawEndX - rawX;
+            } else {
+                dragX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(event->midiTime()));
+                dragWidth = MatrixWidget::PIXEL_PER_EVENT;
             }
+
+            int dragY = matrixWidget->yPosOfLine(event->line());
+            
+            // Calculate preview coordinates
+            int previewX = dragX - shiftX;
+            int previewY = dragY - customShiftY;
+
+            // PERFORMANCE: Only draw if the preview is actually within the visible widget area
+            if (previewX + dragWidth < lineNameWidth || previewX > matrixWidth ||
+                previewY + lineHeight < timeHeight || previewY > matrixHeight) {
+                continue;
+            }
+
+            painter->setPen(Qt::lightGray);
+            painter->setBrush(Qt::darkBlue);
+            painter->drawRoundedRect(previewX, previewY, dragWidth, lineHeight, 1, 1);
+            
+            painter->setPen(Qt::gray);
+            int x1 = previewX;
+            int x2 = previewX + dragWidth;
+            
+            // PERFORMANCE: Only draw vertical guidelines once per distinct X position to avoid overdraw lag
+            if (!drawnX.contains(x1)) {
+                painter->drawLine(x1, 0, x1, matrixHeight);
+                drawnX.insert(x1);
+            }
+            if (!drawnX.contains(x2)) {
+                painter->drawLine(x2, 0, x2, matrixHeight);
+                drawnX.insert(x2);
+            }
+            painter->setPen(Qt::black);
         }
     }
 }

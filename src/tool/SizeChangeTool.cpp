@@ -25,6 +25,8 @@
 #include "../midi/MidiFile.h"
 #include "../protocol/Protocol.h"
 #include "StandardTool.h"
+#include "../gui/ChannelVisibilityManager.h"
+#include "../midi/MidiChannel.h"
 
 #include "Selection.h"
 
@@ -105,36 +107,53 @@ void SizeChangeTool::draw(QPainter *painter) {
     int endEventShift = dragsOnEvent ? 0 : currentX - xPos;
     int startEventShift = dragsOnEvent ? currentX - xPos : 0;
 
+    int matrixWidth = matrixWidget->width();
+    int matrixHeight = matrixWidget->height();
+    int timeHeight = matrixWidget->getTimeHeight();
+    int lineNameWidth = matrixWidget->getLineNameWidth();
+    double lineHeight = matrixWidget->lineHeight();
+
     foreach(MidiEvent* event, Selection::instance()->selectedEvents()) {
-        bool show = event->shown();
-        if (!show || event->line() > 127) {
+        // Check visibility by track and channel first
+        if (event->track()->hidden() || !ChannelVisibilityManager::instance().isChannelVisible(event->channel())) {
+            continue;
+        }
+        if (event->line() > 127) {
             continue; // Meta events don't show ghost notes
         }
-            int dragX, dragWidth;
-            OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
-            if (onEvent && onEvent->offEvent()) {
-                int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->midiTime()));
-                int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->offEvent()->midiTime()));
-                dragX = rawX;
-                dragWidth = rawEndX - rawX;
-            } else {
-                dragX = event->x();
-                dragWidth = event->width();
-            }
 
-            QRectF ghostRect(dragX + startEventShift, event->y(),
-                             dragWidth - startEventShift + endEventShift,
-                             event->height());
-            
-            if (ghostRect.width() < 1) {
-                ghostRect.setWidth(1);
-            }
-            
-            painter->setBrush(ghostFill);
-            painter->setPen(QPen(ghostBorder, 1, Qt::SolidLine));
-            painter->drawRoundedRect(ghostRect, 1, 1);
+        // Calculate current drag coordinates dynamically
+        int dragX, dragWidth;
+        OnEvent *onEvent = dynamic_cast<OnEvent *>(event);
+        if (onEvent && onEvent->offEvent()) {
+            int rawX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->midiTime()));
+            int rawEndX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(onEvent->offEvent()->midiTime()));
+            dragX = rawX;
+            dragWidth = rawEndX - rawX;
+        } else {
+            dragX = matrixWidget->xPosOfMs(matrixWidget->msOfTick(event->midiTime()));
+            dragWidth = event->width();
         }
+
+        QRectF ghostRect(dragX + startEventShift, matrixWidget->yPosOfLine(event->line()),
+                         dragWidth - startEventShift + endEventShift,
+                         lineHeight);
+        
+        if (ghostRect.width() < 1) {
+            ghostRect.setWidth(1);
+        }
+        
+        // PERFORMANCE: Only draw if the ghost is actually within the visible widget area
+        if (ghostRect.right() < lineNameWidth || ghostRect.left() > matrixWidth ||
+            ghostRect.bottom() < timeHeight || ghostRect.top() > matrixHeight) {
+            continue;
+        }
+        
+        painter->setBrush(ghostFill);
+        painter->setPen(QPen(ghostBorder, 1, Qt::SolidLine));
+        painter->drawRoundedRect(ghostRect, 1, 1);
     }
+}
 
 bool SizeChangeTool::press(bool leftClick) {
     if (Selection::instance()->selectedEvents().isEmpty()) {

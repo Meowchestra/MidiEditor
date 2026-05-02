@@ -1479,9 +1479,7 @@ QList<MidiEvent *> *MidiFile::eventsBetween(int start, int end) {
         QMultiMap<int, MidiEvent *>::iterator current = events->lowerBound(start);
         QMultiMap<int, MidiEvent *>::iterator upperBound = events->upperBound(end);
         while (current != upperBound) {
-            if (!eventList->contains(current.value())) {
-                eventList->append(current.value());
-            }
+            eventList->append(current.value());
             current++;
         }
     }

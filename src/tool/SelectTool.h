@@ -21,6 +21,9 @@
 
 #include "EventTool.h"
 
+#include <QList>
+#include <QSet>
+
 // Selection type constants
 #define SELECTION_TYPE_RIGHT 0    ///< Right-click selection
 #define SELECTION_TYPE_LEFT 1     ///< Left-click selection
@@ -149,6 +152,15 @@ public:
      * \param modifiers Keyboard modifiers for additive/subtractive selection
      */
     void selectMeasure(int tick, Qt::KeyboardModifiers modifiers);
+
+    /**
+     * \brief Collects events for row selection with modifier support.
+     * \param line The pitch/row line number
+     * \param modifiers Keyboard modifiers for additive/subtractive selection
+     * \param existingSelection The current selection to build upon
+     * \return The resulting selection list
+     */
+    QList<MidiEvent *> collectRowEvents(int line, Qt::KeyboardModifiers modifiers, const QList<MidiEvent *> &existingSelection);
 
 protected:
     /** \brief The selection type for this tool instance */

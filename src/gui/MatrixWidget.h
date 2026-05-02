@@ -219,6 +219,24 @@ public:
     int getLineNameWidth() const { return lineNameWidth; }
 
     /**
+     * \brief Gets the height of the timeline/measures area.
+     * \return Height in pixels
+     */
+    int getTimeHeight() const { return timeHeight; }
+
+    /** \brief Total number of MIDI lines (128 notes + special event lines) */
+    static const int NUM_LINES = 139;
+
+    /** \brief Horizontal scaling constant: pixels per second at 1.0 zoom */
+    static const int PIXEL_PER_S = 100;
+
+    /** \brief Base height of a single MIDI note line in pixels */
+    static const int PIXEL_PER_LINE = 11;
+
+    /** \brief Default width for non-note events in pixels */
+    static const int PIXEL_PER_EVENT = 15;
+
+    /**
      * \brief Sets screen lock state to prevent automatic scrolling.
      * \param b True to lock the screen, false to allow auto-scroll
      */
@@ -758,6 +776,14 @@ private:
      * Set bits indicate sharp/black keys: C#, D#, F#, G#, A#
      */
     static const unsigned sharp_strip_mask = (1 << 4) | (1 << 6) | (1 << 9) | (1 << 11) | (1 << 1);
+
+    // === Selection Caching for Performance ===
+    /** \brief Cached set of selected events for fast lookup during paintChannel */
+    QSet<MidiEvent*> _cachedSelection;
+    /** \brief Cached set of selected MIDI note lines for fast lookup during paintPianoKey */
+    QSet<int> _cachedSelectedRows;
+    /** \brief Tracking set for rows that already have horizontal selection lines drawn in the current paint cycle */
+    QSet<int> _cachedDrawnRowHighlights;
 };
 
 #endif // MATRIXWIDGET_H_

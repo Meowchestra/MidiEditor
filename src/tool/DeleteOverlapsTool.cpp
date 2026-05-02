@@ -30,6 +30,7 @@
 #include "StandardTool.h"
 
 #include <QMap>
+#include <QSet>
 #include <algorithm>
 
 DeleteOverlapsTool::DeleteOverlapsTool()
@@ -122,7 +123,18 @@ void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool r
 
     currentProtocol()->startNewAction(actionName, image());
 
-    // Perform the appropriate operation
+    // Snapshot affected channels ONCE before any mutations
+    QSet<int> affectedChannels;
+    for (NoteOnEvent *note : notes) {
+        affectedChannels.insert(note->channel());
+    }
+
+    QMap<int, ProtocolEntry*> channelSnapshots;
+    for (int ch : affectedChannels) {
+        channelSnapshots[ch] = file()->channel(ch)->copy();
+    }
+
+    // Perform the appropriate operation (all mutations use toProtocol=false)
     switch (mode) {
         case MONO_MODE:
             deleteOverlapsMono(notes, respectChannels, respectTracks);
@@ -133,6 +145,11 @@ void DeleteOverlapsTool::performDeleteOverlapsOperation(OverlapMode mode, bool r
         case DOUBLES_MODE:
             deleteDoubles(notes, respectChannels, respectTracks);
             break;
+    }
+
+    // Record channel snapshots onto the protocol stack for undo support
+    for (auto it = channelSnapshots.begin(); it != channelSnapshots.end(); ++it) {
+        file()->channel(it.key())->protocol(it.value(), file()->channel(it.key()));
     }
 
     currentProtocol()->endAction();
@@ -207,7 +224,7 @@ void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent *> &notes, b
                             // Shorten the later note to start after current note ends
                             int newStart = currentEnd;
                             if (newStart < laterEnd - 1) {
-                                laterNote->setMidiTime(newStart);
+                                laterNote->setMidiTime(newStart, false);
                             } else {
                                 // Later note would be too short, remove it
                                 notesToRemove.append(laterNote);
@@ -218,7 +235,7 @@ void DeleteOverlapsTool::deleteOverlapsMono(const QList<NoteOnEvent *> &notes, b
                         if (currentEnd > laterStart) {
                             // Shorten current note to end before later note starts
                             int newEnd = qMax(laterStart - 1, currentStart + 1);
-                            currentNote->offEvent()->setMidiTime(newEnd);
+                            currentNote->offEvent()->setMidiTime(newEnd, false);
                             currentEnd = newEnd;
                         }
                     }
@@ -294,7 +311,7 @@ void DeleteOverlapsTool::processPolyOverlaps(const QList<NoteOnEvent *> &notes) 
                 // Shorten the current note to end just before the later note starts
                 // But ensure minimum note length of 1 tick
                 int newEndTime = qMax(laterStartTime - 1, currentNote->midiTime() + 1);
-                currentNote->offEvent()->setMidiTime(newEndTime);
+                currentNote->offEvent()->setMidiTime(newEndTime, false);
                 currentEndTime = newEndTime;
                 break; // Once shortened, no need to check further
             }
@@ -354,10 +371,10 @@ void DeleteOverlapsTool::removeNote(NoteOnEvent *note) {
     // Remove from selection if selected
     deselectEvent(note);
 
-    // Remove the note and its off event from the channel
+    // Remove the note and its off event from the channel without per-event protocol
+    // Protocol is handled at the channel snapshot level in performDeleteOverlapsOperation()
     MidiChannel *channel = file()->channel(note->channel());
     if (channel) {
-        channel->removeEvent(note);
-        channel->removeEvent(note->offEvent());
+        channel->removeEvent(note, false);
     }
 }
