@@ -169,5 +169,3 @@ void UpdateAvailableDialog::onUpdateNow() { done(UpdateNow); }
 void UpdateAvailableDialog::onAfterExit() { done(AfterExit); }
 void UpdateAvailableDialog::onManual() { done(Manual); }
 void UpdateAvailableDialog::onClose() { done(Close); }
-
-#include "moc_UpdateAvailableDialog.cpp"

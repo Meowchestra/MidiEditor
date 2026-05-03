@@ -1147,6 +1147,8 @@ void Appearance::applyTitleBarColor(QWidget* widget) {
         captionColor = RGB(30, 29, 35); // Material dark background
     } else if (_applicationTheme == ThemeNord) {
         captionColor = RGB(46, 52, 64); // Nord0
+    } else if (_applicationTheme == ThemeAiry) {
+        captionColor = RGB(250, 252, 255); // Airy light background
     }
     DwmSetWindowAttribute((HWND)widget->winId(), 35 /*DWMWA_CAPTION_COLOR*/, &captionColor, sizeof(captionColor));
 #endif

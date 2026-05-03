@@ -48,6 +48,7 @@
 #include "AppearanceSettingsWidget.h"
 #include "AboutDialog.h"
 #include "AudioExportDialog.h"
+#include "SaveConfirmDialog.h"
 #include "ChannelVisibilityManager.h"
 #include "ChannelListWidget.h"
 #include "CompleteMidiSetupDialog.h"
@@ -1619,34 +1620,26 @@ void MainWindow::setStartDir(QString dir) {
 }
 
 bool MainWindow::saveBeforeClose() {
-    QMessageBox msgBox(this);
-    msgBox.setWindowTitle(tr("Save File?"));
-    msgBox.setText(tr("Save file ") + file->path() + tr(" before closing?"));
-    msgBox.addButton(tr("Save"), QMessageBox::AcceptRole);
-    msgBox.addButton(tr("Close Without Saving"), QMessageBox::DestructiveRole);
-    msgBox.addButton(tr("Cancel"), QMessageBox::RejectRole);
-    msgBox.setDefaultButton(qobject_cast<QPushButton *>(msgBox.buttons().at(2))); // Cancel is default
+    QString name = file->path().isEmpty() ? tr("Untitled") : QFileInfo(file->path()).fileName();
+    QString fullPath = file->path().isEmpty() ? tr("New untitled document") : file->path();
 
-    int result = msgBox.exec();
+    SaveConfirmDialog dialog(name, fullPath, this);
+    int result = dialog.exec();
 
-    // Map button roles to actions
-    QAbstractButton *clickedButton = msgBox.clickedButton();
-    QMessageBox::ButtonRole role = msgBox.buttonRole(clickedButton);
-
-    switch (role) {
-        case QMessageBox::AcceptRole:
-            // save
+    switch (result) {
+        case SaveConfirmDialog::Save:
             if (QFile(file->path()).exists())
                 file->save(file->path());
             else saveas();
+            // If saveas was cancelled, file->saved() will remain false
+            return file->saved();
+
+        case SaveConfirmDialog::Discard:
             return true;
 
-        case QMessageBox::RejectRole:
-            // cancel - break
+        case SaveConfirmDialog::Cancel:
+        default:
             return false;
-
-        default: // DestructiveRole - close without saving
-            return true;
     }
 }
 
@@ -6833,7 +6826,12 @@ void MainWindow::updateStatusBar() {
         return;
     }
 
-    QList<MidiEvent*> selectedEvents = Selection::instance()->selectedEvents();
+    Selection *sel = Selection::instance();
+    if (!sel) {
+        _statusLabel->setText("");
+        return;
+    }
+    QList<MidiEvent*> selectedEvents = sel->selectedEvents();
 
     if (selectedEvents.isEmpty()) {
         _statusLabel->setText("");
