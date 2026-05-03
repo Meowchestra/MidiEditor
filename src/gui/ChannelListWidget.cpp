@@ -197,7 +197,7 @@ void ChannelListItem::onBeforeUpdate() {
 ChannelListWidget::ChannelListWidget(QWidget *parent)
     : QListWidget(parent) {
     setSelectionMode(QAbstractItemView::SingleSelection);
-    setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
+    setStyleSheet("QListWidget { background-color: palette(base); } QListWidget::item { border-bottom: 1px solid lightGray; }");
     connect(this, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(chooseChannel(QListWidgetItem*)));
 
     for (int channel = 0; channel < 17; channel++) {

@@ -40,7 +40,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     channelLabel->setMinimumHeight(20);
     QListWidget *channelList = new QListWidget(this);
     channelList->setSelectionMode(QAbstractItemView::NoSelection);
-    channelList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
+    channelList->setStyleSheet("QListWidget { background-color: palette(base); } QListWidget::item { border-bottom: 1px solid lightGray; }");
     layout->addWidget(channelList, 3, 0, 1, 2);
     for (int i = 0; i < 17; i++) {
         QString name = tr("Channel %1").arg(i);
@@ -69,7 +69,7 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     layout->addWidget(trackColorsLabel, 0, 0, 1, 2);
     QListWidget *trackList = new QListWidget(this);
     trackList->setSelectionMode(QAbstractItemView::NoSelection);
-    trackList->setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
+    trackList->setStyleSheet("QListWidget { background-color: palette(base); } QListWidget::item { border-bottom: 1px solid lightGray; }");
     layout->addWidget(trackList, 1, 0, 1, 2);
     for (int i = 0; i < 17; i++) {
         QColor *trackColor = Appearance::trackColor(i);

@@ -34,7 +34,7 @@ ProtocolWidget::ProtocolWidget(QWidget *parent)
     setSelectionMode(QAbstractItemView::NoSelection);
     protocolHasChanged = false;
     nextChangeFromList = false;
-    setStyleSheet("QListWidget::item { border-bottom: 1px solid lightGray; }");
+    setStyleSheet("QListWidget { background-color: palette(base); } QListWidget::item { border-bottom: 1px solid lightGray; }");
     setIconSize(QSize(15, 15));
     connect(this, SIGNAL(itemClicked(QListWidgetItem*)), this, SLOT(stepClicked(QListWidgetItem*)));
 }
