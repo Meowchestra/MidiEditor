@@ -393,6 +393,7 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 if (isRangeLine) {
                     c = _cachedRangeLineColor; // Range line color (C3/C6)
                 } else if (_cachedStripStyle == Appearance::rainbowOctaves || 
+                           _cachedStripStyle == Appearance::rainbowOctavesScale ||
                            _cachedStripStyle == Appearance::rainbowOctavesAlternating) {
                     int octave = (127 - i) / 12;
                     int noteInOctave = (127 - i) % 12;
@@ -400,18 +401,28 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                     int hue = (octave * 40) % 360;
                     int saturation, value;
                     
+                    bool isWhiteKey = !((1 << (static_cast<unsigned int>(i) % 12)) & sharp_strip_mask);
+
                     if (_cachedShouldUseDarkMode) {
                         saturation = 70;
                         value = 50;
-                        // For alternating style, slightly darken odd rows
-                        if (_cachedStripStyle == Appearance::rainbowOctavesAlternating && (noteInOctave % 2 == 1)) {
+                        
+                        if (_cachedStripStyle == Appearance::rainbowOctavesScale) {
+                            if (!isWhiteKey) {
+                                value -= 8;
+                            }
+                        } else if (_cachedStripStyle == Appearance::rainbowOctavesAlternating && (noteInOctave % 2 == 1)) {
                             value -= 8;
                         }
                     } else {
                         saturation = 25;
                         value = 250;
-                        // For alternating style, slightly darken odd rows
-                        if (_cachedStripStyle == Appearance::rainbowOctavesAlternating && (noteInOctave % 2 == 1)) {
+
+                        if (_cachedStripStyle == Appearance::rainbowOctavesScale) {
+                            if (!isWhiteKey) {
+                                value -= 12;
+                            }
+                        } else if (_cachedStripStyle == Appearance::rainbowOctavesAlternating && (noteInOctave % 2 == 1)) {
                             value -= 12;
                         }
                     }
