@@ -800,6 +800,8 @@ private:
     QMap<int, int> _noteStartTicks; // note -> startTick for recording preview
     int _pressedPianoNote;
     qint64 _pressedPianoTime;
+    QPoint _pressedPianoPos;
+    qint64 _lastGlissandoTime = 0;
     
     /**
      * \brief The current octave shift applied to piano emulation (0 by default).

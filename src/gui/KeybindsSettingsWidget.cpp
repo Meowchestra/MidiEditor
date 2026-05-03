@@ -91,7 +91,7 @@ CaptureKeyButton::CaptureKeyButton(QWidget* parent) : QPushButton(parent), curre
     setText(tr("Press shortcut"));
     setMinimumWidth(120);
     setStyleSheet(
-        "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
+        "QPushButton { padding: 4px 12px; border: 2px solid palette(midlight); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
         "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
     );
     
@@ -157,13 +157,13 @@ void CaptureKeyButton::setKey(int key) {
     if (key == 0) {
         setText(tr("Press shortcut"));
         setStyleSheet(
-            "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
+            "QPushButton { padding: 4px 12px; border: 2px solid palette(midlight); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
             "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
         );
     } else {
         setText(vkCodeToDisplayName(key));
         setStyleSheet(
-            "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(text); }"
+            "QPushButton { padding: 4px 12px; border: 2px solid palette(midlight); border-radius: 3px; background-color: palette(base); color: palette(text); }"
             "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
         );
     }

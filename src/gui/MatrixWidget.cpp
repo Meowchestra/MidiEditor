@@ -1463,34 +1463,45 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
         setCursor(Qt::ArrowCursor);
     }
 
-    // Optimization: Only update if hover state changed, unless we already flagged for update
+    // Optimization: Only update if hover state changed, unless we already flagged for update.
+    // IMPORTANT: If we are holding the mouse on the piano, we MUST process even if the hover key 
+    // hasn't changed, because we might be waiting for the glissando delay to pass.
     if (!needsUpdate) {
+        bool isPianoHolding = (event->buttons() == Qt::LeftButton) && mouseInRect(PianoArea);
         if (currentMs != _lastHoverMs || hoveredMarker != _lastHoverMarker || 
-            currentPianoKey != _lastHoverPianoKey || inMarkerArea != _isGutterHovered) {
+            currentPianoKey != _lastHoverPianoKey || inMarkerArea != _isGutterHovered ||
+            (isPianoHolding && currentPianoKey != _pressedPianoNote)) {
             needsUpdate = true;
         }
     }
 
     if (needsUpdate) {
-        // Stop current piano note if we dragged out of the piano area
-        if (enabled && _pressedPianoNote != -1 && !mouseInRect(PianoArea) && (event->buttons() & Qt::LeftButton)) {
-            if (!_latchedNotes.contains(_pressedPianoNote)) {
-                stopNote(_pressedPianoNote);
-            }
-            _pressedPianoNote = -1;
-        }
+
 
         // Piano glissando: Play notes as the user drags across the keyboard
-        if (enabled && !MidiPlayer::isPlaying() && (event->buttons() & Qt::LeftButton) && mouseInRect(PianoArea) && 
-            currentPianoKey != _lastHoverPianoKey && currentPianoKey != -1) {
+        if (enabled && !MidiPlayer::isPlaying() && (event->buttons() == Qt::LeftButton) && mouseInRect(PianoArea) && 
+            !(event->modifiers() & Qt::AltModifier) && currentPianoKey != -1) {
             
-            // Stop previous glissando note if it exists
-            if (_lastHoverPianoKey != -1 && _lastHoverPianoKey != currentPianoKey) {
-                stopNote(_lastHoverPianoKey);
+            qint64 now = QDateTime::currentMSecsSinceEpoch();
+            int dragDistance = (event->pos() - _pressedPianoPos).manhattanLength();
+            
+            // Arming check: Must hold for 120ms OR move 8px to arm glissando.
+            // This prevents rapid clicks from accidentally triggering a slide.
+            if (now - _pressedPianoTime < 120 && dragDistance < 8) return;
+            
+            // Only switch notes if the target key is different from the currently sounding glissando note
+            if (currentPianoKey != _pressedPianoNote) {
+                // Use a 40ms delay for a fluid, professional feel.
+                if (now - _lastGlissandoTime > 40) {
+                    if (_pressedPianoNote != -1 && !_latchedNotes.contains(_pressedPianoNote)) {
+                        stopNote(_pressedPianoNote);
+                    }
+                    
+                    startNote(currentPianoKey);
+                    _pressedPianoNote = currentPianoKey;
+                    _lastGlissandoTime = now;
+                }
             }
-            startNote(currentPianoKey);
-            _pressedPianoNote = currentPianoKey;
-            _pressedPianoTime = QDateTime::currentMSecsSinceEpoch();
         }
 
         _lastHoverMs = currentMs;
@@ -1601,20 +1612,7 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
         }
     }
 
-    if (Tool::currentTool() && mouseInRect(ToolArea)) {
-        if (event->button() == Qt::RightButton
-            && !MidiPlayer::isPlaying()
-            && (event->modifiers() & Qt::AltModifier)) {
-            // Alt+Right-click: Toggle row selection (key marker) on the grid
-            int line = lineAtY(mouseY);
-            if (line >= 0 && line <= 127) {
-                SelectTool tempTool(SELECTION_TYPE_ROW);
-                tempTool.setMatrixWidget(this);
-                tempTool.selectRow(line, Qt::AltModifier);
-                update();
-                return;
-            }
-        }
+    if (!MidiPlayer::isPlaying() && Tool::currentTool() && mouseInRect(ToolArea)) {
         if (Tool::currentTool()->press(event->button() == Qt::LeftButton)) {
             if (enabled) {
                 update();
@@ -1716,13 +1714,11 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
             if (event->button() == Qt::LeftButton) {
                 _pressedPianoNote = hitNote;
                 _pressedPianoTime = QDateTime::currentMSecsSinceEpoch();
+                _pressedPianoPos = event->pos();
                 startNote(hitNote);
                 
-                // Allow StandardTool to still select the row
-                if (Tool::currentTool()) {
-                    Tool::currentTool()->move(mouseX, mouseY);
-                    Tool::currentTool()->press(true); // Left click
-                }
+                // We no longer call Tool::press() here to prevent box selection from starting on the piano roll.
+                // Selection logic for rows is now handled explicitly in the Alt+Click block above.
             } else if (event->button() == Qt::RightButton) {
                 if (event->modifiers() & Qt::AltModifier) {
                     // Alt+Right-click: Toggle latch (infinite sustain with audio)
@@ -1753,11 +1749,20 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
 void MatrixWidget::mouseReleaseEvent(QMouseEvent *event) {
     if (_pressedPianoNote != -1 && (event->button() == Qt::LeftButton || event->button() == Qt::RightButton)) {
         qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - _pressedPianoTime;
-        if (elapsed < 300) {
+        if (elapsed < 300) { // Slightly longer 300ms preview for a more musical feel
             int noteToStop = _pressedPianoNote;
-            QTimer::singleShot(300 - elapsed, this, [this, noteToStop]() {
-                if (!_latchedNotes.contains(noteToStop)) {
-                    stopNote(noteToStop);
+            qint64 startTime = _pressedPianoTime;
+            QTimer::singleShot(300 - elapsed, this, [this, noteToStop, startTime]() {
+                // Only stop the note if this specific click hasn't been superseded by a newer one
+                if (_pressedPianoNote == noteToStop && _pressedPianoTime == startTime) {
+                    if (!_latchedNotes.contains(noteToStop)) {
+                        stopNote(noteToStop);
+                    }
+                } else if (_pressedPianoNote != noteToStop) {
+                    // If we moved to a new note, we should still ensure the old one eventually stops
+                    if (!_latchedNotes.contains(noteToStop)) {
+                        stopNote(noteToStop);
+                    }
                 }
             });
         } else {
