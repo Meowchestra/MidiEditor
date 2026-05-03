@@ -1050,15 +1050,15 @@ void Appearance::applyStyle() {
     // Clear stylesheet before setting style to prevent QStyleSheetStyle from interfering with native styles
     app->setStyleSheet("");
 
-    // Apply QWidget style first
-    if (QStyleFactory::keys().contains(_applicationStyle, Qt::CaseInsensitive)) {
-        app->setStyle(_applicationStyle);
-    }
-
     bool isCustomTheme = (_applicationTheme >= ThemeSakura);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
-    // Guard against redundant setColorScheme() calls that trigger cascading signals
+    // Set the color scheme BEFORE applying the style.  When QApplication::setStyle()
+    // is called, Qt polishes every existing widget with the new style.  If the color
+    // scheme is still Dark at that point (leftover from e.g. Windows 11 dark mode),
+    // the new style will polish widgets with dark palettes.  Those per-widget palette
+    // values then persist even after a later QPalette() reset, causing stale dark
+    // Base/Window colours in styles like windowsvista that only support light mode.
     static Qt::ColorScheme s_lastSetScheme = Qt::ColorScheme::Unknown;
     Qt::ColorScheme desiredScheme = Qt::ColorScheme::Unknown;
     if (_applicationTheme == ThemeLight || _applicationTheme == ThemeSakura || _applicationTheme == ThemeAiry) {
@@ -1067,11 +1067,21 @@ void Appearance::applyStyle() {
                _applicationTheme == ThemeMaterialDark || _applicationTheme == ThemeNord) {
         desiredScheme = Qt::ColorScheme::Dark;
     }
+    // WindowsVista style does not support dark mode — always force Light.
+    if (_applicationStyle.compare("windowsvista", Qt::CaseInsensitive) == 0) {
+        desiredScheme = Qt::ColorScheme::Light;
+    }
     if (desiredScheme != s_lastSetScheme) {
         s_lastSetScheme = desiredScheme;
         QApplication::styleHints()->setColorScheme(desiredScheme);
     }
 #endif
+
+    // Apply QWidget style AFTER the color scheme is set, so the new style
+    // polishes widgets using the correct scheme-derived palette.
+    if (QStyleFactory::keys().contains(_applicationStyle, Qt::CaseInsensitive)) {
+        app->setStyle(_applicationStyle);
+    }
 
     // Apply specific palettes and stylesheets for custom themes
     if (isCustomTheme) {
@@ -1092,8 +1102,8 @@ void Appearance::applyStyle() {
             app->setStyleSheet(ThemePalettes::getAiryStyleSheet());
         }
     } else {
-        // Passing a default-constructed QPalette clears the application's custom palette flag,
-        // which completely restores native OS drawing routines (e.g. Windows UxTheme).
+        // Clear the custom palette flag so native drawing routines use
+        // their own defaults (driven by the color scheme set above).
         app->setPalette(QPalette());
 
         // Apply button accent override ONLY for Windows 11 style in non-custom themes.

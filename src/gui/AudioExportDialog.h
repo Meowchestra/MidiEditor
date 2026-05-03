@@ -101,6 +101,12 @@ private:
     QLabel *_estimatedSizeLabel;
     QPushButton *_exportBtn;
     QPushButton *_cancelConfigBtn;
+    QProgressBar *_progressBar;
+    
+    int _targetPercent;
+    QTimer *_pulseTimer;
+    int _pulseCount;
+    bool _isFinishing;
 
     // Completion page widgets
     QWidget *_completionPage;

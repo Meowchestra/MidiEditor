@@ -49,16 +49,26 @@
 #include <QSpinBox>
 #include <QStackedLayout>
 #include <QStandardPaths>
+#include <QStandardItemModel>
 #include <QThreadPool>
+#include <QTimer>
 #include <QUrl>
 
 // ============================================================================
 // Constructor
 // ============================================================================
-
 AudioExportDialog::AudioExportDialog(MidiFile *file, QWidget *parent)
-    : QDialog(parent), _file(file)
+    : QDialog(parent), _file(file), _targetPercent(0), _pulseCount(0), _isFinishing(false)
 {
+    _pulseTimer = new QTimer(this);
+    _pulseTimer->setInterval(500);
+    connect(_pulseTimer, &QTimer::timeout, [this]() {
+        _pulseCount = (_pulseCount + 1) % 4;
+        QString dots = "";
+        for (int i = 0; i < _pulseCount; ++i) dots += ".";
+        _exportBtn->setText(tr("Encoding%1").arg(dots));
+    });
+
     setWindowTitle(tr("Export Audio"));
     setFixedWidth(440);
     setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
@@ -189,11 +199,10 @@ void AudioExportDialog::buildConfigPage() {
 
     configLayout->addWidget(new QLabel(tr("Sample Rate:"), configGroup), 1, 0);
     _rateCombo = new QComboBox(configGroup);
-    _rateCombo->addItems({"22050 Hz", "44100 Hz", "48000 Hz", "88200 Hz", "96000 Hz", "176400 Hz", "192000 Hz"});
+    _rateCombo->addItems({"22050 Hz", "44100 Hz", "48000 Hz", "88200 Hz", "96000 Hz"});
     // Set data values for easy retrieval
     _rateCombo->setItemData(0, 22050); _rateCombo->setItemData(1, 44100); _rateCombo->setItemData(2, 48000);
-    _rateCombo->setItemData(3, 88200); _rateCombo->setItemData(4, 96000); _rateCombo->setItemData(5, 176400);
-    _rateCombo->setItemData(6, 192000);
+    _rateCombo->setItemData(3, 88200); _rateCombo->setItemData(4, 96000);
     _rateCombo->setCurrentIndex(2); // 48000 default
     configLayout->addWidget(_rateCombo, 1, 1);
 
@@ -275,6 +284,16 @@ void AudioExportDialog::buildConfigPage() {
 
     // --- Buttons ---
     QHBoxLayout *btnLayout = new QHBoxLayout();
+    
+    _progressBar = new QProgressBar(_configPage);
+    _progressBar->setRange(0, 100);
+    _progressBar->setValue(0);
+    _progressBar->setTextVisible(false);
+    _progressBar->setFixedHeight(12);
+    _progressBar->setFixedWidth(160);
+    _progressBar->setVisible(false);
+    btnLayout->addWidget(_progressBar);
+
     btnLayout->addStretch();
     _exportBtn = new QPushButton(tr("Export..."), _configPage);
     _exportBtn->setDefault(true);
@@ -427,7 +446,53 @@ AudioExportSettings AudioExportDialog::currentSettings() const {
     return s;
 }
 
+void AudioExportDialog::onFormatChanged(int) {
+    AudioExportSettings::Format fmt = static_cast<AudioExportSettings::Format>(_formatCombo->currentData().toInt());
 
+    // Bit depth selection logic:
+    // - WAV: Selectable (16-bit or Float)
+    // - FLAC: Selectable (16-bit or Float) (Float transcodes as SF_FORMAT_PCM_24)
+    // - Opus, OGG, MP3: Locked to Float (natively float-based)
+    bool isWAV = (fmt == AudioExportSettings::WAV);
+    bool isFLAC = (fmt == AudioExportSettings::FLAC);
+    bool isFloatNative = (fmt == AudioExportSettings::OPUS || 
+                          fmt == AudioExportSettings::OGG_VORBIS || 
+                          fmt == AudioExportSettings::MP3);
+
+    if (isWAV || isFLAC) {
+        _bitsCombo->setEnabled(true);
+    } else if (isFloatNative) {
+        _bitsCombo->setCurrentText(tr("Float"));
+        _bitsCombo->setEnabled(false);
+    }
+
+    // Handle sample rate restrictions
+    if (fmt == AudioExportSettings::OPUS) {
+        _rateCombo->setCurrentText("48000 Hz");
+        _rateCombo->setEnabled(false);
+    } else {
+        _rateCombo->setEnabled(true);
+        // MP3 only supports up to 48kHz
+        bool isMP3 = (fmt == AudioExportSettings::MP3);
+        if (isMP3 && _rateCombo->currentData().toInt() > 48000) {
+            _rateCombo->setCurrentText("48000 Hz");
+        }
+
+        QStandardItemModel* model = qobject_cast<QStandardItemModel*>(_rateCombo->model());
+        for (int i = 0; i < _rateCombo->count(); ++i) {
+            int rate = _rateCombo->itemData(i).toInt();
+            bool allowed = !isMP3 || (rate <= 48000);
+            if (model && model->item(i)) {
+                model->item(i)->setEnabled(allowed);
+            }
+        }
+    }
+    updateEstimatedSize();
+}
+
+void AudioExportDialog::onAudioConfigChanged(int) {
+    updateEstimatedSize();
+}
 
 double AudioExportDialog::estimateFileSize() const {
     AudioExportSettings s = currentSettings();
@@ -469,14 +534,6 @@ void AudioExportDialog::onRangeChanged() {
     bool custom = _rangeCustom->isChecked();
     _rangeFrom->setEnabled(custom);
     _rangeTo->setEnabled(custom);
-    updateEstimatedSize();
-}
-
-void AudioExportDialog::onFormatChanged(int /*index*/) {
-    updateEstimatedSize();
-}
-
-void AudioExportDialog::onAudioConfigChanged(int /*index*/) {
     updateEstimatedSize();
 }
 
@@ -636,7 +693,13 @@ void AudioExportDialog::onExportClicked() {
     }
 
     _exportBtn->setEnabled(false);
-    _exportBtn->setText(tr("Exporting..."));
+    _exportBtn->setText(tr("Encoding"));
+    
+    _pulseCount = 0;
+    _isFinishing = false;
+    _progressBar->setValue(0);
+    _progressBar->setVisible(true);
+    _pulseTimer->start();
 
     // Connect signals
     FluidSynthEngine *engine = FluidSynthEngine::instance();
@@ -648,18 +711,22 @@ void AudioExportDialog::onExportClicked() {
             this, &AudioExportDialog::onExportCancelled, Qt::QueuedConnection);
 
     // Run export in background thread
-    QThreadPool::globalInstance()->start([tempMidi, outputPath, settings]() {
-        FluidSynthEngine::instance()->exportAudio(tempMidi, outputPath, settings);
+    int totalTicks = (endTick == -1) ? _file->lastEventTick() : (endTick - startTick);
+    QThreadPool::globalInstance()->start([tempMidi, outputPath, settings, totalTicks]() {
+        FluidSynthEngine::instance()->exportAudio(tempMidi, outputPath, settings, totalTicks);
     });
 }
 
-void AudioExportDialog::onExportProgress(int /*percent*/) {
-    _exportBtn->setText(tr("Exporting..."));
+void AudioExportDialog::onExportProgress(int percent) {
+    _targetPercent = percent;
+    _progressBar->setValue(_targetPercent);
 }
 
 void AudioExportDialog::onExportFinished(bool success, const QString &path) {
+    _pulseTimer->stop();
     _exportBtn->setEnabled(true);
     _exportBtn->setText(tr("Export..."));
+    _progressBar->setVisible(false);
 
     // Disconnect signals
     FluidSynthEngine *engine = FluidSynthEngine::instance();
@@ -680,8 +747,10 @@ void AudioExportDialog::onExportFinished(bool success, const QString &path) {
 }
 
 void AudioExportDialog::onExportCancelled() {
+    _pulseTimer->stop();
     _exportBtn->setEnabled(true);
     _exportBtn->setText(tr("Export..."));
+    _progressBar->setVisible(false);
 
     // Disconnect signals
     FluidSynthEngine *engine = FluidSynthEngine::instance();

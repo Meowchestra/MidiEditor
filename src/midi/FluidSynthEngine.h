@@ -50,7 +50,7 @@ struct AudioExportSettings {
             case WAV:        return "wav";
             case FLAC:       return "flac";
             case OPUS:       return "opus";
-            case OGG_VORBIS: return "oga";
+            case OGG_VORBIS: return "ogg";
             case MP3:        return "mp3";
         }
         return "wav";
@@ -220,7 +220,7 @@ public:
     // === Export ===
 
     /**
-     * \brief Multi-format audio export. Supports WAV, FLAC, Opus, OGG Vorbis.
+     * \brief Multi-format audio export. Supports WAV, FLAC, Opus, OGG Vorbis, MP3.
      *
      * Creates an offline FluidSynth instance, renders the MIDI file to
      * the specified output path using the given settings.
@@ -229,9 +229,10 @@ public:
      * \param midiFilePath Path to the temporary MIDI file to render
      * \param outputPath Path for the output audio file
      * \param settings Export configuration (format, quality, reverb tail)
+     * \param totalTicks Used for progress reporting
      */
     void exportAudio(const QString &midiFilePath, const QString &outputPath,
-                     const AudioExportSettings &settings);
+                     const AudioExportSettings &settings, int totalTicks);
 
     /**
      * \brief Requests cancellation of a running export.
@@ -330,6 +331,14 @@ private:
 
     // Export cancellation flag
     std::atomic<bool> _exportCancelled{false};
+
+    /// Returns true for formats that FluidSynth can't render directly (Opus, MP3)
+    static bool needsTranscode(const AudioExportSettings &settings);
+
+    /// Transcodes a rendered WAV file to the target format using libsndfile.
+    /// Returns true on success.
+    bool transcodeWavTo(const QString &wavPath, const QString &outputPath,
+                        const AudioExportSettings &settings);
 };
 
 #endif // FLUIDSYNTH_SUPPORT

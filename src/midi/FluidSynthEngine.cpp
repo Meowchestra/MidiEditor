@@ -23,7 +23,10 @@
 #include <fluidsynth.h>
 
 #include <QDebug>
+#include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
+#include <QLibrary>
 #include <QMutexLocker>
 #include <QSettings>
 #include <QThreadPool>
@@ -482,8 +485,14 @@ void FluidSynthEngine::sendMidiData(const QByteArray &data) {
 // Export
 // ============================================================================
 
+bool FluidSynthEngine::needsTranscode(const AudioExportSettings &settings) {
+    // All formats now go through transcoding to ensure maximum compatibility and precision.
+    Q_UNUSED(settings);
+    return true;
+}
+
 void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &outputPath,
-                                    const AudioExportSettings &settings) {
+                                   const AudioExportSettings &settings, int totalTicks) {
     _exportCancelled.store(false);
 
     if (!_initialized) {
@@ -491,16 +500,34 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
         return;
     }
 
+    // Transcode-All Model: render to a temporary high-precision WAV first, 
+    // then transcode via libsndfile to the final destination.
+    const bool transcode = true; 
+    QString renderPath =
+        QDir::tempPath() + "/MidiEditor_render_" +
+        QString::number(QCoreApplication::applicationPid()) + ".wav";
+
     fluid_settings_t* expSettings = new_fluid_settings();
     fluid_settings_setstr(expSettings, "audio.driver", "file");
-    fluid_settings_setstr(expSettings, "audio.file.name", outputPath.toUtf8().constData());
-    QString fileType = settings.fileType();
+    fluid_settings_setstr(expSettings, "audio.file.name", renderPath.toUtf8().constData());
+
+    QString fileType = "wav";
     double sampleRate = settings.sampleRate();
-    QString sampleFormat = settings.sampleFormat;
+    QString fileFormat = "float"; // Intermediate render is always high-precision float
+
+    // Opus strictly requires 48kHz.
+    if (settings.format == AudioExportSettings::OPUS) {
+        sampleRate = 48000.0;
+    }
 
     fluid_settings_setstr(expSettings, "audio.file.type", fileType.toUtf8().constData());
+    fluid_settings_setstr(expSettings, "audio.file.format", fileFormat.toUtf8().constData());
+    fluid_settings_setstr(expSettings, "audio.sample-format", "float"); // Internal processing always float
     fluid_settings_setnum(expSettings, "synth.sample-rate", sampleRate);
 
+    qDebug() << "FluidSynthEngine::exportAudio: Rendering at" << sampleRate << "Hz";
+    qDebug() << "FluidSynthEngine::exportAudio: Starting export to" << outputPath << "Format:" << settings.format << "Transcode:" << transcode;
+    qDebug() << "FluidSynthEngine::exportAudio: MIDI total ticks:" << totalTicks;
     // Copy synth settings from the live engine
     _engineMutex.lock();
     fluid_settings_setint(expSettings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
@@ -508,7 +535,6 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
     fluid_settings_setnum(expSettings, "synth.gain", _gain);
     fluid_settings_setint(expSettings, "synth.polyphony", _polyphony);
 
-    fluid_settings_setstr(expSettings, "audio.sample-format", sampleFormat.toUtf8().constData());
     fluid_settings_setstr(expSettings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
 
     // Get loaded font paths while holding lock
@@ -548,7 +574,7 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
         return;
     }
 
-    int totalTicks = fluid_player_get_total_ticks(player);
+    // Use the provided total ticks for progress reporting
     if (totalTicks <= 0) totalTicks = 1;
 
     int lastPercent = -1;
@@ -564,8 +590,15 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
             break;
         }
         int curTick = fluid_player_get_current_tick(player);
-        int percent = static_cast<int>(100.0 * curTick / totalTicks);
-        if (percent > 99) percent = 99; // Reserve 100 for completion
+        
+        // Scale progress: MIDI rendering phase is 0-80% if transcoding, 0-100% if not.
+        double midiScale = transcode ? 80.0 : 100.0;
+        int stagePercent = transcode ? 80 : 100;
+        int percent = static_cast<int>(midiScale * static_cast<double>(curTick) / totalTicks);
+        
+        // CAP the progress to the stage mark!
+        if (percent > stagePercent) percent = stagePercent;
+
         if (percent != lastPercent) {
             lastPercent = percent;
             emit exportProgress(percent);
@@ -579,6 +612,8 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
         fluid_settings_getint(expSettings, "audio.period-size", &framesPerBlock);
         if (framesPerBlock <= 0) framesPerBlock = 64;
         int totalBlocks = tailFrames / framesPerBlock;
+        if (totalBlocks <= 0) totalBlocks = 1;
+
         for (int i = 0; i < totalBlocks; ++i) {
             if (_exportCancelled.load()) {
                 cancelled = true;
@@ -594,17 +629,233 @@ void FluidSynthEngine::exportAudio(const QString &midiFilePath, const QString &o
     delete_fluid_settings(expSettings);
 
     if (cancelled) {
-        // Remove the partial output file
         QFile::remove(outputPath);
         emit exportCancelled();
-    } else {
-        emit exportProgress(100);
-        emit exportFinished(true, outputPath);
+        return;
     }
+
+    // Stage 2: Transcode if needed
+    if (transcode) {
+        bool ok = transcodeWavTo(renderPath, outputPath, settings);
+        QFile::remove(renderPath); // clean up temp file
+        if (!ok) {
+            emit exportFinished(false, outputPath);
+            return;
+        }
+    } else {
+        // For WAV/FLAC/OGG, FluidSynth rendered to the temp file, now move it
+        if (QFile::exists(outputPath)) QFile::remove(outputPath);
+        if (!QFile::copy(renderPath, outputPath)) {
+            qWarning() << "FluidSynthEngine::exportAudio: failed to copy file to" << outputPath;
+            QFile::remove(renderPath);
+            emit exportFinished(false, outputPath);
+            return;
+        }
+    }
+    QFile::remove(renderPath); // clean up temp file
+    emit exportFinished(true, outputPath);
 }
 
 void FluidSynthEngine::cancelExport() {
     _exportCancelled.store(true);
+}
+
+// ============================================================================
+// Transcode helper — dynamically loads libsndfile to convert WAV → Opus/MP3
+// ============================================================================
+
+// Minimal libsndfile types needed for dynamic loading (avoids sndfile.h header dependency)
+namespace sndfile_dyn {
+
+// From sndfile.h — we replicate only what we need
+typedef int64_t sf_count_t;
+
+struct SF_INFO {
+    sf_count_t frames;
+    int        samplerate;
+    int        channels;
+    int        format;
+    int        sections;
+    int        seekable;
+};
+
+typedef void* SNDFILE_HANDLE;  // opaque
+
+// Format constants from sndfile.h
+constexpr int SF_FORMAT_WAV            = 0x010000;
+constexpr int SF_FORMAT_FLAC           = 0x170000;
+constexpr int SF_FORMAT_OGG            = 0x200000;
+constexpr int SF_FORMAT_MPEG           = 0x230000;
+constexpr int SF_FORMAT_PCM_16         = 0x0002;
+constexpr int SF_FORMAT_PCM_24         = 0x0003;
+constexpr int SF_FORMAT_PCM_32         = 0x0004;
+constexpr int SF_FORMAT_FLOAT          = 0x0006;
+constexpr int SF_FORMAT_VORBIS         = 0x0060;
+constexpr int SF_FORMAT_OPUS           = 0x0064;
+constexpr int SF_FORMAT_MPEG_LAYER_III = 0x0082;
+
+// Open modes
+constexpr int SFM_READ                 = 0x10;
+constexpr int SFM_WRITE                = 0x20;
+
+// Function pointer types
+using fn_sf_open         = SNDFILE_HANDLE (*)(const char*, int, SF_INFO*);
+using fn_sf_close        = int            (*)(SNDFILE_HANDLE);
+using fn_sf_readf_float  = sf_count_t     (*)(SNDFILE_HANDLE, float*, sf_count_t);
+using fn_sf_writef_float = sf_count_t     (*)(SNDFILE_HANDLE, const float*, sf_count_t);
+using fn_sf_strerror     = const char*    (*)(SNDFILE_HANDLE);
+
+#ifdef Q_OS_WIN
+// Windows-only: sf_wchar_open accepts wchar_t* paths for proper Unicode support.
+// libsndfile's sf_open() uses the C runtime fopen() which on MSVC expects ANSI
+// (system code page), NOT UTF-8 — causing garbled filenames for non-ASCII text.
+using fn_sf_wchar_open   = SNDFILE_HANDLE   (*)(const wchar_t*, int, SF_INFO*);
+#endif
+
+} // namespace sndfile_dyn
+
+bool FluidSynthEngine::transcodeWavTo(const QString &wavPath, const QString &outputPath,
+                                       const AudioExportSettings &settings) {
+    // Load libsndfile dynamically — it ships alongside the app as sndfile.dll / libsndfile.so
+    QLibrary sndLib;
+    QStringList candidates = {"sndfile", "libsndfile", "libsndfile-1", "sndfile-1"};
+    bool loaded = false;
+    for (const QString &name : candidates) {
+        sndLib.setFileName(name);
+        if (sndLib.load()) { loaded = true; break; }
+        // Also try from the app directory explicitly
+        QString appDir = QCoreApplication::applicationDirPath();
+        sndLib.setFileName(appDir + "/" + name);
+        if (sndLib.load()) { loaded = true; break; }
+    }
+    if (!loaded) {
+        qWarning() << "FluidSynthEngine::transcodeWavTo: could not load libsndfile:"
+                    << sndLib.errorString();
+        return false;
+    }
+
+    // Resolve function pointers
+    auto sf_open         = reinterpret_cast<sndfile_dyn::fn_sf_open>(sndLib.resolve("sf_open"));
+    auto sf_close        = reinterpret_cast<sndfile_dyn::fn_sf_close>(sndLib.resolve("sf_close"));
+    auto sf_readf_float  = reinterpret_cast<sndfile_dyn::fn_sf_readf_float>(sndLib.resolve("sf_readf_float"));
+    auto sf_writef_float = reinterpret_cast<sndfile_dyn::fn_sf_writef_float>(sndLib.resolve("sf_writef_float"));
+    auto sf_strerror     = reinterpret_cast<sndfile_dyn::fn_sf_strerror>(sndLib.resolve("sf_strerror"));
+
+#ifdef Q_OS_WIN
+    auto sf_wchar_open   = reinterpret_cast<sndfile_dyn::fn_sf_wchar_open>(sndLib.resolve("sf_wchar_open"));
+#endif
+
+    if (!sf_open || !sf_close || !sf_readf_float || !sf_writef_float) {
+        qWarning() << "FluidSynthEngine::transcodeWavTo: failed to resolve libsndfile symbols";
+        return false;
+    }
+
+    // Helper lambda: open a file using the best available function for the platform.
+    // On Windows, prefer sf_wchar_open for proper Unicode path support.
+    auto openSndFile = [&](const QString &path, int mode, sndfile_dyn::SF_INFO *info) -> sndfile_dyn::SNDFILE_HANDLE {
+#ifdef Q_OS_WIN
+        if (sf_wchar_open) {
+            std::wstring wpath = path.toStdWString();
+            return sf_wchar_open(wpath.c_str(), mode, info);
+        }
+#endif
+        return sf_open(path.toUtf8().constData(), mode, info);
+    };
+
+    // Open the source WAV
+    sndfile_dyn::SF_INFO srcInfo = {};
+    auto srcFile = openSndFile(wavPath, sndfile_dyn::SFM_READ, &srcInfo);
+    if (!srcFile) {
+        qWarning() << "FluidSynthEngine::transcodeWavTo: failed to open source WAV" << wavPath
+                    << "Error:" << (sf_strerror ? sf_strerror(nullptr) : "unknown error");
+        return false;
+    }
+    qDebug() << "FluidSynthEngine::transcodeWavTo: source WAV opened. Channels:" << srcInfo.channels << "Rate:" << srcInfo.samplerate << "Frames:" << srcInfo.frames;
+
+    // Determine target format (source is always float WAV)
+    int dstFormat = 0;
+    bool isFloat = (settings.sampleFormat == "float");
+
+    switch (settings.format) {
+        case AudioExportSettings::WAV:
+            dstFormat = sndfile_dyn::SF_FORMAT_WAV | (isFloat ? sndfile_dyn::SF_FORMAT_FLOAT : sndfile_dyn::SF_FORMAT_PCM_16);
+            break;
+        case AudioExportSettings::FLAC:
+            // Map "Float" to 24-bit PCM for FLAC (highest supported lossless standard)
+            dstFormat = sndfile_dyn::SF_FORMAT_FLAC | (isFloat ? sndfile_dyn::SF_FORMAT_PCM_24 : sndfile_dyn::SF_FORMAT_PCM_16);
+            break;
+        case AudioExportSettings::OGG_VORBIS:
+            dstFormat = sndfile_dyn::SF_FORMAT_OGG | sndfile_dyn::SF_FORMAT_VORBIS;
+            break;
+        case AudioExportSettings::OPUS:
+            dstFormat = sndfile_dyn::SF_FORMAT_OGG | sndfile_dyn::SF_FORMAT_OPUS;
+            break;
+        case AudioExportSettings::MP3:
+            dstFormat = sndfile_dyn::SF_FORMAT_MPEG | sndfile_dyn::SF_FORMAT_MPEG_LAYER_III;
+            break;
+        default:
+            sf_close(srcFile);
+            return false;
+    }
+
+    // Setup destination file info
+    sndfile_dyn::SF_INFO dstInfo = {};
+    dstInfo.samplerate = srcInfo.samplerate;
+    dstInfo.channels   = srcInfo.channels;
+    dstInfo.format     = dstFormat;
+
+    auto dstFile = openSndFile(outputPath, sndfile_dyn::SFM_WRITE, &dstInfo);
+    if (!dstFile) {
+        qWarning() << "FluidSynthEngine::transcodeWavTo: failed to open output file"
+                    << outputPath
+                    << "Format:" << QString::number(dstFormat, 16)
+                    << "Error:" << (sf_strerror ? sf_strerror(nullptr) : "unknown error");
+        sf_close(srcFile);
+        return false;
+    }
+    qDebug() << "FluidSynthEngine::transcodeWavTo: output file opened successfully.";
+
+    // Copy audio data in blocks, emitting progress for the transcode phase (80-100%)
+    constexpr int BLOCK_FRAMES = 4096;
+    std::vector<float> buffer(BLOCK_FRAMES * srcInfo.channels);
+    sndfile_dyn::sf_count_t readCount;
+    sndfile_dyn::sf_count_t totalFrames = srcInfo.frames;
+    sndfile_dyn::sf_count_t framesProcessed = 0;
+    int lastTranscodePercent = -1;
+
+    while ((readCount = sf_readf_float(srcFile, buffer.data(), BLOCK_FRAMES)) > 0) {
+        if (_exportCancelled.load()) {
+            sf_close(dstFile);
+            sf_close(srcFile);
+            QFile::remove(outputPath);
+            return false;
+        }
+        sf_writef_float(dstFile, buffer.data(), readCount);
+        framesProcessed += readCount;
+
+        // Report progress: transcode phase maps to 80-100%
+        if (totalFrames > 0) {
+            int transcodePercent = 80 + static_cast<int>(20.0 * static_cast<double>(framesProcessed) / totalFrames);
+            if (transcodePercent > 100) transcodePercent = 100;
+            
+            if (transcodePercent != lastTranscodePercent) {
+                lastTranscodePercent = transcodePercent;
+                emit exportProgress(transcodePercent);
+            }
+        } else {
+            // If totalFrames is not available, just emit 99% to show activity
+            if (lastTranscodePercent < 100) {
+                lastTranscodePercent = 100;
+                emit exportProgress(100);
+            }
+        }
+    }
+
+    sf_close(dstFile);
+    sf_close(srcFile);
+
+    qDebug() << "FluidSynthEngine::transcodeWavTo: successfully transcoded to" << outputPath;
+    return true;
 }
 
 // ============================================================================
@@ -810,7 +1061,6 @@ QList<QPair<QString, bool>> FluidSynthEngine::soundFontCollection() const {
     QMutexLocker locker(&_engineMutex);
     return _collection;
 }
-
 
 // ============================================================================
 // Persistence
