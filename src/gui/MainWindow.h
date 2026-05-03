@@ -172,6 +172,8 @@ public:
     QSettings *settings() { return _settings; }
 
 protected:
+    bool eventFilter(QObject *obj, QEvent *event) override;
+    
     /**
      * \brief Handles file drop events for drag-and-drop file loading.
      * \param ev The drop event containing file information

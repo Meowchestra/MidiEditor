@@ -192,13 +192,19 @@ bool StandardTool::press(bool leftClick) {
         if (QApplication::keyboardModifiers().testFlag(Qt::ControlModifier)) {
             return false;
         }
+        
+        // Don't trigger NewNoteTool if clicking on piano area - MatrixWidget handles that
+        if (matrixWidget->mouseInRect(matrixWidget->pianoArea())) {
+            return false;
+        }
+        
         Tool::setCurrentTool(newNoteTool);
         newNoteTool->move(mouseX, mouseY);
         newNoteTool->press(leftClick);
         return false;
     }
-    // Alt+click: select all events on this row or measure
-    if (QApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
+    // Alt+click: select all events on this row or measure (Left click only)
+    if (leftClick && QApplication::keyboardModifiers().testFlag(Qt::AltModifier)) {
         if (matrixWidget->mouseInRect(matrixWidget->pianoArea())) {
             selectTool->setSelectionType(SELECTION_TYPE_ROW);
             Tool::setCurrentTool(selectTool);

@@ -4,7 +4,9 @@
 #include "KeybindsSettingsWidget.h"
 #include "SettingsDialog.h"
 #include "MainWindow.h"
+#include "MatrixWidget.h"
 
+#include <QTimer>
 #include <QTableWidget>
 #include <QHeaderView>
 #include <QGridLayout>
@@ -17,6 +19,186 @@
 #include <QAction>
 #include <QKeyEvent>
 #include <QMessageBox>
+#include <QFrame>
+#include <QComboBox>
+#include <QSet>
+
+// PianoKeyButton implementation
+PianoKeyButton::PianoKeyButton(int offset, bool isBlack, QWidget* parent) 
+    : QPushButton(parent), noteOffset(offset), currentKey(0), isBlackKey(isBlack) {
+    if (isBlackKey) {
+        setStyleSheet("QPushButton { background-color: #333; color: white; border: 1px solid #111; border-radius: 2px; } "
+                      "QPushButton:focus { border: 2px solid #0078D7; background-color: #444; }");
+    } else {
+        setStyleSheet("QPushButton { background-color: #f9f9f9; color: black; border: 1px solid #ccc; border-radius: 2px; padding-top: 45px; } "
+                      "QPushButton:focus { border: 2px solid #0078D7; background-color: #e5f1fb; }");
+    }
+    
+    // Make text bold and legible
+    QFont f = font();
+    f.setPixelSize(10);
+    f.setBold(true);
+    setFont(f);
+}
+
+void PianoKeyButton::setKey(int key) {
+    currentKey = key;
+    if (key == 0) {
+        setText("");
+    } else {
+        setText(QKeySequence(key).toString());
+    }
+}
+
+void PianoKeyButton::flashError() {
+    setStyleSheet("QPushButton { background-color: #ffcccc; color: black; border: 2px solid red; border-radius: 2px; } ");
+    
+    QTimer::singleShot(500, this, [this]() {
+        if (isBlackKey) {
+            setStyleSheet("QPushButton { background-color: #333; color: white; border: 1px solid #111; border-radius: 2px; } "
+                          "QPushButton:focus { border: 2px solid #0078D7; background-color: #444; }");
+        } else {
+            setStyleSheet("QPushButton { background-color: #f9f9f9; color: black; border: 1px solid #ccc; border-radius: 2px; padding-top: 45px; } "
+                          "QPushButton:focus { border: 2px solid #0078D7; background-color: #e5f1fb; }");
+        }
+    });
+}
+
+void PianoKeyButton::keyPressEvent(QKeyEvent *event) {
+    if (event->key() == Qt::Key_Escape || event->key() == Qt::Key_Backspace) {
+        setKey(0);
+        emit keyChanged(this, noteOffset, 0);
+        clearFocus();
+        return;
+    }
+    
+    // Ignore modifiers
+    if (event->key() == Qt::Key_Control || event->key() == Qt::Key_Shift ||
+        event->key() == Qt::Key_Alt || event->key() == Qt::Key_Meta) {
+        return;
+    }
+    
+    int newKey = event->key();
+    setKey(newKey);
+    emit keyChanged(this, noteOffset, newKey);
+    clearFocus();
+}
+
+// CaptureKeyButton implementation
+CaptureKeyButton::CaptureKeyButton(QWidget* parent) : QPushButton(parent), currentKey(0) {
+    setFocusPolicy(Qt::StrongFocus);
+    setCheckable(true);
+    setText(tr("Press shortcut"));
+    setMinimumWidth(120);
+    setStyleSheet(
+        "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
+        "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
+    );
+    
+    // Auto-timeout: uncheck after 3 seconds if no key is pressed
+    _captureTimer = new QTimer(this);
+    _captureTimer->setSingleShot(true);
+    _captureTimer->setInterval(3000);
+    connect(_captureTimer, &QTimer::timeout, this, [this]() {
+        setChecked(false);
+    });
+    
+    _errorTimer = new QTimer(this);
+    _errorTimer->setSingleShot(true);
+    _errorTimer->setInterval(400);
+    connect(_errorTimer, &QTimer::timeout, this, [this]() {
+        setKey(currentKey); // This will restore the correct stylesheet
+    });
+
+    connect(this, &QPushButton::toggled, this, [this](bool checked) {
+        if (checked) {
+            setText(tr("Press a key..."));
+            _captureTimer->start();
+        } else {
+            _captureTimer->stop();
+            // Restore display text
+            setKey(currentKey);
+        }
+    });
+}
+
+void CaptureKeyButton::flashError() {
+    setStyleSheet(
+        "QPushButton { padding: 4px 12px; border: 2px solid #ff4444; border-radius: 3px; background-color: #ffcccc; color: #ff0000; font-weight: bold; }"
+    );
+    _errorTimer->start();
+}
+
+static QString vkCodeToDisplayName(int vkCode) {
+    // Map Windows virtual key codes to human-readable names
+    switch (vkCode) {
+        case 0xA0: return QObject::tr("Left Shift");
+        case 0xA1: return QObject::tr("Right Shift");
+        case 0xA2: return QObject::tr("Left Ctrl");
+        case 0xA3: return QObject::tr("Right Ctrl");
+        case 0xA4: return QObject::tr("Left Alt");
+        case 0xA5: return QObject::tr("Right Alt");
+        case 0x10: return QObject::tr("Shift");
+        case 0x11: return QObject::tr("Ctrl");
+        case 0x12: return QObject::tr("Alt");
+        case 0x20: return QObject::tr("Space");
+        case 0x09: return QObject::tr("Tab");
+        default: {
+            // Try Qt key sequence for normal keys
+            QString name = QKeySequence(vkCode).toString();
+            if (!name.isEmpty()) return name;
+            return QString("0x%1").arg(vkCode, 0, 16);
+        }
+    }
+}
+
+void CaptureKeyButton::setKey(int key) {
+    currentKey = key;
+    if (key == 0) {
+        setText(tr("Press shortcut"));
+        setStyleSheet(
+            "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(mid); }"
+            "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
+        );
+    } else {
+        setText(vkCodeToDisplayName(key));
+        setStyleSheet(
+            "QPushButton { padding: 4px 12px; border: 1px solid palette(mid); border-radius: 3px; background-color: palette(base); color: palette(text); }"
+            "QPushButton:checked { border: 2px solid palette(highlight); background-color: palette(base); color: palette(highlight); }"
+        );
+    }
+    setChecked(false);
+}
+
+void CaptureKeyButton::keyPressEvent(QKeyEvent *event) {
+    if (!isChecked()) {
+        QPushButton::keyPressEvent(event);
+        return;
+    }
+    
+    if (event->key() == Qt::Key_Escape) {
+        emit keyChanged(this, 0);
+        return;
+    }
+    
+    // Detect Left/Right Shift via native virtual key
+    quint32 nativeVK = event->nativeVirtualKey();
+    if (nativeVK == 0xA0 || nativeVK == 0xA1) {
+        // Store as Windows VK code directly
+        emit keyChanged(this, (int)nativeVK);
+        clearFocus();
+        return;
+    }
+    
+    // For generic Shift (couldn't differentiate), ignore
+    if (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Control ||
+        event->key() == Qt::Key_Alt || event->key() == Qt::Key_Meta) {
+        return;
+    }
+
+    emit keyChanged(this, event->key());
+    clearFocus();
+}
 
 // CustomKeySequenceEdit implementation
 CustomKeySequenceEdit::CustomKeySequenceEdit(QWidget *parent)
@@ -74,7 +256,15 @@ void CustomKeySequenceEdit::keyPressEvent(QKeyEvent *event) {
 KeybindsSettingsWidget::KeybindsSettingsWidget(SettingsDialog *dialog, QWidget *parent)
     : SettingsWidget(QObject::tr("Keybinds"), parent)
     , _dialog(dialog)
-    , _table(nullptr) {
+    , _table(nullptr)
+    , _pianoStatusLabel(nullptr)
+    , _statusTimer(new QTimer(this))
+    , _octaveUpButton(nullptr)
+    , _octaveDownButton(nullptr) {
+    _statusTimer->setSingleShot(true);
+    connect(_statusTimer, &QTimer::timeout, this, [this]() {
+        if (_pianoStatusLabel) _pianoStatusLabel->setText("");
+    });
     buildUI();
     loadActions();
 }
@@ -112,6 +302,330 @@ void KeybindsSettingsWidget::buildUI() {
     btns->addStretch(1);
     btns->addWidget(resetAll);
     mainLayout->addLayout(btns);
+
+    // Add Piano Emulation UI
+    QFrame *line = new QFrame(this);
+    line->setFrameShape(QFrame::HLine);
+    line->setFrameShadow(QFrame::Sunken);
+    mainLayout->addWidget(line);
+
+    QLabel *pianoInfo = new QLabel(tr("Piano Emulation Keybinds"), this);
+    pianoInfo->setStyleSheet("font-weight: bold;");
+    mainLayout->addWidget(pianoInfo);
+
+    QLabel *pianoHelp = new QLabel(tr("Click any key on the piano below, then press a key on your keyboard to map it."), this);
+    pianoHelp->setStyleSheet("color: gray; font-size: 11px;");
+    pianoHelp->setWordWrap(true);
+    mainLayout->addWidget(pianoHelp);
+
+    buildPianoUI(mainLayout);
+}
+
+void KeybindsSettingsWidget::buildPianoUI(QVBoxLayout *layout) {
+    QWidget *pianoContainer = new QWidget(this);
+    pianoContainer->setMinimumHeight(120);
+    
+    int whiteKeyWidth = 26;
+    int whiteKeyHeight = 100;
+    int blackKeyWidth = 16;
+    int blackKeyHeight = 60;
+    
+    pianoContainer->setFixedSize(22 * whiteKeyWidth, whiteKeyHeight);
+    
+    const int C3_OFFSET = 48;
+    const int C4_OFFSET = 60;
+    
+    // Default mapping only to C4-C5 using QWERTY row
+    QMap<int, int> defaults;
+    defaults.insert(C4_OFFSET + 0, Qt::Key_Q);   // C4
+    defaults.insert(C4_OFFSET + 1, Qt::Key_2);   // C#4
+    defaults.insert(C4_OFFSET + 2, Qt::Key_W);   // D4
+    defaults.insert(C4_OFFSET + 3, Qt::Key_3);   // D#4
+    defaults.insert(C4_OFFSET + 4, Qt::Key_E);   // E4
+    defaults.insert(C4_OFFSET + 5, Qt::Key_R);   // F4
+    defaults.insert(C4_OFFSET + 6, Qt::Key_5);   // F#4
+    defaults.insert(C4_OFFSET + 7, Qt::Key_T);   // G4
+    defaults.insert(C4_OFFSET + 8, Qt::Key_6);   // G#4
+    defaults.insert(C4_OFFSET + 9, Qt::Key_Y);   // A4
+    defaults.insert(C4_OFFSET + 10, Qt::Key_7);  // A#4
+    defaults.insert(C4_OFFSET + 11, Qt::Key_U);  // B4
+    defaults.insert(C4_OFFSET + 12, Qt::Key_I);  // C5
+
+    // Load from settings if exists
+    _pianoKeyMap.clear();
+    QSettings *settings = _dialog->settings();
+    if (settings->contains("piano_emulation/keys")) {
+        QVariantMap map = settings->value("piano_emulation/keys").toMap();
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+            _pianoKeyMap.insert(it.key().toInt(), it.value().toInt());
+        }
+    } else {
+        _pianoKeyMap = defaults;
+    }
+
+    // Add white keys first (background)
+    int whiteKeyIndex = 0;
+    for (int i = 0; i < 37; i++) {
+        int noteInOctave = i % 12;
+        bool isBlack = (noteInOctave == 1 || noteInOctave == 3 || noteInOctave == 6 || noteInOctave == 8 || noteInOctave == 10);
+        if (!isBlack) {
+            int noteOffset = C3_OFFSET + i;
+            PianoKeyButton *btn = new PianoKeyButton(noteOffset, false, pianoContainer);
+            btn->setGeometry(whiteKeyIndex * whiteKeyWidth, 0, whiteKeyWidth, whiteKeyHeight);
+            btn->setKey(_pianoKeyMap.value(noteOffset, 0));
+            
+            // Add C label
+            if (noteInOctave == 0) {
+                QLabel *l = new QLabel(QString("C%1").arg(noteOffset / 12 - 1), btn);
+                l->setGeometry(0, whiteKeyHeight - 20, whiteKeyWidth, 20);
+                l->setAlignment(Qt::AlignCenter);
+                l->setStyleSheet("color: gray; font-size: 9px;");
+            }
+            connect(btn, &PianoKeyButton::keyChanged, this, &KeybindsSettingsWidget::onPianoKeyChanged);
+            whiteKeyIndex++;
+        }
+    }
+    
+    // Add black keys (foreground)
+    whiteKeyIndex = 0;
+    for (int i = 0; i < 37; i++) {
+        int noteInOctave = i % 12;
+        bool isBlack = (noteInOctave == 1 || noteInOctave == 3 || noteInOctave == 6 || noteInOctave == 8 || noteInOctave == 10);
+        if (!isBlack) {
+            whiteKeyIndex++;
+        } else {
+            int noteOffset = C3_OFFSET + i;
+            PianoKeyButton *btn = new PianoKeyButton(noteOffset, true, pianoContainer);
+            btn->setGeometry(whiteKeyIndex * whiteKeyWidth - (blackKeyWidth / 2), 0, blackKeyWidth, blackKeyHeight);
+            btn->setKey(_pianoKeyMap.value(noteOffset, 0));
+            connect(btn, &PianoKeyButton::keyChanged, this, &KeybindsSettingsWidget::onPianoKeyChanged);
+        }
+    }
+    
+    // Wrap the piano in a layout that centers it
+    QHBoxLayout *pianoLayout = new QHBoxLayout();
+    pianoLayout->addStretch(1);
+    pianoLayout->addWidget(pianoContainer);
+    pianoLayout->addStretch(1);
+    
+    layout->addLayout(pianoLayout);
+    
+    QHBoxLayout *optionsLayout = new QHBoxLayout();
+    optionsLayout->addStretch(1);
+    
+    optionsLayout->addWidget(new QLabel(tr("Octave Down:"), this));
+    _octaveDownButton = new CaptureKeyButton(this);
+    optionsLayout->addWidget(_octaveDownButton);
+    
+    optionsLayout->addSpacing(30);
+    
+    QPushButton *btnRestore = new QPushButton(tr("Reset"), this);
+    connect(btnRestore, &QPushButton::clicked, this, [this, defaults]() {
+        _pianoKeyMap = defaults;
+        if (_octaveDownButton) _octaveDownButton->setKey(Qt::Key_Comma);
+        if (_octaveUpButton) _octaveUpButton->setKey(Qt::Key_Period);
+        
+        QList<PianoKeyButton*> btns = findChildren<PianoKeyButton*>();
+        for (PianoKeyButton* btn : btns) {
+            btn->setKey(_pianoKeyMap.value(btn->noteOffset, 0));
+        }
+        
+        // Save and update matrix immediately
+        QSettings *settings = _dialog->settings();
+        QVariantMap pianoMap;
+        for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+            pianoMap.insert(QString::number(it.key()), it.value());
+        }
+        settings->setValue("piano_emulation/keys", pianoMap);
+        settings->setValue("piano_emulation/octave_down", Qt::Key_Comma);
+        settings->setValue("piano_emulation/octave_up", Qt::Key_Period);
+        if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+            _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+        }
+        checkDuplicates();
+    });
+    optionsLayout->addWidget(btnRestore);
+    
+    optionsLayout->addSpacing(30);
+    
+    optionsLayout->addWidget(new QLabel(tr("Octave Up:"), this));
+    _octaveUpButton = new CaptureKeyButton(this);
+    optionsLayout->addWidget(_octaveUpButton);
+    
+    // Load values
+    int downKey = settings->value("piano_emulation/octave_down", Qt::Key_Comma).toInt();
+    int upKey = settings->value("piano_emulation/octave_up", Qt::Key_Period).toInt();
+    
+    _octaveDownButton->setKey(downKey);
+    _octaveUpButton->setKey(upKey);
+    
+    auto saveSettings = [this](CaptureKeyButton* btn, int key) {
+        if (key == 0) {
+            btn->setKey(0);
+            QSettings *settings = _dialog->settings();
+            settings->setValue(btn == _octaveDownButton ? "piano_emulation/octave_down" : "piano_emulation/octave_up", 0);
+            if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+                _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+            }
+            checkDuplicates();
+            return;
+        }
+
+        // Check duplicates
+        bool isDuplicate = false;
+        QKeySequence pianoSeq(key);
+        
+        // 1. Check against normal keybinds
+        for (int i = 0; i < _table->rowCount(); i++) {
+            QKeySequenceEdit *edit = qobject_cast<QKeySequenceEdit*>(_table->cellWidget(i, 1));
+            if (edit && !edit->keySequence().isEmpty()) {
+                if (edit->keySequence()[0] == pianoSeq[0]) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+        }
+        
+        // 2. Check against piano keys
+        if (!isDuplicate) {
+            for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+                if (it.value() == key) {
+                    isDuplicate = true;
+                    break;
+                }
+            }
+        }
+        
+        // 3. Check against the other octave button
+        if (!isDuplicate) {
+            CaptureKeyButton* otherBtn = (btn == _octaveDownButton) ? _octaveUpButton : _octaveDownButton;
+            if (otherBtn && otherBtn->currentKey == key) {
+                isDuplicate = true;
+            }
+        }
+        
+        if (isDuplicate) {
+            btn->setKey(btn->currentKey); // Restore visual display to old key
+            btn->flashError();
+            if (_pianoStatusLabel) {
+                _pianoStatusLabel->setText(tr("Warning: %1 is already in use!").arg(pianoSeq.toString()));
+                _pianoStatusLabel->setStyleSheet("color: red; font-weight: bold; font-size: 12px;");
+                _statusTimer->start(8000);
+            }
+            return; // Reject the change
+        }
+
+        // Accept the change
+        btn->setKey(key);
+        QSettings *settings = _dialog->settings();
+        settings->setValue(btn == _octaveDownButton ? "piano_emulation/octave_down" : "piano_emulation/octave_up", key);
+        if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+            _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+        }
+        
+        if (_pianoStatusLabel) {
+            _pianoStatusLabel->setText(tr("Mapped %1 to: %2")
+                .arg(btn == _octaveDownButton ? "Octave Down" : "Octave Up")
+                .arg(pianoSeq.toString()));
+            _pianoStatusLabel->setStyleSheet("color: #0078D7; font-weight: bold; font-size: 12px;");
+            _statusTimer->start(8000);
+        }
+        
+        checkDuplicates();
+    };
+    
+    connect(_octaveDownButton, &CaptureKeyButton::keyChanged, saveSettings);
+    connect(_octaveUpButton, &CaptureKeyButton::keyChanged, saveSettings);
+    
+    optionsLayout->addStretch(1);
+    layout->addLayout(optionsLayout);
+    
+    _pianoStatusLabel = new QLabel(this);
+    _pianoStatusLabel->setStyleSheet("color: #0078D7; font-weight: bold; font-size: 12px;");
+    _pianoStatusLabel->setAlignment(Qt::AlignCenter);
+    layout->addWidget(_pianoStatusLabel);
+}
+
+void KeybindsSettingsWidget::onPianoKeyChanged(PianoKeyButton *btn, int offset, int key) {
+    if (key == 0) {
+        _pianoKeyMap.remove(offset);
+        // Save immediately
+        QSettings *settings = _dialog->settings();
+        QVariantMap pianoMap;
+        for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+            pianoMap.insert(QString::number(it.key()), it.value());
+        }
+        settings->setValue("piano_emulation/keys", pianoMap);
+        if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+            _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+        }
+        checkDuplicates();
+        return;
+    }
+    
+    // Check duplicates immediately
+    bool isDuplicate = false;
+    QKeySequence pianoSeq(key);
+    
+    // 1. Check against normal keybinds (this is simplistic but catches direct overlap)
+    for (int i = 0; i < _table->rowCount(); i++) {
+        QKeySequenceEdit *edit = qobject_cast<QKeySequenceEdit*>(_table->cellWidget(i, 1));
+        if (edit && !edit->keySequence().isEmpty()) {
+            if (edit->keySequence()[0] == pianoSeq[0]) {
+                isDuplicate = true;
+                break;
+            }
+        }
+    }
+    
+    // 2. Check against other piano keys
+    if (!isDuplicate) {
+        for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+            if (it.key() != offset && it.value() == key) {
+                isDuplicate = true;
+                break;
+            }
+        }
+    }
+    
+    if (isDuplicate) {
+        btn->setKey(_pianoKeyMap.value(offset, 0)); // Restore old key visually
+        btn->flashError();
+        if (_pianoStatusLabel) {
+            _pianoStatusLabel->setText(tr("Warning: %1 is already in use!").arg(pianoSeq.toString()));
+            _pianoStatusLabel->setStyleSheet("color: red; font-weight: bold; font-size: 12px;");
+            _statusTimer->start(8000);
+        }
+        return;
+    }
+    
+    _pianoKeyMap.insert(offset, key);
+    
+    // Save to settings immediately
+    QSettings *settings = _dialog->settings();
+    QVariantMap pianoMap;
+    for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+        pianoMap.insert(QString::number(it.key()), it.value());
+    }
+    settings->setValue("piano_emulation/keys", pianoMap);
+    
+    // Tell MatrixWidget to update
+    if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+        _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+    }
+    
+    if (_pianoStatusLabel) {
+        int noteInOctave = offset % 12;
+        int octave = (offset / 12) - 1;
+        const char* noteNames[] = {"C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"};
+        QString noteName = QString("%1%2").arg(noteNames[noteInOctave]).arg(octave);
+        
+        _pianoStatusLabel->setText(tr("Mapped %1 (%2) to: %3").arg(noteName).arg(offset).arg(pianoSeq.toString()));
+        _pianoStatusLabel->setStyleSheet("color: #0078D7; font-weight: bold; font-size: 12px;");
+        _statusTimer->start(8000);
+    }
+    
+    checkDuplicates();
 }
 
 static QString keySeqToString(const QKeySequence &seq) {
@@ -265,6 +779,21 @@ void KeybindsSettingsWidget::checkDuplicates() {
 
     QMap<QString, int> counts;
     
+    // Collect piano key sequences for cross-checking
+    QSet<QString> pianoKeyStrings;
+    for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+        if (it.value() != 0) {
+            pianoKeyStrings.insert(QKeySequence(it.value()).toString(QKeySequence::PortableText));
+        }
+    }
+    // Add Octave keys to conflicts
+    if (_octaveUpButton && _octaveUpButton->currentKey != 0) {
+        pianoKeyStrings.insert(QKeySequence(_octaveUpButton->currentKey).toString(QKeySequence::PortableText));
+    }
+    if (_octaveDownButton && _octaveDownButton->currentKey != 0) {
+        pianoKeyStrings.insert(QKeySequence(_octaveDownButton->currentKey).toString(QKeySequence::PortableText));
+    }
+    
     // First pass: Count occurrences
     for (int r = 0; r < _table->rowCount(); r++) {
         QWidget *w = _table->cellWidget(r, 1);
@@ -284,9 +813,12 @@ void KeybindsSettingsWidget::checkDuplicates() {
             QKeySequence seq = e->keySequence();
             QString seqStr = seq.toString(QKeySequence::PortableText);
             
-            if (!seq.isEmpty() && counts.value(seqStr) > 1) {
+            bool isDup = (!seq.isEmpty() && counts.value(seqStr) > 1);
+            bool isPianoConflict = (!seq.isEmpty() && pianoKeyStrings.contains(seqStr));
+            
+            if (isDup || isPianoConflict) {
                 e->setStyleSheet("background-color: #ffcccc;");
-                e->setToolTip(tr("Duplicate shortcut"));
+                e->setToolTip(isPianoConflict ? tr("Conflicts with piano emulation key") : tr("Duplicate shortcut"));
             } else {
                 e->setStyleSheet("");
                 e->setToolTip("");
@@ -312,13 +844,37 @@ bool KeybindsSettingsWidget::accept() {
         }
     }
 
-    // Check for duplicates
+    // Check for duplicates in main actions
     QStringList duplicates;
     for (auto it = shortcutToActions.constBegin(); it != shortcutToActions.constEnd(); ++it) {
         const QStringList &actionIds = it.value();
         if (actionIds.size() > 1) {
             QString keyStr = it.key().toString(QKeySequence::NativeText);
             QString actionsStr = actionIds.join(", ");
+            duplicates.append(tr("Shortcut '%1' assigned to: %2").arg(keyStr, actionsStr));
+        }
+    }
+
+    // Check for duplicates in Piano Keys
+    QMap<int, QStringList> pianoDuplicates;
+    for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+        if (it.value() != 0) {
+            pianoDuplicates[it.value()].append(QString("Piano Note %1").arg(it.key()));
+            
+            // Cross check with main actions
+            QKeySequence pianoSeq(it.value());
+            if (shortcutToActions.contains(pianoSeq)) {
+                QString keyStr = pianoSeq.toString(QKeySequence::NativeText);
+                QString actionsStr = shortcutToActions[pianoSeq].join(", ");
+                duplicates.append(tr("Shortcut '%1' assigned to: %2 AND Piano Note %3").arg(keyStr, actionsStr).arg(it.key()));
+            }
+        }
+    }
+    
+    for (auto it = pianoDuplicates.constBegin(); it != pianoDuplicates.constEnd(); ++it) {
+        if (it.value().size() > 1) {
+            QString keyStr = QKeySequence(it.key()).toString(QKeySequence::NativeText);
+            QString actionsStr = it.value().join(", ");
             duplicates.append(tr("Shortcut '%1' assigned to: %2").arg(keyStr, actionsStr));
         }
     }
@@ -376,5 +932,22 @@ bool KeybindsSettingsWidget::accept() {
     }
 
     settings->endGroup();
+    
+    // Save custom piano key mappings
+    QVariantMap pianoMap;
+    for (auto it = _pianoKeyMap.constBegin(); it != _pianoKeyMap.constEnd(); ++it) {
+        pianoMap.insert(QString::number(it.key()), it.value());
+    }
+    settings->setValue("piano_emulation/keys", pianoMap);
+    
+    if (_octaveUpButton && _octaveDownButton) {
+        settings->setValue("piano_emulation/octave_up", _octaveUpButton->currentKey);
+        settings->setValue("piano_emulation/octave_down", _octaveDownButton->currentKey);
+    }
+    
+    if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
+        _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
+    }
+    
     return true;
 }

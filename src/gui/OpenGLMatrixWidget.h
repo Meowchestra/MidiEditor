@@ -1,4 +1,4 @@
-﻿/*
+/*
  * MidiEditor
  * Copyright (C) 2010  Markus Schwenk
  *
@@ -165,14 +165,15 @@ public:
      * \return The quantization division value
      */
     int div() { return _matrixWidget->div(); }
-    void takeKeyPressEvent(QKeyEvent *event) { _matrixWidget->takeKeyPressEvent(event); }
-    void takeKeyReleaseEvent(QKeyEvent *event) { _matrixWidget->takeKeyReleaseEvent(event); }
+    bool takeKeyPressEvent(QKeyEvent *event) { return _matrixWidget->takeKeyPressEvent(event); }
+    bool takeKeyReleaseEvent(QKeyEvent *event) { return _matrixWidget->takeKeyReleaseEvent(event); }
     int minVisibleMidiTime() { return _matrixWidget->minVisibleMidiTime(); }
     int maxVisibleMidiTime() { return _matrixWidget->maxVisibleMidiTime(); }
     QList<MidiEvent *> *activeEvents() { return _matrixWidget->activeEvents(); }
     QList<MidiEvent *> *velocityEvents() { return _matrixWidget->velocityEvents(); }
     QList<GraphicObject *> *getObjects() { return _matrixWidget->getObjects(); }
     bool colorsByChannel() { return _matrixWidget->colorsByChannel(); }
+    bool getPianoEmulation() { return _matrixWidget->getPianoEmulation(); }
     void setColorsByChannel() { _matrixWidget->setColorsByChannel(); update(); }
     void setColorsByTracks() { _matrixWidget->setColorsByTracks(); update(); }
 

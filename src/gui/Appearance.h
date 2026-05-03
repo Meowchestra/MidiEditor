@@ -206,6 +206,9 @@ public:
     static bool smoothPlaybackScrolling();
     static void setSmoothPlaybackScrolling(bool enabled);
 
+    static bool accentKeyHighlight();
+    static void setAccentKeyHighlight(bool enabled);
+
     // === UI Styling Options ===
 
     /**
@@ -490,6 +493,18 @@ public:
     static QColor pianoBlackKeySelectedColor();
 
     /**
+     * \brief Gets the piano white key active color for the current theme.
+     * \return QColor for active piano white keys
+     */
+    static QColor pianoWhiteKeyActiveColor();
+
+    /**
+     * \brief Gets the piano black key active color for the current theme.
+     * \return QColor for active piano black keys
+     */
+    static QColor pianoBlackKeyActiveColor();
+
+    /**
      * \brief Gets the strip highlight color for the current theme.
      * \return QColor for highlighted strips
      */
@@ -763,6 +778,7 @@ private:
     static ColorPreset _colorPreset;
     static ApplicationTheme _applicationTheme;
     static bool _smoothPlaybackScrolling;
+    static bool _accentKeyHighlight;
 
     /** \brief Current application style name */
     static QString _applicationStyle;

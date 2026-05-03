@@ -189,8 +189,8 @@ int MidiOutput::standardChannel() {
 
 void MidiOutput::sendProgram(int channel, int prog) {
     QByteArray array = QByteArray();
-    array.append(0xC0 | channel);
-    array.append(prog);
+    array.append((char)(0xC0 | channel));
+    array.append((char)prog);
     sendCommand(array);
 }
 

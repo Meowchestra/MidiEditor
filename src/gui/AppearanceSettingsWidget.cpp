@@ -156,10 +156,27 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     styleLayout->addWidget(strip, 3, 1);
 
     styleLayout->addWidget(new QLabel(tr("Smooth Playback Scrolling")), 4, 0);
+    QHBoxLayout *scrollRowLayout = new QHBoxLayout();
+    scrollRowLayout->setContentsMargins(0, 0, 0, 0);
+    scrollRowLayout->setSpacing(6);
+    
     _smoothScrollCheckBox = new QCheckBox(this);
     _smoothScrollCheckBox->setChecked(Appearance::smoothPlaybackScrolling());
     connect(_smoothScrollCheckBox, SIGNAL(toggled(bool)), this, SLOT(smoothPlaybackScrollingChanged(bool)));
-    styleLayout->addWidget(_smoothScrollCheckBox, 4, 1);
+    scrollRowLayout->addWidget(_smoothScrollCheckBox);
+    
+    scrollRowLayout->setSpacing(20); // Add some spacing between the two items instead of a stretch
+    
+    QLabel *accentLabel = new QLabel(tr("Accent Key Highlight"), this);
+    accentLabel->setContentsMargins(15, 0, 0, 0); // Add some padding before the text
+    scrollRowLayout->addWidget(accentLabel);
+    
+    _accentKeyHighlightCheckBox = new QCheckBox(this);
+    _accentKeyHighlightCheckBox->setChecked(Appearance::accentKeyHighlight());
+    connect(_accentKeyHighlightCheckBox, SIGNAL(toggled(bool)), this, SLOT(accentKeyHighlightChanged(bool)));
+    scrollRowLayout->addWidget(_accentKeyHighlightCheckBox);
+    
+    styleLayout->addLayout(scrollRowLayout, 4, 1);
     
     bottomGrid->addWidget(styleGroup, 0, 0);
 
@@ -201,6 +218,10 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
     markerLayout->addWidget(txtMarkers, 4, 1);
     
     bottomGrid->addWidget(markerGroup, 0, 1);
+    
+    // Distribute space evenly between the two groups
+    bottomGrid->setColumnStretch(0, 1);
+    bottomGrid->setColumnStretch(1, 1);
 
     
     // Push everything structurally up
@@ -270,6 +291,11 @@ void AppearanceSettingsWidget::loadSettings() {
         _smoothScrollCheckBox->setChecked(Appearance::smoothPlaybackScrolling());
         _smoothScrollCheckBox->blockSignals(false);
     }
+    if (_accentKeyHighlightCheckBox) {
+        _accentKeyHighlightCheckBox->blockSignals(true);
+        _accentKeyHighlightCheckBox->setChecked(Appearance::accentKeyHighlight());
+        _accentKeyHighlightCheckBox->blockSignals(false);
+    }
 }
 
 void AppearanceSettingsWidget::rangeLinesChanged(bool enabled) {
@@ -305,6 +331,12 @@ void AppearanceSettingsWidget::markerGuideLinesChanged(bool enabled) {
 void AppearanceSettingsWidget::smoothPlaybackScrollingChanged(bool enabled) {
     Appearance::setSmoothPlaybackScrolling(enabled);
     emit smoothScrollChanged(enabled);
+    emit appearanceChanged();
+    update();
+}
+
+void AppearanceSettingsWidget::accentKeyHighlightChanged(bool enabled) {
+    Appearance::setAccentKeyHighlight(enabled);
     emit appearanceChanged();
     update();
 }

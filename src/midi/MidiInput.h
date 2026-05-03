@@ -156,6 +156,14 @@ public:
      */
     static bool thru();
 
+    /**
+     * \brief Injects a MIDI message as if it were received from a port.
+     * \param status Status byte (type + channel)
+     * \param data1 First data byte (or -1 if none)
+     * \param data2 Second data byte (or -1 if none)
+     */
+    static void injectMessage(int status, int data1, int data2 = -1);
+
 private:
     /** \brief Name of the current input port */
     static QString _inPort;

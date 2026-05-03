@@ -68,31 +68,31 @@ void MidiInput::receiveMessage(double deltatime, std::vector<unsigned char> *mes
             if (i == 0) {
                 switch (message->at(i) & 0xF0) {
                     case 0x80: {
-                        a.append(0x80 | MidiOutput::standardChannel());
+                        a.append((char)(0x80 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0x90: {
-                        a.append(0x90 | MidiOutput::standardChannel());
+                        a.append((char)(0x90 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0xD0: {
-                        a.append(0xD0 | MidiOutput::standardChannel());
+                        a.append((char)(0xD0 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0xC0: {
-                        a.append(0xC0 | MidiOutput::standardChannel());
+                        a.append((char)(0xC0 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0xB0: {
-                        a.append(0xB0 | MidiOutput::standardChannel());
+                        a.append((char)(0xB0 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0xA0: {
-                        a.append(0xA0 | MidiOutput::standardChannel());
+                        a.append((char)(0xA0 | MidiOutput::standardChannel()));
                         continue;
                     }
                     case 0xE0: {
-                        a.append(0xE0 | MidiOutput::standardChannel());
+                        a.append((char)(0xE0 | MidiOutput::standardChannel()));
                         continue;
                     }
                 }
@@ -336,4 +336,13 @@ bool MidiInput::thru() {
 
 bool MidiInput::isConnected() {
     return _inPort != "";
+}
+
+void MidiInput::injectMessage(int status, int data1, int data2) {
+    std::vector<unsigned char> message;
+    message.push_back((unsigned char)status);
+    if (data1 >= 0) message.push_back((unsigned char)data1);
+    if (data2 >= 0) message.push_back((unsigned char)data2);
+    
+    receiveMessage(0.0, &message);
 }

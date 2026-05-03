@@ -43,6 +43,10 @@
 #include <algorithm>
 #include <QComboBox>
 #include <QFontMetrics>
+#include <QApplication>
+#include <QLineEdit>
+#include <QTextEdit>
+#include <QPlainTextEdit>
 
 #include "Appearance.h"
 #include "AppearanceSettingsWidget.h"
@@ -148,6 +152,9 @@ MainWindow::MainWindow(QString initFile)
     _updateManager = new UpdateManager(this);
     _settingsDialog = nullptr;
     _silentUpdateCheck = false;
+    
+    // Install global event filter to capture piano emulation keys even when matrix widget doesn't have focus
+    qApp->installEventFilter(this);
 
     Appearance::init(_settings);
 
@@ -965,8 +972,15 @@ void MainWindow::play() {
 }
 
 void MainWindow::record() {
-    if (!MidiOutput::isConnected() || !MidiInput::isConnected()) {
-        CompleteMidiSetupDialog *d = new CompleteMidiSetupDialog(this, !MidiInput::isConnected(), !MidiOutput::isConnected());
+    bool pianoEmulation = false;
+    if (MatrixWidget *m = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+        pianoEmulation = m->getPianoEmulation();
+    } else if (OpenGLMatrixWidget *om = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        pianoEmulation = om->getPianoEmulation();
+    }
+
+    if (!MidiOutput::isConnected() || (!MidiInput::isConnected() && !pianoEmulation)) {
+        CompleteMidiSetupDialog *d = new CompleteMidiSetupDialog(this, !MidiInput::isConnected() && !pianoEmulation, !MidiOutput::isConnected());
         d->setModal(true);
         d->exec();
         return;
@@ -2280,6 +2294,40 @@ void MainWindow::keyReleaseEvent(QKeyEvent *event) {
             matrixWidget->takeKeyReleaseEvent(event);
         }
     }
+}
+
+bool MainWindow::eventFilter(QObject *obj, QEvent *event) {
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::KeyRelease) {
+        // If piano emulation is active, we check if we should intercept the key
+        if (matrixWidget() && matrixWidget()->isPianoEmulationEnabled()) {
+            // Never intercept if a text input has focus
+            QWidget *focus = QApplication::focusWidget();
+            if (focus && (qobject_cast<QLineEdit*>(focus) || 
+                          qobject_cast<QTextEdit*>(focus) || 
+                          qobject_cast<QPlainTextEdit*>(focus))) {
+                return QMainWindow::eventFilter(obj, event);
+            }
+
+            QKeyEvent *ke = static_cast<QKeyEvent*>(event);
+            
+            // Forward to matrix widget. MatrixWidget::takeKeyPressEvent returns true if it handled/consumed the key.
+            bool handled = false;
+            if (event->type() == QEvent::KeyPress) {
+                handled = matrixWidget()->takeKeyPressEvent(ke);
+            } else {
+                handled = matrixWidget()->takeKeyReleaseEvent(ke);
+            }
+
+            if (handled) {
+                // If it's the space bar, don't consume it here, let the main shortcut system handle it for play/stop
+                if (ke->key() == Qt::Key_Space) return false;
+                
+                // For other piano keys, consume the event so it doesn't trigger list widget navigation, etc.
+                return true;
+            }
+        }
+    }
+    return QMainWindow::eventFilter(obj, event);
 }
 
 void MainWindow::showEventWidget(bool show) {
@@ -3626,6 +3674,14 @@ void MainWindow::editChannel(int i, bool assign) {
     // assign channel to track
     if (assign && file && file->track(NewNoteTool::editTrack())) {
         file->track(NewNoteTool::editTrack())->assignChannel(i);
+    }
+
+    if (MatrixWidget *m = qobject_cast<MatrixWidget*>(_matrixWidgetContainer)) {
+        m->stopAllEmulationNotes();
+    } else if (OpenGLMatrixWidget *om = qobject_cast<OpenGLMatrixWidget*>(_matrixWidgetContainer)) {
+        if (om->getMatrixWidget()) {
+            om->getMatrixWidget()->stopAllEmulationNotes();
+        }
     }
 
     MidiOutput::setStandardChannel(i);

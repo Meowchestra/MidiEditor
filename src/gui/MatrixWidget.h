@@ -248,6 +248,11 @@ public:
      */
     bool screenLocked();
     
+    /**
+     * \brief Returns whether piano emulation is currently enabled.
+     */
+    bool isPianoEmulationEnabled() const { return _isPianoEmulationEnabled; }
+    
     // === Area Getters ===
     QRectF pianoArea() const { return PianoArea; }
     QRectF timeLineArea() const { return TimeLineArea; }
@@ -299,7 +304,21 @@ public:
     void setPianoEmulation(bool enabled);
 
     /**
+     * \brief Plays a MIDI note through the piano emulation (Note On).
+     * \param note MIDI note number to play (0-127)
+     */
+    void startNote(int note);
+
+    /**
+     * \brief Stops a MIDI note through the piano emulation (Note Off).
+     * \param note MIDI note number to stop (0-127)
+     */
+    void stopNote(int note);
+    void stopAllEmulationNotes();
+
+    /**
      * \brief Plays a MIDI note through the piano emulation.
+     * \deprecated Use startNote/stopNote for sustained playback.
      * \param note MIDI note number to play (0-127)
      */
     void playNote(int note);
@@ -398,13 +417,13 @@ public slots:
      * \brief Handles key press events from external sources.
      * \param event The key press event to process
      */
-    void takeKeyPressEvent(QKeyEvent *event);
+    bool takeKeyPressEvent(QKeyEvent *event);
 
     /**
      * \brief Handles key release events from external sources.
      * \param event The key release event to process
      */
-    void takeKeyReleaseEvent(QKeyEvent *event);
+    bool takeKeyReleaseEvent(QKeyEvent *event);
 
     // === Grid Division ===
 
@@ -543,7 +562,7 @@ private:
      * \brief Handles piano emulation for keyboard input.
      * \param event The key event to process for piano emulation
      */
-    void pianoEmulator(QKeyEvent *event);
+    bool pianoEmulator(QKeyEvent *event);
 
     /**
      * \brief Paints all events for a specific MIDI channel.
@@ -558,6 +577,7 @@ private:
      * \param channel The MIDI channel to paint (0-15)
      */
     void paintTimelineMarkers(QPainter *painter);
+    void paintRecordingPreview(QPainter *painter);
 
     /**
      * \brief Finds a timeline marker near a clicked point.
@@ -634,11 +654,13 @@ private:
 
     // Additional theme colors
     QColor _cachedPianoWhiteKeyColor;
+    QColor _cachedPianoWhiteKeyHoverColor;
+    QColor _cachedPianoWhiteKeySelectedColor;
+    QColor _cachedPianoWhiteKeyActiveColor;
     QColor _cachedPianoBlackKeyColor;
     QColor _cachedPianoBlackKeyHoverColor;
     QColor _cachedPianoBlackKeySelectedColor;
-    QColor _cachedPianoWhiteKeyHoverColor;
-    QColor _cachedPianoWhiteKeySelectedColor;
+    QColor _cachedPianoBlackKeyActiveColor;
     QColor _cachedPianoKeyLineHighlightColor;
     QColor _cachedStripHighlightColor;
     QColor _cachedStripNormalColor;
@@ -768,6 +790,45 @@ private:
      */
     QMap<int, QRect> pianoKeys;
 
+    /**
+     * \brief Set of currently active MIDI note numbers (being played).
+     * Used for visual feedback in the piano area.
+     */
+    QSet<int> _activeEmulationNotes;
+    QSet<int> _latchedNotes;
+    QSet<int> _markedNotes;
+    QMap<int, int> _noteStartTicks; // note -> startTick for recording preview
+    int _pressedPianoNote;
+    qint64 _pressedPianoTime;
+    
+    /**
+     * \brief The current octave shift applied to piano emulation (0 by default).
+     */
+    int _currentOctaveShift;
+    bool _isOctaveUpPressed;
+    bool _isOctaveDownPressed;
+
+    /**
+     * \brief Mapping of computer keyboard keys (Qt::Key) to MIDI note offsets.
+     */
+    QMap<int, int> _keyToNoteMap;
+    
+    /**
+     * \brief Reverse mapping of MIDI note offsets to computer keyboard keys.
+     * Used for drawing visual keybinds on the piano keys.
+     */
+    QMap<int, int> _noteToKeyMap;
+
+    /**
+     * \brief Tracks exact note played by a Qt::Key to ensure correct release even if Shift modifier changes.
+     */
+    QMap<int, int> _playingKeyToNote;
+
+    /**
+     * \brief Initialize the computer keyboard mapping.
+     */
+    void initKeyMap();
+
     // === Constants ===
 
     /**
@@ -784,6 +845,16 @@ private:
     QSet<int> _cachedSelectedRows;
     /** \brief Tracking set for rows that already have horizontal selection lines drawn in the current paint cycle */
     QSet<int> _cachedDrawnRowHighlights;
+
+    // === Two-Pass Piano Key Label Rendering ===
+    /** \brief Data for a deferred keybind label drawn after all piano keys */
+    struct PianoKeyLabel {
+        QString keyName;
+        bool isBlack;
+        int keyX, keyY, keyW, keyH;
+    };
+    /** \brief Collected keybind labels to draw after all piano keys are painted */
+    QList<PianoKeyLabel> _pendingKeyLabels;
 };
 
 #endif // MATRIXWIDGET_H_

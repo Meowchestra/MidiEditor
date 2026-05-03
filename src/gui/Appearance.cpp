@@ -72,6 +72,7 @@ bool Appearance::_showMarkerGuideLines = true;
 Appearance::ColorPreset Appearance::_colorPreset = Appearance::PresetDefault;
 Appearance::ApplicationTheme Appearance::_applicationTheme = Appearance::ThemeAuto;
 bool Appearance::_smoothPlaybackScrolling = false;
+bool Appearance::_accentKeyHighlight = true;
 
 QString Appearance::_applicationStyle = "windowsvista";
 int Appearance::_toolbarIconSize = 20;
@@ -101,6 +102,7 @@ void Appearance::init(QSettings *settings) {
     _colorPreset = static_cast<Appearance::ColorPreset>(settings->value("color_preset", Appearance::PresetDefault).toInt());
     _applicationTheme = static_cast<Appearance::ApplicationTheme>(settings->value("application_theme", Appearance::ThemeAuto).toInt());
     _smoothPlaybackScrolling = settings->value("rendering/smooth_playback_scroll", false).toBool();
+    _accentKeyHighlight = settings->value("accent_key_highlight", false).toBool();
 
     // Set default style with fallback
     QString defaultStyle = "windowsvista";
@@ -279,6 +281,7 @@ void Appearance::writeSettings(QSettings *settings) {
     settings->setValue("color_preset", static_cast<int>(_colorPreset));
     settings->setValue("application_theme", static_cast<int>(_applicationTheme));
     settings->setValue("rendering/smooth_playback_scroll", _smoothPlaybackScrolling);
+    settings->setValue("accent_key_highlight", _accentKeyHighlight);
     settings->setValue("application_style", _applicationStyle);
     settings->setValue("toolbar_icon_size", _toolbarIconSize);
     settings->setValue("ignore_system_scaling", _ignoreSystemScaling);
@@ -879,6 +882,14 @@ void Appearance::setSmoothPlaybackScrolling(bool enabled) {
     _smoothPlaybackScrolling = enabled;
 }
 
+bool Appearance::accentKeyHighlight() {
+    return _accentKeyHighlight;
+}
+
+void Appearance::setAccentKeyHighlight(bool enabled) {
+    _accentKeyHighlight = enabled;
+}
+
 QString Appearance::applicationStyle() {
     return _applicationStyle;
 }
@@ -1361,6 +1372,32 @@ QColor Appearance::pianoBlackKeySelectedColor() {
         return QColor(100, 100, 100); // Dark gray for selected in dark mode
     }
     return Qt::darkGray; // Original Qt color for light mode
+}
+
+QColor Appearance::pianoWhiteKeyActiveColor() {
+    if (_applicationTheme == ThemeSakura) return QColor(255, 160, 180); // Matches Sakura palette Highlight pink
+    if (_applicationTheme == ThemeNord) return QColor(129, 161, 193); // nord9 — matches palette Highlight/Accent
+    if (_applicationTheme == ThemeAMOLED) return QColor(230, 126, 34); // AMOLED orange
+    if (_applicationTheme == ThemeMaterialDark) return QColor(4, 185, 127); // Material green
+    if (_applicationTheme == ThemeAiry) return QColor(150, 200, 255); // Airy blue
+    
+    if (shouldUseDarkMode()) {
+        return QColor(60, 70, 90); // Matches programEventHighlightColor (meta area blue row)
+    }
+    return QColor(194, 230, 255); // Matches stripNormalColor (darker strip row)
+}
+
+QColor Appearance::pianoBlackKeyActiveColor() {
+    if (_applicationTheme == ThemeSakura) return QColor(255, 150, 175); // Deeper accent pink (softened)
+    if (_applicationTheme == ThemeNord) return QColor(94, 129, 172); // nord10 — darker blue accent
+    if (_applicationTheme == ThemeAMOLED) return QColor(210, 100, 20); // Darker orange
+    if (_applicationTheme == ThemeMaterialDark) return QColor(0, 150, 100); // Darker green
+    if (_applicationTheme == ThemeAiry) return QColor(120, 180, 255); // Slightly darker airy blue
+
+    if (shouldUseDarkMode()) {
+        return QColor(45, 55, 70); // Matches programEventNormalColor (meta area dark blue row)
+    }
+    return QColor(170, 210, 245); // Slightly darker strip color for contrast
 }
 
 QColor Appearance::stripHighlightColor() {

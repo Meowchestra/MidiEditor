@@ -52,6 +52,7 @@
 #include <QList>
 #include <QSettings>
 #include <QApplication>
+#include <QDateTime>
 #include <cmath>
 #include <QContextMenuEvent>
 #include <QMenu>
@@ -61,6 +62,9 @@
 #include <QVBoxLayout>
 #include <QToolButton>
 #include <QLabel>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
 #include "../MidiEvent/ControlChangeEvent.h"
 #include "../MidiEvent/ProgChangeEvent.h"
 #include "../MidiEvent/TextEvent.h"
@@ -114,6 +118,13 @@ MatrixWidget::MatrixWidget(QSettings *settings, QWidget *parent)
     
     // Set initial timeline height
     timeHeight = _hasVisibleMarkers ? 66 : 50;
+
+    initKeyMap();
+    _pressedPianoNote = -1;
+    _pressedPianoTime = 0;
+    _currentOctaveShift = 0;
+    _isOctaveUpPressed = false;
+    _isOctaveDownPressed = false;
 }
 
 void MatrixWidget::setScreenLocked(bool b) {
@@ -685,8 +696,11 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
     paintTimelineMarkers(painter);
     painter->setClipping(false);
 
+    paintRecordingPreview(painter);
+
     painter->setRenderHint(QPainter::Antialiasing);
     // draw the piano / linenames
+    _pendingKeyLabels.clear();
     for (int i = startLineY; i <= endLineY; i++) {
         int startLine = yPosOfLine(i);
         if (i >= 0 && i <= 127) {
@@ -754,6 +768,55 @@ void MatrixWidget::paintEvent(QPaintEvent *event) {
                 painter->drawText(lineNameWidth - 15 - textlength, startLine + lineHeight(), text);
             }
         }
+    }
+
+    // Second pass: Draw keybind labels on top of all piano keys
+    // This ensures white key labels are always visible in front of black key tips
+    if (!_pendingKeyLabels.isEmpty()) {
+        QFont oldFont = painter->font();
+        QFont boldFont = oldFont;
+        boldFont.setBold(true);
+        boldFont.setPixelSize(11); // Decreased from 12 for better fit
+        painter->setFont(boldFont);
+        QFontMetrics fm(boldFont);
+
+        for (const PianoKeyLabel &label : _pendingKeyLabels) {
+            int textW = fm.horizontalAdvance(label.keyName);
+            int textX = label.keyX + (label.keyW - textW) / 2;
+            int textY = label.keyY + (label.keyH + fm.ascent() - fm.descent()) / 2;
+
+            if (label.isBlack || _cachedShouldUseDarkMode) {
+                // Black key or Dark Mode white key: white text with full dark outline (embroidered)
+                painter->setPen(QColor(0, 0, 0, 180));
+                painter->drawText(textX - 1, textY - 1, label.keyName);
+                painter->drawText(textX + 1, textY - 1, label.keyName);
+                painter->drawText(textX - 1, textY + 1, label.keyName);
+                painter->drawText(textX + 1, textY + 1, label.keyName);
+                painter->drawText(textX, textY - 1, label.keyName);
+                painter->drawText(textX, textY + 1, label.keyName);
+                painter->drawText(textX - 1, textY, label.keyName);
+                painter->drawText(textX + 1, textY, label.keyName);
+                painter->setPen(Qt::white);
+                painter->drawText(textX, textY, label.keyName);
+            } else {
+                // White key (Light Mode): dark text with full light outline for contrast
+                QColor outline(255, 255, 255, 220);
+                painter->setPen(outline);
+                painter->drawText(textX - 1, textY - 1, label.keyName);
+                painter->drawText(textX + 1, textY - 1, label.keyName);
+                painter->drawText(textX - 1, textY + 1, label.keyName);
+                painter->drawText(textX + 1, textY + 1, label.keyName);
+                painter->drawText(textX - 1, textY, label.keyName);
+                painter->drawText(textX + 1, textY, label.keyName);
+                painter->drawText(textX, textY - 1, label.keyName);
+                painter->drawText(textX, textY + 1, label.keyName);
+                painter->setPen(QColor(50, 50, 50));
+                painter->drawText(textX, textY, label.keyName);
+            }
+        }
+
+        painter->setFont(oldFont);
+        painter->setPen(_cachedForegroundColor);
     }
 
     if (Tool::currentTool()) {
@@ -1063,8 +1126,21 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             blackOnTop = false;
         }
 
-        bool selected = (mouseY >= y && mouseY < y + height && mouseX > lineNameWidth && mouseOver) || 
-                        _cachedSelectedRows.contains(127 - number);
+        // Only highlight if using emulation keybinds OR if the key is explicitly latched/marked
+        bool isActive = false;
+        if (_latchedNotes.contains(number) || _markedNotes.contains(number)) {
+            isActive = true;
+        } else if (Appearance::accentKeyHighlight() && _cachedSelectedRows.contains(127 - number)) {
+            // Also highlight if the row is selected and the Accent setting is enabled
+            isActive = true;
+        } else if (_isPianoEmulationEnabled && _activeEmulationNotes.contains(number)) {
+            // Emulation notes are only active if emulation is enabled
+            isActive = true;
+        }
+        
+        // Selected is now just used for the hover effect in the matrix area (or as a fallback if Accent Highlight is disabled)
+        bool selected = (mouseY >= y && mouseY < y + height && mouseX > lineNameWidth && mouseOver) ||
+                        (!Appearance::accentKeyHighlight() && _cachedSelectedRows.contains(127 - number));
 
         QPolygon keyPolygon;
 
@@ -1079,7 +1155,7 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             playerRect.setHeight(height * scaleHeightBlack + 0.5);
             QColor c = _cachedPianoBlackKeyColor;
             inRect = mouseOver && (mouseX <= lineNameWidth) && (number == _lastHoverPianoKey);
-            painter->fillRect(playerRect, inRect ? _cachedPianoBlackKeyHoverColor : (selected ? _cachedPianoBlackKeySelectedColor : c));
+            painter->fillRect(playerRect, inRect ? _cachedPianoBlackKeyHoverColor : (isActive ? _cachedPianoBlackKeyActiveColor : (selected ? _cachedPianoBlackKeySelectedColor : c)));
 
             keyPolygon.append(QPoint(x, y));
             keyPolygon.append(QPoint(x, y + height * scaleHeightBlack));
@@ -1113,6 +1189,8 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
         if (isBlack) {
             if (inRect) {
                 painter->setBrush(_cachedPianoBlackKeyHoverColor);
+            } else if (isActive) {
+                painter->setBrush(_cachedPianoBlackKeyActiveColor);
             } else if (selected) {
                 painter->setBrush(_cachedPianoBlackKeySelectedColor);
             } else {
@@ -1121,6 +1199,8 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
         } else {
             if (inRect) {
                 painter->setBrush(_cachedPianoWhiteKeyHoverColor);
+            } else if (isActive) {
+                painter->setBrush(_cachedPianoWhiteKeyActiveColor);
             } else if (selected) {
                 painter->setBrush(_cachedPianoWhiteKeySelectedColor);
             } else {
@@ -1142,6 +1222,40 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
             painter->drawText(textX, textY, name);
             painter->setPen(_cachedForegroundColor);
         }
+        
+        bool isMapped = false;
+        QString keyName;
+        int unshiftedNumber = number - (_currentOctaveShift * 12);
+        if (_isPianoEmulationEnabled && _noteToKeyMap.contains(unshiftedNumber)) {
+            isMapped = true;
+            keyName = QKeySequence(_noteToKeyMap.value(unshiftedNumber)).toString();
+        }
+        
+        if (isMapped && !keyName.isEmpty()) {
+            // Collect label data for deferred two-pass rendering
+            // (drawn in paintEvent after ALL piano keys so white labels overlap black key tips)
+            PianoKeyLabel label;
+            label.keyName = keyName;
+            label.isBlack = isBlack;
+            if (isBlack) {
+                // Position centered in the black key body
+                label.keyX = x;
+                label.keyY = y;
+                label.keyW = (int)(width * scaleWidthBlack);
+                label.keyH = (int)(height * scaleHeightBlack);
+            } else {
+                // Compute the actual visual top and bottom edges of the white key's wide section
+                double topEdge = blackOnTop ? (y - height * scaleHeightBlack) : y;
+                double bottomEdge = blackBeneath ? (y + height + height * scaleHeightBlack) : (y + height);
+                
+                label.keyX = x;
+                label.keyY = (int)topEdge;
+                label.keyW = width;
+                label.keyH = (int)(bottomEdge - topEdge);
+            }
+            _pendingKeyLabels.append(label);
+        }
+
         if (inRect && enabled) {
             // mark the current Line
             painter->fillRect(x + width + borderRight, yPosOfLine(127 - number),
@@ -1151,6 +1265,7 @@ void MatrixWidget::paintPianoKey(QPainter *painter, int number, int x, int y,
 }
 
 void MatrixWidget::setFile(MidiFile *f) {
+    stopAllEmulationNotes();
     file = f;
 
     scaleX = 1;
@@ -1357,10 +1472,25 @@ void MatrixWidget::mouseMoveEvent(QMouseEvent *event) {
     }
 
     if (needsUpdate) {
+        // Stop current piano note if we dragged out of the piano area
+        if (enabled && _pressedPianoNote != -1 && !mouseInRect(PianoArea) && (event->buttons() & Qt::LeftButton)) {
+            if (!_latchedNotes.contains(_pressedPianoNote)) {
+                stopNote(_pressedPianoNote);
+            }
+            _pressedPianoNote = -1;
+        }
+
         // Piano glissando: Play notes as the user drags across the keyboard
-        if (enabled && (event->buttons() & Qt::LeftButton) && mouseInRect(PianoArea) && 
+        if (enabled && !MidiPlayer::isPlaying() && (event->buttons() & Qt::LeftButton) && mouseInRect(PianoArea) && 
             currentPianoKey != _lastHoverPianoKey && currentPianoKey != -1) {
-            playNote(currentPianoKey);
+            
+            // Stop previous glissando note if it exists
+            if (_lastHoverPianoKey != -1 && _lastHoverPianoKey != currentPianoKey) {
+                stopNote(_lastHoverPianoKey);
+            }
+            startNote(currentPianoKey);
+            _pressedPianoNote = currentPianoKey;
+            _pressedPianoTime = QDateTime::currentMSecsSinceEpoch();
         }
 
         _lastHoverMs = currentMs;
@@ -1471,7 +1601,20 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
         }
     }
 
-    if (!MidiPlayer::isPlaying() && Tool::currentTool() && mouseInRect(ToolArea)) {
+    if (Tool::currentTool() && mouseInRect(ToolArea)) {
+        if (event->button() == Qt::RightButton
+            && !MidiPlayer::isPlaying()
+            && (event->modifiers() & Qt::AltModifier)) {
+            // Alt+Right-click: Toggle row selection (key marker) on the grid
+            int line = lineAtY(mouseY);
+            if (line >= 0 && line <= 127) {
+                SelectTool tempTool(SELECTION_TYPE_ROW);
+                tempTool.setMatrixWidget(this);
+                tempTool.selectRow(line, Qt::AltModifier);
+                update();
+                return;
+            }
+        }
         if (Tool::currentTool()->press(event->button() == Qt::LeftButton)) {
             if (enabled) {
                 update();
@@ -1570,12 +1713,60 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
         }
         
         if (hitNote != -1) {
-            playNote(hitNote);
+            if (event->button() == Qt::LeftButton) {
+                _pressedPianoNote = hitNote;
+                _pressedPianoTime = QDateTime::currentMSecsSinceEpoch();
+                startNote(hitNote);
+                
+                // Allow StandardTool to still select the row
+                if (Tool::currentTool()) {
+                    Tool::currentTool()->move(mouseX, mouseY);
+                    Tool::currentTool()->press(true); // Left click
+                }
+            } else if (event->button() == Qt::RightButton) {
+                if (event->modifiers() & Qt::AltModifier) {
+                    // Alt+Right-click: Toggle latch (infinite sustain with audio)
+                    if (_latchedNotes.contains(hitNote)) {
+                        _latchedNotes.remove(hitNote);
+                        stopNote(hitNote);
+                    } else {
+                        _latchedNotes.insert(hitNote);
+                        startNote(hitNote);
+                    }
+                } else {
+                    // Right-click only: Toggle visual mark (no audio looping, just visual active state)
+                    if (_markedNotes.contains(hitNote)) {
+                        _markedNotes.remove(hitNote);
+                    } else {
+                        _markedNotes.insert(hitNote);
+                    }
+                    
+                    _pressedPianoNote = hitNote;
+                    _pressedPianoTime = QDateTime::currentMSecsSinceEpoch();
+                    startNote(hitNote);
+                }
+            }
         }
     }
 }
 
 void MatrixWidget::mouseReleaseEvent(QMouseEvent *event) {
+    if (_pressedPianoNote != -1 && (event->button() == Qt::LeftButton || event->button() == Qt::RightButton)) {
+        qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - _pressedPianoTime;
+        if (elapsed < 300) {
+            int noteToStop = _pressedPianoNote;
+            QTimer::singleShot(300 - elapsed, this, [this, noteToStop]() {
+                if (!_latchedNotes.contains(noteToStop)) {
+                    stopNote(noteToStop);
+                }
+            });
+        } else {
+            if (!_latchedNotes.contains(_pressedPianoNote)) {
+                stopNote(_pressedPianoNote);
+            }
+        }
+        _pressedPianoNote = -1;
+    }
     if (_draggedMarker) {
         if (file && file->protocol() && _draggedMarkerOriginalTime >= 0) {
             // Revert time to create the "before" state for the protocol
@@ -1615,22 +1806,34 @@ void MatrixWidget::mouseReleaseEvent(QMouseEvent *event) {
     }
 }
 
-void MatrixWidget::takeKeyPressEvent(QKeyEvent *event) {
+bool MatrixWidget::takeKeyPressEvent(QKeyEvent *event) {
+    if (event->isAutoRepeat()) return false;
+
+    bool handled = false;
     if (Tool::currentTool()) {
         if (Tool::currentTool()->pressKey(event->key())) {
             update();
+            handled = true;
         }
     }
 
-    pianoEmulator(event);
+    if (pianoEmulator(event)) handled = true;
+    return handled;
 }
 
-void MatrixWidget::takeKeyReleaseEvent(QKeyEvent *event) {
+bool MatrixWidget::takeKeyReleaseEvent(QKeyEvent *event) {
+    if (event->isAutoRepeat()) return false;
+
+    bool handled = false;
     if (Tool::currentTool()) {
         if (Tool::currentTool()->releaseKey(event->key())) {
             update();
+            handled = true;
         }
     }
+
+    if (pianoEmulator(event)) handled = true;
+    return handled;
 }
 
 void MatrixWidget::updateRenderingSettings() {
@@ -1639,6 +1842,8 @@ void MatrixWidget::updateRenderingSettings() {
     // to refresh the cached values and avoid expensive I/O during paint events
     _antialiasing = _settings->value("rendering/antialiasing", true).toBool();
     _smoothPixmapTransform = _settings->value("rendering/smooth_pixmap_transform", true).toBool();
+
+    initKeyMap();
 
     // Update cached appearance colors to avoid expensive theme checks
     updateCachedAppearanceColors();
@@ -1690,42 +1895,255 @@ void MatrixWidget::updateCachedAppearanceColors() {
     _cachedPianoBlackKeyColor = Appearance::pianoBlackKeyColor();
     _cachedPianoBlackKeyHoverColor = Appearance::pianoBlackKeyHoverColor();
     _cachedPianoBlackKeySelectedColor = Appearance::pianoBlackKeySelectedColor();
+    _cachedPianoBlackKeyActiveColor = Appearance::pianoBlackKeyActiveColor();
     _cachedPianoWhiteKeyColor = Appearance::pianoWhiteKeyColor();
     _cachedPianoWhiteKeyHoverColor = Appearance::pianoWhiteKeyHoverColor();
     _cachedPianoWhiteKeySelectedColor = Appearance::pianoWhiteKeySelectedColor();
+    _cachedPianoWhiteKeyActiveColor = Appearance::pianoWhiteKeyActiveColor();
     _cachedPianoKeyLineHighlightColor = Appearance::pianoKeyLineHighlightColor();
 
     // Cache theme state to avoid expensive shouldUseDarkMode() calls
     _cachedShouldUseDarkMode = Appearance::shouldUseDarkMode();
 }
 
-void MatrixWidget::pianoEmulator(QKeyEvent *event) {
-    if (!_isPianoEmulationEnabled) return;
+bool MatrixWidget::pianoEmulator(QKeyEvent *event) {
+    if (!_isPianoEmulationEnabled) return false;
 
     int key = event->key();
+    
+    // Check octave shift via native virtual key (supports Left/Right Shift differentiation)
+    int octaveUpKey = _settings->value("piano_emulation/octave_up", Qt::Key_Period).toInt();   // default: '.'
+    int octaveDownKey = _settings->value("piano_emulation/octave_down", Qt::Key_Comma).toInt(); // default: ','
+    
+    // Convert to uppercase for GetAsyncKeyState if it's a standard letter/number key
+    int physUpKey = octaveUpKey;
+    int physDownKey = octaveDownKey;
+    
+    // Handle standard keys mapping for GetAsyncKeyState
+    if (octaveUpKey == Qt::Key_Period) physUpKey = VK_OEM_PERIOD;
+    if (octaveDownKey == Qt::Key_Comma) physDownKey = VK_OEM_COMMA;
+    
+    quint32 nativeVK = event->nativeVirtualKey();
+    
+    // Also match by Qt key for non-native modifiers (Ctrl, Alt, Space, Tab)
+    bool isOctaveUp = false;
+    bool isOctaveDown = false;
+    
+    if (octaveUpKey == 0xA0 || octaveUpKey == 0xA1) {
+        // Check specific L/R shift via native VK
+        isOctaveUp = (nativeVK == (quint32)octaveUpKey);
+        // Fallback: if nativeVK is generic VK_SHIFT (0x10) or Qt reports Key_Shift
+        if (!isOctaveUp && (nativeVK == 0x10 || key == Qt::Key_Shift)) {
+            // Use Windows API to check specific key state
+#ifdef Q_OS_WIN
+            isOctaveUp = (GetAsyncKeyState(octaveUpKey) & 0x8000) != 0;
+#endif
+        }
+    } else if (octaveUpKey != 0) {
+        isOctaveUp = (key == octaveUpKey);
+    }
+    
+    if (octaveDownKey == 0xA0 || octaveDownKey == 0xA1) {
+        isOctaveDown = (nativeVK == (quint32)octaveDownKey);
+        if (!isOctaveDown && (nativeVK == 0x10 || key == Qt::Key_Shift)) {
+#ifdef Q_OS_WIN
+            isOctaveDown = (GetAsyncKeyState(octaveDownKey) & 0x8000) != 0;
+#endif
+        }
+    } else if (octaveDownKey != 0) {
+        isOctaveDown = (key == octaveDownKey);
+    }
+    
+    if (isOctaveUp || isOctaveDown) {
+        if (!event->isAutoRepeat()) {
+            if (isOctaveUp) _isOctaveUpPressed = (event->type() == QEvent::KeyPress);
+            if (isOctaveDown) _isOctaveDownPressed = (event->type() == QEvent::KeyPress);
+            
+#ifdef Q_OS_WIN
+            // Physical state double-check to prevent "sticky" behavior
+            if (physUpKey != 0) _isOctaveUpPressed = (GetAsyncKeyState(physUpKey) & 0x8000) != 0;
+            if (physDownKey != 0) _isOctaveDownPressed = (GetAsyncKeyState(physDownKey) & 0x8000) != 0;
+#endif
+            
+            _currentOctaveShift = _isOctaveUpPressed ? 1 : (_isOctaveDownPressed ? -1 : 0);
+            update();
+        }
+        return true;
+    }
+    
+    // On ANY key release, re-check physical state of octave modifier keys
+    // This catches cases where the release event for the modifier was lost
+    if (event->type() == QEvent::KeyRelease) {
+#ifdef Q_OS_WIN
+        bool physUp = (physUpKey != 0) ? ((GetAsyncKeyState(physUpKey) & 0x8000) != 0) : false;
+        bool physDown = (physDownKey != 0) ? ((GetAsyncKeyState(physDownKey) & 0x8000) != 0) : false;
+        if (_isOctaveUpPressed != physUp || _isOctaveDownPressed != physDown) {
+            _isOctaveUpPressed = physUp;
+            _isOctaveDownPressed = physDown;
+            _currentOctaveShift = _isOctaveUpPressed ? 1 : (_isOctaveDownPressed ? -1 : 0);
+            update();
+        }
+#endif
+    }
 
-    const int C4_OFFSET = 48;
+    if (event->type() == QEvent::KeyPress) {
+        if (event->isAutoRepeat()) return false;
+        if (!_keyToNoteMap.contains(key)) return false;
+        
+        int note = _keyToNoteMap.value(key);
+        note += (_currentOctaveShift * 12);
+        
+        _playingKeyToNote.insert(key, note);
+        startNote(note);
+        return true;
+    } else if (event->type() == QEvent::KeyRelease) {
+        if (event->isAutoRepeat()) return false;
+        
+        if (_playingKeyToNote.contains(key)) {
+            int note = _playingKeyToNote.take(key);
+            stopNote(note);
+            return true;
+        }
+        
+        if (_keyToNoteMap.contains(key)) return true;
+    }
+    
+    return false;
+}
 
-    // z, s, x, d, c, v -> C, C#, D, D#, E, F
-    int keys[] = {
-        90, 83, 88, 68, 67, 86, 71, 66, 72, 78, 74, 77, // C3 - H3
-        81, 50, 87, 51, 69, 82, 53, 84, 54, 89, 55, 85, // C4 - H4
-        73, 57, 79, 48, 80, 91, 61, 93 // C5 - G5
-    };
-    for (uint8_t idx = 0; idx < sizeof(keys) / sizeof(*keys); idx++) {
-        if (key == keys[idx]) {
-            MatrixWidget::playNote(idx + C4_OFFSET);
+void MatrixWidget::initKeyMap() {
+    _keyToNoteMap.clear();
+    _noteToKeyMap.clear();
+
+    if (_settings->contains("piano_emulation/keys")) {
+        QVariantMap map = _settings->value("piano_emulation/keys").toMap();
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it) {
+            int offset = it.key().toInt();
+            int key = it.value().toInt();
+            if (key != 0) {
+                _keyToNoteMap.insert(key, offset);
+                _noteToKeyMap.insert(offset, key);
+            }
+        }
+    } else {
+        const int C4_OFFSET = 60;
+
+        // Default: 1-octave QWERTY layout (C4 to C5)
+        _keyToNoteMap.insert(Qt::Key_Q, C4_OFFSET + 0);   // C4
+        _keyToNoteMap.insert(Qt::Key_2, C4_OFFSET + 1);   // C#4
+        _keyToNoteMap.insert(Qt::Key_W, C4_OFFSET + 2);   // D4
+        _keyToNoteMap.insert(Qt::Key_3, C4_OFFSET + 3);   // D#4
+        _keyToNoteMap.insert(Qt::Key_E, C4_OFFSET + 4);   // E4
+        _keyToNoteMap.insert(Qt::Key_R, C4_OFFSET + 5);   // F4
+        _keyToNoteMap.insert(Qt::Key_5, C4_OFFSET + 6);   // F#4
+        _keyToNoteMap.insert(Qt::Key_T, C4_OFFSET + 7);   // G4
+        _keyToNoteMap.insert(Qt::Key_6, C4_OFFSET + 8);   // G#4
+        _keyToNoteMap.insert(Qt::Key_Y, C4_OFFSET + 9);   // A4
+        _keyToNoteMap.insert(Qt::Key_7, C4_OFFSET + 10);  // A#4
+        _keyToNoteMap.insert(Qt::Key_U, C4_OFFSET + 11);  // B4
+        _keyToNoteMap.insert(Qt::Key_I, C4_OFFSET + 12);  // C5
+        
+        // Build reverse map for defaults
+        for (auto it = _keyToNoteMap.constBegin(); it != _keyToNoteMap.constEnd(); ++it) {
+            _noteToKeyMap.insert(it.value(), it.key());
+        }
+    }
+}
+
+void MatrixWidget::startNote(int note) {
+    // If note is already playing (rapid re-click), force-stop it first
+    if (_activeEmulationNotes.contains(note)) {
+        stopNote(note);
+    }
+
+    int ch = MidiOutput::standardChannel();
+    if (ch < 0 || ch >= 16) return;
+
+    // Sync program and controls
+    if (file) {
+        int prog = file->channel(ch)->progAtTick(file->cursorTick());
+        MidiOutput::sendProgram(ch, prog);
+        
+        // Reset volume/expression for preview
+        QByteArray reset;
+        reset.append((char)(0xB0 | ch)); reset.append((char)7); reset.append((char)127);
+        MidiOutput::sendCommand(reset);
+        reset.clear();
+        reset.append((char)(0xB0 | ch)); reset.append((char)11); reset.append((char)127);
+        MidiOutput::sendCommand(reset);
+    }
+
+    // Play audio
+    QByteArray on;
+    on.append((char)(0x90 | ch));
+    on.append((char)note);
+    on.append((char)100); // Velocity
+    MidiOutput::sendCommand(on);
+
+    // Recording
+    if (MidiInput::recording()) {
+        MidiInput::injectMessage(0x90 | ch, note, 100);
+        if (file) {
+            // Use the playback tick (not cursor tick) so ghost notes start at the playhead
+            int playTick = file->tick(MidiPlayer::isPlaying() ? MidiPlayer::timeMs() : msOfTick(file->cursorTick()));
+            _noteStartTicks[note] = playTick;
         }
     }
 
-    int dupkeys[] = {
-        44, 76, 46, 59, 47 // C4 - E4 (,l.;/)
-    };
-    for (uint8_t idx = 0; idx < sizeof(dupkeys) / sizeof(*dupkeys); idx++) {
-        if (key == dupkeys[idx]) {
-            MatrixWidget::playNote(idx + C4_OFFSET + 12);
+    _activeEmulationNotes.insert(note);
+    update();
+}
+
+void MatrixWidget::stopNote(int note) {
+    if (!_activeEmulationNotes.contains(note)) return;
+
+    int ch = MidiOutput::standardChannel();
+    if (ch < 0 || ch >= 16) return;
+
+    // Stop audio
+    QByteArray off;
+    off.append((char)(0x80 | ch));
+    off.append((char)note);
+    off.append((char)0);
+    MidiOutput::sendCommand(off);
+
+    // Recording: Clean up the ghost preview tick when the note stops
+    if (MidiInput::recording()) {
+        MidiInput::injectMessage(0x80 | ch, note, 0);
+        _noteStartTicks.remove(note);
+    }
+
+    _activeEmulationNotes.remove(note);
+    _latchedNotes.remove(note);
+    update();
+}
+
+void MatrixWidget::stopAllEmulationNotes() {
+    // Send panic to all active channels for any emulation notes
+    for (int note : _activeEmulationNotes) {
+        int ch = MidiOutput::standardChannel();
+        if (ch >= 0 && ch < 16) {
+            QByteArray off;
+            off.append((char)(0x80 | ch));
+            off.append((char)note);
+            off.append((char)0);
+            MidiOutput::sendCommand(off);
+
+            if (MidiInput::recording()) {
+                MidiInput::injectMessage(0x80 | ch, note, 0);
+            }
         }
     }
+    
+    _activeEmulationNotes.clear();
+    _latchedNotes.clear();
+    _pressedPianoNote = -1;
+    _pressedPianoTime = 0;
+    _currentOctaveShift = 0;
+    _isOctaveUpPressed = false;
+    _isOctaveDownPressed = false;
+    _isGutterHovered = false;
+    update();
 }
 
 void MatrixWidget::playNote(int note) {
@@ -1739,15 +2157,15 @@ void MatrixWidget::playNote(int note) {
 
         // Ensure the channel is audible by resetting Volume (CC 7) and Expression (CC 11)
         QByteArray vol;
-        vol.append(0xB0 | ch);
-        vol.append(7);
-        vol.append(127);
+        vol.append((char)(0xB0 | ch));
+        vol.append((char)7);
+        vol.append((char)127);
         MidiOutput::sendCommand(vol);
 
         QByteArray exp;
-        exp.append(0xB0 | ch);
-        exp.append(11);
-        exp.append(127);
+        exp.append((char)(0xB0 | ch));
+        exp.append((char)11);
+        exp.append((char)127);
         MidiOutput::sendCommand(exp);
     }
 
@@ -2627,4 +3045,52 @@ MidiEvent *MatrixWidget::findTimelineMarkerNear(int x, int y) {
         }
     }
     return bestMatch;
+}
+
+void MatrixWidget::paintRecordingPreview(QPainter *painter) {
+    if (!file || !MidiInput::recording() || _noteStartTicks.isEmpty()) return;
+
+    painter->save();
+    painter->setClipping(true);
+    painter->setClipRect(lineNameWidth, timeHeight, width() - lineNameWidth, height() - timeHeight);
+
+    int currentTick = file->cursorTick();
+    
+    // Use a more vibrant color for ghost notes during recording so they follow the red cursor clearly
+    int ch = MidiOutput::standardChannel();
+    QColor ghostColor;
+    if (ch >= 0 && ch < 16 && file->channel(ch)) {
+        ghostColor = *file->channel(ch)->color();
+    } else {
+        ghostColor = QColor(255, 60, 60); // Vibrant red fallback
+    }
+    ghostColor.setAlpha(160); // Slightly more opaque for better visibility
+
+    for (auto it = _noteStartTicks.constBegin(); it != _noteStartTicks.constEnd(); ++it) {
+        int note = it.key();
+        int startTick = it.value();
+        int line = 127 - note;
+
+        // Skip if outside vertical view
+        if (line < startLineY || line > endLineY) continue;
+
+        int x = xPosOfMs(msOfTick(startTick));
+        
+        // Sync endX with the actual visual playback cursor position
+        int currentMs = (Appearance::smoothPlaybackScrolling()) ? _lastRenderedMs : MidiPlayer::timeMs();
+        int endX = xPosOfMs(qMax((int)msOfTick(startTick), currentMs));
+        
+        // Skip if outside horizontal view
+        if (endX < lineNameWidth || x > width()) continue;
+
+        int y = yPosOfLine(line);
+        int h = lineHeight();
+        int w = qMax(endX - x, 2); // Minimum 2px width for visibility
+
+        painter->setBrush(ghostColor);
+        painter->setPen(ghostColor.darker());
+        painter->drawRect(x, y, w, h);
+    }
+
+    painter->restore();
 }

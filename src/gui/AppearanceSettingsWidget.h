@@ -197,6 +197,8 @@ public slots:
      */
     void smoothPlaybackScrollingChanged(bool enabled);
 
+    void accentKeyHighlightChanged(bool enabled);
+
     /**
      * \brief Handles application style changes.
      * \param style The new style name
@@ -221,6 +223,9 @@ private:
 
     /** \brief CheckBox for smooth playback scrolling */
     QCheckBox *_smoothScrollCheckBox;
+
+    /** \brief CheckBox for accent piano highlight */
+    QCheckBox *_accentKeyHighlightCheckBox;
 };
 
 #endif // APPEARANCESETTINGSWIDGET_H_

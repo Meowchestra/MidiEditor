@@ -104,9 +104,9 @@ void MidiPlayer::panic() {
         foreach(int channel, MidiOutput::playedNotes.keys()) {
             foreach(int note, MidiOutput::playedNotes.value(channel)) {
                 QByteArray array;
-                array.append(0x80 | channel);
-                array.append(char(note));
-                array.append(char(0));
+                array.append((char)(0x80 | channel));
+                array.append((char)note);
+                array.append((char)0);
                 MidiOutput::sendCommand(array);
             }
         }
