@@ -88,6 +88,7 @@ QStringList Appearance::_toolbarActionOrder = QStringList();
 QStringList Appearance::_toolbarEnabledActions = QStringList();
 bool Appearance::_toolbarVisible = true;
 bool Appearance::_shuttingDown = false;
+bool Appearance::_skipSettingsSave = false;
 
 void Appearance::init(QSettings *settings) {
     // CRITICAL: Load application style FIRST before creating any colors
@@ -808,6 +809,7 @@ Appearance::stripStyle Appearance::strip() {
 
 void Appearance::setStrip(Appearance::stripStyle render) {
     _strip = render;
+    save();
 }
 
 bool Appearance::showRangeLines() {
@@ -816,6 +818,7 @@ bool Appearance::showRangeLines() {
 
 void Appearance::setShowRangeLines(bool enabled) {
     _showRangeLines = enabled;
+    save();
 }
 
 bool Appearance::showProgramChangeMarkers() {
@@ -824,6 +827,7 @@ bool Appearance::showProgramChangeMarkers() {
 
 void Appearance::setShowProgramChangeMarkers(bool enabled) {
     _showProgramChangeMarkers = enabled;
+    save();
 }
 
 bool Appearance::showControlChangeMarkers() {
@@ -832,6 +836,7 @@ bool Appearance::showControlChangeMarkers() {
 
 void Appearance::setShowControlChangeMarkers(bool enabled) {
     _showControlChangeMarkers = enabled;
+    save();
 }
 
 bool Appearance::showTextEventMarkers() {
@@ -840,6 +845,7 @@ bool Appearance::showTextEventMarkers() {
 
 void Appearance::setShowTextEventMarkers(bool enabled) {
     _showTextEventMarkers = enabled;
+    save();
 }
 
 Appearance::MarkerColorMode Appearance::markerColorMode() {
@@ -848,6 +854,7 @@ Appearance::MarkerColorMode Appearance::markerColorMode() {
 
 void Appearance::setMarkerColorMode(MarkerColorMode mode) {
     _markerColorMode = mode;
+    save();
 }
 
 bool Appearance::showMarkerGuideLines() {
@@ -856,6 +863,7 @@ bool Appearance::showMarkerGuideLines() {
 
 void Appearance::setShowMarkerGuideLines(bool enabled) {
     _showMarkerGuideLines = enabled;
+    save();
 }
 
 Appearance::ColorPreset Appearance::colorPreset() {
@@ -864,6 +872,7 @@ Appearance::ColorPreset Appearance::colorPreset() {
 
 void Appearance::setColorPreset(Appearance::ColorPreset preset) {
     _colorPreset = preset;
+    save();
 }
 
 Appearance::ApplicationTheme Appearance::applicationTheme() {
@@ -872,6 +881,7 @@ Appearance::ApplicationTheme Appearance::applicationTheme() {
 
 void Appearance::setApplicationTheme(Appearance::ApplicationTheme theme) {
     _applicationTheme = theme;
+    save();
 }
 
 bool Appearance::smoothPlaybackScrolling() {
@@ -880,6 +890,7 @@ bool Appearance::smoothPlaybackScrolling() {
 
 void Appearance::setSmoothPlaybackScrolling(bool enabled) {
     _smoothPlaybackScrolling = enabled;
+    save();
 }
 
 bool Appearance::accentKeyHighlight() {
@@ -888,6 +899,7 @@ bool Appearance::accentKeyHighlight() {
 
 void Appearance::setAccentKeyHighlight(bool enabled) {
     _accentKeyHighlight = enabled;
+    save();
 }
 
 QString Appearance::applicationStyle() {
@@ -926,6 +938,7 @@ void Appearance::setApplicationStyle(const QString &style) {
 
     // Request a single refresh soon (no stacked timers)
     queueRefreshColors(120);
+    save();
 }
 
 int Appearance::toolbarIconSize() {
@@ -935,6 +948,7 @@ int Appearance::toolbarIconSize() {
 void Appearance::setToolbarIconSize(int size) {
     _toolbarIconSize = size;
     notifyIconSizeChanged();
+    save();
 }
 
 bool Appearance::ignoreSystemScaling() {
@@ -945,6 +959,7 @@ void Appearance::setIgnoreSystemScaling(bool ignore) {
     qDebug() << "Appearance: Setting ignore system scaling to" << ignore;
     _ignoreSystemScaling = ignore;
     // Note: This setting requires application restart to take effect
+    save();
 }
 
 bool Appearance::ignoreFontScaling() {
@@ -955,6 +970,7 @@ void Appearance::setIgnoreFontScaling(bool ignore) {
     qDebug() << "Appearance: Setting ignore font scaling to" << ignore;
     _ignoreFontScaling = ignore;
     // Note: This setting requires application restart to take effect
+    save();
 }
 
 bool Appearance::useRoundedScaling() {
@@ -965,6 +981,7 @@ void Appearance::setUseRoundedScaling(bool useRounded) {
     qDebug() << "Appearance: Setting use rounded scaling to" << useRounded;
     _useRoundedScaling = useRounded;
     // Note: This setting requires application restart to take effect
+    save();
 }
 
 int Appearance::msaaSamples() {
@@ -979,15 +996,25 @@ bool Appearance::useHardwareAcceleration() {
     return _useHardwareAcceleration;
 }
 
-void Appearance::loadEarlySettings() {
-    // Load only the settings needed before QApplication is created
-    QSettings settings(QString("MidiEditor"), QString("NONE"));
-    _ignoreSystemScaling = settings.value("ignore_system_scaling", false).toBool();
-    _ignoreFontScaling = settings.value("ignore_font_scaling", false).toBool();
-    _useRoundedScaling = settings.value("use_rounded_scaling", false).toBool();
-    _msaaSamples = settings.value("rendering/msaa_samples", 2).toInt();
-    _enableVSync = settings.value("rendering/enable_vsync", false).toBool();
-    _useHardwareAcceleration = settings.value("rendering/hardware_acceleration", false).toBool();
+void Appearance::loadEarlySettings(const QString &appDir) {
+    // Detect portable mode to adjust settings path/format early
+    bool portable = isPortable(appDir);
+    
+    // Create settings object - since QCoreApplication might not be fully configured yet
+    // we use explicit path/format if portable, otherwise registry defaults
+    QScopedPointer<QSettings> settings;
+    if (portable) {
+        settings.reset(new QSettings(appDir + "/portable.ini", QSettings::IniFormat));
+    } else {
+        settings.reset(new QSettings("MidiEditor", "NONE"));
+    }
+
+    _ignoreSystemScaling = settings->value("ignore_system_scaling", false).toBool();
+    _ignoreFontScaling = settings->value("ignore_font_scaling", false).toBool();
+    _useRoundedScaling = settings->value("use_rounded_scaling", false).toBool();
+    _msaaSamples = settings->value("rendering/msaa_samples", 2).toInt();
+    _enableVSync = settings->value("rendering/enable_vsync", false).toBool();
+    _useHardwareAcceleration = settings->value("rendering/hardware_acceleration", false).toBool();
 
     qDebug() << "Appearance::loadEarlySettings() - Loaded values:";
     qDebug() << "  ignore_system_scaling:" << _ignoreSystemScaling;
@@ -1011,6 +1038,7 @@ bool Appearance::toolbarTwoRowMode() {
 
 void Appearance::setToolbarTwoRowMode(bool twoRows) {
     _toolbarTwoRowMode = twoRows;
+    save();
 }
 
 bool Appearance::toolbarVisible() {
@@ -1019,6 +1047,7 @@ bool Appearance::toolbarVisible() {
 
 void Appearance::setToolbarVisible(bool visible) {
     _toolbarVisible = visible;
+    save();
 }
 
 bool Appearance::toolbarCustomizeEnabled() {
@@ -1027,6 +1056,7 @@ bool Appearance::toolbarCustomizeEnabled() {
 
 void Appearance::setToolbarCustomizeEnabled(bool enabled) {
     _toolbarCustomizeEnabled = enabled;
+    save();
 }
 
 QStringList Appearance::toolbarActionOrder() {
@@ -1035,6 +1065,7 @@ QStringList Appearance::toolbarActionOrder() {
 
 void Appearance::setToolbarActionOrder(const QStringList &order) {
     _toolbarActionOrder = order;
+    save();
 }
 
 QStringList Appearance::toolbarEnabledActions() {
@@ -1043,6 +1074,7 @@ QStringList Appearance::toolbarEnabledActions() {
 
 void Appearance::setToolbarEnabledActions(const QStringList &enabled) {
     _toolbarEnabledActions = enabled;
+    save();
 }
 
 QStringList Appearance::availableStyles() {
@@ -2173,4 +2205,53 @@ void Appearance::cleanup() {
 
 void Appearance::setShuttingDown(bool shuttingDown) {
     _shuttingDown = shuttingDown;
+}
+void Appearance::setSkipSettingsSave(bool skip) {
+    _skipSettingsSave = skip;
+}
+
+bool Appearance::skippingSettingsSave() {
+    return _skipSettingsSave;
+}
+
+QSettings* Appearance::settings(QObject *parent) {
+    if (isPortable()) {
+        // Direct path to portable.ini in the application directory
+        return new QSettings(QCoreApplication::applicationDirPath() + "/portable.ini", QSettings::IniFormat, parent);
+    }
+    // Explicit legacy registry path
+    return new QSettings("MidiEditor", "NONE", parent);
+}
+
+void Appearance::save() {
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    writeSettings(settings.data());
+    settings->sync();
+}
+
+QString Appearance::organizationName() {
+    return QCoreApplication::organizationName();
+}
+
+QString Appearance::applicationName() {
+    return QCoreApplication::applicationName();
+}
+
+bool Appearance::isPortable(const QString &appDir) {
+    QString dir = appDir;
+    if (dir.isEmpty()) {
+        dir = QCoreApplication::applicationDirPath();
+    }
+    return QFile::exists(dir + "/portable.ini");
+}
+
+QSettings::Format Appearance::settingsFormat() {
+    return isPortable() ? QSettings::IniFormat : QSettings::NativeFormat;
+}
+
+QString Appearance::settingsPath() {
+    if (isPortable()) {
+        return QCoreApplication::applicationDirPath() + "/portable.ini";
+    }
+    return QString();
 }

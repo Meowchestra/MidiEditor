@@ -130,11 +130,13 @@ void GameSupportSettingsWidget::onFFXIVBoxToggled(bool checked) {
     // Write directly to settings so MainWindow can read it via isFFXIVEnabled
     // This allows immediate UI updates without waiting for "OK" to be clicked
     _settings->setValue("game_support/ffxiv_enabled", checked);
+    _settings->sync();
     emit immediateSettingsChanged(checked);
 }
 
 void GameSupportSettingsWidget::onFFXIVInstrumentNamesToggled(bool checked) {
     _settings->setValue("game_support/ffxiv_instrument_names", checked);
+    _settings->sync();
     applyFFXIVInstrumentNames(checked);
     emit instrumentNamesChanged();
 }

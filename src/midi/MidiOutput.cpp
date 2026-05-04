@@ -22,6 +22,8 @@
 
 #include <QByteArray>
 #include <QFile>
+#include <QSettings>
+#include "../gui/Appearance.h"
 
 #include <vector>
 
@@ -121,6 +123,12 @@ bool MidiOutput::setOutputPort(QString name) {
             }
         }
         _outPort = name;
+
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("out_port", _outPort);
+        settings->sync();
+
         return true;
     }
 
@@ -129,6 +137,19 @@ bool MidiOutput::setOutputPort(QString name) {
         FluidSynthEngine::instance()->shutdown();
     }
 #endif
+
+    // Handle "None" / empty port
+    if (name.isEmpty()) {
+        _midiOut->closePort();
+        _outPort = "";
+
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("out_port", _outPort);
+        settings->sync();
+
+        return true;
+    }
 
     // try to find the port
     unsigned int nPorts = _midiOut->getPortCount();
@@ -141,6 +162,12 @@ bool MidiOutput::setOutputPort(QString name) {
                 _midiOut->closePort();
                 _midiOut->openPort(i);
                 _outPort = name;
+
+                // Persist immediately
+                QScopedPointer<QSettings> settings(Appearance::settings());
+                settings->setValue("out_port", _outPort);
+                settings->sync();
+
                 return true;
             }
         } catch (RtMidiError &) {

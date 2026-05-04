@@ -143,7 +143,7 @@ MainWindow::MainWindow(QString initFile)
     : QMainWindow()
       , _initFile(initFile) {
     file = 0;
-    _settings = new QSettings(QString("MidiEditor"), QString("NONE"));
+    _settings = Appearance::settings(this);
 
     _moveSelectedEventsToChannelMenu = 0;
     _moveSelectedEventsToTrackMenu = 0;
@@ -174,7 +174,7 @@ MainWindow::MainWindow(QString initFile)
     SharedClipboard::instance()->initialize();
     Metronome::setEnabled(_settings->value("metronome", false).toBool());
     bool loudnessOk;
-    Metronome::setLoudness(_settings->value("metronome_loudness", 100).toInt(&loudnessOk));
+    Metronome::setLoudness(_settings->value("metronome_velocity", 127).toInt(&loudnessOk));
 
 #ifdef FLUIDSYNTH_SUPPORT
     FluidSynthEngine::instance()->loadSettings(_settings);
@@ -1523,6 +1523,11 @@ void MainWindow::allChannelsInvisible() {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
+    if (Appearance::skippingSettingsSave()) {
+        event->accept();
+        return;
+    }
+
     bool shouldClose = false;
 
     if (!file || file->saved()) {
@@ -1570,7 +1575,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
     _settings->setValue("magnet", EventTool::magnetEnabled());
     _settings->setValue("magnetMode", EventTool::magnetMode());
     _settings->setValue("metronome", Metronome::enabled());
-    _settings->setValue("metronome_loudness", Metronome::loudness());
+    _settings->setValue("metronome_velocity", Metronome::loudness());
     _settings->setValue("thru", MidiInput::thru());
     _settings->setValue("quantization", _quantizationGrid);
 
@@ -5069,6 +5074,7 @@ QWidget *MainWindow::setupActions(QWidget *parent) {
     _statusBarAction = new QAction(tr("Show Status Bar"), this);
     _statusBarAction->setCheckable(true);
     _statusBarAction->setChecked(_settings->value("status_bar/visible", true).toBool());
+    toggleStatusBar(_statusBarAction->isChecked());
     connect(_statusBarAction, SIGNAL(toggled(bool)), this, SLOT(toggleStatusBar(bool)));
     viewMB->addAction(_statusBarAction);
     _actionMap["show_status_bar"] = _statusBarAction;
@@ -5362,11 +5368,16 @@ void MainWindow::pasteToTrack(QAction *action) {
 }
 
 void MainWindow::divChanged(QAction *action) {
-    mw_matrixWidget->setDiv(action->data().toInt());
+    int div = action->data().toInt();
+    mw_matrixWidget->setDiv(div);
+    _settings->setValue("div", div);
+    _settings->sync();
 }
 
 void MainWindow::enableMagnet(bool enable) {
     EventTool::enableMagnet(enable);
+    _settings->setValue("magnet", enable);
+    _settings->sync();
 }
 
 void MainWindow::magnetModeChanged() {
@@ -5378,6 +5389,8 @@ void MainWindow::magnetModeChanged() {
         mode |= EventTool::SNAP_NOTES;
     }
     EventTool::setMagnetMode(mode);
+    _settings->setValue("magnetMode", mode);
+    _settings->sync();
 }
 
 #ifndef QT_NO_DEBUG
@@ -5492,10 +5505,14 @@ void MainWindow::openConfig() {
 
 void MainWindow::enableMetronome(bool enable) {
     Metronome::setEnabled(enable);
+    _settings->setValue("metronome", enable);
+    _settings->sync();
 }
 
 void MainWindow::enableThru(bool enable) {
     MidiInput::setThruEnabled(enable);
+    _settings->setValue("thru", enable);
+    _settings->sync();
 }
 
 void MainWindow::rebuildToolbar() {
@@ -6340,10 +6357,14 @@ void MainWindow::setActionShortcuts(const QString &actionId, const QList<QKeySeq
 
 void MainWindow::togglePianoEmulation(bool mode) {
     mw_matrixWidget->setPianoEmulation(mode);
+    _settings->setValue("piano_emulation/enabled", mode);
+    _settings->sync();
 }
 
 void MainWindow::quantizationChanged(QAction *action) {
     _quantizationGrid = action->data().toInt();
+    _settings->setValue("quantization", _quantizationGrid);
+    _settings->sync();
 }
 
 void MainWindow::quantizeSelection() {
@@ -6853,27 +6874,27 @@ void MainWindow::noteDurationSelected(QAction *action) {
 void MainWindow::toggleStatusBar(bool visible) {
     if (_statusBar) {
         _statusBar->setVisible(visible);
-        _settings->setValue("status_bar/visible", visible);
     }
+    _settings->setValue("status_bar/visible", visible);
+    _settings->sync();
 }
 
 void MainWindow::toggleToolbar(bool visible) {
     if (_toolbarWidget) {
         _toolbarWidget->setVisible(visible);
-        Appearance::setToolbarVisible(visible);
-        if (_toolbarAction) {
-            _toolbarAction->setChecked(visible);
-        }
     }
+    Appearance::setToolbarVisible(visible);
+    Appearance::save();
 }
 
 void MainWindow::toggleControlWidget(bool visible) {
     if (_miscWidgetControl && _miscWidgetControl->parentWidget()) {
         _miscWidgetControl->parentWidget()->setVisible(visible);
-        if (_controlWidgetAction) {
-            _controlWidgetAction->setChecked(visible);
-        }
-        _settings->setValue("control_widget_visible", visible);
+    }
+    _settings->setValue("control_widget_visible", visible);
+    _settings->sync();
+    if (_controlWidgetAction) {
+        _controlWidgetAction->setChecked(visible);
     }
 }
 

@@ -142,5 +142,6 @@ void ControlChangeSettingsWidget::refreshColors() {
 
 bool ControlChangeSettingsWidget::accept() {
     InstrumentDefinitions::instance()->saveOverrides(_settings);
+    _settings->sync();
     return true;
 }

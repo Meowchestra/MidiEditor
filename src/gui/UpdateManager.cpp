@@ -1,6 +1,8 @@
 #include "UpdateManager.h"
 #include <QJsonArray>
 #include <QCoreApplication>
+#include <QCheckBox>
+#include "Appearance.h"
 #include <QProcess>
 #include <QDebug>
 #include <QStandardPaths>
@@ -102,10 +104,10 @@ void UpdateManager::onDownloadFinished()
         finalizeUpdate();
     } else {
         // Store the path for later
-        QSettings settings("MidiEditor", "NONE");
-        settings.setValue("updater/pending_update_file", targetFilePath);
-        settings.setValue("updater/is_installer", isInstaller);
-        settings.setValue("updater/latest_version", m_latestVersion);
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("updater/pending_update_file", targetFilePath);
+        settings->setValue("updater/is_installer", isInstaller);
+        settings->setValue("updater/latest_version", m_latestVersion);
     }
 }
 
@@ -199,10 +201,10 @@ void UpdateManager::createPortableUpdateScript(const QString &zipPath)
 
 void UpdateManager::applyUpdateAfterExit()
 {
-    QSettings settings("MidiEditor", "NONE");
-    QString zipPath = settings.value("updater/pending_update_file").toString();
-    bool installer = settings.value("updater/is_installer").toBool();
-    QString version = settings.value("updater/latest_version").toString();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    QString zipPath = settings->value("updater/pending_update_file").toString();
+    bool installer = settings->value("updater/is_installer").toBool();
+    QString version = settings->value("updater/latest_version").toString();
 
     if (zipPath.isEmpty() || !QFile::exists(zipPath)) return;
 
@@ -214,9 +216,9 @@ void UpdateManager::applyUpdateAfterExit()
     finalizeUpdate();
 
     // Clear settings so it doesn't repeatedly try
-    settings.remove("updater/pending_update_file");
-    settings.remove("updater/is_installer");
-    settings.remove("updater/latest_version");
+    settings->remove("updater/pending_update_file");
+    settings->remove("updater/is_installer");
+    settings->remove("updater/latest_version");
 }
 
 

@@ -108,6 +108,8 @@ void InstrumentSettingsWidget::clearSettings() {
     _instrumentBox->clear();
     InstrumentDefinitions::instance()->clear();
     populateTable();
+    _settings->remove("InstrumentDefinitions");
+    _settings->sync();
 }
 
 void InstrumentSettingsWidget::loadFile() {
@@ -191,6 +193,9 @@ void InstrumentSettingsWidget::onTableItemChanged(QTableWidgetItem *item) {
              item->setData(Qt::ForegroundRole, QVariant()); // Reset color
         }
         _tableWidget->blockSignals(false);
+
+        InstrumentDefinitions::instance()->saveOverrides(_settings);
+        _settings->sync();
     }
 }
 
@@ -213,5 +218,6 @@ bool InstrumentSettingsWidget::accept() {
     _settings->setValue("InstrumentDefinitions/file", _fileEdit->text());
     _settings->setValue("InstrumentDefinitions/instrument", _instrumentBox->currentText());
     InstrumentDefinitions::instance()->saveOverrides(_settings);
+    _settings->sync();
     return true;
 }

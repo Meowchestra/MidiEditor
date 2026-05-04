@@ -273,6 +273,11 @@ public:
     // === Persistence ===
 
     /**
+     * \brief Saves all FluidSynth settings and flushes to disk.
+     */
+    void save();
+
+    /**
      * \brief Saves all FluidSynth settings to QSettings.
      */
     void saveSettings(QSettings *settings);

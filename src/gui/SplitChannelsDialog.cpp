@@ -26,6 +26,7 @@
 #include "../midi/MidiOutput.h"
 #include "../midi/InstrumentDefinitions.h"
 #include <QSettings>
+#include "Appearance.h"
 #include <QToolButton>
 #include <QTimer>
 #include <QSpinBox>
@@ -136,8 +137,8 @@ SplitChannelsDialog::SplitChannelsDialog(MidiFile *file, MidiTrack *sourceTrack,
     QLabel *presetLabel = new QLabel(tr("Preset:"), this);
     _presetCombo = new QComboBox(this);
     
-    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    QString lastPreset = settings.value("split_channels_last_preset", QString("Bard Forge 1")).toString();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    QString lastPreset = settings->value("split_channels_last_preset", QString("Bard Forge 1")).toString();
 
     QStringList presets = DrumKitPresetManager::instance().presetNames();
     presets.sort(Qt::CaseInsensitive);
@@ -548,8 +549,8 @@ void SplitChannelsDialog::onPresetSelected(const QString &presetName) {
     QString realName = _presetCombo->itemData(idx).toString();
     _currentPreset = DrumKitPresetManager::instance().preset(realName);
     
-    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    settings.setValue("split_channels_last_preset", realName);
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->setValue("split_channels_last_preset", realName);
     populateMappingTable();
 }
 

@@ -101,6 +101,23 @@ public slots:
     void setMetronomeVelocity(int value);
 
     /**
+     * \brief Sets whether track-based program changes are enabled.
+     * \param enable True to enable.
+     */
+    void setTrackBasedProgramChanges(bool enable);
+
+    /**
+     * \brief Sets the text encoding fallback.
+     * \param index The selected index.
+     */
+    void setTextEncoding(int index);
+
+    /**
+     * \brief Resets TPQ to default 192.
+     */
+    void resetTPQ();
+
+    /**
      * \brief Refreshes colors when theme changes.
      */
     void refreshColors();

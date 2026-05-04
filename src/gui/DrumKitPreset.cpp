@@ -18,6 +18,7 @@
 
 #include "DrumKitPreset.h"
 #include <QSettings>
+#include "Appearance.h"
 #include <QVariant>
 #include <QStringList>
 
@@ -30,12 +31,12 @@ DrumKitPresetManager::DrumKitPresetManager() {
     initDefaults();
     
     // Load any user edits from QSettings
-    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    settings.beginGroup("DrumKitPresets");
-    QStringList savedPresets = settings.childGroups();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("DrumKitPresets");
+    QStringList savedPresets = settings->childGroups();
     
     for (const QString &presetName : savedPresets) {
-        settings.beginGroup(presetName);
+        settings->beginGroup(presetName);
         
         // Start with the default template if it exists
         DrumKitPreset preset;
@@ -49,12 +50,12 @@ DrumKitPresetManager::DrumKitPresetManager() {
         if (preset.name.isEmpty()) continue; // Not a known default
         
         // Find and overwrite user edited mapping target notes & groups
-        int savedMappingsCount = settings.beginReadArray("UserMappings");
+        int savedMappingsCount = settings->beginReadArray("UserMappings");
         for (int i = 0; i < savedMappingsCount; ++i) {
-            settings.setArrayIndex(i);
-            int sourceNote = settings.value("sourceNote").toInt();
-            int customTargetNote = settings.value("targetNote").toInt();
-            QString customGroupName = settings.value("group").toString();
+            settings->setArrayIndex(i);
+            int sourceNote = settings->value("sourceNote").toInt();
+            int customTargetNote = settings->value("targetNote").toInt();
+            QString customGroupName = settings->value("group").toString();
             
             // First locate and remove the mapping from its current group
             DrumNoteMapping mappingToMove;
@@ -97,12 +98,12 @@ DrumKitPresetManager::DrumKitPresetManager() {
                 }
             }
         }
-        settings.endArray();
-        settings.endGroup(); // presetName
+        settings->endArray();
+        settings->endGroup(); // presetName
         
         _userEdits[presetName] = preset;
     }
-    settings.endGroup(); // DrumKitPresets
+    settings->endGroup(); // DrumKitPresets
 }
 
 QStringList DrumKitPresetManager::presetNames() const {
@@ -174,33 +175,33 @@ void DrumKitPresetManager::savePreset(const DrumKitPreset &preset) {
         }
     }
     
-    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    settings.beginGroup("DrumKitPresets");
-    settings.beginGroup(preset.name);
-    settings.remove(""); // clear old edits
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("DrumKitPresets");
+    settings->beginGroup(preset.name);
+    settings->remove(""); // clear old edits
     
     if (!customMappings.isEmpty()) {
-        settings.beginWriteArray("UserMappings");
+        settings->beginWriteArray("UserMappings");
         for (int i = 0; i < customMappings.size(); ++i) {
-            settings.setArrayIndex(i);
-            settings.setValue("sourceNote", customMappings[i].sourceNote);
-            settings.setValue("targetNote", customMappings[i].targetNote);
-            settings.setValue("group", customMappings[i].group);
+            settings->setArrayIndex(i);
+            settings->setValue("sourceNote", customMappings[i].sourceNote);
+            settings->setValue("targetNote", customMappings[i].targetNote);
+            settings->setValue("group", customMappings[i].group);
         }
-        settings.endArray();
+        settings->endArray();
     }
     
-    settings.endGroup(); // preset.name
-    settings.endGroup(); // DrumKitPresets
+    settings->endGroup(); // preset.name
+    settings->endGroup(); // DrumKitPresets
 }
 
 void DrumKitPresetManager::resetPreset(const QString &name) {
     _userEdits.remove(name);
     
-    QSettings settings(QStringLiteral("MidiEditor"), QStringLiteral("NONE"));
-    settings.beginGroup("DrumKitPresets");
-    settings.remove(name);
-    settings.endGroup();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("DrumKitPresets");
+    settings->remove(name);
+    settings->endGroup();
 }
 
 QString DrumKitPresetManager::gmDrumName(int note) {

@@ -230,16 +230,19 @@ AppearanceSettingsWidget::AppearanceSettingsWidget(QWidget *parent)
 
 void AppearanceSettingsWidget::channelColorChanged(int channel, QColor c) {
     Appearance::setChannelColor(channel, c);
+    Appearance::save();
     emit appearanceChanged();
 }
 
 void AppearanceSettingsWidget::trackColorChanged(int track, QColor c) {
     Appearance::setTrackColor(track, c);
+    Appearance::save();
     emit appearanceChanged();
 }
 
 void AppearanceSettingsWidget::resetColors() {
     Appearance::reset();
+    Appearance::save();
     refreshColors();
     emit appearanceChanged();
 }
@@ -263,12 +266,14 @@ void AppearanceSettingsWidget::refreshColors() {
 
 void AppearanceSettingsWidget::colorPresetChanged(int index) {
     Appearance::setColorPreset(static_cast<Appearance::ColorPreset>(index));
+    Appearance::save();
     resetColors();
 }
 
 
 void AppearanceSettingsWidget::opacityChanged(int opacity) {
     Appearance::setOpacity(opacity);
+    Appearance::save();
     foreach(NamedColorWidgetItem* item, *_trackItems) {
         item->colorChanged(*Appearance::trackColor(item->number()));
     }
@@ -281,6 +286,7 @@ void AppearanceSettingsWidget::opacityChanged(int opacity) {
 
 void AppearanceSettingsWidget::stripStyleChanged(int strip) {
     Appearance::setStrip(static_cast<Appearance::stripStyle>(strip));
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
@@ -300,36 +306,42 @@ void AppearanceSettingsWidget::loadSettings() {
 
 void AppearanceSettingsWidget::rangeLinesChanged(bool enabled) {
     Appearance::setShowRangeLines(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
 
 void AppearanceSettingsWidget::programChangeMarkersChanged(bool enabled) {
     Appearance::setShowProgramChangeMarkers(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
 
 void AppearanceSettingsWidget::controlChangeMarkersChanged(bool enabled) {
     Appearance::setShowControlChangeMarkers(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
 
 void AppearanceSettingsWidget::textEventMarkersChanged(bool enabled) {
     Appearance::setShowTextEventMarkers(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
 
 void AppearanceSettingsWidget::markerGuideLinesChanged(bool enabled) {
     Appearance::setShowMarkerGuideLines(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
 
 void AppearanceSettingsWidget::smoothPlaybackScrollingChanged(bool enabled) {
     Appearance::setSmoothPlaybackScrolling(enabled);
+    Appearance::save();
     emit smoothScrollChanged(enabled);
     emit appearanceChanged();
     update();
@@ -337,6 +349,7 @@ void AppearanceSettingsWidget::smoothPlaybackScrollingChanged(bool enabled) {
 
 void AppearanceSettingsWidget::accentKeyHighlightChanged(bool enabled) {
     Appearance::setAccentKeyHighlight(enabled);
+    Appearance::save();
     emit appearanceChanged();
     update();
 }
@@ -356,6 +369,7 @@ void AppearanceSettingsWidget::styleChanged(const QString &style) {
         }
     }
     Appearance::setApplicationStyle(style);
+    Appearance::save();
 
     // Force immediate color refresh for all widgets
     Appearance::forceColorRefresh();
@@ -366,6 +380,7 @@ void AppearanceSettingsWidget::styleChanged(const QString &style) {
 
 void AppearanceSettingsWidget::themeChanged(int index) {
     Appearance::setApplicationTheme(static_cast<Appearance::ApplicationTheme>(index));
+    Appearance::save();
     
     // Apply style sets palette and resets theme override
     Appearance::applyStyle();

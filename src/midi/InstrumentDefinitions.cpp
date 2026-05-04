@@ -9,6 +9,8 @@
 #include <QFile>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QSettings>
+#include "../gui/Appearance.h"
 
 InstrumentDefinitions* InstrumentDefinitions::_instance = 0;
 
@@ -184,6 +186,7 @@ void InstrumentDefinitions::setInstrumentName(int program, const QString& name) 
         // Add or update override
         _overrides[key][program] = name;
     }
+    save();
 }
 
 QMap<int, QString> InstrumentDefinitions::instrumentNames() const {
@@ -214,6 +217,7 @@ void InstrumentDefinitions::setControlChangeName(int control, const QString& nam
     } else {
         _ccOverrides[control] = name;
     }
+    save();
 }
 
 QString InstrumentDefinitions::controlChangeName(int control) const {
@@ -296,6 +300,12 @@ void InstrumentDefinitions::saveOverrides(QSettings* settings) {
         settings->setValue(QString::number(itCC.key()), itCC.value());
     }
     settings->endGroup();
+}
+
+void InstrumentDefinitions::save() {
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    saveOverrides(settings.data());
+    settings->sync();
 }
 
 QString InstrumentDefinitions::instrumentName(int program) const {

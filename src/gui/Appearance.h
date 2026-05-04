@@ -60,6 +60,46 @@ public:
     static void cleanup();
 
     /**
+     * \brief Returns the organization name for settings.
+     */
+    static QString organizationName();
+
+    /**
+     * \brief Returns the application name for settings.
+     */
+    static QString applicationName();
+
+    /**
+     * \brief Returns the settings format (Registry or IniFormat).
+     */
+    static QSettings::Format settingsFormat();
+
+    /**
+     * \brief Returns the settings path if in portable mode, otherwise empty.
+     */
+    static QString settingsPath();
+
+    /**
+     * \brief Checks if the application is running in portable mode.
+     * \param appDir Optional application directory for detection
+     */
+    static bool isPortable(const QString &appDir = QString());
+    static bool skippingSettingsSave();
+    static void setSkipSettingsSave(bool skip);
+
+    /**
+     * \brief Returns a correctly configured QSettings instance.
+     * \param parent Optional parent for the QSettings object
+     * \return Pointer to a new QSettings object (caller takes ownership)
+     */
+    static QSettings* settings(QObject *parent = nullptr);
+    
+    /**
+     * \brief Synchronizes all current appearance values to QSettings immediately.
+     */
+    static void save();
+
+    /**
      * \brief Sets the application shutdown flag to prevent QPixmap creation during shutdown.
      */
     static void setShuttingDown(bool shuttingDown);
@@ -342,9 +382,10 @@ public:
     static bool useRoundedScaling();
 
     /**
-     * \brief Loads settings needed before QApplication creation.
+     * \brief Loads only the settings needed before QApplication is created.
+     * \param appDir Optional application directory for portable mode detection
      */
-    static void loadEarlySettings();
+    static void loadEarlySettings(const QString &appDir = QString());
 
     /**
      * \brief Gets the MSAA samples setting loaded early.
@@ -821,6 +862,9 @@ private:
 
     /** \brief Flag to prevent QPixmap creation during application shutdown */
     static bool _shuttingDown;
+
+    /** \brief Flag to skip settings save during shutdown (used for mode switching) */
+    static bool _skipSettingsSave;
 };
 
 #endif // APPEARANCE_H_

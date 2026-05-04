@@ -27,12 +27,17 @@
 #include <QVBoxLayout>
 #include <QPushButton>
 #include <QApplication>
+#include <QMessageBox>
+#include <QFile>
+#include <QDir>
+#include <QProcess>
 
 PerformanceSettingsWidget::PerformanceSettingsWidget(QSettings *settings, QWidget *parent)
     : SettingsWidget(tr("System & Performance"), parent)
       , _settings(settings)
       , _isLoading(false)
-      , _infoBox(nullptr) {
+      , _infoBox(nullptr)
+      , _modeSwitched(false) {
     setupUI();
     loadSettings();
 }
@@ -55,6 +60,66 @@ void PerformanceSettingsWidget::setupUI() {
     updaterLayout->addWidget(updaterDesc, 1, 0, 1, 2);
 
     mainLayout->addWidget(_updaterGroup);
+
+    // Portable Mode Group
+    _portableGroup = new QGroupBox(tr("Settings Management"), this);
+    QVBoxLayout *portableLayout = new QVBoxLayout(_portableGroup);
+
+    _portableStatusLabel = new QLabel(this);
+    _portableStatusLabel->setStyleSheet("margin-bottom: 5px;");
+    portableLayout->addWidget(_portableStatusLabel);
+
+    // Row for Export/Import buttons (only fully shown in Portable mode)
+    QWidget *topButtonsRow = new QWidget(this);
+    QHBoxLayout *topButtonsLayout = new QHBoxLayout(topButtonsRow);
+    topButtonsLayout->setContentsMargins(0, 0, 0, 0);
+
+    _exportSettingsButton = new QPushButton(this);
+    topButtonsLayout->addWidget(_exportSettingsButton);
+
+    _importSettingsButton = new QPushButton(tr("Import Settings"), this);
+    _importSettingsButton->setToolTip(tr("Copies settings from the portable.ini file back into the Windows Registry."));
+    connect(_importSettingsButton, &QPushButton::clicked, this, &PerformanceSettingsWidget::importSettingsFromPortable);
+    topButtonsLayout->addWidget(_importSettingsButton);
+
+    portableLayout->addWidget(topButtonsRow);
+
+    _deletePortableButton = new QPushButton(tr("Switch to Registry Mode"), this);
+    _deletePortableButton->setToolTip(tr("Deletes the portable.ini file. The application will revert to using the Windows Registry on next startup."));
+    connect(_deletePortableButton, &QPushButton::clicked, this, &PerformanceSettingsWidget::switchToRegistryMode);
+    portableLayout->addWidget(_deletePortableButton);
+
+    // Initial visibility and text setup
+    bool isPortable = Appearance::isPortable();
+    bool fileExists = QFile::exists(QCoreApplication::applicationDirPath() + "/portable.ini");
+
+    if (isPortable) {
+        _portableStatusLabel->setText(tr("Status: Portable Mode"));
+        _exportSettingsButton->setText(tr("Export Registry"));
+        _exportSettingsButton->setToolTip(tr("Overwrites your portable.ini file with settings currently stored in the Windows Registry."));
+        _importSettingsButton->setVisible(true);
+        _deletePortableButton->setVisible(true);
+    } else {
+        _portableStatusLabel->setText(tr("Status: Registry Mode"));
+        _exportSettingsButton->setText(tr("Switch to Portable Mode"));
+        _exportSettingsButton->setToolTip(tr("Copies your current registry settings to a portable.ini file and restarts the application."));
+        _importSettingsButton->setVisible(false);
+        _deletePortableButton->setVisible(false);
+    }
+    
+    // Always hide import if file doesn't exist, even in Registry mode (though button is hidden anyway)
+    if (!fileExists) {
+        _importSettingsButton->setVisible(false);
+    }
+
+    connect(_exportSettingsButton, &QPushButton::clicked, this, &PerformanceSettingsWidget::exportSettingsToPortable);
+
+    QLabel *portableDesc = new QLabel(tr("When portable.ini exists in the application folder, MidiEditor will run in portable mode and ignore the Windows Registry. This allows you to carry your settings across devices with ease."), this);
+    portableDesc->setWordWrap(true);
+    portableDesc->setStyleSheet("color: gray; font-size: 11px; margin-top: 5px;");
+    portableLayout->addWidget(portableDesc);
+
+    mainLayout->addWidget(_portableGroup);
 
     // High DPI Scaling Group
     QGroupBox *scalingGroup = new QGroupBox(tr("High DPI Scaling"), this);
@@ -134,7 +199,11 @@ void PerformanceSettingsWidget::setupUI() {
 
     _enableHardwareAcceleration = new QCheckBox(tr("Enable GPU Acceleration for MIDI Events"), this);
     _enableHardwareAcceleration->setToolTip(tr("Use OpenGL for GPU-accelerated MIDI rendering."));
-    connect(_enableHardwareAcceleration, &QCheckBox::toggled, this, &PerformanceSettingsWidget::enableHardwareAccelerationChanged);
+    connect(_enableHardwareAcceleration, &QCheckBox::toggled, this, [this](bool checked) {
+        _settings->setValue("rendering/hardware_acceleration", checked);
+        _settings->sync();
+        enableHardwareAccelerationChanged(checked);
+    });
     accelLayout->addWidget(_enableHardwareAcceleration, 0, 0, 1, 2);
 
     // Description right below the hardware acceleration checkbox
@@ -227,6 +296,8 @@ void PerformanceSettingsWidget::loadSettings() {
 }
 
 bool PerformanceSettingsWidget::accept() {
+    if (_modeSwitched) return true;
+
     // Save updater settings
     _settings->setValue("updater/check_on_startup", _checkUpdatesOnStartup->isChecked());
 
@@ -246,6 +317,8 @@ bool PerformanceSettingsWidget::accept() {
     // Save multisampling setting
     int msaaSamples = _multisamplingCombo->currentData().toInt();
     _settings->setValue("rendering/msaa_samples", msaaSamples);
+
+    _settings->sync();
 
     return true;
 }
@@ -319,6 +392,7 @@ void PerformanceSettingsWidget::multisamplingChanged(int index) {
 
     // Save the setting immediately
     _settings->setValue("rendering/msaa_samples", msaaSamples);
+    _settings->sync();
 
     // Notify the main window to update OpenGL widgets
     emit renderingModeChanged();
@@ -332,6 +406,7 @@ void PerformanceSettingsWidget::enableHardwareSmoothTransformsChanged(bool enabl
 
     // Save the setting immediately
     _settings->setValue("rendering/hardware_smooth_transforms", enabled);
+    _settings->sync();
 
     // Notify the main window to update OpenGL widgets
     emit renderingModeChanged();
@@ -345,6 +420,7 @@ void PerformanceSettingsWidget::enableAntialiasingChanged(bool enabled) {
 
     // Save the setting immediately
     _settings->setValue("rendering/antialiasing", enabled);
+    _settings->sync();
 
     // Notify the main window to update rendering
     emit renderingModeChanged();
@@ -358,6 +434,7 @@ void PerformanceSettingsWidget::enableSmoothPixmapTransformChanged(bool enabled)
 
     // Save the setting immediately
     _settings->setValue("rendering/smooth_pixmap_transform", enabled);
+    _settings->sync();
 
     // Notify the main window to update rendering
     emit renderingModeChanged();
@@ -371,6 +448,7 @@ void PerformanceSettingsWidget::enableVSyncChanged(bool enabled) {
 
     // Save the setting immediately
     _settings->setValue("rendering/enable_vsync", enabled);
+    _settings->sync();
 
     // Note: VSync changes require application restart to take effect
     // since it's configured at OpenGL context creation time
@@ -394,6 +472,7 @@ void PerformanceSettingsWidget::roundedScalingChanged(bool enabled) {
 void PerformanceSettingsWidget::widgetSizeUnlockChanged(bool enabled) {
     qDebug() << "PerformanceSettingsWidget: Widget size unlock changed to" << enabled;
     _settings->setValue("unlock_widget_sizes", enabled);
+    _settings->sync();
 }
 
 void PerformanceSettingsWidget::resetToDefaults() {
@@ -415,4 +494,107 @@ void PerformanceSettingsWidget::resetToDefaults() {
     _ignoreSystemFontScaling->setChecked(false);
     _useRoundedScaling->setChecked(false);
     _unlockWidgetSizes->setChecked(false);
+}
+
+void PerformanceSettingsWidget::restartApp() {
+    Appearance::setSkipSettingsSave(true);
+
+    QString appPath = QCoreApplication::applicationFilePath();
+    QStringList args = QCoreApplication::arguments();
+    if (!args.isEmpty()) {
+        args.removeFirst(); // Remove the executable itself from the arguments
+    }
+
+    // Build arguments string for PowerShell Start-Process
+    QString argList;
+    for (const QString &arg : args) {
+        if (!argList.isEmpty()) argList += ", ";
+        // Escape single quotes for PowerShell and wrap in single quotes
+        QString escapedArg = arg;
+        escapedArg.replace("'", "''");
+        argList += "'" + escapedArg + "'";
+    }
+
+    QString psCommand = QString("Start-Sleep -Milliseconds 1000; Start-Process '%1'").arg(appPath.replace("'", "''"));
+    if (!argList.isEmpty()) {
+        psCommand += QString(" -ArgumentList %1").arg(argList);
+    }
+
+    QProcess::startDetached("powershell", QStringList() << "-NoProfile" << "-WindowStyle" << "Hidden" << "-Command" << psCommand);
+    
+    // Orderly shutdown
+    QCoreApplication::quit();
+}
+
+void PerformanceSettingsWidget::exportSettingsToPortable() {
+    QString portablePath = QCoreApplication::applicationDirPath() + "/portable.ini";
+    bool currentlyPortable = Appearance::isPortable();
+
+    QString title = currentlyPortable ? tr("Export Registry Settings?") : tr("Switch to Portable Mode?");
+    QString msg = currentlyPortable
+        ? tr("This will overwrite your existing portable.ini with settings currently stored in the Windows Registry. Continue?")
+        : tr("The application will copy your settings to portable.ini and restart immediately.\n\nContinue and Restart?");
+
+    QMessageBox::StandardButton res = QMessageBox::question(this, title, msg, QMessageBox::Yes | QMessageBox::No);
+    if (res != QMessageBox::Yes) return;
+
+    // Source settings for the copy operation
+    // If we're already portable, _settings points to portable.ini, so we must explicitly open the Registry
+    QSettings registry("MidiEditor", "NONE");
+    QSettings *source = currentlyPortable ? &registry : _settings;
+    
+    // Target is always the portable file
+    QSettings portable(portablePath, QSettings::IniFormat);
+    
+    // Perform the copy
+    for (const QString &key : source->allKeys()) {
+        portable.setValue(key, source->value(key));
+    }
+    portable.sync();
+
+    if (!currentlyPortable) {
+        restartApp();
+    } else {
+        QMessageBox::information(this, tr("Success"), tr("Registry settings have been exported to portable.ini."));
+    }
+}
+
+void PerformanceSettingsWidget::importSettingsFromPortable() {
+    QString portablePath = QCoreApplication::applicationDirPath() + "/portable.ini";
+    if (!QFile::exists(portablePath)) return;
+
+    QMessageBox::StandardButton res = QMessageBox::question(this, tr("Import Settings?"),
+        tr("This will overwrite your Windows Registry settings with the values from your portable file. Are you sure?"),
+        QMessageBox::Yes | QMessageBox::No);
+    if (res != QMessageBox::Yes) return;
+
+    // Use explicit Registry settings for the target
+    QSettings registry("MidiEditor", "NONE");
+    QSettings portable(portablePath, QSettings::IniFormat);
+
+    for (const QString &key : portable.allKeys()) {
+        registry.setValue(key, portable.value(key));
+    }
+    registry.sync();
+
+    QMessageBox::information(this, tr("Import Successful"),
+        tr("Portable settings have been imported into the Windows Registry."));
+}
+
+void PerformanceSettingsWidget::switchToRegistryMode() {
+    QString portablePath = QCoreApplication::applicationDirPath() + "/portable.ini";
+    if (!QFile::exists(portablePath)) return;
+
+    QMessageBox::StandardButton res = QMessageBox::question(this, tr("Switch to Registry Mode?"),
+        tr("This will delete your portable.ini file and restart the application immediately.\n\n"
+           "Your portable settings will be lost unless imported into the Registry first.\n\n"
+           "Continue and Restart?"),
+        QMessageBox::Yes | QMessageBox::No);
+    if (res != QMessageBox::Yes) return;
+
+    if (QFile::remove(portablePath)) {
+        restartApp();
+    } else {
+        QMessageBox::warning(this, tr("Error"), tr("Could not delete the portable file. Please delete it manually."));
+    }
 }

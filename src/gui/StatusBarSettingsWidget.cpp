@@ -3,6 +3,7 @@
 #include <QFormLayout>
 #include <QComboBox>
 #include <QSpinBox>
+#include "Appearance.h"
 #include <QCheckBox>
 #include <QLabel>
 #include <QSettings>
@@ -102,22 +103,22 @@ StatusBarSettingsWidget::StatusBarSettingsWidget(QWidget *parent)
 
 void StatusBarSettingsWidget::notifyChanged() {
     // Write settings directly to QSettings (same instance used by the app)
-    QSettings settings("MidiEditor", "NONE");
-    settings.beginGroup("status_bar");
-    settings.setValue("strategy", _strategyCombo->currentIndex());
-    settings.setValue("tolerance", _toleranceSpin->value());
-    settings.setValue("visible", _showStatusBar->isChecked());
-    settings.setValue("alignment", _alignmentCombo->currentIndex());
-    settings.setValue("offset", _offsetSpin->value());
-    settings.setValue("separator_style", _separatorStyleCombo->currentIndex());
-    settings.setValue("separator_spacing", _separatorSpacingSpin->value());
-    settings.setValue("show_track_channel", _showTrackChannel->isChecked());
-    settings.setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
-    settings.setValue("show_note_name", _showNoteName->isChecked());
-    settings.setValue("show_note_range", _showNoteRange->isChecked());
-    settings.setValue("show_chord_name", _showChordName->isChecked());
-    settings.endGroup();
-    settings.sync(); // Force write to registry/disk immediately
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("status_bar");
+    settings->setValue("strategy", _strategyCombo->currentIndex());
+    settings->setValue("tolerance", _toleranceSpin->value());
+    settings->setValue("visible", _showStatusBar->isChecked());
+    settings->setValue("alignment", _alignmentCombo->currentIndex());
+    settings->setValue("offset", _offsetSpin->value());
+    settings->setValue("separator_style", _separatorStyleCombo->currentIndex());
+    settings->setValue("separator_spacing", _separatorSpacingSpin->value());
+    settings->setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings->setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
+    settings->setValue("show_note_name", _showNoteName->isChecked());
+    settings->setValue("show_note_range", _showNoteRange->isChecked());
+    settings->setValue("show_chord_name", _showChordName->isChecked());
+    settings->endGroup();
+    settings->sync(); // Force write to registry/disk immediately
 
     emit statusBarSettingsChanged();
 }
@@ -141,21 +142,21 @@ void StatusBarSettingsWidget::loadSettings() {
     _strategyCombo->blockSignals(true);
     _toleranceSpin->blockSignals(true);
 
-    QSettings settings("MidiEditor", "NONE");
-    settings.beginGroup("status_bar");
-    _strategyCombo->setCurrentIndex(settings.value("strategy", 0).toInt());
-    _toleranceSpin->setValue(settings.value("tolerance", 10).toInt());
-    _showStatusBar->setChecked(settings.value("visible", true).toBool());
-    _alignmentCombo->setCurrentIndex(settings.value("alignment", 0).toInt());
-    _offsetSpin->setValue(settings.value("offset", 0).toInt());
-    _separatorStyleCombo->setCurrentIndex(settings.value("separator_style", 0).toInt());
-    _separatorSpacingSpin->setValue(settings.value("separator_spacing", 7).toInt());
-    _showTrackChannel->setChecked(settings.value("show_track_channel", true).toBool());
-    _trackChannelModeCombo->setCurrentIndex(settings.value("track_channel_mode", 0).toInt());
-    _showNoteName->setChecked(settings.value("show_note_name", true).toBool());
-    _showNoteRange->setChecked(settings.value("show_note_range", true).toBool());
-    _showChordName->setChecked(settings.value("show_chord_name", true).toBool());
-    settings.endGroup();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("status_bar");
+    _strategyCombo->setCurrentIndex(settings->value("strategy", 0).toInt());
+    _toleranceSpin->setValue(settings->value("tolerance", 10).toInt());
+    _showStatusBar->setChecked(settings->value("visible", true).toBool());
+    _alignmentCombo->setCurrentIndex(settings->value("alignment", 0).toInt());
+    _offsetSpin->setValue(settings->value("offset", 0).toInt());
+    _separatorStyleCombo->setCurrentIndex(settings->value("separator_style", 0).toInt());
+    _separatorSpacingSpin->setValue(settings->value("separator_spacing", 7).toInt());
+    _showTrackChannel->setChecked(settings->value("show_track_channel", true).toBool());
+    _trackChannelModeCombo->setCurrentIndex(settings->value("track_channel_mode", 0).toInt());
+    _showNoteName->setChecked(settings->value("show_note_name", true).toBool());
+    _showNoteRange->setChecked(settings->value("show_note_range", true).toBool());
+    _showChordName->setChecked(settings->value("show_chord_name", true).toBool());
+    settings->endGroup();
 
     // Unblock signals
     _showStatusBar->blockSignals(false);
@@ -176,22 +177,22 @@ void StatusBarSettingsWidget::loadSettings() {
 
 bool StatusBarSettingsWidget::accept() {
     // Write settings on accept as well
-    QSettings settings("MidiEditor", "NONE");
-    settings.beginGroup("status_bar");
-    settings.setValue("strategy", _strategyCombo->currentIndex());
-    settings.setValue("tolerance", _toleranceSpin->value());
-    settings.setValue("visible", _showStatusBar->isChecked());
-    settings.setValue("alignment", _alignmentCombo->currentIndex());
-    settings.setValue("offset", _offsetSpin->value());
-    settings.setValue("separator_style", _separatorStyleCombo->currentIndex());
-    settings.setValue("separator_spacing", _separatorSpacingSpin->value());
-    settings.setValue("show_track_channel", _showTrackChannel->isChecked());
-    settings.setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
-    settings.setValue("show_note_name", _showNoteName->isChecked());
-    settings.setValue("show_note_range", _showNoteRange->isChecked());
-    settings.setValue("show_chord_name", _showChordName->isChecked());
-    settings.endGroup();
-    settings.sync(); // Force write to registry/disk immediately
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->beginGroup("status_bar");
+    settings->setValue("strategy", _strategyCombo->currentIndex());
+    settings->setValue("tolerance", _toleranceSpin->value());
+    settings->setValue("visible", _showStatusBar->isChecked());
+    settings->setValue("alignment", _alignmentCombo->currentIndex());
+    settings->setValue("offset", _offsetSpin->value());
+    settings->setValue("separator_style", _separatorStyleCombo->currentIndex());
+    settings->setValue("separator_spacing", _separatorSpacingSpin->value());
+    settings->setValue("show_track_channel", _showTrackChannel->isChecked());
+    settings->setValue("track_channel_mode", _trackChannelModeCombo->currentIndex());
+    settings->setValue("show_note_name", _showNoteName->isChecked());
+    settings->setValue("show_note_range", _showNoteRange->isChecked());
+    settings->setValue("show_chord_name", _showChordName->isChecked());
+    settings->endGroup();
+    settings->sync(); // Force write to registry/disk immediately
 
     return true;
 }

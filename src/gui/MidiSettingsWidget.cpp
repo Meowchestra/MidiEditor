@@ -346,10 +346,14 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     _tpqBox->setMaximum(1024);
     _tpqBox->setValue(MidiFile::defaultTimePerQuarter);
     connect(_tpqBox, SIGNAL(valueChanged(int)), this, SLOT(setDefaultTimePerQuarter(int)));
-    layout->addWidget(_tpqBox, 0, 2, 1, 4);
+    layout->addWidget(_tpqBox, 0, 2, 1, 3);
 
     _tpqInfoBox = createInfoBox(tr("Note: There aren't many reasons to change this. MIDI files have a resolution for how many ticks can fit in a quarter note. Higher values = more detail. Lower values may be required for compatibility. Only affects new files."));
     layout->addWidget(_tpqInfoBox, 1, 0, 1, 6);
+
+    QPushButton *resetTPQBtn = new QPushButton(tr("Default"), this);
+    connect(resetTPQBtn, SIGNAL(clicked()), this, SLOT(resetTPQ()));
+    layout->addWidget(resetTPQBtn, 0, 5, 1, 1);
 
     layout->addWidget(separator(), 2, 0, 1, 6);
 
@@ -366,6 +370,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 
     _trackBasedProgramChangesBox = new QCheckBox(tr("Track-Based Program Changes (Compatibility Mode)"), this);
     _trackBasedProgramChangesBox->setChecked(_settings->value("track_based_program_changes", false).toBool());
+    connect(_trackBasedProgramChangesBox, SIGNAL(toggled(bool)), this, SLOT(setTrackBasedProgramChanges(bool)));
     layout->addWidget(_trackBasedProgramChangesBox, 6, 0, 1, 6);
 
     _trackModeInfoBox = createInfoBox(tr("When enabled, notes will use the Program Change from their Track, even if it is on a different Channel. This forces standard MIDI synthesizers to simulate track-based instruments. Warning: If multiple tracks share the same channel, their instruments may overwrite each other during playback."));
@@ -388,6 +393,7 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
     QString currentEncoding = _settings->value("text_encoding_fallback", "Auto-Detect").toString();
     int encodingIdx = _textEncodingCombo->findData(currentEncoding);
     if (encodingIdx != -1) _textEncodingCombo->setCurrentIndex(encodingIdx);
+    connect(_textEncodingCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(setTextEncoding(int)));
     
     layout->addWidget(_textEncodingCombo, 9, 2, 1, 4);
 
@@ -424,21 +430,42 @@ AdditionalMidiSettingsWidget::AdditionalMidiSettingsWidget(QSettings *settings, 
 }
 
 bool AdditionalMidiSettingsWidget::trackBasedProgramChanges() {
-    QSettings settings(QString("MidiEditor"), QString("NONE"));
-    return settings.value("track_based_program_changes", false).toBool();
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    return settings->value("track_based_program_changes", false).toBool();
 }
 
 void AdditionalMidiSettingsWidget::manualModeToggled(bool enable) {
     MidiOutput::isAlternativePlayer = enable;
+    _settings->setValue("alt_stop", enable);
+    _settings->sync();
+}
+
+void AdditionalMidiSettingsWidget::setTrackBasedProgramChanges(bool enable) {
+    _settings->setValue("track_based_program_changes", enable);
+    _settings->sync();
+}
+
+void AdditionalMidiSettingsWidget::setTextEncoding(int index) {
+    QString encoding = _textEncodingCombo->itemData(index).toString();
+    _settings->setValue("text_encoding_fallback", encoding);
+    _settings->sync();
+}
+
+void AdditionalMidiSettingsWidget::resetTPQ() {
+    _tpqBox->setValue(192);
+    setDefaultTimePerQuarter(192);
 }
 
 void AdditionalMidiSettingsWidget::setDefaultTimePerQuarter(int value) {
     MidiFile::defaultTimePerQuarter = value;
+    _settings->setValue("ticks_per_quarter", value);
+    _settings->sync();
 }
 
 void AdditionalMidiSettingsWidget::setMetronomeVelocity(int value) {
     Metronome::setLoudness(value);
     _settings->setValue("metronome_velocity", value);
+    _settings->sync();
     if (_metronomeLoudnessLabel) {
         _metronomeLoudnessLabel->setText(QString::number(value));
     }
@@ -476,6 +503,7 @@ bool AdditionalMidiSettingsWidget::accept() {
     }
     _settings->setValue("track_based_program_changes", _trackBasedProgramChangesBox->isChecked());
     _settings->setValue("text_encoding_fallback", _textEncodingCombo->currentData().toString());
+    _settings->sync();
     return true;
 }
 
@@ -815,22 +843,32 @@ void MidiSettingsWidget::reloadOutputPorts() {
 void MidiSettingsWidget::inputChanged(QListWidgetItem *item) {
     if (item->checkState() == Qt::Checked) {
         MidiInput::setInputPort(item->text());
-
-        reloadInputPorts();
+    } else {
+        // If the currently active port is being unchecked, disable it
+        if (item->text() == MidiInput::inputPort()) {
+            MidiInput::setInputPort("");
+        }
     }
+
+    reloadInputPorts();
 }
 
 void MidiSettingsWidget::outputChanged(QListWidgetItem *item) {
     if (item->checkState() == Qt::Checked) {
         MidiOutput::setOutputPort(item->text());
+    } else {
+        // If the currently active port is being unchecked, disable it
+        if (item->text() == MidiOutput::outputPort()) {
+            MidiOutput::setOutputPort("");
+        }
+    }
 
-        reloadOutputPorts();
+    reloadOutputPorts();
 
 #ifdef FLUIDSYNTH_SUPPORT
-        updateFluidSynthSettingsEnabled();
+    updateFluidSynthSettingsEnabled();
 #endif
-        _mainWindow->updateAll();
-    }
+    _mainWindow->updateAll();
 }
 
 void MidiSettingsWidget::refreshColors() {

@@ -439,6 +439,7 @@ void KeybindsSettingsWidget::buildPianoUI(QVBoxLayout *layout) {
         settings->setValue("piano_emulation/keys", pianoMap);
         settings->setValue("piano_emulation/octave_down", Qt::Key_Comma);
         settings->setValue("piano_emulation/octave_up", Qt::Key_Period);
+        settings->sync();
         if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
             _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
         }
@@ -464,6 +465,7 @@ void KeybindsSettingsWidget::buildPianoUI(QVBoxLayout *layout) {
             btn->setKey(0);
             QSettings *settings = _dialog->settings();
             settings->setValue(btn == _octaveDownButton ? "piano_emulation/octave_down" : "piano_emulation/octave_up", 0);
+            settings->sync();
             if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
                 _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
             }
@@ -519,6 +521,7 @@ void KeybindsSettingsWidget::buildPianoUI(QVBoxLayout *layout) {
         btn->setKey(key);
         QSettings *settings = _dialog->settings();
         settings->setValue(btn == _octaveDownButton ? "piano_emulation/octave_down" : "piano_emulation/octave_up", key);
+        settings->sync();
         if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
             _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
         }
@@ -556,6 +559,7 @@ void KeybindsSettingsWidget::onPianoKeyChanged(PianoKeyButton *btn, int offset, 
             pianoMap.insert(QString::number(it.key()), it.value());
         }
         settings->setValue("piano_emulation/keys", pianoMap);
+        settings->sync();
         if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
             _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
         }
@@ -608,6 +612,7 @@ void KeybindsSettingsWidget::onPianoKeyChanged(PianoKeyButton *btn, int offset, 
         pianoMap.insert(QString::number(it.key()), it.value());
     }
     settings->setValue("piano_emulation/keys", pianoMap);
+    settings->sync();
     
     // Tell MatrixWidget to update
     if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
@@ -764,6 +769,24 @@ void KeybindsSettingsWidget::resetRowToDefault(int row) {
             }
             // Trigger validation after programmatic change
             checkDuplicates();
+
+            // Persist immediately
+            QSettings *settings = _dialog->settings();
+            settings->beginGroup("shortcuts");
+            if (def.isEmpty()) {
+                settings->remove(id);
+            } else {
+                QStringList seqStrings;
+                for (const QKeySequence &s : def) {
+                    seqStrings << s.toString(QKeySequence::PortableText);
+                }
+                settings->setValue(id, seqStrings);
+            }
+            settings->endGroup();
+            settings->sync();
+
+            // Apply to live action
+            _dialog->mainWindow()->setActionShortcuts(id, def);
         }
     }
 }
@@ -948,6 +971,8 @@ bool KeybindsSettingsWidget::accept() {
     if (_dialog && _dialog->mainWindow() && _dialog->mainWindow()->matrixWidget()) {
         _dialog->mainWindow()->matrixWidget()->updateRenderingSettings();
     }
+    
+    settings->sync();
     
     return true;
 }

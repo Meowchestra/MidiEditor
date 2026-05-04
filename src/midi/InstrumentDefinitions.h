@@ -97,6 +97,11 @@ public:
      * @brief Save overrides to settings
      */
     void saveOverrides(QSettings* settings);
+    
+    /**
+     * @brief Saves all current overrides immediately using the application settings.
+     */
+    void save();
 
     /**
      * @brief Gets the GM instrument name for a program number

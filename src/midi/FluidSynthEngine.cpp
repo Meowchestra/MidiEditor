@@ -16,8 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifdef FLUIDSYNTH_SUPPORT
+#include "../gui/Appearance.h"
 
+#ifdef FLUIDSYNTH_SUPPORT
 #include "FluidSynthEngine.h"
 
 #include <fluidsynth.h>
@@ -29,6 +30,7 @@
 #include <QLibrary>
 #include <QMutexLocker>
 #include <QSettings>
+#include <QScopedPointer>
 #include <QThreadPool>
 #include <QThread>
 #include <QtConcurrent/QtConcurrentRun>
@@ -250,6 +252,7 @@ void FluidSynthEngine::setSoundFontCollection(const QList<QPair<QString, bool>> 
         }
     }
     setSoundFontStack(enabledPaths);
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::addSoundFonts(const QStringList &paths) {
@@ -271,6 +274,7 @@ void FluidSynthEngine::addSoundFonts(const QStringList &paths) {
     }
     if (changed) {
         emit soundFontsChanged();
+        save(); // Persist immediately
     }
 }
 
@@ -878,6 +882,7 @@ void FluidSynthEngine::setAudioDriver(const QString &driver) {
             qDebug() << "FluidSynth: Hot-swapped audio driver to" << driver;
         }
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setGain(double gain) {
@@ -886,6 +891,7 @@ void FluidSynthEngine::setGain(double gain) {
     if (_initialized && _synth) {
         fluid_synth_set_gain(_synth, static_cast<float>(gain));
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setSampleRate(double rate) {
@@ -906,6 +912,7 @@ void FluidSynthEngine::setSampleRate(double rate) {
             });
         }
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setReverbEngine(const QString &engine) {
@@ -917,6 +924,7 @@ void FluidSynthEngine::setReverbEngine(const QString &engine) {
         // FluidSynth allows changing reverb engine on the fly
         fluid_settings_setstr(_settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setReverbEnabled(bool enabled) {
@@ -925,6 +933,7 @@ void FluidSynthEngine::setReverbEnabled(bool enabled) {
     if (_initialized && _synth) {
         fluid_synth_reverb_on(_synth, -1, enabled ? 1 : 0);
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setChorusEnabled(bool enabled) {
@@ -933,6 +942,7 @@ void FluidSynthEngine::setChorusEnabled(bool enabled) {
     if (_initialized && _synth) {
         fluid_synth_chorus_on(_synth, -1, enabled ? 1 : 0);
     }
+    save(); // Persist immediately
 }
 
 void FluidSynthEngine::setPolyphony(int polyphony) {
@@ -942,6 +952,7 @@ void FluidSynthEngine::setPolyphony(int polyphony) {
         if (_initialized && _synth) {
             fluid_synth_set_polyphony(_synth, _polyphony);
         }
+        save(); // Persist immediately
     }
 }
 
@@ -961,6 +972,7 @@ void FluidSynthEngine::setSampleFormat(const QString &format) {
                 });
             }
         }
+        save(); // Persist immediately
     }
 }
 
@@ -1065,6 +1077,12 @@ QList<QPair<QString, bool>> FluidSynthEngine::soundFontCollection() const {
 // ============================================================================
 // Persistence
 // ============================================================================
+
+void FluidSynthEngine::save() {
+    QScopedPointer<QSettings> qSettings(::Appearance::settings());
+    saveSettings(qSettings.data());
+    qSettings->sync();
+}
 
 void FluidSynthEngine::saveSettings(QSettings *settings) {
     settings->beginGroup("FluidSynth");

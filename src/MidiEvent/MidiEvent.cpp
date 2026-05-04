@@ -356,7 +356,8 @@ MidiEvent *MidiEvent::loadMidiEvent(QDataStream *content, bool *ok, bool *endEve
                                 decodedText = utf8Decoder(textData);
                                 
                                 if (utf8Decoder.hasError() || decodedText.contains(QChar::ReplacementCharacter)) {
-                                    QSettings settings("MidiEditor", "NONE");
+                                    QSettings settings(Appearance::settingsPath(), Appearance::settingsFormat());
+                                    
                                     QString fallback = settings.value("text_encoding_fallback", "Auto-Detect").toString();
                                     
                                     if (fallback == "Auto-Detect") {

@@ -33,6 +33,7 @@ class QSpinBox;
 class QSlider;
 class QLabel;
 class QGroupBox;
+class QPushButton;
 
 /**
  * \class PerformanceSettingsWidget
@@ -159,6 +160,22 @@ private slots:
      */
     void resetToDefaults();
 
+    /**
+     * \brief Exports current registry settings to a portable.ini file.
+     */
+    void exportSettingsToPortable();
+
+    /**
+     * \brief Imports settings from portable.ini to the Windows Registry.
+     */
+    void importSettingsFromPortable();
+
+    /**
+     * \brief Deletes portable.ini to switch back to Registry mode.
+     */
+    void switchToRegistryMode();
+    void restartApp();
+
 private:
     // === Setup and Management Methods ===
 
@@ -240,6 +257,26 @@ private:
 
     /** \brief Checkbox for checking updates on startup */
     QCheckBox *_checkUpdatesOnStartup;
+
+    // === Portable Mode Controls ===
+
+    /** \brief Group box for portable mode settings */
+    QGroupBox *_portableGroup;
+
+    /** \brief Label showing current portable status */
+    QLabel *_portableStatusLabel;
+
+    /** \brief Button to export settings to portable file */
+    QPushButton *_exportSettingsButton;
+
+    /** \brief Button to import settings from portable file */
+    QPushButton *_importSettingsButton;
+
+    /** \brief Button to switch back to registry mode */
+    QPushButton *_deletePortableButton;
+
+    /** \brief Flag to prevent saving after mode switch */
+    bool _modeSwitched = false;
 };
 
 #endif // PERFORMANCESETTINGSWIDGET_H_

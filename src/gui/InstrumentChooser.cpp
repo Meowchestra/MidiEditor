@@ -39,6 +39,7 @@
 #include <algorithm>
 #include <QSettings>
 #include <QStandardItem>
+#include "Appearance.h"
 
 class InstrumentChooserDelegate : public QStyledItemDelegate {
 public:
@@ -77,7 +78,7 @@ InstrumentChooser::InstrumentChooser(MidiFile *file, int channel, QSettings *set
     
     // Fallback if settings pointer is null
     if (!_settings) {
-        _settings = new QSettings("MidiEditor", "NONE", this);
+        _settings = Appearance::settings(this);
     }
 
     setWindowTitle(tr("Channel Instrument"));

@@ -30,6 +30,8 @@
 #include <QTextStream>
 
 #include <cstdlib>
+#include <QSettings>
+#include "../gui/Appearance.h"
 
 #include "rtmidi/RtMidi.h"
 
@@ -120,6 +122,19 @@ QStringList MidiInput::inputPorts() {
 }
 
 bool MidiInput::setInputPort(QString name) {
+    // Handle "None" / empty port
+    if (name.isEmpty()) {
+        _midiIn->closePort();
+        _inPort = "";
+
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("in_port", _inPort);
+        settings->sync();
+
+        return true;
+    }
+
     // try to find the port
     unsigned int nPorts = _midiIn->getPortCount();
 
@@ -131,6 +146,12 @@ bool MidiInput::setInputPort(QString name) {
                 _midiIn->closePort();
                 _midiIn->openPort(i);
                 _inPort = name;
+
+                // Persist immediately
+                QScopedPointer<QSettings> settings(Appearance::settings());
+                settings->setValue("in_port", _inPort);
+                settings->sync();
+
                 return true;
             }
         } catch (RtMidiError &) {
@@ -328,6 +349,10 @@ QList<int> MidiInput::toUnique(QList<int> in) {
 
 void MidiInput::setThruEnabled(bool b) {
     _thru = b;
+    // Persist immediately
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->setValue("thru", _thru);
+    settings->sync();
 }
 
 bool MidiInput::thru() {

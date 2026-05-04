@@ -29,9 +29,12 @@
 #include <QFile>
 #include <QFileInfo>
 
-#ifdef NO_CONSOLE_MODE
-#include <tchar.h>
+#ifdef Q_OS_WIN
 #include <windows.h>
+#include <tchar.h>
+#endif
+
+#ifdef NO_CONSOLE_MODE
 std::string wstrtostr(const std::wstring &wstr) {
     if (wstr.empty()) return std::string();
     int size_needed = WideCharToMultiByte(CP_UTF8, 0, &wstr[0], (int)wstr.size(), NULL, 0, NULL, NULL);
@@ -54,9 +57,18 @@ int WINAPI WinMain(HINSTANCE inst, HINSTANCE prev, LPSTR cmd, int show) {
 int main(int argc, char *argv[]) {
 #endif
 
+    // Get application directory early for portable mode and plugins
+#ifdef Q_OS_WIN
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    QString appDir = QFileInfo(QString::fromWCharArray(exePath)).absolutePath();
+#else
+    QString appDir = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
+#endif
+
     // Load high DPI scaling settings before creating QApplication
     // These must be set before QApplication is created
-    Appearance::loadEarlySettings();
+    Appearance::loadEarlySettings(appDir);
     bool ignoreSystemScaling = Appearance::ignoreSystemScaling();
     bool useRoundedScaling = Appearance::useRoundedScaling();
     bool ignoreFontScaling = Appearance::ignoreFontScaling();
@@ -115,17 +127,13 @@ int main(int argc, char *argv[]) {
     // Add plugins/ subdirectory to Qt's plugin search path before QApplication
     // construction so the platform plugin (qwindows.dll) is found there.
     // This avoids needing a qt.conf file.
-#ifdef NO_CONSOLE_MODE
-    // In WinMain, argv[0] is empty — use GetModuleFileName instead
-    wchar_t exePath[MAX_PATH];
-    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-    QString appDir = QFileInfo(QString::fromWCharArray(exePath)).absolutePath();
-#else
-    QString appDir = QFileInfo(QString::fromLocal8Bit(argv[0])).absolutePath();
-#endif
-    QCoreApplication::addLibraryPath(appDir + "/plugins");
+    // Configure global QSettings identity. 
+    // Appearance::settings() handles the actual file/registry redirection.
+    QCoreApplication::setOrganizationName("MidiEditor");
+    QCoreApplication::setApplicationName("NONE");
 
     QApplication a(argc, argv);
+    QCoreApplication::addLibraryPath(appDir + "/plugins");
 
     // Additional font scaling control after QApplication creation
     if (ignoreFontScaling) {
