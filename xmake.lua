@@ -1,5 +1,5 @@
 
-local MIDIEDITOR_RELEASE_VERSION_STRING = "4.4.1"
+local MIDIEDITOR_RELEASE_VERSION_STRING = "4.5.0"
 
 -- Override uchardet package to use gitlab source instead of rate-limited freedesktop downloads
 package("uchardet")

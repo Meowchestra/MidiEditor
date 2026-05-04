@@ -1,9 +1,145 @@
 # Changelog
 
 Rudimentary changelog of new features & fixes between recent versions.
-A more complete list of all noteworthly changes can be found on the releases page.
+A more complete summary of all noteworthly changes can be found on the releases page.
 https://github.com/Meowchestra/MidiEditor/releases
 
+## [4.5.0] - 2026-05-03
+
+<details>
+<summary>Summary</summary>
+
+* Implemented Theme Presets. Complementary to application styles and allows for overriding windows light/dark mode theme detection.
+  - Default, Light, Dark, Sakura, AMOLED, Material Dark, Nord, Airy
+* Implemented Rainbow Octave Strip Styles for both light and dark themes.
+  - Rainbow Octaves, Rainbow Octaves Scale, Rainbow Octaves Alternating
+* Implemented Track Context Menu.
+  - ``Middle Click`` & ``Right Click`` on a track in the Tracks widget will open a track specific context menu. All options operate on the selected track. New options include;
+    - Clone Track, Merge Track, Move Track
+    - Quantize Track, Transpose Track, Explode Chords to Tracks, Split Channels to Tracks
+    - Select All Events, Move Events to Channel, Remove Events
+* Implemented option to disable startup update check.
+* Implemented option to toggle toolbar visibility.
+* Implemented option to toggle control widget visibility.
+* Implemented option to toggle marker guide lines.
+* Implemented option to accent piano key highlight color based on theme.
+* Implemented option Track-Based Program Changes (Compatibility Mode) to play back the intended instrument for notes on a track using program changes if the program change wasn't properly set up on the correct channel (matching the notes).
+* Implemented piano glissando. You can now hold left click and play up & down the piano scale. Piano note durations for quick clicks are much more precise and now allow you to hold left mouse to sustain instrument sounds.
+* Implemented text encoding fallback option with additional default auto detection from uchardet. Improves support for displaying non-ascii paths, file names, midi text events, & track names. (i.e. GBK chinese & Shift JIS japanese characters.)
+* Implemented MusicXML & MuseScore converters. Can now additionally load .musicxml, .xml, .mxl, .mscz, & .mscx file types into midi format.
+* Implemented Portable Mode. New options under ``System & Performance`` for changing settings management modes to portable. This will export your registry settings to a portable.ini file. If this file exists in the application directory, the app will always start in portable mode and read / save to it. You can decide to export your registry again if you make changes you don't like or wish to import your portable file back to the registry (such as if moving to different devices and don't want to stay in portable mode). All settings now immediately sync when toggled or changed.
+* Velocity Tool - ``ctrl`` + ``l``
+  - New tool ``Set Velocity`` to be able to set the velocity of all notes in a selection at once.
+* Trim Start Tool
+  - New tool ``Trim Blank Start`` to trim blank time from the start of the file. Meta events before first note are moved to the new start time.
+  - Options include ``Remove all blank time until first note`` & ``Remove only empty measures at start``.
+* Select All Events (Row) Tool - ``ctrl`` + ``F3``
+  - New tool ``Select All Events (Row)`` to select all events across a specific row.
+* Select All Events (Measure) Tool - ``ctrl`` + ``F4``
+  - New tool ``Select All Events (Measure)`` to select all events inside a measure.
+  - Does not select meta events to protect meta events from improperly being selected, moved, or deleted.
+  - Can hold mouse down to drag select multiple measures. 
+* Improved Standard Tool
+  - Can now select entire rows by holding ``alt`` when clicking on a piano key. Selecting the same row again will actively toggle between selected & not selected.
+  - Can now select entire measures by holding ``alt`` when clicking on a timeline measure. Selecting the same measure again will actively toggle between selected & not selected.
+  - Can now anchor keys on the piano roll by right clicking a piano key note. This will keep piano keys marked (even on file change) until you unmark them with right click again. Helpful to mark specific keys for whichever reasons.
+  - Can now anchor looped audio for a specific track/channel by holding ``alt`` and right clicking a piano key note. This will force a channel's instrument to forever loop audio until you either select the key, change channels, or change files.
+* Improved File Duration Tool
+  - Now includes human readable time setting in addition to the existing ms value.
+  - Options ``Fit to Last Event`` & ``Fit to Last Measure`` to auto detect end of song for trimming.
+* Improved Split Channels to Tracks tool.
+  - Added Bard Metal (Eltana) preset for drum splitting.
+  - Added option to force drum splitting even if the source track is not percussion / channel 9.
+  - Significantly sped up splitting and less memory leaky.
+* Improved Insert or Delete Measures Tool
+  - Can now insert measures at tick 0 / start of measure 1. Any meta events at tick 0 will remain at tick 0 of the newly inserted measures. Any meta events further along will stay at its current measure.
+  - Can now middle click measures to immediately delete them.
+  - Can now right click to open a measure context menu to delete selected measures or unselect all measures.
+  - Holding left click allows you to drag select multiple measures.
+  - Holding shift allows you to select all measures in-between your mouse and the actively selected measure.
+  - Holding ctrl while left clicking allows you to select measures out of order and toggle select/unselect on measures if they are selected.
+  - Improved boundaries of selecting in-between measure lines for inserting measures.
+* Overhauled Transpose Tool
+  - Now includes 3 different methods of transposing. ``Simple (Chromatic)``, ``Change Key (Key-to-Key)``, & ``Scale-Aware (Diatonic)``
+  - Selection Context showing current selection count and range, as well as transpose output result before confirming.
+  - Simple (Chromatic) is used to move every note by the exact same distance to preserve chords & melodies. Includes preset shift amounts in musical terms, as well as both octave & semitone shifting with direction (up, down).
+  - Change Key (Key-to-Key) changes the key or mode. Can preserve exact melody shape or apply modal interchange. Includes auto detection of best key and scale preset, option to detect best scale if changed, target key & scale, and direction (shortest, up, down).
+  - Scale-Aware (Diatonic) forces notes to stay within a select key. Useful for melodies and harmonies. Setting shift to 0 will snap all notes to the nearest scale degree without shifting them. Includes auto detection of key and scale, option to detect best scale if changed, shift scale degree amount, and direction (up, down).
+  - Options for ``Protect Range`` & ``Exclude Drum Channel``.
+* Overhauled Audio Exporting Tool - ``ctrl`` + ``shift`` + ``e``
+  - Now supports exporting to formats WAV, FLAC, Opus, Ogg Vorbis, & MP3 with optional Sample Rate & Format support.
+  - Selectable song range from Full Song, Selection, & Custom Range (Starting & Ending Measures).
+  - Options for adding ``Reverb Tail`` & ``Trim Silence`` (before first note / after last note).
+  - Displays loaded soundfonts used in the export, source name, & estimated duration.
+  - Audio exporting / encoding progress.
+  - Updated note context menu to include option ``Export Selection as Audio``
+  - Also available under ``File`` menu.
+* Overhauled Piano Emulation
+  - All keys are now remappable in the Keybinds settings with support for 3 octaves (C3-C6)
+  - One octave configured by default (C4-C5).
+  - If the piano emulation is enabled, the note keybinds reveal itself on the piano roll directly.
+  - Option for shifting octave down & up with ``,`` & ``.`` as well as remappable. Shifting octaves visually moves the note keybinds on the piano roll for live feedback.
+  - Visual feedback on the piano roll when a key is hit with the piano emulation.
+  - The piano emulation can be used with the record feature to record midi events for track/channel placement. When playing, ghost notes for the actively held keys will appear behind the playback marker red line for visual feedback of notes playing.
+* Overhauled Update Checker
+  - On new version available, a new prettier window will appear showing the new version number, your current version, and the active changelog in a visible window with markdown and collapsible rows. The changelog will contain clickable rows to read the changes for every version missed compared to your current version.
+  - Hyperlink to read the full changelog.
+  - Buttons for Update Now, On Exit, Manual, & Close.
+  - Update Now & On Exit will detect your current installation type (Installer.exe or Portable.zip) based on if maintenancetool.exe is in your application directory and do in-place upgrades automatically for you. Portable version will relaunch MidiEditor automatically for you after replacing all files. Installer will launch the setup installer and require you to manually run through its uninstall / install routines. Update Now schedules download / update immediately, On Exit will download the update in the background & update as soon as you close MidiEditor after editing.
+  - Manual opens a hyperlink to the release page so you can manually update.
+* Improved all note selection behavior. More deterministic selection workflow when using modifier keys. Holding ``shift`` makes additions to the current selection, holding ``ctrl`` makes subtractions to the current selection. No modifier keys behaves like normal and just changes the active selection.
+* Improved hit detection when mousing over matrix grid rows & piano keys. Events dragged will no longer ghost into different rows if your mouse cursor showed a different row hovered on than actually dragged to due to edges & cursor positioning. Piano roll will play / highlight the exact key you are hovering over instead of playing a black key if you are in front of the key tip.
+* Numerous playback & focus improvements.
+  - Clicking on a channel now changes the channel focus to it.
+  - Clicking on a track now attempts to detect the channel used on that track based on current timeline cursor position / program change, for both track & channel focus when clicked.
+  - Changing a channel's instrument now assigns the program change to the focused track instead of always on track 0.
+  - Fixed a note's channel reporting an incorrect instrument if a channel's instrument was changed or deleted (program changes removed). All channel changes now reflect signal changes immediately.
+  - Improved detection & channel sync for playing the correct instrument of a note & focused track.
+  - Improved piano roll channel instrument preview by resetting volume (CC 7) and Expression (CC 11) events to ensure sound always plays.
+* Improved pixmap subpixel antialiasing with fractional scaling. Fixes blurry matrix, timeline, and protocol text.
+* Improved midi event reading order to be sequential (FIFO) instead of QMultiMap automatically sorting events chronologically by their tick time (LIFO) order. This fixes issues where midi playback was not matching other synthesizers if multiple tempo events were improperly placed on the same tick. Events are now read in their hex / byte order inside the midi file.
+* Selecting markers in the marker row now selects the event after move for easier examining of the meta event in Event Widget.
+* Expanded Game Support - Final Fantasy XIV
+  - Condense Instrument Selection -- option to condense instrument selection in the Channels Widget & Event Widget program / instrument selection to a smaller list of instruments. Allowing the complete list of GM instruments to only show those used by FFXIV. Can sort instruments numerically or by game group order.
+  - Track Rename Presets -- option to reveal a new icon in the track rename window with one-click rename presets for FFXIV instrument names.
+* SoundFont Update - SGM Pro 13.
+* Keybind Changes. These changes group tools into categories for easier flow and opens up function keys for future tools.
+  - Split Channels to Tracks -> ``Ctrl`` + ``Alt`` + ``E``
+  - Select Events (Single) -> ``Ctrl`` + ``F1``
+  - Select Events (Box) -> ``Ctrl`` + ``F2``
+  - Select All Events (Left Side) -> ``Ctrl`` + ``F5``
+  - Select All Events (Right Side) -> ``Ctrl`` + ``F6``
+  - Move Events (All Directions) -> ``Shift`` + ``F1``
+  - Move Events (Left and Right) -> ``Shift`` + ``F2``
+  - Move Events (Up and Down) -> ``Shift`` + ``F3``
+  - Resize Events -> ``Shift`` + ``F4``
+  - Insert or Delete Measures -> ``Alt`` + ``F1``
+  - Edit Time Signatures -> ``Alt`` + ``F2``
+  - Edit Tempo -> ``Alt`` + ``F3``
+* Changed FluidSynth defaults to WASAPI and 48000 Hz to better match modern windows API & default sound system configuration.
+* Numerous UI improvements and cleanup across the board.
+  - Prettier save confirmation window on modified file close.
+  - Organized Note Duration, Quantize Resolution, & Grid Division options into categories so more common options are immediately visible and less common options are neatly tucked away.
+  - Smaller default right panel minimum width. Matches width if unlock widget minimum sizes is enabled but allows for snapping widget closed.
+  - New icons for Fix XIV Channels & Playback Speed
+  - Fixes for various base palette backgrounds and colors not properly setting on theme changes.
+  - Various dialogue windows improved for clarity and ease of understanding.
+  - Added missing actions to remappable keybinds menu.
+  - Cleanup around margin consistency across widgets and settings.
+  - Strummer window sizing and section consistency.
+  - Split channels to tracks now shows the exact instrument name if you renamed instruments.
+  - Can unselect the active MIDI Input / Output now.
+* Significantly sped up note selection performance & note dragging performance with duplicate piano highlight / note boundary lines.
+* Fix XIV Channels now preserves unmatched percussion tracks on channel 9 instead of falling back to channel 0 with the rest of the unmatched track instruments.
+* Fixed crash caused by deleting tempo and time signature event if it's the only event in the midi.
+* Fixed some performance & memory issues with delete overlaps tool.
+* Various crash fixes, performance improvements, and memory leak fixes.
+* Qt 6.11.1
+* Removed QMake configuration / github workflow.
+
+_May includes additional unlisted changes! ..._
+
+</details>
 
 ## [4.4.1] - 2026-04-12
 
