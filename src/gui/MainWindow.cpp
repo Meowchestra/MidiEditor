@@ -787,6 +787,15 @@ void MainWindow::performEarlyCleanup() {
         _updateManager->applyUpdateAfterExit();
     }
 
+    // Ensure our local settings cache doesn't overwrite the cleared update keys on destruction.
+    // This is critical for multi-instance scenarios where one instance clears the settings on disk.
+    if (_settings) {
+        _settings->remove("updater/pending_update_file");
+        _settings->remove("updater/is_installer");
+        _settings->remove("updater/latest_version");
+        _settings->sync();
+    }
+
     // Force immediate processing of any pending events
     QApplication::processEvents(QEventLoop::AllEvents);
 

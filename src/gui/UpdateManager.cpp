@@ -134,25 +134,27 @@ void UpdateManager::createPortableUpdateScript(const QString &zipPath)
         QTextStream out(&script);
         // UTF-8 is default in Qt 6
         
-        out << "$appDir = \"" << QDir::toNativeSeparators(appDir) << "\"\n";
-        out << "$zipPath = \"" << QDir::toNativeSeparators(zipPath) << "\"\n";
-        out << "$appPath = \"" << QDir::toNativeSeparators(appPath) << "\"\n";
+        out << "$appDir = '" << QDir::toNativeSeparators(appDir) << "'\n";
+        out << "$zipPath = '" << QDir::toNativeSeparators(zipPath) << "'\n";
+        out << "$appPath = '" << QDir::toNativeSeparators(appPath) << "'\n";
+        QString processName = QFileInfo(appPath).baseName();
+        out << "$processName = '" << processName << "'\n";
         out << "$processId = " << QCoreApplication::applicationPid() << "\n\n";
 
         out << "$logFile = \"$env:TEMP\\MidiEditor_Update.log\"\n";
         out << "\"Starting update script...\" | Out-File -FilePath $logFile\n\n";
 
-        out << "\"Script initialized. Target version: $m_latestVersion\" | Out-File -FilePath $logFile -Append\n\n";
+        out << "\"Script initialized. Target version: " << m_latestVersion << "\" | Out-File -FilePath $logFile -Append\n\n";
 
-        out << "# Wait for the process to exit with timeout\n";
-        out << "$timeout = 10\n";
-        out << "while ((Get-Process -Id $processId -ErrorAction SilentlyContinue) -and ($timeout -gt 0)) {\n";
+        out << "# Wait for all instances to exit with timeout\n";
+        out << "$timeout = 30\n";
+        out << "while ((Get-Process -Name $processName -ErrorAction SilentlyContinue) -and ($timeout -gt 0)) {\n";
         out << "    Start-Sleep -Seconds 1\n";
         out << "    $timeout--\n";
         out << "}\n";
-        out << "if (Get-Process -Id $processId -ErrorAction SilentlyContinue) {\n";
-        out << "    \"Process $processId hung. Forcing kill.\" | Out-File -FilePath $logFile -Append\n";
-        out << "    Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue\n";
+        out << "if (Get-Process -Name $processName -ErrorAction SilentlyContinue) {\n";
+        out << "    \"One or more $processName processes still running. Forcing kill.\" | Out-File -FilePath $logFile -Append\n";
+        out << "    Stop-Process -Name $processName -Force -ErrorAction SilentlyContinue\n";
         out << "}\n\n";
 
         out << "\"Process exited. Starting extraction...\" | Out-File -FilePath $logFile -Append\n";
@@ -162,6 +164,11 @@ void UpdateManager::createPortableUpdateScript(const QString &zipPath)
         out << "try {\n";
         out << "    $extractPath = \"$env:TEMP\\MidiEditor_Update_Extract\"\n";
         out << "    if (Test-Path $extractPath) { Remove-Item -Path $extractPath -Recurse -Force }\n";
+        out << "    if (!(Test-Path $zipPath)) {\n";
+        out << "        \"Error: Update asset $zipPath not found. It may have been processed by another instance.\" | Out-File -FilePath $logFile -Append\n";
+        out << "        Remove-Item -Path $MyInvocation.MyCommand.Definition -Force\n";
+        out << "        exit\n";
+        out << "    }\n";
         out << "    New-Item -ItemType Directory -Path $extractPath | Out-Null\n";
         out << "    Expand-Archive -Path $zipPath -DestinationPath $extractPath -Force\n\n";
 
@@ -202,23 +209,37 @@ void UpdateManager::createPortableUpdateScript(const QString &zipPath)
 void UpdateManager::applyUpdateAfterExit()
 {
     QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->sync(); // Refresh from disk to see if another instance already cleared it
+    
     QString zipPath = settings->value("updater/pending_update_file").toString();
     bool installer = settings->value("updater/is_installer").toBool();
     QString version = settings->value("updater/latest_version").toString();
 
-    if (zipPath.isEmpty() || !QFile::exists(zipPath)) return;
+    if (zipPath.isEmpty() || !QFile::exists(zipPath)) {
+        // If it's already gone or empty, ensure the settings are clean
+        if (!zipPath.isEmpty()) {
+            settings->remove("updater/pending_update_file");
+            settings->remove("updater/is_installer");
+            settings->remove("updater/latest_version");
+            settings->sync();
+        }
+        return;
+    }
 
+    // Capture state for this instance
     isInstaller = installer;
     targetFilePath = zipPath;
     m_latestVersion = version;
     isImmediate = true;
 
-    finalizeUpdate();
-
-    // Clear settings so it doesn't repeatedly try
+    // Clear settings IMMEDIATELY before launching the script to prevent race conditions
+    // and ensure that even if this process is killed, the settings are gone.
     settings->remove("updater/pending_update_file");
     settings->remove("updater/is_installer");
     settings->remove("updater/latest_version");
+    settings->sync(); // Flush to disk
+
+    finalizeUpdate();
 }
 
 
