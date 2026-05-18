@@ -33,19 +33,25 @@
 #include <QSettings>
 #include "../gui/Appearance.h"
 
-#include "rtmidi/RtMidi.h"
-
+#ifdef Q_OS_WIN
+#include "RtMidi.h"
 using namespace rt::midi;
+#endif
 
 #include "MidiOutput.h"
 
+#ifdef Q_OS_WIN
 RtMidiIn *MidiInput::_midiIn = 0;
+#else
+RtMidiIn *MidiInput::_midiIn = nullptr;
+#endif
 QString MidiInput::_inPort = "";
 QMultiMap<int, std::vector<unsigned char> > *MidiInput::_messages = new QMultiMap<int, std::vector<unsigned char> >;
 int MidiInput::_currentTime = 0;
 bool MidiInput::_recording = false;
 bool MidiInput::_thru = false;
 
+#ifdef Q_OS_WIN
 void MidiInput::init() {
     // RtMidiIn constructor
     try {
@@ -57,7 +63,11 @@ void MidiInput::init() {
         error.printMessage();
     }
 }
-
+#else
+void MidiInput::init() {
+    // ALSA is used directly on Linux, no RtMidi initialization needed
+}
+#endif
 void MidiInput::receiveMessage(double deltatime, std::vector<unsigned char> *message, void *userData) {
     if (message->size() > 1) {
         _messages->insert(_currentTime, *message);

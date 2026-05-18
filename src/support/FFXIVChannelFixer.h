@@ -123,11 +123,18 @@ public:
 
     /// Options for the fix operation
     struct FixOptions {
-        bool cleanupControlChanges = true;
-        bool cleanupKeyPressure = true;
-        bool cleanupChannelPressure = true;
-        bool cleanupPitchBend = true;
-        bool normalizeVelocity = true;
+    bool cleanupControlChanges;
+    bool cleanupKeyPressure;
+    bool cleanupChannelPressure;
+    bool cleanupPitchBend;
+    bool normalizeVelocity;
+    
+    FixOptions() 
+        : cleanupControlChanges(true),
+          cleanupKeyPressure(true),
+          cleanupChannelPressure(true),
+          cleanupPitchBend(true),
+          normalizeVelocity(true) {}
     };
 
     /**
@@ -139,9 +146,9 @@ public:
      * \return JSON result with success, tier, channelMap, summary
      */
     static QJsonObject fixChannels(MidiFile *file,
-                                   int forcedTier = 0,
-                                   FixOptions options = FixOptions(),
-                                   ProgressCallback progress = nullptr);
+                               int forcedTier = 0,
+                               const FixOptions &options = FixOptions(),
+                               ProgressCallback progress = nullptr);
 
 private:
     /// Strip trailing [+-]\d+$ suffix from a track name.

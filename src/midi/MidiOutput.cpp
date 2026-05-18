@@ -27,7 +27,12 @@
 
 #include <vector>
 
-#include "rtmidi/RtMidi.h"
+#ifdef Q_OS_WIN
+#include "RtMidi.h"
+using namespace rt::midi;
+#else
+// On Linux, ALSA is used directly without RtMidi
+#endif
 
 #ifdef FLUIDSYNTH_SUPPORT
 #include "FluidSynthEngine.h"

@@ -24,6 +24,7 @@
 #include <QList>
 #include <QRadioButton>
 #include <QSpinBox>
+#include <QLabel>
 
 // Forward declarations
 class NoteOnEvent;

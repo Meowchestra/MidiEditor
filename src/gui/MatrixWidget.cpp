@@ -1925,8 +1925,10 @@ bool MatrixWidget::pianoEmulator(QKeyEvent *event) {
     int physDownKey = octaveDownKey;
     
     // Handle standard keys mapping for GetAsyncKeyState
+    #ifdef Q_OS_WIN
     if (octaveUpKey == Qt::Key_Period) physUpKey = VK_OEM_PERIOD;
     if (octaveDownKey == Qt::Key_Comma) physDownKey = VK_OEM_COMMA;
+    #endif
     
     quint32 nativeVK = event->nativeVirtualKey();
     

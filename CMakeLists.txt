@@ -29,7 +29,16 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebI
         set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -march=x86-64-v3 -mtune=generic")
 
         # Advanced optimization flags
-        set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvectorize -fslp-vectorize")
+        
+                # Advanced optimization flags
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvectorize -fslp-vectorize")
+        else()
+            # GCC uses different vectorization flags
+            set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize")
+        endif()
+        
+        # set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fvectorize -fslp-vectorize") # does not work under Ubuntu
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ffunction-sections -fdata-sections")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -falign-functions=32 -falign-loops=32")
         set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -fmerge-all-constants")
@@ -307,7 +316,7 @@ set(SOURCES
 )
 
 # Add only main rtmidi files if they exist (not tests/docs/examples)
-if(EXISTS "${CMAKE_SOURCE_DIR}/src/midi/rtmidi/RtMidi.cpp")
+if(EXISTS "${CMAKE_SOURCE_DIR}/src/midi/rtmidi/RtMidi.cpp" AND WIN32)
     list(APPEND SOURCES "src/midi/rtmidi/RtMidi.cpp")
     # Add rtmidi include directory so RtMidi.h can be found
     target_include_directories(MidiEditor PRIVATE "src/midi/rtmidi")
