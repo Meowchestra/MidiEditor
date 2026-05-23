@@ -26,4 +26,4 @@ The editor is able to open existing midi files and modify their content. New fil
 * Event quantization
 * Control changes can be visualized
 * Free
-* Available for Windows
+* Available for Windows and Linux (Ubuntu)
