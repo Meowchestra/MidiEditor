@@ -43,7 +43,12 @@ using namespace rt::midi;
 #include "../MidiEvent/NoteOnEvent.h"
 #include "../MidiEvent/OffEvent.h"
 
+#ifdef Q_OS_WIN
 RtMidiOut *MidiOutput::_midiOut = 0;
+#else
+RtMidiOut *MidiOutput::_midiOut = nullptr;
+#endif
+
 QString MidiOutput::_outPort = "";
 QMap<int, QList<int> > MidiOutput::playedNotes = QMap<int, QList<int> >();
 bool MidiOutput::isAlternativePlayer = false;
@@ -54,6 +59,7 @@ const QString MidiOutput::FLUIDSYNTH_PORT_NAME = QStringLiteral("FluidSynth (Bui
 
 int MidiOutput::_stdChannel = 0;
 
+#ifdef Q_OS_WIN
 void MidiOutput::init() {
     // RtMidiOut constructor
     try {
@@ -62,7 +68,11 @@ void MidiOutput::init() {
         error.printMessage();
     }
     // PERFORMANCE: No SenderThread - send MIDI directly to eliminate NtWaitForSingleObject overhead
+#else
+void MidiOutput::init() {
+    // ALSA is used directly on Linux, no RtMidi initiazation needed
 }
+#endif
 
 void MidiOutput::sendCommand(QByteArray array) {
     sendEnqueuedCommand(array);
@@ -91,6 +101,8 @@ void MidiOutput::sendCommand(MidiEvent *e) {
     }
 }
 
+
+#ifdef Q_OS_WIN
 QStringList MidiOutput::outputPorts() {
     QStringList ports;
 
@@ -111,7 +123,20 @@ QStringList MidiOutput::outputPorts() {
 
     return ports;
 }
+#else
+QStringList MidiOutput::outputPorts() {
+    QStringList ports;
+    // On Linux, ALSA is used directly
+    // TODO: Implement ALSA port enumeration
+    #ifdef FLUIDSYNTH_SUPPORT
+    // Add FluidSynth as a virtual output port
+    ports.append(FLUIDSYNTH_PORT_NAME);
+    #endif
+        return ports;
+}
+#endif
 
+#ifdef Q_OS_WIN
 bool MidiOutput::setOutputPort(QString name) {
 #ifdef FLUIDSYNTH_SUPPORT
     // Handle FluidSynth virtual port
@@ -183,10 +208,67 @@ bool MidiOutput::setOutputPort(QString name) {
     return false;
 }
 
+#else  // for Linux
+
+bool MidiOutput::setOutputPort(QString name) {
+    #ifdef FLUIDSYNTH_SUPPORT
+    // Handle FluidSynth virtual port
+    if (name == FLUIDSYNTH_PORT_NAME) {
+        // Initialize FluidSynth engine
+        FluidSynthEngine *engine = FluidSynthEngine::instance();
+        if (!engine->isInitialized()) {
+            if (!engine->initialize()) {
+                qWarning() << "Failed to initialize FluidSynth engine";
+                return false;
+            }
+        }
+        _outPort = name;
+
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("out_port", _outPort);
+        settings->sync();
+
+        return true;
+    }
+
+    // If switching away from FluidSynth, shut it down
+    if (_outPort == FLUIDSYNTH_PORT_NAME) {
+        FluidSynthEngine::instance()->shutdown();
+    }
+    #endif
+
+    // Handle "None" / empty port
+    if (name.isEmpty()) {
+        _outPort = "";
+
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("out_port", _outPort);
+        settings->sync();
+
+        return true;
+    }
+
+    // On Linux, ALSA is used directly
+    // TODO: Implement ALSA port selection
+    _outPort = name;
+
+    // Persist immediately
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->setValue("out_port", _outPort);
+    settings->sync();
+
+    return true;
+}
+#endif
+
 QString MidiOutput::outputPort() {
     return _outPort;
 }
 
+
+#ifdef Q_OS_WIN
 void MidiOutput::sendEnqueuedCommand(QByteArray array) {
     if (_outPort != "") {
 #ifdef FLUIDSYNTH_SUPPORT
@@ -210,6 +292,21 @@ void MidiOutput::sendEnqueuedCommand(QByteArray array) {
         }
     }
 }
+#else
+void MidiOutput::sendEnqueuedCommand(QByteArray array) {
+    if (_outPort != "") {
+        #ifdef FLUIDSYNTH_SUPPORT
+        // Route to FluidSynth if it's the active output
+        if (_outPort == FLUIDSYNTH_PORT_NAME) {
+            FluidSynthEngine::instance()->sendMidiData(array);
+            return;
+        }
+        #endif
+        // on Linux, ALSA is used directly without RtMidi
+        // TODO: Implement ALSA Midi message sending
+    }
+}
+#endif
 
 void MidiOutput::setStandardChannel(int channel) {
     _stdChannel = channel;
