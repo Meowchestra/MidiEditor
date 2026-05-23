@@ -2120,7 +2120,7 @@ void MidiFile::meterAt(int tick, int *num, int *denum, TimeSignatureEvent **last
 
 void MidiFile::printLog(QStringList *log) {
     foreach(QString str, *log) {
-        qWarning(str.toUtf8().constData());
+        qWarning() << str;
     }
 }
 
