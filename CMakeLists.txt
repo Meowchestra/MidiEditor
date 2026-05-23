@@ -50,7 +50,11 @@ if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebI
         set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -fno-math-errno -ffinite-math-only")
 
         # Link-time optimizations with advanced flags
-        set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -s")
+        if(WIN32)
+            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -Wl,--icf=all -s") # does not work under Ubuntu
+        elseif()
+            set(CMAKE_EXE_LINKER_FLAGS_RELEASE "-Wl,-O3 -Wl,--as-needed -Wl,--gc-sections -s")
+        endif()
 
     elseif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
         set(CMAKE_CXX_FLAGS_RELEASE "/Ox /Ob2 /Oi /Ot /GL /DNDEBUG /arch:AVX2")
@@ -211,9 +215,17 @@ find_package(OpenGL REQUIRED)
 target_link_libraries(MidiEditor PRIVATE ${OPENGL_LIBRARIES})
 
 # Link zlib for GP7 extraction (raw deflate)
-set(ZLIB_INCLUDE_DIR "C:/Qt/6.11.0/msvc2022_64/include/QtZlib")
-target_include_directories(MidiEditor PRIVATE ${ZLIB_INCLUDE_DIR})
-target_link_libraries(MidiEditor PRIVATE ${ZLIB_LIBRARY})
+
+if(WIN32)
+    set(ZLIB_INCLUDE_DIR "C:/Qt/6.11.0/msvc2022_64/include/QtZlib")
+    target_include_directories(MidiEditor PRIVATE ${ZLIB_INCLUDE_DIR})
+    target_link_libraries(MidiEditor PRIVATE ${ZLIB_LIBRARY})
+else()
+    find_package(ZLIB REQUIRED)
+    target_link_libraries(MidiEditor PRIVATE ZLIB::ZLIB)
+    target_include_directories(MidiEditor PRIVATE ${ZLIB_INCLUDE_DIRS})
+endif()
+
 
 # Optional FluidSynth support for built-in synthesizer
 # Accept pre-built install dir via -DFLUIDSYNTH_DIR=... or FLUIDSYNTH_DIR env var
