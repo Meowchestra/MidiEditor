@@ -36,6 +36,8 @@
 #ifdef Q_OS_WIN
 #include "RtMidi.h"
 using namespace rt::midi;
+#else
+//on Linux, Alsa is used directly without RtMidi
 #endif
 
 #include "MidiOutput.h"
@@ -45,6 +47,7 @@ RtMidiIn *MidiInput::_midiIn = 0;
 #else
 RtMidiIn *MidiInput::_midiIn = nullptr;
 #endif
+
 QString MidiInput::_inPort = "";
 QMultiMap<int, std::vector<unsigned char> > *MidiInput::_messages = new QMultiMap<int, std::vector<unsigned char> >;
 int MidiInput::_currentTime = 0;
@@ -56,7 +59,6 @@ void MidiInput::init() {
     // RtMidiIn constructor
     try {
         _midiIn = new RtMidiIn(RtMidi::UNSPECIFIED, QString(tr("MidiEditor input")).toStdString());
-        //_midiIn->setQueueSizeLimit(65535);
         _midiIn->ignoreTypes(false, true, true);
         _midiIn->setCallback(&receiveMessage);
     } catch (RtMidiError &error) {
@@ -115,39 +117,48 @@ void MidiInput::receiveMessage(double deltatime, std::vector<unsigned char> *mes
     }
 }
 
+#ifdef Q_OS_WIN
+
 QStringList MidiInput::inputPorts() {
+
     QStringList ports;
 
     // Check outputs.
     unsigned int nPorts = _midiIn->getPortCount();
-
     for (unsigned int i = 0; i < nPorts; i++) {
         try {
             ports.append(QString::fromStdString(_midiIn->getPortName(i)));
         } catch (RtMidiError &) {
         }
     }
-
     return ports;
 }
 
+#else
+
+QStringList MidiInput::inputPorts() {
+    QStringList ports;
+    // On Linux, ALSA is used directly
+    // TODO: Implement ALSA port enumeration
+    return ports;
+}
+
+#endif
+
+#ifdef Q_OS_WIN
 bool MidiInput::setInputPort(QString name) {
     // Handle "None" / empty port
     if (name.isEmpty()) {
         _midiIn->closePort();
         _inPort = "";
-
         // Persist immediately
         QScopedPointer<QSettings> settings(Appearance::settings());
         settings->setValue("in_port", _inPort);
         settings->sync();
-
         return true;
     }
-
     // try to find the port
     unsigned int nPorts = _midiIn->getPortCount();
-
     for (unsigned int i = 0; i < nPorts; i++) {
         try {
             // if the current port has the given name, select it and close
@@ -156,12 +167,10 @@ bool MidiInput::setInputPort(QString name) {
                 _midiIn->closePort();
                 _midiIn->openPort(i);
                 _inPort = name;
-
                 // Persist immediately
                 QScopedPointer<QSettings> settings(Appearance::settings());
                 settings->setValue("in_port", _inPort);
                 settings->sync();
-
                 return true;
             }
         } catch (RtMidiError &) {
@@ -171,6 +180,33 @@ bool MidiInput::setInputPort(QString name) {
     // port not found
     return false;
 }
+
+#else
+
+bool MidiInput::setInputPort(QString name) {
+    // Handle "None" / empty port
+    if (name.isEmpty()) {
+        _inPort = "";
+        // Persist immediately
+        QScopedPointer<QSettings> settings(Appearance::settings());
+        settings->setValue("in_port", _inPort);
+        settings->sync();
+        return true;
+    }
+
+    // On Linux, ALSA is used directly
+    // TODO: Implement ALSA port selection
+    _inPort = name;
+
+    // Persist immediately
+    QScopedPointer<QSettings> settings(Appearance::settings());
+    settings->setValue("in_port", _inPort);
+    settings->sync();
+    return true;
+}
+
+#endif
+
 
 QString MidiInput::inputPort() {
     return _inPort;
