@@ -246,7 +246,7 @@ QJsonObject FFXIVChannelFixer::analyzeFile(MidiFile *file) {
 // fixChannels — tiered reassignment and preservation
 // ---------------------------------------------------------------------------
 
-QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, FixOptions options, ProgressCallback progress) {
+QJsonObject FFXIVChannelFixer::fixChannels(MidiFile *file, int forcedTier, const FixOptions& options, ProgressCallback progress) {
     auto report = [&](int pct, const QString &msg) {
         if (progress) progress(pct, msg);
     };
