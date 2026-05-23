@@ -245,7 +245,7 @@ void TrackListWidget::dropEvent(QDropEvent *event) {
         int from = row(selected.first());
         
         // Get the item at the drop position
-        QListWidgetItem *dropItem = itemAt(event->pos());
+        QListWidgetItem *dropItem = itemAt(event->position().toPoint());
         if (!dropItem) {
             event->ignore();
             return;
@@ -428,7 +428,7 @@ void TrackListWidget::mousePressEvent(QMouseEvent *event) {
         QListWidgetItem *item = itemAt(event->pos());
         if (item) {
             setCurrentItem(item);
-            QContextMenuEvent ce(QContextMenuEvent::Mouse, event->pos(), event->globalPos());
+            QContextMenuEvent ce(QContextMenuEvent::Mouse, event->pos(), event->globalPosition().toPoint());
             contextMenuEvent(&ce);
             return;
         }

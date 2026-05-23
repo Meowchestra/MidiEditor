@@ -1567,7 +1567,7 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
     // Special case for MeasureTool: Right-Click for context menu, Middle-Click for deletion
     if (dynamic_cast<MeasureTool*>(currentTool)) {
         if (event->button() == Qt::RightButton) {
-            showContextMenu(event->globalPos(), event->pos());
+            showContextMenu(event->globalPosition().toPoint(), event->pos());
             return;
         }
         if (event->button() == Qt::MiddleButton) {
@@ -1576,10 +1576,10 @@ void MatrixWidget::mousePressEvent(QMouseEvent *event) {
     } else {
         // Standard behavior: Middle-Click for context menu
         if (event->button() == Qt::MiddleButton) {
-            showContextMenu(event->globalPos(), event->pos());
+            showContextMenu(event->globalPosition().toPoint(), event->pos());
             return;
         }
-        
+
         if (event->button() == Qt::RightButton && (event->modifiers() & Qt::ControlModifier)) {
             // Ignore the press; let contextMenuEvent handle it cleanly on release
             return;
