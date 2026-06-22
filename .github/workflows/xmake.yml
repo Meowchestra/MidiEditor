@@ -219,7 +219,7 @@ jobs:
           archives: 'qtbase qtopengl qtconcurrent'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git'
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
           submodules: true
