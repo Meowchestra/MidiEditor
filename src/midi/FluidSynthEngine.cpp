@@ -54,7 +54,7 @@ FluidSynthEngine::FluidSynthEngine()
       _sampleRate(48000.0),
       _sampleFormat("16bits"),
       _gain(0.5),
-      _reverbEngine("fdn"),
+      _reverbEngine("dat"),
       _reverbEnabled(true),
       _chorusEnabled(true),
       _polyphony(256),
@@ -93,7 +93,6 @@ bool FluidSynthEngine::initialize() {
     fluid_settings_setint(_settings, "synth.reverb.active", _reverbEnabled ? 1 : 0);
     fluid_settings_setint(_settings, "synth.chorus.active", _chorusEnabled ? 1 : 0);
     fluid_settings_setint(_settings, "synth.polyphony", _polyphony);
-    // Set custom reverb engine only if supported (wrap string in literal or standard way to avoid errors if fallback is used)
     fluid_settings_setstr(_settings, "synth.reverb.engine", _reverbEngine.toUtf8().constData());
 
     // Audio Driver Settings
@@ -1121,7 +1120,7 @@ void FluidSynthEngine::loadSettings(QSettings *settings) {
     _sampleRate = settings->value("sampleRate", 48000.0).toDouble();
     _sampleFormat = settings->value("sampleFormat", "16bits").toString();
     _gain = settings->value("gain", 0.5).toDouble();
-    _reverbEngine = settings->value("reverbEngine", "fdn").toString();
+    _reverbEngine = settings->value("reverbEngine", "dat").toString();
     _reverbEnabled = settings->value("reverbEnabled", true).toBool();
     _chorusEnabled = settings->value("chorusEnabled", true).toBool();
     _polyphony = settings->value("polyphony", 256).toInt();

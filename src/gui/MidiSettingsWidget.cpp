@@ -657,10 +657,11 @@ MidiSettingsWidget::MidiSettingsWidget(MainWindow *mainWindow, QWidget *parent)
 
     // (0,4): Reverb Engine Combo (Stretch 1)
     _reverbEngineCombo = new QComboBox(_fluidSynthSettingsGroup);
-    _reverbEngineCombo->addItem(tr("FDN Reverb"), "fdn");
+    _reverbEngineCombo->addItem(tr("FDN"), "fdn");
     _reverbEngineCombo->addItem(tr("Freeverb"), "free");
-    _reverbEngineCombo->addItem(tr("LEXverb"), "lex");
-    _reverbEngineCombo->addItem(tr("Dattorro Reverb"), "dat");
+    _reverbEngineCombo->addItem(tr("Lexverb"), "lex");
+    _reverbEngineCombo->addItem(tr("Dattorro"), "dat");
+    _reverbEngineCombo->addItem(tr("Signalsmith"), "smith");
     int rEngIdx = _reverbEngineCombo->findData(engine->reverbEngine());
     if (rEngIdx != -1) _reverbEngineCombo->setCurrentIndex(rEngIdx);
     _reverbEngineCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);

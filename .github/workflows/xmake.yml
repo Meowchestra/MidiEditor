@@ -134,7 +134,7 @@ jobs:
     steps:
       - name: Clone FluidSynth branch
         run: |
-          git clone --depth=1 --branch multi-reverb-support https://github.com/FluidSynth/fluidsynth.git fluidsynth-src
+          git clone --depth=1 https://github.com/FluidSynth/fluidsynth.git fluidsynth-src
           cd fluidsynth-src
           git submodule update --init --depth=1 gcem
           git submodule update --init --depth=1 signalsmith-audio-basics
@@ -152,7 +152,7 @@ jobs:
         uses: actions/cache@v6
         with:
           path: fluidsynth
-          key: fluidsynth-multi-reverb-sndfile-${{ hashFiles('fluidsynth-src/**') }}-${{ hashFiles('libsndfile/**') }}
+          key: fluidsynth-master-${{ hashFiles('fluidsynth-src/**') }}-${{ hashFiles('libsndfile/**') }}
 
       - name: Build FluidSynth
         if: steps.cache-fs.outputs.cache-hit != 'true'
@@ -187,7 +187,7 @@ jobs:
       - name: Upload FluidSynth artifact
         uses: actions/upload-artifact@v7
         with:
-          name: fluidsynth-multi-reverb-win64
+          name: fluidsynth-master
           path: fluidsynth/
           retention-days: 7
 
@@ -238,7 +238,7 @@ jobs:
       - name: Download FluidSynth
         uses: actions/download-artifact@v8
         with:
-          name: fluidsynth-multi-reverb-win64
+          name: fluidsynth-master
           path: fluidsynth
 
       - name: Build
