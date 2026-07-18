@@ -257,11 +257,11 @@ DownloadSoundFontDialog::DownloadSoundFontDialog(QWidget *parent)
             QStringLiteral("https://www.arachnosoft.com/main/soundfont.php")
         },
         {
-            tr("SGM Pro 13"),
-            tr("125 MB"),
+            tr("SGM Pro 15"),
+            tr("119 MB"),
             tr("SF2"),
-            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Shan.SGM.Pro.13.sf2"),
-            QStringLiteral("SGM Pro 13.sf2"),
+            QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/download/Other/Shan.SGM.Pro.15.sf2"),
+            QStringLiteral("SGM Pro 15.sf2"),
             SoundFontCategory::General,
             QStringLiteral("https://github.com/Meowchestra/SoundFonts/releases/tag/Other")
         },
